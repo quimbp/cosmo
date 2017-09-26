@@ -12,7 +12,7 @@ FFLAGS = -O4
 
 all: $(OBJ)
 	$(FC) $(FFLAGS) -o $(TARGET) $(OBJ) -L../../lib -lcosmo $(CDFLIB)
-#	$(INSTALL) $(TARGET) ../../bin
+	$(INSTALL) $(TARGET) ../../bin
 
 clean:
 	rm -f $(OBJ) *.mod $(TARGET) ../../bin/$(TARGET)
