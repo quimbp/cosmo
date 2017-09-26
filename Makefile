@@ -1,7 +1,16 @@
 include make.inc
 
-all: LIB LAGRANGIAN
+all: include lib bin LIB LAGRANGIAN
 	@echo "Done"
+
+include:
+	mkdir $@
+
+lib:
+	mkdir $@
+
+bin:
+	mkdir $@
 
 LIB:
 	@echo 
