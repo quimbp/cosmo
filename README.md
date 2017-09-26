@@ -9,3 +9,20 @@ The code has been developped under Centos, using the GNU Fortran (GCC)
 Purpose: Build a utility library and a Lagrangian trajectory integrator.
 Requirements: Fortran compiler and the netcdf library version 4.3.X.X
 
+# Installing
+
+To install the code, use:
+
+git clone htpps://github.com/quimbp/cosmo.git
+
+# Compilling
+
+Edit the file make.inc and modify the paths of the installation softer
+(Default: $(HOME)/cosmo), the fortran compiler (Default: gfortran), and
+the path to the NetCDF Fortran 90 modules and libraries (NF90_INC and
+NF90_LIB).
+
+Then type,
+
+make
+
