@@ -29,9 +29,6 @@ LAGRANGIAN:
 	(cd src/lagrangian/; make clean; make all)
 
 clean:
-	(cd src/lib/; make clean)
-	(cd src/tools/; make clean)
-	(cd lib/; rm -f *)
-	(cd include/; rm -f *)
-	(cd bin/; rm -f *)
+	(cd src/lib; make clean)
+	(cd src/lagrangian; make clean)
 
