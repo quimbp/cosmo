@@ -15,7 +15,7 @@ character(len=:), allocatable          :: ans
 
 ! ... Local variables
 ! ...
-integer plen,ip
+integer plen,ip,iw,ic
 character(len=len(line)) lline
 
 lline = compress(line)
@@ -45,7 +45,17 @@ lline = adjustl(lline)
 
 ! ... Check for the first white space or the end of line:
 ! ...
-ip = index(lline,' ') - 1
+iw = index(lline,' ') - 1
+ic = index(lline,',') - 1
+if (iw.le.0.and.ic.gt.0) then
+  ip = ic
+else if (iw.gt.0.and.ic.le.0) then
+  ip = iw
+else if (iw.gt.0.and.ic.gt.0) then
+  ip = min(iw,ic)
+else
+  ip = 0
+endif
 if (ip.le.0) ip = len_trim(lline)
 
 ! ... Get the first word:
