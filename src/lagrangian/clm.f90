@@ -379,7 +379,7 @@ endif
 
 write(*,*)
 write(*,*) 'Input Netcdf grid'
-write(*,*) 'Velocity id           = ', UCDF%varname
+write(*,*) 'Velocity name         = ', UCDF%varname
 write(*,*) 'idx                   = ', UCDF%idx
 write(*,*) 'idy                   = ', UCDF%idy
 write(*,*) 'idz                   = ', UCDF%idz

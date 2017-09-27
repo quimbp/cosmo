@@ -27,6 +27,7 @@
 
 program main
 
+use cosmo
 use clm
 use mod_floats
 use mod_out
@@ -139,28 +140,11 @@ call argstr('-ini',fre_in,release_file_in)
 call argstr('-end',fre_out,release_file_out)
 call argstr('-fin',fre_out,release_file_out)
 
-!call argint('-fr',fir,frec)
-
 call arglst('-U',fuu,Ulist)
 call arglst('-V',fvv,Vlist)
 call arglst('-W',fww,Wlist)
 call arglst('-T',ftt,Tlist)
 
-!call argstr('-uname',uff,UGRID%uname)
-!call argstr('-vname',vff,UGRID%vname)
-!call argstr('-xu',fxu,UGRID%xuname)
-!call argstr('-yu',fyu,UGRID%yuname)
-!call argstr('-xv',fxv,UGRID%xvname)
-!call argstr('-yv',fyv,UGRID%yvname)
-!call argstr('-xt',fxt,UGRID%xtname)
-!call argstr('-yt',fyt,UGRID%ytname)
-!call argstr('-zt',fzt,UGRID%ztname)
-!call argstr('-zw',fzw,UGRID%zwname)
-
-call argdbl('-so',fso,south)
-call argdbl('-no',fno,north)
-call argdbl('-we',fwe,west)
-call argdbl('-ea',fea,east)
 call argdbl('-time_scal',tscale_flag,tscale)
 call argstr('-cal',fcal,calendar)
 call argflg('-stat',stationary)
@@ -175,20 +159,13 @@ call argflg('-ran',random_floats)
 call argdbl('-cl',fra,Radius)
 call argdbl('-xo',ffx,fxo)
 call argdbl('-yo',ffy,fyo)
-!call argint('-day',fnd,Ndays)
-!call argint('-st',fsi,Nsteps)
 call argint('-nf',fnp,Nfloats)
-!call argint('-rec',fvc,record)
-!call argstr('-tem',fte,UGRID%tname)
-!call argstr('-sal',fsa,UGRID%sname)
-!call argstr('-rho',frh,UGRID%rname)
-!call argstr('-ssh',fsh,UGRID%hname)
-!call argflg('-eos',eos)
-!
 
-! ... Get information about grids
-! ... Browsing command line arguments
-! ...
+! ... Not yet implemented
+!call argdbl('-so',fso,south)
+!call argdbl('-no',fno,north)
+!call argdbl('-we',fwe,west)
+!call argdbl('-ea',fea,east)
 
 if (count((/ffx,ffy/)).eq.1) &
    call stop_error(1,'Error. Use both -xo and -yo options')
@@ -200,12 +177,16 @@ if (ftimesim.and.fent) &
    call stop_error(1,'Incompatible options -time_simulation and -steps')
 
 
+! ... Get information about grids
+! ... Browsing command line arguments
+! ...
 UCDF%filename = token_read(Ulist,'file=')
 UCDF%varname  = token_read(Ulist,'u=')
 UCDF%xname    = token_read(Ulist,'x=')
 UCDF%yname    = token_read(Ulist,'y=')
 UCDF%zname    = token_read(Ulist,'z=')
 UCDF%tname    = token_read(Ulist,'t=')
+if (len_trim(UCDF%varname).eq.0) UCDF%varname = 'u'
 
 VCDF%filename = token_read(Vlist,'file=')
 VCDF%varname  = token_read(Vlist,'v=')
@@ -213,6 +194,12 @@ VCDF%xname    = token_read(Vlist,'x=')
 VCDF%yname    = token_read(Vlist,'y=')
 VCDF%zname    = token_read(Vlist,'z=')
 VCDF%tname    = token_read(Vlist,'t=')
+if (len_trim(VCDF%varname).eq.0) VCDF%varname = 'v'
+if (len_trim(VCDF%filename).eq.0) VCDF%filename = trim(UCDF%filename)
+if (len_trim(VCDF%xname).eq.0)    VCDF%xname = trim(UCDF%xname)
+if (len_trim(VCDF%yname).eq.0)    VCDF%yname = trim(UCDF%yname)
+if (len_trim(VCDF%zname).eq.0)    VCDF%zname = trim(UCDF%zname)
+if (len_trim(VCDF%tname).eq.0)    VCDF%tname = trim(UCDF%tname)
 
 WCDF%filename = token_read(Wlist,'file=')
 WCDF%varname  = token_read(Wlist,'w=')
@@ -233,6 +220,11 @@ TCDF%tname    = token_read(Tlist,'t=')
 if (len_trim(TCDF%tempname).eq.0) TCDF%tempname = token_read(Tlist,'temp=')
 if (len_trim(TCDF%saltname).eq.0) TCDF%saltname = token_read(Tlist,'salt=')
 if (len_trim(TCDF%densname).eq.0) TCDF%densname = token_read(Tlist,'dens=')
+if (len_trim(TCDF%filename).eq.0) TCDF%filename = trim(UCDF%filename)
+if (len_trim(TCDF%xname).eq.0)    TCDF%xname = trim(UCDF%xname)
+if (len_trim(TCDF%yname).eq.0)    TCDF%yname = trim(UCDF%yname)
+if (len_trim(TCDF%zname).eq.0)    TCDF%zname = trim(UCDF%zname)
+if (len_trim(TCDF%tname).eq.0)    TCDF%tname = trim(UCDF%tname)
 
 ! ... Check if calendar has been specified by user
 ! ...
