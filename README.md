@@ -1,6 +1,6 @@
 # COSMO
 
-Fortran libraries and tools used for te COSMO project
+Fortran libraries and tools used in the COSMO project
 (CTM2016-79474-R, MINECO/FEDER, UE)
 
 The code has been developped under Centos, using the GNU Fortran (GCC)
