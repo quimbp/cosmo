@@ -8,13 +8,13 @@
 module dates
 
 use types, only: dp
-use utils, only: stop_error
+use utils, only: stop_error,line_replace
 
 implicit none
 private
 public date_type
-public date_string,cal2date,cal2jd,jd2cal,jd2date,date2jd,caldat,julday, &
-       sec2time
+public date_string,string2date,cal2date,cal2jd,jd2cal, &
+       jd2date,date2jd,caldat,julday
 
 type date_type
   integer                  :: year   = 0
@@ -41,26 +41,19 @@ contains
 ! ...
 ! ============================================================================
 ! ...
-function date_string(date,iso,extended) result(text)
+function date_string(date,iso) result(text)
 ! ... Write the date as a string "YYYY-MM-DD HH:MM:SS"
 
 type(date_type), intent(in)             :: date
 character(len=19)                       :: text
 character(len=*), optional              :: iso
-character(len=*), optional              :: extended
 
 ! ... Local variables:
 ! ...
 if (present(iso)) then
-  if (present(extended)) then
-  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
-      date%year, date%month, date%day, &
-      date%hour, date%minute, date%second
-  else
   write(text,'(T1,I4.4,I2.2,I2.2,"T",I2.2,I2.2,I2.2)') &
       date%year, date%month, date%day, &
       date%hour, date%minute, date%second
-  endif
 else
   write(text,'(T1,I4.4,"-",I2.2,"-",I2.2," ",I2.2,":",I2.2,":",I2.2)') &
       date%year, date%month, date%day, &
@@ -68,6 +61,41 @@ else
 endif
 
 end function date_string
+! ...
+! ============================================================================
+! ...
+function string2date(sdate) result(date)
+
+character(len=*), intent(in)            :: sdate
+type(date_type)                         :: date
+
+! ... Local variables
+! ...
+integer ns
+character(len=20) ldate
+
+ldate = trim(sdate)
+ldate = line_replace(ldate,' ','')
+ldate = line_replace(ldate,'-','')
+ldate = line_replace(ldate,':','')
+
+ns = len_trim(ldate)
+if (ns.lt.8) call stop_error(1,'Too short date. Use YYYYMMDD[THHMMDD]')
+
+if (ns.eq.8) then
+  ldate = trim(ldate)//'T000000'
+else if (ns.ne.15) then
+  call stop_error(1,'Invalid date. Use YYYYMMDD[THHMMDD]')
+endif
+
+read(ldate(1:4),*)   date%year 
+read(ldate(5:6),*)   date%month
+read(ldate(7:8),*)   date%day
+read(ldate(10:11),*) date%hour
+read(ldate(12:13),*) date%minute
+read(ldate(14:15),*) date%second
+
+end function string2date
 ! ...
 ! ============================================================================
 ! ...
@@ -315,24 +343,6 @@ if (month.gt.2) year = year-1
 if (year.le.0) year = year-1
 
 end subroutine caldat
-! ...
-! ============================================================================
-! ...
-subroutine sec2time (isecs,hour,minute,second)
-
-integer, intent(in)                      :: isecs
-integer, intent(out)                     :: hour,minute,second
-
-! ... Local variables
-! ...
-integer irest
-
-second = mod(isecs,60)
-irest = (isecs-second)/60
-minute = mod(irest,60)
-hour = (irest-minute)/60
-
-end subroutine sec2time
 ! ...
 ! ============================================================================
 ! ...

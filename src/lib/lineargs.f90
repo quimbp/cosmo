@@ -16,7 +16,8 @@ implicit none
 private
 
 public maxlen
-public lineargs_ini,argstr,argflg,argdbl,argflt,argint,arglst,checkopts
+public lineargs_ini,argstr,argflg,argdbl,argflt,argint,arglst,checkopts, &
+       arglast
 
 integer, parameter                               :: maxlen = 240
 
