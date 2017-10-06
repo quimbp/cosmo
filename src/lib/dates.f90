@@ -14,7 +14,7 @@ implicit none
 private
 public date_type
 public date_string,string2date,cal2date,cal2jd,jd2cal, &
-       jd2date,date2jd,caldat,julday
+       jd2date,date2jd,caldat,julday,sec2time
 
 type date_type
   integer                  :: year   = 0
@@ -350,6 +350,24 @@ if (month.gt.2) year = year-1
 if (year.le.0) year = year-1
 
 end subroutine caldat
+! ...
+! ============================================================================
+! ...
+subroutine sec2time (isecs,hour,minute,second)
+
+integer, intent(in)                      :: isecs
+integer, intent(out)                     :: hour,minute,second
+
+! ... Local variables
+! ...
+integer irest
+
+second = mod(isecs,60)
+irest = (isecs-second)/60
+minute = mod(irest,60)
+hour = (irest-minute)/60
+
+end subroutine sec2time
 ! ...
 ! ============================================================================
 ! ...
