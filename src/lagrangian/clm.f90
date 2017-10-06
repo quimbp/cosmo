@@ -970,39 +970,61 @@ write(*,*)
 ! ...
 if (record.eq.-1) then
   record = lorig  
+else
+  lorig  = record
 endif
 
-if (.not.ftimesim) then
-  if (stationary) then
-    call stop_error(1,'Unknown simulation length, use -time_sim')
+! ... Simulation length and time steps:
+! ...
+if (stationary) then
+  if (ftimesim) then
+    simulation_length = 86400._dp * simulation_length ! From day to secs
   else
-    simulation_length = ellapsed_time(nt)
+    simulation_length = 86400._dp * 7                 ! seven days
   endif
+  if (.not.fedt) external_dt = 86400._dp
+  if (.not.fidt) external_dt =  3600._dp
 else
-  simulation_length = 86400._dp * simulation_length  ! From days to seconds
-  if (.not.stationary) then
-    if (simulation_length.gt.ellapsed_time(nt)-ellapsed_time(record)) then
-      write(*,*) 'Overriding option -time_sim'
-      simulation_length = ellapsed_time(nt) - ellapsed_time(record)
-    endif
+  if (time_direction.gt.0) then
+    simulation_length = ellapsed_time(nt) - ellapsed_time(record)
+  else
+    simulation_length = ellapsed_time(record) - ellapsed_time(1)
   endif
-endif
-
-if (nt.gt.1) then
-  if (fedt) write(*,*) 'WARNING: Overriding user-provided external time step'
   external_dt = mean(dtime)
-else
-  if (.not.fedt.and..not.fent) then
-    call stop_error(1,'External time step required. Use option -edt or -steps')
-  else if (fent) then
-    external_dt = simulation_length / external_nsteps
-  endif
+  if (.not.fidt) internal_dt = 3600._dp
 endif
 
-if (.not.fidt) then
-  ! ... The sign will be updated later
-  internal_dt = abs(external_dt) / 10.d0
-endif
+!if (.not.ftimesim) then
+!  if (stationary) then
+!    call stop_error(1,'Unknown simulation length, use -time_sim')
+!  else
+!    simulation_length = ellapsed_time(nt)
+!  endif
+!else
+!  simulation_length = 86400._dp * simulation_length  ! From days to seconds
+!  if (.not.stationary) then
+!    if (simulation_length.gt.ellapsed_time(nt)-ellapsed_time(record)) then
+!      write(*,*) 'Overriding option -time_sim'
+!      simulation_length = ellapsed_time(nt) - ellapsed_time(record)
+!    endif
+!  endif
+!endif
+!
+!if (nt.gt.1) then
+!  if (fedt) write(*,*) 'WARNING: Overriding user-provided external time step'
+!  external_dt = mean(dtime)
+!else
+!  if (.not.fedt.and..not.fent) then
+!    call stop_error(1,'External time step required. Use option -edt or -steps')
+!  else if (fent) then
+!    external_dt = simulation_length / external_nsteps
+!  endif
+!endif
+!
+!if (.not.fidt) then
+!  ! ... The sign will be updated later
+!  internal_dt = abs(external_dt) / 10.d0
+!endif
 
 external_nsteps = simulation_length / external_dt
 internal_nsteps = external_dt   / internal_dt

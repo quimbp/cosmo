@@ -42,26 +42,30 @@ call help_option ('-xo         XO','Optional value of the float initial &
  &position','')
 call help_option ('-yo         YO','Optional value of the float initial &
  &position','')
+call help_option ('-stationary','Option to calculate streamlines from a given &
+ &record (By the default the first one)','')
+call help_option ('-record     RECORD','Option to start the trajectories &
+ &from the specified record. In case of streamlines, use the selected record &
+ &in the file','1')
 call help_option ('-time_scale SCALE_FACTOR','Optional factor to transform the &
  &time values of velocity field to seconds.','1.')
 call help_option ('-cal        calendar','Optional input time calendar','gregorian')
 call help_option ('-reverse           ','Option for backward integration','')
-call help_option ('-nfloats   NFLOATS','Number of floats to be randomly &
+call help_option ('-nfloats    NFLOATS','Number of floats to be randomly &
  &generated if the positions file is not provided.','10')
-call help_option ('-cloud     RADIUS','If options -xo and -yo are used, the &
+call help_option ('-cloud      RADIUS','If options -xo and -yo are used, the &
  &-cloud option allows setting a cloud of NFLOATS floats randomly distributed &
  &in a RADIUS x RADIUS region centered at the (XO,YO) position.','')
-call help_option ('-record    RECORD','Option to select a given &
- &time-record as a stationnary field.','')
-call help_option ('-idt       DT (in seconds)','Option to select the &
+call help_option ('-idt        DT (in seconds)','Option to select the &
  &time step of the internal loop','3600')
 call help_option ('-time_sim  Time_length (in days)','Option to select the &
  &length of the simulation (if input velocity field has only one time &
 step)','7')
-call help_option ('-edt       DT (in seconds)','Option to select the &
+call help_option ('-edt        DT (in seconds)','Option to select the &
  &time step of the external loop (if input velocity field has only one time &
 step)','86400')
-call help_option ('--options  filename','To read the commandline options from a file.','')
+call help_option ('-seed       INTEGER','Option to modify the random number generator','')
+call help_option ('--options   filename','To read the commandline options from a file.','')
 call help_option ('--help','To show this help','')
 call help_example('lagrangian -U file=roms.nc u=u x=lon y=lat t=time &
  &-V file=roms.nc v=v x=lon y=lat t=time -release release.inp &

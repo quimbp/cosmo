@@ -67,6 +67,7 @@ logical                                 :: fnd = .false.  ! Flag simul. time
 logical                                 :: fsi = .false.  ! Flag simul. interv.
 logical                                 :: fvc = .false.  ! Flag stationary fld
 logical                                 :: hlp = .false.  ! Flag for help
+logical                                 :: frs = .false.  ! Flag Rand seed
 
 character(len=maxlen)                   :: ufile   = ''   ! Input filename
 character(len=maxlen)                   :: vfile   = ''   ! Input filename
@@ -88,6 +89,8 @@ character(len=80)                       :: uzname  = ''
 
 integer                                 :: Ndays   = 7    ! Number of days
 integer                                 :: Nsteps  = 6    ! Time steps per day
+integer                                 :: iseed
+integer, dimension(:), allocatable      :: rseed
 
 
 ! ... General variables
@@ -154,7 +157,7 @@ call argint('-steps',fent,external_nsteps)
 call argdbl('-edt',fedt,external_dt)
 call argdbl('-idt',fidt,internal_dt)
 call argflg('-rev',reverse)
-call argflg('-ran',random_floats)
+call argint('-seed',frs,iseed)
 
 call argdbl('-cl',fra,Radius)
 call argdbl('-xo',ffx,fxo)
@@ -167,6 +170,9 @@ call argint('-nf',fnp,Nfloats)
 !call argdbl('-we',fwe,west)
 !call argdbl('-ea',fea,east)
 
+if (count((/fuu,fvv/)).ne.2) &
+   call stop_error(1,'Error. Options -U and -V required')
+
 if (count((/ffx,ffy/)).eq.1) &
    call stop_error(1,'Error. Use both -xo and -yo options')
 
@@ -176,12 +182,20 @@ if (.not.ffx.and..not.fre_in) random_floats = .true.
 if (ftimesim.and.fent) &
    call stop_error(1,'Incompatible options -time_simulation and -steps')
 
+! ... Random seed
+! ...
+if (frs) then
+  call random_seed(size=i)
+  allocate(rseed(i))
+  rseed(:) = iseed
+  call random_seed(put=rseed)
+endif
 
 ! ... Get information about grids
 ! ... Browsing command line arguments
 ! ...
 UCDF%filename = token_read(Ulist,'file=')
-UCDF%varname  = token_read(Ulist,'u=')
+UCDF%varname  = token_read(Ulist,'vel=')
 UCDF%xname    = token_read(Ulist,'x=')
 UCDF%yname    = token_read(Ulist,'y=')
 UCDF%zname    = token_read(Ulist,'z=')
@@ -189,7 +203,7 @@ UCDF%tname    = token_read(Ulist,'t=')
 if (len_trim(UCDF%varname).eq.0) UCDF%varname = 'u'
 
 VCDF%filename = token_read(Vlist,'file=')
-VCDF%varname  = token_read(Vlist,'v=')
+VCDF%varname  = token_read(Vlist,'vel=')
 VCDF%xname    = token_read(Vlist,'x=')
 VCDF%yname    = token_read(Vlist,'y=')
 VCDF%zname    = token_read(Vlist,'z=')
@@ -201,30 +215,38 @@ if (len_trim(VCDF%yname).eq.0)    VCDF%yname = trim(UCDF%yname)
 if (len_trim(VCDF%zname).eq.0)    VCDF%zname = trim(UCDF%zname)
 if (len_trim(VCDF%tname).eq.0)    VCDF%tname = trim(UCDF%tname)
 
-WCDF%filename = token_read(Wlist,'file=')
-WCDF%varname  = token_read(Wlist,'w=')
-WCDF%xname    = token_read(Wlist,'x=')
-WCDF%yname    = token_read(Wlist,'y=')
-WCDF%zname    = token_read(Wlist,'z=')
-WCDF%tname    = token_read(Wlist,'t=')
+if (fvv) then
+  WCDF%filename = token_read(Wlist,'file=')
+  WCDF%varname  = token_read(Wlist,'w=')
+  WCDF%xname    = token_read(Wlist,'x=')
+  WCDF%yname    = token_read(Wlist,'y=')
+  WCDF%zname    = token_read(Wlist,'z=')
+  WCDF%tname    = token_read(Wlist,'t=')
+else
+  WCDF%defined  = .false.
+endif
 
-TCDF%filename = token_read(Tlist,'file=')
-TCDF%tempname = token_read(Tlist,'tem=')
-TCDF%saltname = token_read(Tlist,'sal=')
-TCDF%densname = token_read(Tlist,'den=')
-TCDF%sshname  = token_read(Tlist,'ssh=')
-TCDF%xname    = token_read(Tlist,'x=')
-TCDF%yname    = token_read(Tlist,'y=')
-TCDF%zname    = token_read(Tlist,'z=')
-TCDF%tname    = token_read(Tlist,'t=')
-if (len_trim(TCDF%tempname).eq.0) TCDF%tempname = token_read(Tlist,'temp=')
-if (len_trim(TCDF%saltname).eq.0) TCDF%saltname = token_read(Tlist,'salt=')
-if (len_trim(TCDF%densname).eq.0) TCDF%densname = token_read(Tlist,'dens=')
-if (len_trim(TCDF%filename).eq.0) TCDF%filename = trim(UCDF%filename)
-if (len_trim(TCDF%xname).eq.0)    TCDF%xname = trim(UCDF%xname)
-if (len_trim(TCDF%yname).eq.0)    TCDF%yname = trim(UCDF%yname)
-if (len_trim(TCDF%zname).eq.0)    TCDF%zname = trim(UCDF%zname)
-if (len_trim(TCDF%tname).eq.0)    TCDF%tname = trim(UCDF%tname)
+if (ftt) then
+  TCDF%filename = token_read(Tlist,'file=')
+  TCDF%tempname = token_read(Tlist,'tem=')
+  TCDF%saltname = token_read(Tlist,'sal=')
+  TCDF%densname = token_read(Tlist,'den=')
+  TCDF%sshname  = token_read(Tlist,'ssh=')
+  TCDF%xname    = token_read(Tlist,'x=')
+  TCDF%yname    = token_read(Tlist,'y=')
+  TCDF%zname    = token_read(Tlist,'z=')
+  TCDF%tname    = token_read(Tlist,'t=')
+  if (len_trim(TCDF%tempname).eq.0) TCDF%tempname = token_read(Tlist,'temp=')
+  if (len_trim(TCDF%saltname).eq.0) TCDF%saltname = token_read(Tlist,'salt=')
+  if (len_trim(TCDF%densname).eq.0) TCDF%densname = token_read(Tlist,'dens=')
+  if (len_trim(TCDF%filename).eq.0) TCDF%filename = trim(UCDF%filename)
+  if (len_trim(TCDF%xname).eq.0)    TCDF%xname = trim(UCDF%xname)
+  if (len_trim(TCDF%yname).eq.0)    TCDF%yname = trim(UCDF%yname)
+  if (len_trim(TCDF%zname).eq.0)    TCDF%zname = trim(UCDF%zname)
+  if (len_trim(TCDF%tname).eq.0)    TCDF%tname = trim(UCDF%tname)
+else
+  WCDF%defined  = .false.
+endif
 
 ! ... Check if calendar has been specified by user
 ! ...
