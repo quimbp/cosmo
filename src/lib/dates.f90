@@ -41,19 +41,26 @@ contains
 ! ...
 ! ============================================================================
 ! ...
-function date_string(date,iso) result(text)
+function date_string(date,iso,extended) result(text)
 ! ... Write the date as a string "YYYY-MM-DD HH:MM:SS"
 
 type(date_type), intent(in)             :: date
 character(len=19)                       :: text
 character(len=*), optional              :: iso
+character(len=*), optional              :: extended
 
 ! ... Local variables:
 ! ...
 if (present(iso)) then
+  if (present(extended)) then
+  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
+      date%year, date%month, date%day, &
+      date%hour, date%minute, date%second
+  else
   write(text,'(T1,I4.4,I2.2,I2.2,"T",I2.2,I2.2,I2.2)') &
       date%year, date%month, date%day, &
       date%hour, date%minute, date%second
+  endif
 else
   write(text,'(T1,I4.4,"-",I2.2,"-",I2.2," ",I2.2,":",I2.2,":",I2.2)') &
       date%year, date%month, date%day, &

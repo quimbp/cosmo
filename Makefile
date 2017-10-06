@@ -1,6 +1,6 @@
 include make.inc
 
-all: include lib bin LIB LAGRANGIAN
+all: include lib bin LIB LAGRANGIAN TOOLS
 	@echo "Done"
 
 include:
@@ -28,7 +28,16 @@ LAGRANGIAN:
 	@echo 
 	(cd src/lagrangian/; make clean; make all)
 
+TOOLS:
+	@echo 
+	@echo "=============================================="
+	@echo "Compiling TOOLS"
+	@echo "=============================================="
+	@echo 
+	(cd src/tools/; make clean; make all)
+
 clean:
 	(cd src/lib; make clean)
 	(cd src/lagrangian; make clean)
+	(cd src/tools; make clean)
 
