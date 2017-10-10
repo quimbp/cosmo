@@ -15,6 +15,7 @@ module cosmo
   use dates
   use grids
   use tokens
+  use ocean
 
   implicit none
 

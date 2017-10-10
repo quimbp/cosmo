@@ -26,7 +26,8 @@ integer                               :: odrel
 integer                               :: odtemp
 integer                               :: odsalt
 integer                               :: oddens
-integer                               :: odssh
+integer                               :: odudf
+integer                               :: ode
 
 contains
 ! ...
@@ -86,15 +87,19 @@ err = NF90_DEF_VAR(ncId,'salinity',NF90_REAL,(/odi,odl/),odsalt)
 err = NF90_DEF_VAR(ncId,'density',NF90_REAL,(/odi,odl/),oddens)
   err = NF90_PUT_ATT(ncId,oddens,'_FillValue',sngl(FLT%missing))
 
-!err = NF90_DEF_VAR(ncId,'exitcode',NF90_REAL,(/odi/),ode)
-!call cdf_error(err,'Unable to define exitcode')
-!  err = NF90_PUT_ATT(ncId,ode,'long_name','Status with which the particle exits')
-!  err = NF90_PUT_ATT(ncId,ode,'0','Particle was moving')
-!  err = NF90_PUT_ATT(ncId,ode,'1','Particle left the model area')
-!  err = NF90_PUT_ATT(ncId,ode,'2','Particle too close to land')
+err = NF90_DEF_VAR(ncId,'udf',NF90_REAL,(/odi,odl/),odudf)
+  err = NF90_PUT_ATT(ncId,odudf,'_FillValue',sngl(FLT%missing))
 
 err = NF90_DEF_VAR(ncId,'release_time',NF90_DOUBLE,(/odi/),odrel)
   err = NF90_PUT_ATT(ncId,odrel,'long_name','Time the particle is released')
+
+err = NF90_DEF_VAR(ncId,'exitcode',NF90_INT,(/odi/),ode)
+call cdf_error(err,'Unable to define exitcode')
+  err = NF90_PUT_ATT(ncId,ode,'long_name','Status with which the particle exits')
+  err = NF90_PUT_ATT(ncId,ode,'-1','Particle has not been released')
+  err = NF90_PUT_ATT(ncId,ode,'0','Particle was moving')
+  err = NF90_PUT_ATT(ncId,ode,'1','Particle left the model area')
+  err = NF90_PUT_ATT(ncId,ode,'2','Particle too close to land')
 
 err = cdf_put_command(ncId)
 call cdf_error(err,'Unable to write CommandLine attribute')
@@ -142,9 +147,43 @@ do flo=1,FLT%n
   call cdf_error(err,'Unable to save salinity')
   err = NF90_PUT_VAR(ncId,oddens,(/FLT%dens(flo)/),(/flo,kk/),(/1,1/))
   call cdf_error(err,'Unable to save density')
+  err = NF90_PUT_VAR(ncId,odudf,(/FLT%UDF(flo)/),(/flo,kk/),(/1,1/))
+  call cdf_error(err,'Unable to save user-defined function')
 enddo
 
 end subroutine out_save
+! ...
+! =====================================================================
+! ...
+subroutine out_exitmode(FLT)
+
+type(floater), intent(in)               :: FLT
+
+! ... Local variables
+! ...
+integer err,flo
+integer, dimension(FLT%n)  :: emode
+
+do flo=1,FLT%n
+  if (FLT%released(flo)) then
+    if (FLT%floating(flo)) THEN
+      emode(flo) = 0
+    else if (FLT%outside(flo)) then
+      emode(flo) = 1
+    else if (FLT%stranded(flo)) then
+      emode(flo) = 2
+    else
+      stop 'Why am I here?'
+    endif
+  else
+    emode(flo) = -1
+  endif
+enddo
+
+err = NF90_PUT_VAR(ncId,ode,emode)
+call cdf_error(err,'Unable to save user-defined function')
+
+end subroutine out_exitmode
 ! ...
 ! =====================================================================
 ! ...

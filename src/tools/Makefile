@@ -5,7 +5,7 @@ include ../../make.inc
 LIB = -L$(LIBDIR) -lcosmo $(CDFLIB)
 INC = -I$(INCDIR) $(CDFINC)
 
-TARGETS = floatloc
+TARGETS = floatloc streamline
 
 .f90: 
 	$(FC) $(FFLAGS) -o $@ $@.f90 $(INC) $(LIB)

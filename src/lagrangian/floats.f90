@@ -1,6 +1,11 @@
 ! ****************************************************************************
 ! ... floats.f90
 ! ... Quim Ballabrera, April 2017
+! ... Exit code:
+! ... -1: Not released
+! ...  0: Floating
+! ...  1: Left the system
+! ...  2: Stranded
 ! ****************************************************************************
 
 module mod_floats
@@ -45,7 +50,7 @@ type floater
   real(dp), dimension(:), pointer        :: temp                 ! temperature
   real(dp), dimension(:), pointer        :: salt                 ! salinity
   real(dp), dimension(:), pointer        :: dens                 ! density
-  real(dp), dimension(:), pointer        :: ssh                  ! sea level
+  real(dp), dimension(:), pointer        :: UDF                  ! User-defined function
   type(date_type)                        :: date                 ! A given date
   integer, dimension(:), pointer         :: exitcode             ! exit code
   logical, dimension(:), pointer         :: released             ! released flag
@@ -310,7 +315,7 @@ allocate(FLOAT_STRUCTURE%dist         (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%temp         (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%salt         (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%dens         (FLOAT_STRUCTURE%n) )
-allocate(FLOAT_STRUCTURE%ssh          (FLOAT_STRUCTURE%n) )
+allocate(FLOAT_STRUCTURE%UDF          (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%released     (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%floating     (FLOAT_STRUCTURE%n) )
 allocate(FLOAT_STRUCTURE%stranded     (FLOAT_STRUCTURE%n) )
@@ -326,12 +331,12 @@ FLOAT_STRUCTURE%dist(:)         = zero
 FLOAT_STRUCTURE%temp(:)         = nan
 FLOAT_STRUCTURE%salt(:)         = nan
 FLOAT_STRUCTURE%dens(:)         = nan
-FLOAT_STRUCTURE%ssh(:)          = nan
+FLOAT_STRUCTURE%UDF(:)          = nan
 FLOAT_STRUCTURE%released(:)     = .false.
 FLOAT_STRUCTURE%floating(:)     = .false.
 FLOAT_STRUCTURE%stranded(:)     = .false.
 FLOAT_STRUCTURE%outside(:)      = .false.
-FLOAT_STRUCTURE%exitcode(:)     = 0
+FLOAT_STRUCTURE%exitcode(:)     = -1
 
 end subroutine floater_alloc
 ! ...

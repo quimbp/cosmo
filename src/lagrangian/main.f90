@@ -148,6 +148,7 @@ call arglst('-V',fvv,Vlist)
 call arglst('-W',fww,Wlist)
 call arglst('-T',ftt,Tlist)
 
+call argdbl('-miss',fmv,missing)
 call argdbl('-time_scal',tscale_flag,tscale)
 call argstr('-cal',fcal,calendar)
 call argflg('-stat',stationary)
@@ -231,7 +232,6 @@ if (ftt) then
   TCDF%tempname = token_read(Tlist,'tem=')
   TCDF%saltname = token_read(Tlist,'sal=')
   TCDF%densname = token_read(Tlist,'den=')
-  TCDF%sshname  = token_read(Tlist,'ssh=')
   TCDF%xname    = token_read(Tlist,'x=')
   TCDF%yname    = token_read(Tlist,'y=')
   TCDF%zname    = token_read(Tlist,'z=')
@@ -347,6 +347,10 @@ endif
 ! ...
 call clm_run (UCDF,VCDF,WCDF,TCDF,FLT)
 
+! ... Write exit mode:
+! ...
+call out_exitmode(FLT)
+
 ! ... Close trajectory
 ! ...
 call out_close(ofile)
@@ -363,10 +367,10 @@ open(iu,file=release_file_out,status='unknown')
 do flo=1,FLT%n
   write(*,'(3F10.4,F10.0,4F9.3)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
                      FLT%time(flo), FLT%temp(flo), FLT%salt(flo), &
-                     FLT%dens(flo), FLT%ssh(flo)
+                     FLT%dens(flo), FLT%UDF(flo)
   write(iu,'(3F10.4,F10.0,4F9.3)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
                       FLT%time(flo), FLT%temp(flo), FLT%salt(flo), &
-                      FLT%dens(flo), FLT%ssh(flo)
+                      FLT%dens(flo), FLT%UDF(flo)
 enddo
 close(iu)
 

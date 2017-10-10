@@ -12,7 +12,7 @@ IMPLICIT NONE
 
 PRIVATE
 PUBLIC pi,e_,nan,inf,deg2rad,rad2deg,i_,dpi,hpi
-PUBLIC zero,one,half,two
+PUBLIC zero,one,half,two,ten,hundred
 PUBLIC nan4,inf4
 PUBLIC grav,Rearth,Omega
 
@@ -22,6 +22,8 @@ REAL(dp), PARAMETER    :: zero    = 0.0_dp
 REAL(dp), PARAMETER    :: one     = 1.0_dp
 REAL(dp), PARAMETER    :: two     = 2.0_dp
 REAL(dp), PARAMETER    :: half    = 0.5_dp
+REAL(dp), PARAMETER    :: ten     = 10.0_dp
+REAL(dp), PARAMETER    :: hundred = 100.0_dp
 REAL(dp), PARAMETER    :: pi      = 3.1415926535897932384626433832795_dp
 REAL(dp), PARAMETER    :: dpi     = 2.0_dp*pi
 REAL(dp), PARAMETER    :: hpi     = 0.5_dp*pi

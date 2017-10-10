@@ -58,6 +58,7 @@ character(len=80)                        :: time_units  = ''
 
 ! ... Missing value
 ! ...
+logical                                  :: fmv         = .false.
 real(dp)                                 :: missing     = nan
 
 
@@ -85,15 +86,12 @@ type(date_type)                          :: date_fin
 ! ... Temporary spaces
 ! ...
 real(dp), dimension(:,:,:), pointer     :: uu,vv,ww,tt,ss,rr
-real(dp), dimension(:,:), pointer       :: hh
 
 ! ... Cubic time interpolation
 ! ...
 integer, dimension(4)                   :: records
 real(dp), dimension(:,:,:,:), pointer   :: utab,vtab,wtab,ttab,stab,rtab
-real(dp), dimension(:,:,:), pointer     :: htab
 real(dp), dimension(:,:,:,:), pointer   :: ucoef,vcoef,wcoef,tcoef,scoef,rcoef
-real(dp), dimension(:,:,:), pointer     :: hcoef
 
 ! ... Those fields represent the values at any given time
 ! ... they can be constant or come from a cubic interpolation
@@ -131,8 +129,9 @@ type field
   integer                               :: ppk
   integer                               :: ppl
   real(dp)                              :: time
+  logical                               :: missingdefined
   logical                               :: missingisnan
-  real(dp)                              :: missing
+  real(dp)                              :: missing_value
   real(dp)                              :: add_offset
   real(dp)                              :: scale_factor
   real(dp), dimension(:,:,:), pointer   :: data
@@ -186,7 +185,6 @@ type cdf_tgrid
   integer                               :: idtemp   = -1
   integer                               :: idsalt   = -1
   integer                               :: iddens   = -1
-  integer                               :: idssh    = -1
   integer                               :: nx       =  1
   integer                               :: ny       =  1
   integer                               :: nz       =  1
@@ -195,7 +193,6 @@ type cdf_tgrid
   character(len=80)                     :: tempname = ''
   character(len=80)                     :: saltname = ''
   character(len=80)                     :: densname = ''
-  character(len=80)                     :: sshname  = ''
   character(len=80)                     :: xname    = ''
   character(len=80)                     :: yname    = ''
   character(len=80)                     :: zname    = ''
@@ -214,7 +211,6 @@ type cdf_tgrid
   type(field)                           :: temp
   type(field)                           :: salt
   type(field)                           :: dens
-  type(field)                           :: ssh 
   logical, dimension(:,:,:), pointer    :: land
   logical, dimension(:,:,:), pointer    :: sea
 end type cdf_tgrid
@@ -415,10 +411,22 @@ do i=1,icdf%vndims(idv)
   if (icdf%dimids(i,idv).eq.icdf%idl) UCDF%vel%ppl = i
 enddo
 
-UCDF%vel%missingisnan = icdf%missingisnan(idv)
-UCDF%vel%missing      = icdf%missing_value(idv)
 UCDF%vel%add_offset   = icdf%add_offset(idv)
 UCDF%vel%scale_factor = icdf%scale_factor(idv)
+
+if (icdf%missing(idv)) then
+  UCDF%vel%missingdefined = .true.
+  UCDF%vel%missing_value  = icdf%missing_value(idv)
+  UCDF%vel%missingisnan   = icdf%missingisnan(idv)
+else if (icdf%fill(idv)) then
+  UCDF%vel%missingdefined = .true.
+  UCDF%vel%missing_value  = icdf%fill_value(idv)
+  UCDF%vel%missingisnan   = icdf%missingisnan(idv)
+else
+  UCDF%vel%missingdefined = .false.
+  UCDF%vel%missing_value  = missing
+  UCDF%vel%missingisnan   = isnan(missing)
+endif
 
 allocate(UCDF%vel%data(UCDF%nx,UCDF%ny,UCDF%nz))
 
@@ -589,12 +597,6 @@ if (len_trim(TCDF%densname).gt.0) then
   TCDF%defined = .true.
 endif
 
-if (len_trim(TCDF%sshname).gt.0) then
-  err = NF90_INQ_VARID (TCDF%fid,TCDF%sshname,TCDF%idssh)
-  call cdf_error(err,'Variable '//trim(TCDF%sshname)//' not found')
-  TCDF%defined = .true.
-endif
-
 write(*,*)
 write(*,*) 'Input Netcdf grid'
 write(*,*) 'idx                   = ', TCDF%idx
@@ -608,26 +610,35 @@ write(*,*) 'nt                    = ', TCDF%nt
 write(*,*) 'Temperature           = ', TCDF%tempname
 write(*,*) 'Salinity              = ', TCDF%saltname
 write(*,*) 'Density               = ', TCDF%densname
-write(*,*) 'Sea level             = ', TCDF%sshname
 write(*,*) 'Temperature id        = ', TCDF%idtemp
 write(*,*) 'Salinity id           = ', TCDF%idsalt
 write(*,*) 'Density id            = ', TCDF%iddens
-write(*,*) 'Sea level id          = ', TCDF%idssh
 
 if (.not.TCDF%defined) call stop_error (1,'T file has no defined variables')
 
 if (len_trim(TCDF%tempname).gt.0) then
-  idv                    = TCDF%idtemp
-  TCDF%temp%fid          = TCDF%fid
-  TCDF%temp%id           = idv
-  TCDF%temp%ndims        = icdf%vndims(idv)
-  TCDF%temp%nx           = TCDF%nx
-  TCDF%temp%ny           = TCDF%ny
-  TCDF%temp%nz           = TCDF%nz
-  TCDF%temp%missingisnan = icdf%missingisnan(idv)
-  TCDF%temp%missing      = icdf%missing_value(idv)
-  TCDF%temp%add_offset   = icdf%add_offset(idv)
-  TCDF%temp%scale_factor = icdf%scale_factor(idv)
+  idv                     = TCDF%idtemp
+  TCDF%temp%fid           = TCDF%fid
+  TCDF%temp%id            = idv
+  TCDF%temp%ndims         = icdf%vndims(idv)
+  TCDF%temp%nx            = TCDF%nx
+  TCDF%temp%ny            = TCDF%ny
+  TCDF%temp%nz            = TCDF%nz
+  TCDF%temp%add_offset    = icdf%add_offset(idv)
+  TCDF%temp%scale_factor  = icdf%scale_factor(idv)
+  if (icdf%missing(idv)) then
+    TCDF%temp%missingdefined = .true.
+    TCDF%temp%missing_value  = icdf%missing_value(idv)
+    TCDF%temp%missingisnan   = icdf%missingisnan(idv)
+  else if (icdf%fill(idv)) then
+    TCDF%temp%missingdefined = .true.
+    TCDF%temp%missing_value  = icdf%fill_value(idv)
+    TCDF%temp%missingisnan   = icdf%missingisnan(idv)
+  else
+    TCDF%temp%missingdefined = .false.
+    TCDF%temp%missing_value  = missing
+    TCDF%temp%missingisnan   = isnan(missing)
+  endif
   allocate(TCDF%temp%data(TCDF%nx,TCDF%ny,TCDF%nz))
 
   TCDF%temp%ppi          = -1
@@ -640,25 +651,35 @@ if (len_trim(TCDF%tempname).gt.0) then
     if (icdf%dimids(i,idv).eq.icdf%idk) TCDF%temp%ppk = i
     if (icdf%dimids(i,idv).eq.icdf%idl) TCDF%temp%ppl = i
   enddo
-
 endif
 
 if (len_trim(TCDF%saltname).gt.0) then
-  idv                    = TCDF%idsalt
-  TCDF%salt%fid          = TCDF%fid
-  TCDF%salt%id           = idv
-  TCDF%salt%ndims        = icdf%vndims(idv)
-  TCDF%salt%ppi          = icdf%ppi(idv)
-  TCDF%salt%ppj          = icdf%ppj(idv)
-  TCDF%salt%ppk          = icdf%ppk(idv)
-  TCDF%salt%ppl          = icdf%ppl(idv)
-  TCDF%salt%nx           = TCDF%nx
-  TCDF%salt%ny           = TCDF%ny
-  TCDF%salt%nz           = TCDF%nz
-  TCDF%salt%missingisnan = icdf%missingisnan(idv)
-  TCDF%salt%missing      = icdf%missing_value(idv)
-  TCDF%salt%add_offset   = icdf%add_offset(idv)
+  idv                     = TCDF%idsalt
+  TCDF%salt%fid           = TCDF%fid
+  TCDF%salt%id            = idv
+  TCDF%salt%ndims         = icdf%vndims(idv)
+  TCDF%salt%ppi           = icdf%ppi(idv)
+  TCDF%salt%ppj           = icdf%ppj(idv)
+  TCDF%salt%ppk           = icdf%ppk(idv)
+  TCDF%salt%ppl           = icdf%ppl(idv)
+  TCDF%salt%nx            = TCDF%nx
+  TCDF%salt%ny            = TCDF%ny
+  TCDF%salt%nz            = TCDF%nz
+  TCDF%salt%add_offset    = icdf%add_offset(idv)
   TCDF%salt%scale_factor = icdf%scale_factor(idv)
+  if (icdf%missing(idv)) then
+    TCDF%salt%missingdefined = .true.
+    TCDF%salt%missing_value  = icdf%missing_value(idv)
+    TCDF%salt%missingisnan   = icdf%missingisnan(idv)
+  else if (icdf%fill(idv)) then
+    TCDF%salt%missingdefined = .true.
+    TCDF%salt%missing_value  = icdf%fill_value(idv)
+    TCDF%salt%missingisnan   = icdf%missingisnan(idv)
+  else
+    TCDF%salt%missingdefined = .false.
+    TCDF%salt%missing_value  = missing
+    TCDF%salt%missingisnan   = isnan(missing)
+  endif
   allocate(TCDF%salt%data(TCDF%nx,TCDF%ny,TCDF%nz))
 
   TCDF%salt%ppi          = -1
@@ -671,7 +692,6 @@ if (len_trim(TCDF%saltname).gt.0) then
     if (icdf%dimids(i,idv).eq.icdf%idk) TCDF%salt%ppk = i
     if (icdf%dimids(i,idv).eq.icdf%idl) TCDF%salt%ppl = i
   enddo
-
 endif
 
 if (len_trim(TCDF%densname).gt.0) then
@@ -686,10 +706,21 @@ if (len_trim(TCDF%densname).gt.0) then
   TCDF%dens%nx           = TCDF%nx
   TCDF%dens%ny           = TCDF%ny
   TCDF%dens%nz           = TCDF%nz
-  TCDF%dens%missingisnan = icdf%missingisnan(idv)
-  TCDF%dens%missing      = icdf%missing_value(idv)
   TCDF%dens%add_offset   = icdf%add_offset(idv)
   TCDF%dens%scale_factor = icdf%scale_factor(idv)
+  if (icdf%missing(idv)) then
+    TCDF%dens%missingdefined = .true.
+    TCDF%dens%missing_value  = icdf%missing_value(idv)
+    TCDF%dens%missingisnan   = icdf%missingisnan(idv)
+  else if (icdf%fill(idv)) then
+    TCDF%dens%missingdefined = .true.
+    TCDF%dens%missing_value  = icdf%fill_value(idv)
+    TCDF%dens%missingisnan   = icdf%missingisnan(idv)
+  else
+    TCDF%dens%missingdefined = .false.
+    TCDF%dens%missing_value  = missing
+    TCDF%dens%missingisnan   = isnan(missing)
+  endif
   allocate(TCDF%dens%data(TCDF%nx,TCDF%ny,TCDF%nz))
 
   TCDF%dens%ppi          = -1
@@ -702,38 +733,6 @@ if (len_trim(TCDF%densname).gt.0) then
     if (icdf%dimids(i,idv).eq.icdf%idk) TCDF%dens%ppk = i
     if (icdf%dimids(i,idv).eq.icdf%idl) TCDF%dens%ppl = i
   enddo
-
-endif
-
-if (len_trim(TCDF%sshname).gt.0) then
-  idv                    = TCDF%idssh
-  TCDF%ssh%fid           = TCDF%fid
-  TCDF%ssh%id            = idv
-  TCDF%ssh%ndims         = icdf%vndims(idv)
-  TCDF%ssh%ppi           = icdf%ppi(idv)
-  TCDF%ssh%ppj           = icdf%ppj(idv)
-  TCDF%ssh%ppk           = icdf%ppk(idv)
-  TCDF%ssh%ppl           = icdf%ppl(idv)
-  TCDF%ssh%nx            = TCDF%nx
-  TCDF%ssh%ny            = TCDF%ny
-  TCDF%ssh%nz            = TCDF%nz
-  TCDF%ssh%missingisnan  = icdf%missingisnan(idv)
-  TCDF%ssh%missing       = icdf%missing_value(idv)
-  TCDF%ssh%add_offset    = icdf%add_offset(idv)
-  TCDF%ssh%scale_factor  = icdf%scale_factor(idv)
-  allocate(TCDF%ssh%data(TCDF%nx,TCDF%ny,TCDF%nz))
-
-  TCDF%ssh%ppi          = -1
-  TCDF%ssh%ppj          = -1
-  TCDF%ssh%ppk          = -1
-  TCDF%ssh%ppl          = -1
-  do i=1,icdf%vndims(idv)
-    if (icdf%dimids(i,idv).eq.icdf%idi) TCDF%ssh%ppi = i
-    if (icdf%dimids(i,idv).eq.icdf%idj) TCDF%ssh%ppj = i
-    if (icdf%dimids(i,idv).eq.icdf%idk) TCDF%ssh%ppk = i
-    if (icdf%dimids(i,idv).eq.icdf%idl) TCDF%ssh%ppl = i
-  enddo
-
 endif
 
 allocate(TCDF%land(TCDF%nx,TCDF%ny,TCDF%nz))
@@ -767,7 +766,7 @@ land = .false.
 if (u%missingisnan) then
   where(isnan(u%data))       land = .true.
 else
-  where(u%data.eq.u%missing) land = .true.
+  where(u%data.eq.u%missing_value) land = .true.
 endif
 
 end subroutine get_land
@@ -801,7 +800,6 @@ if (TCDF%defined) then
   if (TCDF%idtemp.gt.0) write(*,*) 'Temperature field          : ', trim(TCDF%tempname)
   if (TCDF%idsalt.gt.0) write(*,*) 'Salinity field             : ', trim(TCDF%saltname)
   if (TCDF%iddens.gt.0) write(*,*) 'Density field              : ', trim(TCDF%densname)
-  if (TCDF%idssh.gt.0)  write(*,*) 'Sea level field            : ', trim(TCDF%sshname)
 endif
 
 nx = UCDF%nx
@@ -983,7 +981,7 @@ if (stationary) then
     simulation_length = 86400._dp * 7                 ! seven days
   endif
   if (.not.fedt) external_dt = 86400._dp
-  if (.not.fidt) external_dt =  3600._dp
+  if (.not.fidt) internal_dt =  3600._dp
 else
   if (time_direction.gt.0) then
     simulation_length = ellapsed_time(nt) - ellapsed_time(record)
@@ -993,38 +991,6 @@ else
   external_dt = mean(dtime)
   if (.not.fidt) internal_dt = 3600._dp
 endif
-
-!if (.not.ftimesim) then
-!  if (stationary) then
-!    call stop_error(1,'Unknown simulation length, use -time_sim')
-!  else
-!    simulation_length = ellapsed_time(nt)
-!  endif
-!else
-!  simulation_length = 86400._dp * simulation_length  ! From days to seconds
-!  if (.not.stationary) then
-!    if (simulation_length.gt.ellapsed_time(nt)-ellapsed_time(record)) then
-!      write(*,*) 'Overriding option -time_sim'
-!      simulation_length = ellapsed_time(nt) - ellapsed_time(record)
-!    endif
-!  endif
-!endif
-!
-!if (nt.gt.1) then
-!  if (fedt) write(*,*) 'WARNING: Overriding user-provided external time step'
-!  external_dt = mean(dtime)
-!else
-!  if (.not.fedt.and..not.fent) then
-!    call stop_error(1,'External time step required. Use option -edt or -steps')
-!  else if (fent) then
-!    external_dt = simulation_length / external_nsteps
-!  endif
-!endif
-!
-!if (.not.fidt) then
-!  ! ... The sign will be updated later
-!  internal_dt = abs(external_dt) / 10.d0
-!endif
 
 external_nsteps = simulation_length / external_dt
 internal_nsteps = external_dt   / internal_dt
@@ -1038,6 +1004,13 @@ write(*,*) 'External time step         = ', external_dt
 write(*,*) 'External number time steps = ', external_nsteps
 write(*,*) 'Internal time step         = ', internal_dt
 write(*,*) 'Internal number time steps = ', internal_nsteps
+
+if (UCDF%vel%missingdefined) then
+  missing = UCDF%vel%missing_value
+endif
+
+write(*,*) 
+write(*,*) 'Missing value              = ', missing
 
 ! ... Working box
 ! ...
@@ -1112,10 +1085,12 @@ real(dp), dimension(2)                   :: vp,vn
 real(dp)                                 :: system_time
 type(date_type)                          :: system_date
 
-real(dp) hinterpol
-external hinterpol
+real(dp) hinterpol,udf
+external hinterpol,udf
 
-missing = UCDF%vel%missing
+!if (UCDF%vel%missingdefined) then
+!  missing = UCDF%vel%missing_value
+!endif
 system_date%calendar = trim(calendar)
 FLT%date%calendar    = trim(calendar)
 
@@ -1127,7 +1102,6 @@ allocate(ww(nx,ny,nz))   ! W tmp array
 allocate(tt(nx,ny,nz))   ! Temp tmp array
 allocate(ss(nx,ny,nz))   ! Salt tmp array
 allocate(rr(nx,ny,nz))   ! Dens tmp array
-allocate(hh(nx,ny))      ! SSH temp array
 
 ! ... Allocating memory space for cubic time interpolation
 ! ...
@@ -1137,7 +1111,6 @@ allocate(wtab(nx,ny,nz,4))
 allocate(ttab(nx,ny,nz,4))
 allocate(stab(nx,ny,nz,4))
 allocate(rtab(nx,ny,nz,4))
-allocate(htab(nx,ny,4))
 
 ! ... Memory space for cubic time interpolation coeffs
 ! ...
@@ -1147,7 +1120,6 @@ allocate(wcoef(nx,ny,nz,4))
 allocate(tcoef(nx,ny,nz,4))
 allocate(scoef(nx,ny,nz,4))
 allocate(rcoef(nx,ny,nz,4))
-allocate(hcoef(nx,ny,4))
 
 ! ... Allocating space for the RK5 intermediate spaces
 ! ...
@@ -1157,7 +1129,6 @@ allocate(wrhs(nx,ny,nz,5))
 allocate(trhs(nx,ny,nz,5))
 allocate(srhs(nx,ny,nz,5))
 allocate(rrhs(nx,ny,nz,5))
-allocate(hrhs(nx,ny,5))
 
 write(*,*)
 write(*,*)
@@ -1194,7 +1165,8 @@ do external_step=1,external_nsteps
   write(*,*) 'External step = ', external_step
   write(*,*) 'CLM Time      = ', external_time
   write(*,*) 'SYSTEM Time   = ', system_time
-  write(*,*) 'SYSTEM Date   =    ', date_string(jd2date(system_time),'iso','extended')
+  write(*,*) 'SYSTEM Date   =    ', date_string(jd2date(system_time), &
+                                                'iso','extended')
   write(*,*) 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
 
   ! ... Calculating the cubic time interpolation coefficients
@@ -1241,16 +1213,12 @@ do external_step=1,external_nsteps
               FLT%dens(flo) = missing
             endif
           endif
-          if (TCDF%idssh.gt.0) then
-            FLT%ssh(flo)  = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),hrhs(:,:,1),vp(1),vp(2))
-          else
-            FLT%ssh(flo)  = missing
-          endif
+          FLT%UDF(flo)  = udf(2,(/FLT%lon(flo),FLT%lat(flo)/))
         else
           FLT%temp(flo) = missing
           FLT%salt(flo) = missing
           FLT%dens(flo) = missing
-          FLT%ssh(flo)  = missing
+          FLT%UDF(flo)  = missing
         endif
         FLT%dist(flo) = zero
       enddo
@@ -1261,6 +1229,7 @@ do external_step=1,external_nsteps
       FLT%date = jd2date(system_time)
       call out_save(FLT,kout,system_time)
     endif
+
 
     ! ... Loop over floaters
     ! ...
@@ -1305,7 +1274,7 @@ do external_step=1,external_nsteps
             FLT%temp(flo)     =  missing
             FLT%salt(flo)     =  missing
             FLT%dens(flo)     =  missing
-            FLT%ssh(flo)      =  missing
+            FLT%UDF(flo)      =  missing
           else 
             if (FLT%stranded(flo)) then
               write(*,*) 'Stranded floater ', flo
@@ -1331,11 +1300,7 @@ do external_step=1,external_nsteps
                   FLT%dens(flo) = missing
                 endif
               endif
-              if (TCDF%idssh.gt.0) then
-                FLT%ssh(flo)  = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),hrhs(:,:,5),vp(1),vp(2))
-              else
-                FLT%ssh(flo)  = missing
-              endif
+              FLT%UDF(flo)  = udf(2,(/FLT%lon(flo),FLT%lat(flo)/))
             endif
           endif
 
@@ -1345,7 +1310,7 @@ do external_step=1,external_nsteps
 
     enddo     ! End loop over floats
 
-    write(*,'("Step: ",I3.3,". Floats released: ",I4.4,", floating: ",I4.4,", stranded: ",I4.4,", outside: ", I4.4)') &
+    write(*,'("Step: ",I4.4,". Floats released: ",I4.4,", floating: ",I4.4,", stranded: ",I4.4,", outside: ", I4.4)') &
        internal_step, count(FLT%released), count(FLT%floating), count(FLT%stranded), count(FLT%outside)
 
     internal_time = internal_time + internal_dt
@@ -1387,7 +1352,6 @@ contains
         trhs(:,:,:,kk) = tt(:,:,:)
         srhs(:,:,:,kk) = ss(:,:,:)
         rrhs(:,:,:,kk) = rr(:,:,:)
-        hrhs(:,:,kk)   = hh(:,:)
       enddo
     endif
 
@@ -1406,7 +1370,6 @@ contains
         ttab(:,:,:,kk) = tt(:,:,:)
         stab(:,:,:,kk) = ss(:,:,:)
         rtab(:,:,:,kk) = rr(:,:,:)
-        htab(:,:,kk)   = hh(:,:)
       enddo
       print*, 'Linear interpolation'
       utab(:,:,:,1) = two*utab(:,:,:,2) - utab(:,:,:,3)
@@ -1415,7 +1378,6 @@ contains
       ttab(:,:,:,1) = two*ttab(:,:,:,2) - ttab(:,:,:,3)
       stab(:,:,:,1) = two*stab(:,:,:,2) - stab(:,:,:,3)
       rtab(:,:,:,1) = two*rtab(:,:,:,2) - rtab(:,:,:,3)
-      htab(:,:,1)   = two*htab(:,:,2)   - htab(:,:,3)
 
     else
 
@@ -1427,7 +1389,6 @@ contains
         ttab(:,:,:,kk) = ttab(:,:,:,kk+1)
         stab(:,:,:,kk) = stab(:,:,:,kk+1)
         rtab(:,:,:,kk) = rtab(:,:,:,kk+1)
-        htab(:,:,kk)   = htab(:,:,kk+1)
       enddo
       if (external_step.lt.external_nsteps) then
         kk = 4
@@ -1439,7 +1400,6 @@ contains
         ttab(:,:,:,kk) = tt(:,:,:)
         stab(:,:,:,kk) = ss(:,:,:)
         rtab(:,:,:,kk) = rr(:,:,:)
-        htab(:,:,kk)   = hh(:,:)
       else
         print*, 'Linear interpolation'
         utab(:,:,:,4) = two*utab(:,:,:,3) - utab(:,:,:,2)
@@ -1448,7 +1408,6 @@ contains
         ttab(:,:,:,4) = two*ttab(:,:,:,3) - ttab(:,:,:,2)
         stab(:,:,:,4) = two*stab(:,:,:,3) - stab(:,:,:,2)
         rtab(:,:,:,4) = two*rtab(:,:,:,3) - rtab(:,:,:,2)
-        htab(:,:,4)   = two*htab(:,:,3)   - htab(:,:,2)
       endif
     endif
 
@@ -1476,14 +1435,12 @@ contains
     tcoef(:,:,:,:) = zero
     scoef(:,:,:,:) = zero
     rcoef(:,:,:,:) = zero
-    hcoef(:,:,:)   = zero
     if (TCDF%defined) then
       do k=1,nz
         if (TCDF%idtemp.gt.0) call i3coeffs (TCDF%land(:,:,k),ttab(:,:,k,1:4),tcoef(:,:,k,1:4))
         if (TCDF%idsalt.gt.0) call i3coeffs (TCDF%land(:,:,k),stab(:,:,k,1:4),scoef(:,:,k,1:4))
         if (TCDF%iddens.gt.0) call i3coeffs (TCDF%land(:,:,k),rtab(:,:,k,1:4),rcoef(:,:,k,1:4))
       enddo
-      if (TCDF%idssh.gt.0) call i3coeffs (TCDF%land(:,:,1),htab,hcoef)
     endif
 
   ! -------------------
@@ -1516,7 +1473,6 @@ contains
           srhs(i,j,k,kk) = cubic(scoef(i,j,k,:),tf)
           rrhs(i,j,k,kk) = cubic(rcoef(i,j,k,:),tf)
         enddo
-        hrhs(i,j,kk) = cubic(hcoef(i,j,:),tf)
       enddo
       enddo
     enddo
@@ -1567,13 +1523,6 @@ contains
     rr = zero
   endif
 
-  if (TCDF%ssh%id.gt.0) then
-    call get_data(TCDF%ssh,kstep)
-    hh = TCDF%ssh%data(:,:,1)
-  else
-    hh = zero
-  endif
-
   end subroutine read_fields
   ! ...
   ! ========================================================================
@@ -1603,7 +1552,7 @@ contains
       u%data = u%add_offset + u%scale_factor*u%data
     endwhere
   else
-    where((u%data.eq.u%missing))
+    where((u%data.eq.u%missing_value))
       u%data = zero
     elsewhere
       u%data = u%add_offset + u%scale_factor*u%data
@@ -1779,31 +1728,6 @@ contains
   ! ...
   ! ==========================================================================
   ! ...
-  pure function sigma0 (t,s) result(theta)
-
-  ! ... Function to calculate density with temperature and salinity
-  ! ... Uses sigma-0 so does not work for all data
-  ! ... Modified after CMS v 2.0 Paris et al., March 2017.
-  ! ...
-  real(dp), intent(in)                 :: t    ! temperature
-  real(dp), intent(in)                 :: s    ! salinity
-  real(dp)                             :: theta  
-
-  ! ... Coefficients for sigma-0 (based on Brydon & Sun fit)
-  ! ...
-  real(dp), parameter                  :: thbase = 1000.0_dp
-  real(dp), parameter                  :: c1 =-1.36471D-01, &
-                                          c2 = 4.68181D-02, &
-                                          c3 = 8.07004D-01, &
-                                          c4 =-7.45353D-03, &
-                                          c5 =-2.94418D-03, &
-                                          c6 = 3.43570D-05, &
-                                          c7 = 3.48658D-05
-
- theta =  c1 + c3*s + t*(c2+c5*s+t*(c4+c7*s+c6*t))
- theta = thbase + theta
-
- end function sigma0
 
 ! ...
 ! ==========================================================================
