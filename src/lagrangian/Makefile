@@ -3,7 +3,7 @@ include ../../make.inc
 TARGET = lagrangian
 
 OBJ = hinterpol.o floats.o \
-      fillcoast.o mod_out.o clm.o help.o main.o
+      fillcoast.o mod_out.o clm.o help.o udf.o main.o
 
 FFLAGS = -fbounds-check
 FFLAGS = -O4
