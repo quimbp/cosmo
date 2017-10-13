@@ -103,7 +103,6 @@ integer                                 :: na
 integer                                 :: iu
 integer                                 :: flo
 integer                                 :: cycle
-integer                                 :: floater
 integer                                 :: step
 real(dp)                                :: tf
 character(len=maxlen)                   :: ofile = 'out.nc'   ! Output filename
