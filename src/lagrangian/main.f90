@@ -160,7 +160,8 @@ call argdbl('-idt',fidt,internal_dt)
 call argflg('-rev',reverse)
 call argint('-seed',frs,iseed)
 
-call argdbl('-cl',fra,Radius)
+call argdbl('-Rx',frx,Radius_x)
+call argdbl('-Ry',fry,Radius_y)
 call argdbl('-xo',ffx,fxo)
 call argdbl('-yo',ffy,fyo)
 call argint('-nf',fnp,Nfloats)
@@ -177,7 +178,7 @@ if (count((/fuu,fvv/)).ne.2) &
 if (count((/ffx,ffy/)).eq.1) &
    call stop_error(1,'Error. Use both -xo and -yo options')
 
-if (fra) random_floats = .true.
+if (frx.or.fry) random_floats = .true.
 if (.not.ffx.and..not.fre_in) random_floats = .true.
 
 if (ftimesim.and.fent) &

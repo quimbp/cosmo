@@ -24,11 +24,14 @@ logical                                  :: fnp              = .false.
 logical                                  :: ffx              = .false.
 logical                                  :: ffy              = .false.
 logical                                  :: ffz              = .false.
-logical                                  :: fra              = .false.
+logical                                  :: frx              = .false.
+logical                                  :: fry              = .false.
 character(len=180)                       :: release_file_in  = ''
 character(len=180)                       :: release_file_out = 'release.out'
 integer                                  :: Nfloats          = 10
-real(dp)                                 :: Radius           = one
+real(dp)                                 :: Radius_x         = one
+real(dp)                                 :: Radius_y         = one
+
 
 real(dp)                                 :: fxo
 real(dp)                                 :: fyo
@@ -89,15 +92,16 @@ else
       write(*,*) 
       write(*,*) 'Selecting a random cloud of points'
       write(*,*) 'Center point (x,y) : ', fxo,fyo
-      write(*,*) 'Radius             : ', radius
+      write(*,*) 'Radius_x           : ', Radius_x
+      write(*,*) 'Radius_y           : ', Radius_y
       FLT%n = Nfloats
       call floater_alloc (FLT)
-      xmin = fxo - half*Radius
-      ymin = fyo - half*Radius
+      xmin = fxo - half*Radius_x
+      ymin = fyo - half*Radius_y
       do flo=1,FLT%n
         20 call RANDOM_NUMBER(rnd)
-        FLT%lon(flo) = Radius*rnd(1) + xmin
-        FLT%lat(flo) = Radius*rnd(2) + ymin
+        FLT%lon(flo) = Radius_x*rnd(1) + xmin
+        FLT%lat(flo) = Radius_y*rnd(2) + ymin
         ii = locate(x,FLT%lon(flo))
         jj = locate(y,FLT%lat(flo))
         itsbeach = any((/land(ii,jj),      &
