@@ -51,60 +51,21 @@ logical                                 :: fvv = .false.
 logical                                 :: fww = .false.
 logical                                 :: ftt = .false.
 
-logical                                 :: inp = .false.  ! Flag input file
 logical                                 :: out = .false.  ! Flag output file
-logical                                 :: uff = .false.  ! Flag U-field name
-logical                                 :: vff = .false.  ! Flag V-field name
-logical                                 :: fxu = .false.  ! Flag U-LON name
-logical                                 :: fyu = .false.  ! Flag U-LAT name
-logical                                 :: fxv = .false.  ! Flag V-LON name
-logical                                 :: fyv = .false.  ! Flag V-LAT name
-logical                                 :: fxt = .false.  ! Flag T-LON name
-logical                                 :: fyt = .false.  ! Flag T-LAT name
-logical                                 :: fzt = .false.  ! Flag T-DEPTH name
-logical                                 :: fzw = .false.  ! Flag W-DEPTH name
-logical                                 :: fnd = .false.  ! Flag simul. time
-logical                                 :: fsi = .false.  ! Flag simul. interv.
 logical                                 :: fvc = .false.  ! Flag stationary fld
 logical                                 :: hlp = .false.  ! Flag for help
 logical                                 :: frs = .false.  ! Flag Rand seed
 
-character(len=maxlen)                   :: ufile   = ''   ! Input filename
-character(len=maxlen)                   :: vfile   = ''   ! Input filename
-character(len=maxlen)                   :: wfile   = ''   ! Input filename
-character(len=maxlen)                   :: tfile   = ''   ! Input filename
-
-character(len=maxlen)                   :: ifile   = ''   ! Input filename
-character(len=80)                       :: uname   = 'u'  ! Default U-name
-character(len=80)                       :: vname   = 'v'  ! Default V-name
-character(len=80)                       :: tname   = ''   ! Temperature var
-character(len=80)                       :: sname   = ''   ! Salinity var
-character(len=80)                       :: rname   = ''   ! Density var
-character(len=80)                       :: hname   = ''   ! Sea level var
-
-character(len=80)                       :: uxname  = ''   
-character(len=80)                       :: uyname  = ''   
-character(len=80)                       :: uzname  = ''   
-
-
-integer                                 :: Ndays   = 7    ! Number of days
-integer                                 :: Nsteps  = 6    ! Time steps per day
 integer                                 :: iseed
 integer, dimension(:), allocatable      :: rseed
 
 
 ! ... General variables
 ! ...
-logical                                 :: beach
-logical                                 :: inside
-integer                                 :: i,j,k,ii,jj,kk
-integer                                 :: err
+integer                                 :: i
 integer                                 :: na
 integer                                 :: iu
 integer                                 :: flo
-integer                                 :: cycle
-integer                                 :: step
-real(dp)                                :: tf
 character(len=maxlen)                   :: ofile = 'out.nc'   ! Output filename
 character(len=4000)                     :: Ulist=''
 character(len=4000)                     :: Vlist=''
@@ -330,7 +291,7 @@ endif
 
 call floats_ini(FLT,UCDF%x,UCDF%y,UCDF%land(:,:,1))
 
-call clm_ini (UCDF,VCDF,WCDF,TCDF,FLT)
+call clm_ini (UCDF,VCDF,WCDF,TCDF)
 
 ! ... Open trajectory file:
 ! ...

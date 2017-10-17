@@ -2,6 +2,7 @@
 ! ... Mathematical utilitites
 ! ... COSMO Project
 ! ... Quim Ballabrera, March 2017
+! ... About norm2: This has become a standard function after Fortran 2008.
 ! ****************************************************************************
 
 module math
@@ -11,7 +12,8 @@ use constants, only: zero,one,nan
 
 implicit none
 private
-public identity,akima,dakima,arange,mean,norm2,indexx
+public identity,akima,dakima,arange,mean,indexx
+!public norm2
 
 interface akima
   module procedure akimas,akimav
@@ -240,18 +242,15 @@ end function mean
 ! ...
 ! =============================================================================
 ! ...
-real(dp) function norm2(A)
+!real(dp) function norm2(A)
 ! ... Calculates the weighted mean = 1/N * Sum W(i)*A(i)
 ! ... Weights are optional.
 
-real(dp), dimension(:), intent(in)     :: A
+!real(dp), dimension(:), intent(in)     :: A
 
-integer n
-real(dp) Sw
+!norm2 = sqrt(dot_product(A,A))
 
-norm2 = sqrt(dot_product(A,A))
-
-end function norm2
+!end function norm2
 ! ...
 ! =============================================================================
 ! ...

@@ -773,13 +773,13 @@ end subroutine get_land
 ! ...
 ! ==========================================================================
 ! ...
-subroutine clm_ini(UCDF,VCDF,WCDF,TCDF,FLT)
+subroutine clm_ini(UCDF,VCDF,WCDF,TCDF)
 
 type(cdf_vgrid)                         :: UCDF
 type(cdf_vgrid)                         :: VCDF
 type(cdf_vgrid)                         :: WCDF
 type(cdf_tgrid)                         :: TCDF
-type(floater)                           :: FLT
+!type(floater)                           :: FLT
 
 ! ... Local variables:
 ! ...
@@ -992,8 +992,8 @@ else
   if (.not.fidt) internal_dt = 3600._dp
 endif
 
-external_nsteps = simulation_length / external_dt
-internal_nsteps = external_dt   / internal_dt
+external_nsteps = int(simulation_length / external_dt )
+internal_nsteps = int(external_dt   / internal_dt )
 
 ! ... If necessary, change dt sign
 ! ...
@@ -1065,22 +1065,13 @@ type(floater)                           :: FLT
 
 ! ... Local variables:
 ! ...
-logical stranded,init
-integer err,i,j,k,flo,kout
+logical init
+integer flo,kout
 integer                                  :: external_step
-integer                                  :: intennal_step
 real(dp)                                 :: external_time
 real(dp)                                 :: internal_time
 real(dp)                                 :: initial_time
 real(dp), dimension(2)                   :: vp,vn
-
-!real(dp)                                 :: t1,t2
-!real(dp), dimension(nx,ny,nz)            :: u_t1,v_t1,w_t1
-!real(dp), dimension(nx,ny,nz)            :: t_t1,s_t1,r_t1
-!real(dp), dimension(nx,ny)               :: h_t1
-!real(dp), dimension(nx,ny,nz)            :: u_t2,v_t2,w_t2
-!real(dp), dimension(nx,ny,nz)            :: t_t2,s_t2,r_t2
-!real(dp), dimension(nx,ny)               :: h_t2
 
 real(dp)                                 :: system_time
 type(date_type)                          :: system_date
@@ -1333,9 +1324,9 @@ contains
 
   subroutine clm_coeffs
 
-  integer i,j,k,kk
-  real(dp) tf
-
+  ! ... Local variables
+  ! ...
+  integer k,kk
 
   ! -------------------
   if (stationary) then
@@ -1690,22 +1681,9 @@ contains
 
   ! ... Local variables
   ! ... 
-  integer i,j,k,kk
-  real(dp) tf
+  integer kk
 
   kk = nint(4.0_dp*(t-internal_time)/internal_dt) + 1
-
-  !print*, 'in RHS: ',t, t-internal_time, nint(4.0_dp*(t-internal_time)/internal_dt) + 1
-  !if (.not.stationary) then
-  !  k = 1
-  !  tf = abs((t-external_time)/external_dt)
-  !  do j=1,ny
-  !  do i=1,nx
-  !    urhs(i,j,k,1) = cubic(ucoef(i,j,k,:),tf)
-  !    vrhs(i,j,k,1) = cubic(vcoef(i,j,k,:),tf)
-  !  enddo
-  !  enddo
-  !endif
 
   ! ... Interpolation at the float location
   ! ... Hardcoded: first layer !!!!

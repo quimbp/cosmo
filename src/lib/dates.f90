@@ -266,13 +266,13 @@ else if ((calendar.eq.'365_day').or. &
   do mm=1,12
     if (CumMonth(mm).gt.ijmon) exit
   enddo
-  date%year = (jd-ijmon)/365 + 1
+  date%year = (ijday-ijmon)/365 + 1
   date%month = mm - 1
   date%day = ijmon - CumMonth(date%month) + 1
 else if ((calendar.eq.'360_day').or. &
     (calendar.eq.'360d')) then
   ijmon = mod(ijday,360)
-  date%year = (jd-ijmon)/360 + 1
+  date%year = (ijday-ijmon)/360 + 1
   date%day = mod(ijmon,30) + 1
   date%month = (ijmon - date%day+1)/30 + 1
 else

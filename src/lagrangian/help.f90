@@ -38,8 +38,9 @@ call help_option ('-T token=value [token=value...]','Input T field (optional)','
 call help_option ('-cal        calendar','Optional input time calendar','gregorian')
 call help_option ('-edt        DT (in seconds)','Option to select the &
  &time step of the external loop (if input velocity field has only one time &
-step)','86400')
-call help_option ('-end        filename ','Output final position file name','release.out')
+ &step)','86400')
+call help_option ('-end        filename ','Output final position file name', &
+        'release.out')
 call help_option ('-idt        DT (in seconds)','Option to select the &
  &time step of the internal loop','3600')
 call help_option ('-nfloats    NFLOATS','Number of floats to be randomly &
@@ -62,7 +63,7 @@ call help_option ('-time_scale SCALE_FACTOR','Optional factor to transform the &
  &time values of velocity field to seconds.','1.')
 call help_option ('-time_sim  Time_length (in days)','Option to select the &
  &length of the simulation (if input velocity field has only one time &
-step)','7')
+ &step)','7')
 call help_option ('-trajectory filename ','Output trajectory file name','out.nc')
 call help_option ('-xo         XO','Optional value of the float initial &
  &position','')

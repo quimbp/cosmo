@@ -316,9 +316,8 @@ end subroutine checkopts
 ! ...
 ! =======================================================================
 ! ...
-subroutine arglast (prompt,file)
+subroutine arglast (file)
 
-character(LEN=*), intent(in)   :: prompt
 character(LEN=*), intent(out)  :: file
 
 if (lineargs_used(lineargs_nargs).EQ.0) then

@@ -24,7 +24,6 @@ logical                                         :: agrid = .false.
 logical                                         :: cgrid = .false.
 logical                                         :: fdx   = .false.
 logical                                         :: fdy   = .false.
-logical                                         :: out   = .false.
 
 ! ... Default values:
 ! ...
@@ -48,8 +47,8 @@ else
   write(*,*) 'Arakawa C grid'
 endif
 
-nx = 6.0_dp/dx + 1
-ny = 6.0_dp/dy + 1
+nx = nint(6.0_dp/dx + 1)
+ny = nint(6.0_dp/dy + 1)
 
 allocate(x(nx))
 allocate(y(ny))

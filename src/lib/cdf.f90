@@ -34,7 +34,7 @@ integer, intent(out)                    :: natts
 ! ... Local variables:
 ! ...
 integer err,vtype,ndim,j,att_type,att_len
-character(len=120) name,att_name,word
+character(len=120) name,att_name
 integer, dimension(100)  :: dimids
 
 character(len=180)                      :: tmpt
@@ -164,7 +164,7 @@ integer                                :: err
 
 ! ... Local variables
 ! ...
-integer defmode,err1,err2
+integer defmode
 character(len=1000) commandline
 
 defmode = nf90_redef(fid)

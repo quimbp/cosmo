@@ -36,7 +36,7 @@ integer, dimension(:), allocatable            :: fid,vid,np,nt,xid,yid
 real(dp) xo,yo,dx,dy,timeo
 real(dp), dimension(:), allocatable           :: xf,yf
 character(len=20) sdate,vname
-character(len=15) odate,fdate
+character(len=19) odate,fdate
 character(len=180), dimension(:), allocatable :: fname
 character(len=1800) ilist
 
@@ -89,7 +89,7 @@ call argdbl('-y',fyo,yo)
 call argdbl('-dx',fdx,dx)
 call argdbl('-dy',fdy,dy)
 call argint('-re',frn,record)
-if (.not.inp) call arglast('Input file:',ilist)
+if (.not.inp) call arglast(ilist)
 call checkopts()
 
 ! ... Check options compatibility

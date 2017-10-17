@@ -1,6 +1,6 @@
 include make.inc
 
-all: include lib bin LIB LAGRANGIAN TOOLS
+all: include lib bin COSMO LAGRANGIAN TOOLS
 	@echo "Done"
 
 include:
@@ -12,10 +12,10 @@ lib:
 bin:
 	mkdir $@
 
-LIB:
+COSMO:
 	@echo 
 	@echo "=============================================="
-	@echo "Compiling the LIB library"
+	@echo "Compiling the COSMO library"
 	@echo "=============================================="
 	@echo 
 	(cd src/lib/; make clean; make all)

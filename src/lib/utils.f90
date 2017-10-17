@@ -155,7 +155,7 @@ character(len=*), intent(in)      :: ifile
 ! ...
 character(len=4), parameter       :: scdf = 'CDF'//char(1)
 character(len=4), parameter       :: self = char(127)//'ELF'
-logical                           :: done,asc
+logical                           :: done
 integer                           :: i,l,nl
 character(len=180)                :: line
 
@@ -370,7 +370,7 @@ character(len=*) options(Noptions)
 
 ! ... Local variables
 ! ...
-integer nmax,nn,i,ind,j
+integer nmax,nn,i,ind
 character(len=78) line
 
 write(*,*)
@@ -480,7 +480,7 @@ character(len=*), intent(in), optional   :: type
 ! ... Local variables:
 ! ...
 logical ascii
-integer i,ii
+integer ii
 
 if (.not.present(type)) then
   ascii = .true.

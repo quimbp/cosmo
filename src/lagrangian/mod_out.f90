@@ -40,7 +40,7 @@ type(floater), intent(in)             :: FLT
 
 ! ... Local variables
 ! ...
-integer                               :: err,natts
+integer                               :: err
 
 write(*,*)
 write(*,*) 'Creating output file: ', trim(ofile)

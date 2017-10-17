@@ -11,7 +11,7 @@ module geocdf
 
 use netcdf
 use types, only: sp,dp
-use utils, only: uppercase,menu
+use utils, only: uppercase,menu,stop_error
 use lineargs, only: argstr,argflg
 use cdf, only: cdf_copyatts,cdf_error
 
@@ -19,7 +19,13 @@ implicit none
 private
 
 public gcdf
-public gcdf_open,gcdf_close
+public gcdf_open
+public gcdf_close
+public gcdf_show
+public gcdf_replicate
+public gcdf_copy_var
+public gcdf_getfield
+public gcdf_replicate_head
 
 type gcdf
   integer                                       :: fid=-1
@@ -39,7 +45,7 @@ type gcdf
   character(LEN=80), dimension(:), pointer      :: vnames
   integer, dimension(:), pointer                :: vndims
   integer, dimension(:), pointer                :: vtype
-  integer(DP), dimension(:), pointer            :: size,tsize
+  integer(dp), dimension(:), pointer            :: size,tsize
   integer, dimension(:,:), pointer              :: dimids
   integer, dimension(:), pointer                :: ppi,ppj,ppk,ppl
   real(dp), dimension(:), pointer               :: add_offset
@@ -261,10 +267,7 @@ TYPE(gcdf), INTENT(in)                     :: icdf
 TYPE(gcdf), INTENT(out)                    :: ocdf
 integer, INTENT(out)                       :: err
 
-integer dim,var,dlen,ii,ntype,ndims,dimids(10),natts,vlen,i
-integer, dimension(:), ALLOCATABLE         :: wrki
-real(sp), dimension(:), ALLOCATABLE    :: wrk4
-real(dp), dimension(:), ALLOCATABLE    :: wrk8
+integer dim,var,dlen,ii,ntype,ndims,dimids(10),natts,i
 character(LEN=80) dname,vname
 
 write(*,*)
@@ -362,8 +365,9 @@ TYPE(gcdf), INTENT(in)                     :: ocdf
 integer, INTENT(in)                        :: idv,odv
 integer, INTENT(out)                       :: err
 
-integer ndims,ntype,dimids(10),natts,nsize,dim,step
-integer, dimension(:), ALLOCATABLE         :: iwork,po,pf
+integer ndims,ntype,dimids(10),natts,step
+integer(dp) nsize
+integer, dimension(:), ALLOCATABLE     :: iwork,po,pf
 real(sp), dimension(:), ALLOCATABLE    :: rwork
 real(dp), dimension(:), ALLOCATABLE    :: dwork
 character(LEN=80) word
@@ -380,21 +384,24 @@ nsize = icdf%size(idv)
 
 if (icdf%ppl(idv).LE.0) then ! No time in variable
   if (ntype.eq.NF90_DOUBLE) then
-    allocate (dwork(nsize))
+    allocate (dwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     err = NF90_GET_VAR (icdf%fid,idv,dwork)
     call cdf_error (err,'Unable to read double variable')
     err = NF90_PUT_VAR (ocdf%fid,odv,dwork)
     call cdf_error (err,'Unable to write double variable')
     deallocate (dwork)
   else if (ntype.eq.NF90_FLOAT) then
-    allocate (rwork(nsize))
+    allocate (rwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     err = NF90_GET_VAR (icdf%fid,idv,rwork)
     call cdf_error (err,'Unable to read real variable')
     err = NF90_PUT_VAR (ocdf%fid,odv,rwork)
     call cdf_error (err,'Unable to write real variable')
     deallocate (rwork)
   else if (ntype.eq.NF90_INT.OR.ntype.eq.NF90_SHORT) then
-    allocate (iwork(nsize))
+    allocate (iwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     err = NF90_GET_VAR (icdf%fid,idv,iwork)
     call cdf_error (err,'Unable to read integer variable')
     err = NF90_PUT_VAR (ocdf%fid,odv,iwork)
@@ -414,7 +421,8 @@ else
   if (icdf%ppj(idv).GT.0) pf(icdf%ppj(idv)) = icdf%ny
   if (icdf%ppk(idv).GT.0) pf(icdf%ppk(idv)) = icdf%nz
   if (ntype.eq.NF90_DOUBLE) then
-    allocate (dwork(nsize))
+    allocate (dwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     do step=1,icdf%nt
       po(icdf%ppl(idv)) = step
       err = NF90_GET_VAR (icdf%fid,idv,dwork,po,pf)
@@ -424,7 +432,8 @@ else
     enddo
     deallocate (dwork)
   else if (ntype.eq.NF90_FLOAT) then
-    allocate (rwork(nsize))
+    allocate (rwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     do step=1,icdf%nt
       po(icdf%ppl(idv)) = step
       err = NF90_GET_VAR (icdf%fid,idv,rwork,po,pf)
@@ -434,7 +443,8 @@ else
     enddo
     deallocate (rwork)
   else if (ntype.eq.NF90_INT.OR.ntype.eq.NF90_SHORT) then
-    allocate (iwork(nsize))
+    allocate (iwork(nsize),stat=err)
+    if (err.ne.0) call stop_error(1,'Unable to allocate variable')
     do step=1,icdf%nt
       po(icdf%ppl(idv)) = step
       err = NF90_GET_VAR (icdf%fid,idv,iwork,po,pf)
@@ -691,10 +701,7 @@ TYPE(gcdf), INTENT(in)                     :: icdf
 TYPE(gcdf), INTENT(out)                    :: ocdf
 integer, INTENT(out)                       :: err
 
-integer dim,var,dlen,ii,ntype,ndims,dimids(10),natts,vlen,i
-integer, dimension(:), ALLOCATABLE         :: wrki
-real(sp), dimension(:), ALLOCATABLE        :: wrk4
-real(dp), dimension(:), ALLOCATABLE        :: wrk8
+integer dim,var,dlen,ii,ntype,ndims,dimids(10),natts
 character(LEN=80) dname,vname
 
 write(*,*)

@@ -186,15 +186,11 @@ TYPE(floater), intent(out)              :: FLT
 
 ! ... Local variables
 ! ...
-logical                                 :: beach
-integer                                 :: i,ii,jj,err,yy,mm,dd,hh
+integer                                 :: i,err
 integer                                 :: ffid
 integer                                 :: idp,idl,idx,idy,idz,idt,ide,idr,idd
 integer                                 :: idtem,idsal
 integer                                 :: Nrec,frec
-real(dp)                                :: xmin,ymin
-real(dp)                                :: timeo
-real(dp), dimension(2)                  :: rnd
 real(dp), dimension(1)                  :: time
 
 ! ... An input float file has been selected
