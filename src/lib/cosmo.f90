@@ -22,4 +22,4 @@ module cosmo
 
   implicit none
 
-END MODULE cosmo
+end module cosmo

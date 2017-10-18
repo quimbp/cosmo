@@ -5,15 +5,15 @@
 ! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
-MODULE types
+module types
 
-IMPLICIT NONE
+implicit none
 
-PRIVATE
-PUBLIC sp,dp
+private
+public sp,dp
 
-INTEGER, PARAMETER                 :: sp = KIND(0.0)    ! Single precision
-INTEGER, PARAMETER                 :: dp = KIND(0.0D0)  ! Double precision
+integer, parameter                 :: sp = kind(0.0)    ! Single precision
+integer, parameter                 :: dp = kind(0.0D0)  ! Double precision
 
-END MODULE types
+end module types
 
