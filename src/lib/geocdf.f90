@@ -5,6 +5,7 @@
 ! ... COSMO project
 ! ... Quim Ballabrera, March 2017
 ! ... April, 2017: Add add_factor, scale_factor, fill_value and missing_value
+! ... Version 0.1, released October 2017
 ! *****************************************************************************
 
 module geocdf

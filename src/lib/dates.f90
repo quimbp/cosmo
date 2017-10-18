@@ -3,6 +3,7 @@
 ! ... Routines to manipulate date and time variables
 ! ... COSMO project
 ! ... Quim Ballabrera, March 2017
+! ... Version 0.1, released October 2017
 ! *****************************************************************************
 
 module dates
@@ -30,12 +31,11 @@ INTEGER, DIMENSION(12)     :: LenMonth
 INTEGER, DIMENSION(12)     :: LenMonthLeap
 INTEGER, DIMENSION(12)     :: CumMonth
 INTEGER, DIMENSION(12)     :: CumMonthLeap
+
 DATA LenMonth /31,28,31,30,31,30,31,31,30,31,30,31/
 DATA LenMonthLeap /31,29,31,30,31,30,31,31,30,31,30,31/
 DATA CumMonth /0,31,59,90,120,151,181,212,243,273,304,334/
 DATA CumMonthLeap /0,31,60,91,121,152,182,213,244,274,305,335/
-
-
 
 contains
 ! ...

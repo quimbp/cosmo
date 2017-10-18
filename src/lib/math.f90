@@ -3,6 +3,7 @@
 ! ... COSMO Project
 ! ... Quim Ballabrera, March 2017
 ! ... About norm2: This has become a standard function after Fortran 2008.
+! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
 module math

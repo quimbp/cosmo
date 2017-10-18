@@ -3,6 +3,7 @@
 ! ... Routines to print help information on screen.
 ! ... COSMO Project
 ! ... Quim Ballabrera, March 2017
+! ... Version 0.1, released October 2017
 ! ********************************************************************
 
 module help
