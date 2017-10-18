@@ -1,7 +1,9 @@
 ! ****************************************************************************
 ! ... help.f90
 ! ... Quim Ballabrera, April 2017
+! ... COSMO Lagrangian model
 ! ... Help information for program lagrangian
+! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
 subroutine program_help(version,author)
@@ -76,4 +78,3 @@ call help_example('lagrangian -U file=roms.nc u=u x=lon y=lat t=time &
  &-trajectory float.nc -end release.out')
 
 end subroutine program_help
-
