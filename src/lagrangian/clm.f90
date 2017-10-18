@@ -1,8 +1,23 @@
 ! ***************************************************************************
 ! ... clm.f90
-! ... COSMO Lagrangian model
 ! ... Quim Ballabrera, August 2017
-! ... v.0 - Initial version, Aug 31, 2017
+! ... COSMO Lagrangian model
+! ... CLM subroutines:
+! ...   clm_ufield_open
+! ...   clm_tfield_open
+! ...   get_land
+! ...   clm_ini
+! ...   clm_run
+! ...      clm_coeffs
+! ...      clm_rhs
+! ...      read_fields
+! ...      get_data
+! ...      i3coeffs
+! ...      outside
+! ...      beaching
+! ...      RHS
+! ...      cubic
+! ... Version 0.1, released October 2017
 ! ***************************************************************************
 
 module clm
@@ -15,7 +30,7 @@ implicit none
 
 ! ... Forward/Backward integration
 ! ... Default: Forward
-integer                                  :: lorig         = 1
+integer                                  :: lorig          = 1
 integer                                  :: time_direction = 1 ! +1, -1
 logical                                  :: reverse
 
@@ -27,13 +42,12 @@ logical                                  :: fedt     = .false.
 logical                                  :: fidt     = .false.
 
 integer                                  :: record = -1
-real(dp)                                 :: simulation_length
 integer                                  :: external_nsteps
-real(dp)                                 :: external_dt
 integer                                  :: internal_step
 integer                                  :: internal_nsteps
+real(dp)                                 :: simulation_length
+real(dp)                                 :: external_dt
 real(dp)                                 :: internal_dt
-
 
 ! ... Stationnary simulation
 ! ...
@@ -60,7 +74,6 @@ character(len=80)                        :: time_units  = ''
 ! ...
 logical                                  :: fmv         = .false.
 real(dp)                                 :: missing     = nan
-
 
 ! ... Grid
 ! ...
@@ -99,27 +112,26 @@ real(dp), dimension(:,:,:,:), pointer   :: ucoef,vcoef,wcoef,tcoef,scoef,rcoef
 real(dp), dimension(:,:,:,:), pointer   :: urhs,vrhs,wrhs,trhs,srhs,rrhs
 real(dp), dimension(:,:,:), pointer     :: hrhs
 
-
 ! ... Working box
 ! ...
-logical                                 :: fso    = .false.  ! Flag for south lim
-logical                                 :: fno    = .false.  ! Flag for north lim
-logical                                 :: fea    = .false.  ! Flag for west  lim
-logical                                 :: fwe    = .false.  ! Flag for east  lim
-real(dp)                                :: south  = nan
-real(dp)                                :: north  = nan
-real(dp)                                :: west   = nan
-real(dp)                                :: east   = nan
+logical                                 :: fso    = .false.  ! Flg south lim
+logical                                 :: fno    = .false.  ! Flg north lim
+logical                                 :: fea    = .false.  ! Flg west  lim
+logical                                 :: fwe    = .false.  ! Flg east  lim
 integer                                 :: iwest  = 1
 integer                                 :: ieast  = 1
 integer                                 :: jsouth = 1
 integer                                 :: jnorth = 1
+real(dp)                                :: south  = nan
+real(dp)                                :: north  = nan
+real(dp)                                :: west   = nan
+real(dp)                                :: east   = nan
 
 type field
   ! This structure contains the necessary information for a
   ! variable to be read and processed
-  integer                               :: fid                  ! Netcdf file id
-  integer                               :: id                   ! Netcdf Variable id
+  integer                               :: fid               ! ncdf file id
+  integer                               :: id                ! ncdf Var id
   integer                               :: nx
   integer                               :: ny
   integer                               :: nz
@@ -214,22 +226,6 @@ type cdf_tgrid
   logical, dimension(:,:,:), pointer    :: land
   logical, dimension(:,:,:), pointer    :: sea
 end type cdf_tgrid
-
-type wrkgrid
-  integer                                :: nx = 1
-  integer                                :: ny = 1
-  integer                                :: nz = 1
-  real(dp), dimension(:), pointer        :: x              ! lon
-  real(dp), dimension(:), pointer        :: y              ! lat
-  real(dp), dimension(:), pointer        :: z              ! depth
-  real(dp), dimension(:,:,:), pointer    :: u              ! zonal vel.
-  real(dp), dimension(:,:,:), pointer    :: v              ! meridional vel.
-  real(dp), dimension(:,:,:), pointer    :: w              ! vertical vel.
-  real(dp), dimension(:,:,:), pointer    :: t              ! temperature
-  real(dp), dimension(:,:,:), pointer    :: s              ! salinity
-  real(dp), dimension(:,:,:), pointer    :: r              ! density
-  real(dp), dimension(:,:), pointer      :: h              ! sea level
-end type wrkgrid
 
 ! ==========================================================================
 ! ==========================================================================
@@ -1149,7 +1145,6 @@ enddo
 do external_step=1,external_nsteps
 ! ---
 ! ---
-
   system_time = UCDF%time_ref + (tscale*UCDF%t(1) + external_time)/86400.0_dp
   write(*,*)
   write(*,*) 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
@@ -1186,17 +1181,20 @@ do external_step=1,external_nsteps
           vp(1) = (FLT%lon(flo)-xcenter)*deg2m*coslat
           vp(2) = (FLT%lat(flo)-ycenter)*deg2m
           if (TCDF%idtemp.gt.0) then
-            FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),trhs(:,:,1,1),vp(1),vp(2))
+            FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                      trhs(:,:,1,1),vp(1),vp(2))
           else
             FLT%temp(flo) = missing
           endif
           if (TCDF%idsalt.gt.0) then
-            FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),srhs(:,:,1,1),vp(1),vp(2))
+            FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                      srhs(:,:,1,1),vp(1),vp(2))
           else
             FLT%salt(flo) = missing
           endif
           if (TCDF%iddens.gt.0) then
-            FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),rrhs(:,:,1,1),vp(1),vp(2))
+            FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                      rrhs(:,:,1,1),vp(1),vp(2))
           else
             if (TCDF%idtemp.gt.0.and.TCDF%idsalt.gt.0) then
               FLT%dens(flo) = sigma0(FLT%temp(flo),FLT%salt(flo))
@@ -1216,7 +1214,7 @@ do external_step=1,external_nsteps
 
       kout = 1
       FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
-      system_time = UCDF%time_ref + (tscale*UCDF%t(1) + internal_time)/86400.0_dp
+      system_time = UCDF%time_ref + (tscale*UCDF%t(1)+internal_time)/86400.0_dp
       FLT%date = jd2date(system_time)
       call out_save(FLT,kout,system_time)
     endif
@@ -1228,7 +1226,8 @@ do external_step=1,external_nsteps
 
       ! ... First, check the float has been released:
       ! ...
-      if (FLT%release_time(flo).le.internal_time-initial_time) FLT%released(flo) = .true.
+      if (FLT%release_time(flo).le.internal_time-initial_time) &
+                                                 FLT%released(flo) = .true.
 
       if (FLT%released(flo)) then
         ! ... Now, check if the device is floating
@@ -1273,17 +1272,20 @@ do external_step=1,external_nsteps
               ! ... It retains its last valid temperature, salinity, etc.
             else
               if (TCDF%idtemp.gt.0) then
-                FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),trhs(:,:,1,5),vp(1),vp(2))
+                FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                          trhs(:,:,1,5),vp(1),vp(2))
               else
                 FLT%temp(flo) = missing
               endif
               if (TCDF%idsalt.gt.0) then
-                FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),srhs(:,:,1,5),vp(1),vp(2))
+                FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                          srhs(:,:,1,5),vp(1),vp(2))
               else
                 FLT%salt(flo) = missing
               endif
               if (TCDF%iddens.gt.0) then
-                FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:),rrhs(:,:,1,5),vp(1),vp(2))
+                FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                          rrhs(:,:,1,5),vp(1),vp(2))
               else
                 if (TCDF%idtemp.gt.0.and.TCDF%idsalt.gt.0) then
                   FLT%dens(flo) = sigma0(FLT%temp(flo),FLT%salt(flo))
@@ -1302,12 +1304,13 @@ do external_step=1,external_nsteps
     enddo     ! End loop over floats
 
     write(*,'("Step: ",I4.4,". Floats released: ",I4.4,", floating: ",I4.4,", stranded: ",I4.4,", outside: ", I4.4)') &
-       internal_step, count(FLT%released), count(FLT%floating), count(FLT%stranded), count(FLT%outside)
+       internal_step, count(FLT%released), count(FLT%floating), &
+                      count(FLT%stranded), count(FLT%outside)
 
     internal_time = internal_time + internal_dt
     FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
 
-    system_time = UCDF%time_ref + (tscale*UCDF%t(1) + internal_time)/86400.0_dp
+    system_time = UCDF%time_ref + (tscale*UCDF%t(1)+internal_time)/86400.0_dp
     FLT%date = jd2date(system_time)
 
     kout = kout + 1

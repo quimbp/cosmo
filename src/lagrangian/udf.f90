@@ -1,3 +1,11 @@
+! ***************************************************************************
+! ... udf.f90
+! ... Quim Ballabrera, October 2017
+! ... COSMO Lagrangian model
+! ... User defined function
+! ... Version 0.1, released October 2017
+! ***************************************************************************
+
 pure function udf(n,p) result(f)
 
 use cosmo

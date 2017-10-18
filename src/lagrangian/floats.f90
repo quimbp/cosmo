@@ -1,11 +1,18 @@
 ! ****************************************************************************
 ! ... floats.f90
 ! ... Quim Ballabrera, April 2017
-! ... Exit code:
-! ... -1: Not released
-! ...  0: Floating
-! ...  1: Left the system
-! ...  2: Stranded
+! ... COSMO Lagrangian model
+! ... Structure of float variables
+! ... Subroutines:
+! ...   floats_ini
+! ...   floats_read
+! ...   floats_alloc
+! ... The floats exit codes are:
+! ...  -1: Not released
+! ...   0: Floating
+! ...   1: Left the system
+! ...   2: Stranded
+! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
 module mod_floats
@@ -40,26 +47,26 @@ real(dp)                                 :: fzo              = zero
 
 type floater
   integer                                :: n = 0
-  real(dp)                               :: missing              ! missing value
-  real(dp), dimension(:), pointer        :: lon                  ! lon   degrees
-  real(dp), dimension(:), pointer        :: lat                  ! lat   degrees
-  real(dp), dimension(:), pointer        :: depth                ! depth meters > 0
-  real(dp), dimension(:), pointer        :: dist                 ! traveled dist (km)
-  real(dp), dimension(:), pointer        :: time                 ! time position
-  real(dp), dimension(:), pointer        :: release_time         ! release time (secs)
-  real(dp), dimension(:), pointer        :: u                    ! x velocity
-  real(dp), dimension(:), pointer        :: v                    ! y velocity
-  real(dp), dimension(:), pointer        :: w                    ! z velocity
-  real(dp), dimension(:), pointer        :: temp                 ! temperature
-  real(dp), dimension(:), pointer        :: salt                 ! salinity
-  real(dp), dimension(:), pointer        :: dens                 ! density
-  real(dp), dimension(:), pointer        :: UDF                  ! User-defined function
-  type(date_type)                        :: date                 ! A given date
-  integer, dimension(:), pointer         :: exitcode             ! exit code
-  logical, dimension(:), pointer         :: released             ! released flag
-  logical, dimension(:), pointer         :: floating             ! status flag
-  logical, dimension(:), pointer         :: stranded             ! status flag
-  logical, dimension(:), pointer         :: outside              ! status flag
+  real(dp)                               :: missing        ! missing value
+  real(dp), dimension(:), pointer        :: lon            ! lon   degrees
+  real(dp), dimension(:), pointer        :: lat            ! lat   degrees
+  real(dp), dimension(:), pointer        :: depth          ! depth meters > 0
+  real(dp), dimension(:), pointer        :: dist           ! traveled dist (km)
+  real(dp), dimension(:), pointer        :: time           ! time position
+  real(dp), dimension(:), pointer        :: release_time   ! release time (sec)
+  real(dp), dimension(:), pointer        :: u              ! x velocity
+  real(dp), dimension(:), pointer        :: v              ! y velocity
+  real(dp), dimension(:), pointer        :: w              ! z velocity
+  real(dp), dimension(:), pointer        :: temp           ! temperature
+  real(dp), dimension(:), pointer        :: salt           ! salinity
+  real(dp), dimension(:), pointer        :: dens           ! density
+  real(dp), dimension(:), pointer        :: UDF            ! User-defined funct
+  type(date_type)                        :: date           ! A given date
+  integer, dimension(:), pointer         :: exitcode       ! exit code
+  logical, dimension(:), pointer         :: released       ! released flag
+  logical, dimension(:), pointer         :: floating       ! status flag
+  logical, dimension(:), pointer         :: stranded       ! status flag
+  logical, dimension(:), pointer         :: outside        ! status flag
 end type floater
 
 contains
@@ -95,7 +102,7 @@ else
       write(*,*) 'Radius_x           : ', Radius_x
       write(*,*) 'Radius_y           : ', Radius_y
       FLT%n = Nfloats
-      call floater_alloc (FLT)
+      call floats_alloc (FLT)
       xmin = fxo - half*Radius_x
       ymin = fyo - half*Radius_y
       do flo=1,FLT%n
@@ -120,7 +127,7 @@ else
       FLT%outside(:)      = .false.
     else
       FLT%n = 1
-      call floater_alloc (FLT)
+      call floats_alloc (FLT)
       FLT%lon(1)          = fxo
       FLT%lat(1)          = fyo
       FLT%depth(1)        = fzo
@@ -130,7 +137,7 @@ else
     write(*,*) 
     write(*,*) 'Selecting a random set of points'
     FLT%n = Nfloats
-    call floater_alloc (FLT)
+    call floats_alloc (FLT)
     xmin = x0
     ymin = y0
     do flo=1,FLT%n
@@ -207,7 +214,7 @@ if (filetype(rfile).eq.'asc') then
 
   ! ... Float tables allocation
   ! ...
-  call floater_alloc (FLT)
+  call floats_alloc (FLT)
 
   FLT%dist(:) = zero
   do i=1,FLT%n
@@ -260,7 +267,7 @@ else if (filetype(rfile).eq.'cdf') then
 
   ! ... Float tables allocation
   ! ...
-  call floater_alloc (FLT)
+  call floats_alloc (FLT)
 
   err = NF90_GET_VAR(ffid,idx,FLT%lon,(/1,frec/),(/FLT%n,1/))
   call cdf_error(err,'Unable to read lon')
@@ -285,14 +292,12 @@ else if (filetype(rfile).eq.'cdf') then
   call cdf_error(err,'Unable to close file')
   FLT%released(:) = .false.
   FLT%floating(:) = .false.
-  !do i=1,FLT%n
-  ! !if (FLT%time(i).ge.flr(i)) FLT%released(i) = .true.
-  ! if (FLT%exitcode(i).eq.0)  FLT%floating(i) = .true.
-  !enddo
 
   do i=1,FLT%n
-    write(*,'(I4,3F9.3,F13.0,2F9.3,X,L,L)') i,FLT%lon(i),FLT%lat(i),FLT%depth(i),FLT%time(i), &
-                                        FLT%temp(i),FLT%salt(i), FLT%released(i), FLT%floating(i)
+    write(*,'(I4,3F9.3,F13.0,2F9.3,X,L,L)') i,FLT%lon(i), FLT%lat(i),  &
+                                            FLT%depth(i), FLT%time(i), &
+                                            FLT%temp(i), FLT%salt(i),  &
+                                            FLT%released(i), FLT%floating(i)
   enddo
 else
   call stop_error(1,'Unable to identify the format on the float file')
@@ -302,7 +307,7 @@ end subroutine floats_read
 ! ...
 ! =========================================================================
 ! ...
-subroutine floater_alloc(FLOAT_STRUCTURE)
+subroutine floats_alloc(FLOAT_STRUCTURE)
 
 type(floater), intent(inout)               :: FLOAT_STRUCTURE
 
@@ -338,7 +343,7 @@ FLOAT_STRUCTURE%stranded(:)     = .false.
 FLOAT_STRUCTURE%outside(:)      = .false.
 FLOAT_STRUCTURE%exitcode(:)     = -1
 
-end subroutine floater_alloc
+end subroutine floats_alloc
 ! ...
 ! =========================================================================
 ! ...

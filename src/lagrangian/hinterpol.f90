@@ -1,6 +1,9 @@
 ! ****************************************************************************
 ! ... hinterpol.f90
 ! ... Quim Ballabrera, April 2017
+! ... COSMO Lagrangian model
+! ... Two-dimensional interpolation of a given field using Akima Splines.
+! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
 function  hinterpol(nx,ny,xm,ym,f2d,xo,yo) result(fo)

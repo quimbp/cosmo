@@ -1,3 +1,11 @@
+! ***************************************************************************
+! ... fillcoast.f90
+! ... Quim Ballabrera, August 2017
+! ... COSMO Lagrangian model
+! ... Sea variables are lineraly interpolated at the very first land point.
+! ... Version 0.1, released October 2017
+! ***************************************************************************
+
 subroutine fillcoast (nx,ny,land,sea,f)
 
 use cosmo, only: dp

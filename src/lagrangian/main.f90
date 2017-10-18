@@ -1,29 +1,25 @@
-!st ****************************************************************************
+! ****************************************************************************
 ! ... main.f90
-! ... Quim Ballabrera, April 2017
-! ... Lagrangian motion
-! ... v0.0: Initial version (March 2017)
+! ... Quim Ballabrera, March 2017
+! ... COSMO Lagrangian Model
+! ... Model driver
+! ... v0.1: Initial version (March 2017)
 ! ...       Read a netcdf with u and v
 ! ...       Apply a bicubic interpolation in time
 ! ...       Apply a Runge Kutta order five to solve equations
 ! ...       Output as a netcdf file
-! ...       Input must be in days
-! ...       Arakawa A-grid
-! ... v0.1: Update help options (March 2017)
-! ...       Small fixes
-! ...       Write commandline in output netcdf
+! ...       Arakawa A,B,C-grid
 ! ...       Check if particle leaves the area
-! ... v0.2: Reverse trajectories (April 2017)
+! ...       Reverse trajectories
 ! ...       Take into account scale_factor and add_offset
-! ...       temp, psal (A-grid)
-! ... v1.0: Modular version of the code (April 2017)
-! ...       Updated beaching criteria
-! ...       Unified spatial interpolation for velocity and tracers
+! ...       temp, psal
+! ...       User Defined Function (udf)
+! ...       Beaching control
+! ...       Same spatial interpolation for velocity and tracers
 ! ...       Fill coastal point for tracers using linear interpolation
 ! ...
 ! ...      
 ! ****************************************************************************
-
 
 program main
 
@@ -34,8 +30,8 @@ use mod_out
 
 implicit none
 
-character(len=*), parameter              :: version = 'v0.0'
-character(len=*), parameter              :: author = 'Quim Ballabrera'
+character(len=*), parameter             :: version = 'v0.1'
+character(len=*), parameter             :: author = 'Quim Ballabrera'
 
 type(floater)                           :: FLT
 type(cdf_vgrid)                         :: UCDF
@@ -71,14 +67,6 @@ character(len=4000)                     :: Ulist=''
 character(len=4000)                     :: Vlist=''
 character(len=4000)                     :: Wlist=''
 character(len=4000)                     :: Tlist=''
-
-logical beaching
-real(dp) hinterpol
-
-external beaching
-external hinterpol
-external RHS
-
 
 ! ... Fill in the help information
 ! ...
@@ -315,7 +303,6 @@ call out_exitmode(FLT)
 ! ... Close trajectory
 ! ...
 call out_close(ofile)
-
 
 ! ... Save the output positions:
 ! ...

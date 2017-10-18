@@ -1,6 +1,14 @@
 ! ****************************************************************************
 ! ... out.f90
 ! ... Quim Ballabrera, April 2017
+! ... COSMO Lagrangian model
+! ... Routines to write the model trajectory in netcdf.
+! ... Subroutines:
+! ...   out_create
+! ...   out_save
+! ...   out_exitmode
+! ...   out_close
+! ... Version 0.1, released October 2017
 ! ****************************************************************************
 
 module mod_out
@@ -200,6 +208,5 @@ err = NF90_CLOSE(ncId)
 call cdf_error(err,'Unable to close file')
 
 end subroutine  out_close
-
 
 end module mod_out
