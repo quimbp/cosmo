@@ -49,8 +49,8 @@ call help_summary('Program to calculate the velocity field from an &
 call help_option('-out    FILENAME','Output filename','streamline.nc')
 call help_option('-A              ','Output in Arakawa A grid','A')
 call help_option('-C              ','Output in Arakawa C grid','')
-call help_option('-dx             DX','Zonal grid interval','0.01')
-call help_option('-dy             DY','Meridional grid interval','0.01')
+call help_option('-dx             DX','Zonal grid interval','0.1')
+call help_option('-dy             DY','Meridional grid interval','0.1')
 call help_option ('--options  filename','To read the commandline options &
   &from a file.','')
 call help_option ('--help','To show this help','')
@@ -59,8 +59,8 @@ call help_example ('> streamline -C -o c_grid.nc')
 
 ! ... Default values:
 ! ...
-dx = 0.01
-dy = 0.01
+dx = 0.1
+dy = 0.1
 ofile = 'streamline.nc'
 
 ! ... Lineargs
@@ -112,10 +112,14 @@ enddo
 
 if (agrid) then
 
+! ...      u = - dPsi/dy
+! ...      v =   dPsi/dx
   do j=1,ny
   do i=1,nx
-    u(i,j) = -half*(psifunc(x(i),y(j)+dy) - psifunc(x(i),y(j)-dy))/dy
-    v(i,j) =  half*(psifunc(x(i)+dx,y(j)) - psifunc(x(i)-dx,y(j)))/dx
+    ! u(i,j) = -half*(psifunc(x(i),y(j)+dy) - psifunc(x(i),y(j)-dy))/dy
+    ! v(i,j) =  half*(psifunc(x(i)+dx,y(j)) - psifunc(x(i)-dx,y(j)))/dx
+      u(i,j) = -dpdy(x(i),y(j))
+      v(i,j) =  dpdx(x(i),y(j))
   enddo
   enddo
 
@@ -151,8 +155,10 @@ else
 
   do j=1,ny
   do i=1,nx
-    u(i,j) = -half*(psifunc(xu(i),yu(j)+dy) - psifunc(xu(i),yu(j)-dy))/dy
-    v(i,j) =  half*(psifunc(xv(i)+dx,yv(j)) - psifunc(xv(i)-dx,yv(j)))/dx
+    !u(i,j) = -half*(psifunc(xu(i),yu(j)+dy) - psifunc(xu(i),yu(j)-dy))/dy
+    !v(i,j) =  half*(psifunc(xv(i)+dx,yv(j)) - psifunc(xv(i)-dx,yv(j)))/dx
+    u(i,j) = -dpdy(xu(i),yu(j))
+    v(i,j) =  dpdx(xv(i),yv(j))
   enddo
   enddo
 
@@ -172,10 +178,10 @@ else
 
   err = nf90_put_var(fid,idxp,x)
   err = nf90_put_var(fid,idyp,y)
-  err = nf90_put_var(fid,idxu,x+half*dx)
-  err = nf90_put_var(fid,idyu,y)
-  err = nf90_put_var(fid,idxv,x)
-  err = nf90_put_var(fid,idyv,y+half*dy)
+  err = nf90_put_var(fid,idxu,xu)
+  err = nf90_put_var(fid,idyu,yu)
+  err = nf90_put_var(fid,idxv,xv)
+  err = nf90_put_var(fid,idyv,yv)
   err = nf90_put_var(fid,idp,psi)
   err = nf90_put_var(fid,idu,u)
   err = nf90_put_var(fid,idv,v)
@@ -189,13 +195,33 @@ call stop_error(0,'Ok')
 contains 
 
   pure function psifunc(x,y) result(psi)
-
   real(dp), intent(in)     :: x,y
   real(dp)                 :: psi
 
   psi = half*(x*x+y*y+x*y)
 
   end function psifunc
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function dpdx (x,y) result(dpsi)
+  real(dp), intent(in)     :: x,y
+  real(dp)                 :: dpsi
+
+  dpsi = x + half*y
+
+  end function dpdx
+  ! ...
+  ! ===================================================================
+  ! ...
+  pure function dpdy (x,y) result(dpsi)
+  real(dp), intent(in)     :: x,y
+  real(dp)                 :: dpsi
+
+  dpsi = y + half*x
+
+  end function dpdy
+
 
 end 
 
