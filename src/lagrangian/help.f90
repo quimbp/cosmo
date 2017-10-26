@@ -21,7 +21,7 @@ call help_version(version)
 call help_progname('LAGRANGIAN')
 call help_author(author)
 call help_summary('Reads the zonal and meridional velocity components &
-  &from an NetCDF file and calculates trajectories from the time-evolving &
+  &from a NetCDF file and calculates trajectories from the time-evolving &
   &velocity field or streamlines for stationary cases. If a list of &
   &floats is not provided, NFLOATS positions will be randomly generated. The &
   &number and position of the floats may be read from an ASCII file &
