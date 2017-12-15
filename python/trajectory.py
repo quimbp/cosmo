@@ -6,6 +6,8 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
+import dateutil.parser as dparser
 import json
 
 import matplotlib
@@ -15,17 +17,15 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 from mpl_toolkits.basemap import Basemap
 
-import dateutil.parser as dparser
 
 PROGNAME = 'TRAJECTORY'
-VERSION = '0.1 (December 2017)'
+VERSION = '0.2 (December 2017)'
 AUTHOR = 'Quim Ballabrera (ICM/CSIC)'
 
 
 import datetime
 import sys
 from math import radians, cos, sin, asin, sqrt
-import iso8601
 
 def truncation(x):
 # ================
@@ -96,7 +96,8 @@ class GUI:
   def __init__(self,master):
 
     self.master = master
-    self.main   = tk.Frame(self.master)
+    self.master.protocol('WM_DELETE_WINDOW',self.close)
+
 
     # GEOJSON structure
     self.DATA = None
@@ -198,99 +199,108 @@ class GUI:
 
     # Filename frame (top of the window)
 
-    F0 = ttk.Frame(self.main,padding=5)
+    F0 = ttk.Frame(self.master,padding=5)
     ttk.Label(F0,text='Filename',padding=5).grid(row=0,column=0,sticky='w')
-    ttk.Entry(F0,textvariable=self.Trajectory_name,justify='left',width=89). \
-        grid(row=0,column=1,columnspan=10,sticky='ew')
+    ttk.Entry(F0,textvariable=self.Trajectory_name,justify='left',width=100). \
+        grid(row=0,column=1,sticky='ew')
     ttk.Button(F0,text='Load',state='enabled',command=self.open_geojson,padding=3). \
-        grid(row=0,column=12,sticky='e')
-    F0.grid()
-    F0.grid_columnconfigure(0,weight=1)
+        grid(row=0,column=14,padx=5,sticky='e')
+    F0.grid(row=0,column=0,columnspan=14,sticky='ew')
+    F0.grid_columnconfigure(0,weight=0)    # Allows horizontal stretching
+    F0.grid_rowconfigure(0,weight=0)
 
     # Define tabs:
-    self.nb = ttk.Notebook(self.main)
+    self.nb = ttk.Notebook(self.master)
     self.page1 = ttk.Frame(self.nb)
     self.page2 = ttk.Frame(self.nb)
+
     self.nb.add(self.page1,text='Canvas')
     self.nb.add(self.page2,text='Attributes')
 
     # PAGE 1: CANVAS
-    self.middle_frame = ttk.Frame(self.page1)
+    F1 = ttk.Frame(self.page1)
 
-    self.left_middle_frame = ttk.Frame(self.middle_frame)
-    self.rigth_middle_frame = ttk.Frame(self.middle_frame)
-
-    F2 = ttk.Frame(self.left_middle_frame,padding=5)
-    ttk.Label(F2,text='Deployment date',padding=3).grid(row=0,column=0)
-    self.wdeploy = ttk.Entry(F2,textvariable=self.Deploy_date,width=10)
-    self.wdeploy.grid(row=0,column=1,padx=5)
+    ttk.Label(F1,text='Deployment date = ',padding=3).grid(row=0,column=0,columnspan=2)
+    self.wdeploy = ttk.Entry(F1,textvariable=self.Deploy_date,width=10)
+    self.wdeploy.grid(row=0,column=2,columnspan=2,sticky='ew')
     self.wdeploy.bind("<Return>", lambda f: self.deploytime())
-    ttk.Label(F2,text='Recovery date',padding=3).grid(row=1,column=0)
-    self.wrecover = ttk.Entry(F2,textvariable=self.Recover_date,width=10)
-    self.wrecover.grid(row=1,column=1,padx=5)
+    ttk.Label(F1,text='Recovery date = ').grid(row=1,column=0,columnspan=2)
+    self.wrecover = ttk.Entry(F1,textvariable=self.Recover_date,width=10)
+    self.wrecover.grid(row=1,column=2,columnspan=2,sticky='ew')
     self.wrecover.bind('<Return>', lambda f: self.recovertime())
 
-    ttk.Label(F2,text='East',padding=3).grid(row=3,column=0)
-    ttk.Entry(F2,textvariable=self.Mapxmin,width=10).grid(row=3,column=1)
-    ttk.Label(F2,text='West',padding=3).grid(row=4,column=0)
-    ttk.Entry(F2,textvariable=self.Mapxmax,width=10).grid(row=4,column=1)
-    ttk.Label(F2,text='South',padding=3).grid(row=5,column=0)
-    ttk.Entry(F2,textvariable=self.Mapymin,width=10).grid(row=5,column=1)
-    ttk.Label(F2,text='North',padding=3).grid(row=6,column=0)
-    ttk.Entry(F2,textvariable=self.Mapymax,width=10).grid(row=6,column=1)
-    ttk.Button(F2,text='Redraw',command=self.redraw,padding=5).grid(row=7,column=0,columnspan=2,pady=2)
-    ttk.Button(F2,text='Zoom in',command=self.zoom_in,padding=5).grid(row=8,column=0,columnspan=2,pady=2)
-    ttk.Button(F2,text='Zoom out',command=self.zoom_out,padding=5).grid(row=9,column=0,columnspan=2,pady=2)
-    ttk.Button(F2,text='Reset',command=self.reset,padding=5).grid(row=10,column=0,columnspan=2,pady=2)
-    ttk.Button(F2,text='Aspect Ratio',command=self.ratio,padding=5).grid(row=11,column=0,columnspan=2,pady=2)
-    F2.grid()
+    ttk.Label(F1,text='West = ',padding=3).grid(row=0,column=4)
+    ttk.Entry(F1,textvariable=self.Mapxmax,width=10).grid(row=0,column=5,columnspan=2,sticky='ew')
+    ttk.Label(F1,text='East = ',padding=3).grid(row=1,column=4)
+    ttk.Entry(F1,textvariable=self.Mapxmin,width=10).grid(row=1,column=5,columnspan=2,sticky='ew')
 
-    self.fig = Figure(dpi=150)
+    ttk.Label(F1,text='South = ',padding=3).grid(row=0,column=7)
+    ttk.Entry(F1,textvariable=self.Mapymin,width=10).grid(row=0,column=8,columnspan=2,sticky='ew')
+    ttk.Label(F1,text='North = ',padding=3).grid(row=1,column=7)
+    ttk.Entry(F1,textvariable=self.Mapymax,width=10).grid(row=1,column=8,columnspan=2,sticky='ew')
+
+    ttk.Button(F1,text='Redraw',command=self.redraw,padding=5).grid(row=0,column=10,rowspan=2,padx=3)
+    ttk.Button(F1,text='Zoom in',command=self.zoom_in,padding=5).grid(row=0,column=11,rowspan=2,padx=3)
+    ttk.Button(F1,text='Zoom out',command=self.zoom_out,padding=5).grid(row=0,column=12,rowspan=2,padx=3)
+    ttk.Button(F1,text='Aspect Ratio',command=self.ratio,padding=5).grid(row=0,column=13,rowspan=2,padx=3)
+    ttk.Button(F1,text='Reset',command=self.reset,padding=5).grid(row=0,column=14,rowspan=2,padx=3)
+
+    F1.grid(sticky='nswe')
+    F1.grid_rowconfigure(0,weight=0)
+    F1.grid_columnconfigure(0,weight=0)
+
+    FC = ttk.Frame(self.page1)
+    self.fig = Figure(dpi=100)
     self.ax1 = self.fig.add_subplot(111)
-    self.canvas = FigureCanvasTkAgg(self.fig,master=self.rigth_middle_frame)
+    #self.canvas = FigureCanvasTkAgg(self.fig,master=self.page1)
+    self.canvas = FigureCanvasTkAgg(self.fig,master=FC)
     self.canvas.show()
-    self.canvas.get_tk_widget().pack(side=tk.LEFT,fill=tk.X)
-    self.canvas._tkcanvas.pack()
+    self.canvas._tkcanvas.grid(sticky='nsew')
+    self.canvas._tkcanvas.grid_rowconfigure(0,weight=1)
+    self.canvas._tkcanvas.grid_columnconfigure(0,weight=1)
     self.ax1.get_xaxis().set_visible(False)
     self.ax1.get_yaxis().set_visible(False)
-
-    self.left_middle_frame.grid(row=0,column=0)
-    self.rigth_middle_frame.grid(row=0,column=1)
-    self.middle_frame.grid()
+    FC.grid(sticky='nswe')
+    FC.grid_rowconfigure(0,weight=1)
+    FC.grid_columnconfigure(0,weight=1)
 
 
     # Bottom menu
-    F1 = ttk.Frame(self.page1,padding=5)
-    ttk.Button(F1,text='+',command=self.station_up,padding=3).  \
+    F2 = ttk.Frame(self.page1,padding=5)
+    ttk.Button(F2,text='+',command=self.station_up,padding=3).  \
                        grid(row=0,column=0)
-    ttk.Label(F1,text='station = ',padding=3).grid(row=0,column=1)
-    self.wstat = ttk.Entry(F1,textvariable=self.Station_pointer)
-    self.wstat.grid(row=0,column=2,columnspan=8)
+    ttk.Label(F2,text='station = ',padding=3).grid(row=0,column=1)
+    self.wstat = ttk.Entry(F2,textvariable=self.Station_pointer)
+    self.wstat.grid(row=0,column=2,columnspan=2)
     self.wstat.bind('<Return>', lambda f: self.station_manual())
-    ttk.Label(F1,text='/ ',padding=3).grid(row=0,column=19)
-    ttk.Entry(F1,textvariable=self.Trajectory_length).grid(row=0,column=20,columnspan=8)
-    ttk.Checkbutton(F1,text='Reject',command=self.reject_this,variable=self.Station_reject).grid(row=0,column=32,padx=5)
-    ttk.Button(F1,text='Reject stations before this',command=self.reject_before).grid(row=0,column=33,columnspan=3,padx=10)
-    ttk.Button(F1,text='Reject stations after this',command=self.reject_after).grid(row=0,column=37,columnspan=3,padx=10)
+    ttk.Label(F2,text='/ ',padding=3).grid(row=0,column=4)
+    ttk.Entry(F2,textvariable=self.Trajectory_length).grid(row=0,column=5,columnspan=2)
+    ttk.Checkbutton(F2,text='Reject',command=self.reject_this,variable=self.Station_reject). \
+                       grid(row=0,column=7)
+    ttk.Button(F2,text='Reject stations before this',command=self.reject_before). \
+                       grid(row=0,column=8,columnspan=2)
+    ttk.Button(F2,text='Reject stations after this',command=self.reject_after). \
+                       grid(row=0,column=11,columnspan=2)
 
 
-    ttk.Button(F1,text='-',command=self.station_down,padding=3). \
+    ttk.Button(F2,text='-',command=self.station_down,padding=3). \
                       grid(row=1,column=0)
-    ttk.Label(F1,text='Date = ',padding=3).grid(row=1,column=1)
-    ttk.Entry(F1,textvariable=self.Station_date).grid(row=1,column=2,columnspan=4)
+    ttk.Label(F2,text='Date = ',padding=3).grid(row=1,column=1)
+    ttk.Entry(F2,textvariable=self.Station_date).grid(row=1,column=2,columnspan=2)
 
-    ttk.Label(F1,text='Longitude = ',padding=3).grid(row=2,column=1)
-    ttk.Entry(F1,textvariable=self.Station_lon).grid(row=2,column=2,columnspan=8)
-    ttk.Label(F1,text='Latitude = ',padding=3).grid(row=2,column=19)
-    ttk.Entry(F1,textvariable=self.Station_lat).grid(row=2,column=20,columnspan=8)
-    ttk.Label(F1,text='Speed = ',padding=3).grid(row=2,column=39)
-    ttk.Entry(F1,textvariable=self.Station_speed).grid(row=2,column=40,columnspan=8)
-    F1.grid()
+    ttk.Label(F2,text='Longitude = ',padding=3).grid(row=1,column=4)
+    ttk.Entry(F2,textvariable=self.Station_lon).grid(row=1,column=5,columnspan=2)
+    ttk.Label(F2,text='Latitude = ',padding=3).grid(row=1,column=7)
+    ttk.Entry(F2,textvariable=self.Station_lat).grid(row=1,column=8,columnspan=2)
+    ttk.Label(F2,text='Speed = ',padding=3).grid(row=1,column=10)
+    ttk.Entry(F2,textvariable=self.Station_speed).grid(row=1,column=11,columnspan=2)
 
-    F3 = ttk.Frame(self.page1,padding=5)
-    ttk.Button(F3,text='Purge',command=self.purge).grid(row=0,column=5)
-    ttk.Button(F3,text='Save',command=self.save).grid(row=0,column=6)
-    F3.grid(column=1,sticky='e')
+    ttk.Button(F2,text='Purge',command=self.purge).grid(row=2,column=10)
+    ttk.Button(F2,text='Save as',command=self.save).grid(row=2,column=11)
+    ttk.Button(F2,text='Close',command=self.close).grid(row=2,column=12)
+    F2.grid(sticky='ew')
+    F2.grid_rowconfigure(0,weight=0)
+    F2.grid_columnconfigure(0,weight=0)
 
     # PAGE 2: ATTRIBUTES
     ttk.Label(self.page2,text='Properties',padding=3,font='Helvetical 12 bold').grid(row=0,column=0)
@@ -334,8 +344,18 @@ class GUI:
 
 
     # PACK THE WHOLE THING
-    self.nb.grid()
-    self.main.grid()
+
+    self.nb.grid(sticky='nswe')
+    self.nb.grid_columnconfigure(0,weight=1)
+    self.nb.grid_rowconfigure(0,weight=1)
+
+  # ---------------------
+  def close(self):
+  # ---------------------
+    ''' Closing the main widget '''
+    messagebox.askquestion('Close','Are you sure?',icon='warning')
+    if 'yes':
+      quit()
 
 
   # ---------------------
@@ -362,18 +382,20 @@ class GUI:
       for i in range(self.Nfeatures):
         if self.DATA["features"][i]["geometry"]["type"] == "LineString":
           self.Trajectory_POINTS = self.DATA["features"][i]["geometry"]["coordinates"]
-          self.Trajectory_date = self.DATA["features"][i]["properties"]["time"]["data"]
+          DATES = self.DATA["features"][i]["properties"]["time"]["data"]
           self.Trajectory_temp = self.DATA["features"][i]["properties"]["sst"]["data"]
 
-      self.Trajectory_length.set(len(self.Trajectory_date))
+      self.Trajectory_length.set(len(DATES))
 
       self.Trajectory_lon = [self.Trajectory_POINTS[j][0] for j in range(self.Trajectory_length.get())]
       self.Trajectory_lat = [self.Trajectory_POINTS[j][1] for j in range(self.Trajectory_length.get())]
 
+      self.Trajectory_date = []
       self.Trajectory_seconds = []
       for i in range(self.Trajectory_length.get()):
-        tt = dparser.parse(self.Trajectory_date[i])
-        self.Trajectory_seconds.append(int(tt.strftime('%s')))
+        d = dparser.parse(DATES[i])
+        self.Trajectory_date.append(d)
+        self.Trajectory_seconds.append(int(d.strftime('%s')))
 
 
       # Get travelled distance (in meters)
@@ -397,9 +419,7 @@ class GUI:
         if i == 0:
           self.Trajectory_time.append(float(0))
         else:
-          now = iso8601.parse_date(self.Trajectory_date[i])
-          pre = iso8601.parse_date(self.Trajectory_date[i-1])
-          secs = (now-pre).seconds
+          secs = (self.Trajectory_date[i]-self.Trajectory_date[i-1]).seconds
           self.Trajectory_time.append(secs)
 
       # Speed required to move between stations
@@ -561,9 +581,7 @@ class GUI:
       if i == 0:
         self.Trajectory_time.append(float(0))
       else:
-        now = iso8601.parse_date(self.Trajectory_date[i])
-        pre = iso8601.parse_date(self.Trajectory_date[i-1])
-        secs = (now-pre).seconds
+        secs = (self.Trajectory_date[i]-self.Trajectory_date[i-1]).seconds
         self.Trajectory_time.append(secs)
 
     # Speed required to move between stations
@@ -826,7 +844,7 @@ class GUI:
                 urcrnrlon=self.Mapxmax.get(),         \
                 fix_aspect=self.aspectratio,          \
                 ax=self.ax1)
-    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 2000, verbose= True)
+    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 1000, verbose= True)
 
     self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
     self.m.plot(self.xx[self.Station_pointer.get()], \
@@ -854,7 +872,9 @@ class GUI:
 def main():
   root = tk.Tk()
   root.title(PROGNAME)
-  root.resizable(width=True,height=True)
+  #root.resizable(width=True,height=True)
+  root.grid_columnconfigure(0,weight=1)
+  root.grid_rowconfigure(0,weight=1)
   app = GUI(root)
   root.mainloop()
 
