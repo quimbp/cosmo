@@ -4,27 +4,38 @@ Fortran libraries and tools used in the COSMO project
 (CTM2016-79474-R, MINECO/FEDER, UE)
 
 The code has been developped under Centos, using the GNU Fortran (GCC)
-4.8.5 compiler and the Fortran 90 netcdf library version 4.3.3.1 and python version 3.6.3
+4.8.5 compiler and the Fortran 90 netcdf library version 4.3.3.1 and python version 3.6.3. It has been also tested in Ubuntu 16.04.3 LTS (xenial).
 
-Purpose: Build a utility library and a Lagrangian trajectory integrator.
+Purpose: Build a fortran utilities library and a Lagrangian trajectory integrator (COSMO Lagrangian Model).
 Requirements: **Fortran compiler** and the **NetCDF F90 library** version 4.3.X.X
 
 ## Installing
 
 To install the code, use:
 
+```
 $ git clone https://github.com/quimbp/cosmo.git
+```
 
 ## Compilling Fortran code
 
-Edit the file **make.inc** and modify the paths of the installation softer
-(Default: $(HOME)/cosmo), the fortran compiler (Default: gfortran), and
-the path to the NetCDF Fortran 90 modules and libraries (NF90_INC and
-NF90_LIB).
+Edit the file **make.inc** and modify the paths of the installation folder **$COSMO** (*Default: $(HOME)/cosmo*), the fortran compiler (*Default: gfortran*), 
+and the path to the NetCDF Fortran 90 modules and libraries (**NF90_INC** and
+**NF90_LIB**).
 
 Then type,
 
+```
 $ make
+```
+
+If compilation succeeds, the COSMO Lagrangian Model will be located in **$COSMO/bin/lagrangian**
+
+Type
+```
+$ $COSMO/bin/lagrangian --help
+```
+for the list of options to run the model.
 
 ## Python utilities
 
