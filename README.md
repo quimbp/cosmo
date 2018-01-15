@@ -3,7 +3,7 @@
 Fortran libraries and tools used in the COSMO project
 (CTM2016-79474-R, MINECO/FEDER, UE)
 
-The code has been developped under Centos, using the GNU Fortran (GCC)
+The code has been developed under Centos, using the GNU Fortran (GCC)
 4.8.5 compiler and the Fortran 90 netcdf library version 4.3.3.1 and python version 3.6.3. It has been also tested in Ubuntu 16.04.3 LTS (xenial).
 
 Purpose: Build a fortran utilities library and a Lagrangian trajectory integrator (COSMO Lagrangian Model).
@@ -35,7 +35,7 @@ Type
 ```
 $ $COSMO/bin/lagrangian --help
 ```
-to obtain the list of options for running the model. A detailed User Documentation will be upload shortly.
+to obtain the list of options for running the model. A detailed User Documentation will be uploaded shortly.
 
 ## Python utilities
 
@@ -69,13 +69,13 @@ Opening file ../data/exp0001.json
 
 ### cosmo-view.py
 
-A visualization tool to visualize ocean currents. It can load fields directly from operational providers or from Netcdf files. It can superpose satellite SST data received by the HPRT station located in the Institut de Ciencies del Mar (ICM/CSIC) and lagrangian trajectories created by the COSMO Lagrangian Model or JSON files from field experiments.
+A visualization tool to visualize ocean currents. It can load fields directly from operational providers or from Netcdf files. It can superimpose satellite SST data received by the HPRT station located in the Institut de Ciencies del Mar (ICM/CSIC) and lagrangian trajectories created by the COSMO Lagrangian Model or JSON files from field experiments.
 
 ```
 $ python3 cosmo-view.py
 ```
 
-A detailed User Documentation will be upload shortly.
+A detailed User Documentation will be uploaded shortly.
 
 ## Authors
 
