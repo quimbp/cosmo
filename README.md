@@ -15,7 +15,7 @@ To install the code, use:
 
 $ git clone https://github.com/quimbp/cosmo.git
 
-# Compilling
+# Compilling Fortran code
 
 Edit the file **make.inc** and modify the paths of the installation softer
 (Default: $(HOME)/cosmo), the fortran compiler (Default: gfortran), and
@@ -26,3 +26,12 @@ Then type,
 
 $ make
 
+# Python utilities
+
+Three utilities are currently available:
+
+> **cosmo-json.py** - A visualization tool to visualize JSON files with lagrangian trajectories generated during the COSMO project. This tool allows simple selection of initial and final points and to remove undesired locations.
+
+> **release-point** - A tool returning the initial position and the release date of a JSON lagrangian trajectory. Using the option '-label' is returns the same data, but adding the options required by the COSMO Lagrangian Model to run.
+
+> **cosmo-view** - A visualization tool to visualize ocean currents. It can load fields directly from operational providers or from Netcdf files. It can superpose satellite SST data received by the HPRT station located in the Institut de Ciencies del Mar (ICM/CSIC) and lagrangian trajectories created by the COSMO Lagrangian Model or JSON files from field experiments.
