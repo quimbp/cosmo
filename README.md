@@ -35,7 +35,7 @@ Three utilities are currently available:
 A visualization tool to visualize JSON files with lagrangian trajectories generated during the COSMO project. This tool allows simple selection of initial and final points and to remove undesired locations.
 
 ``` 
-$ python3 cosmo-jason
+$ python3 cosmo-jason.py
 ```
 
 ### release-point.py
