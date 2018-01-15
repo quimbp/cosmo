@@ -35,7 +35,7 @@ Type
 ```
 $ $COSMO/bin/lagrangian --help
 ```
-for the list of options to run the model.
+to obtain the list of options for running the model. A detailed User Documentation will be upload shortly.
 
 ## Python utilities
 
@@ -49,11 +49,11 @@ A visualization tool to visualize JSON files with lagrangian trajectories genera
 $ python3 cosmo-jason.py
 ```
 
-### release-point.py
+### release_point.py
 A tool returning the initial position and the release date of a JSON lagrangian trajectory. 
 
 ```
-$ python3 release-point.py ../data/exp001.json
+$ python3 release_point.py ../data/exp001.json
 Opening file ../data/exp0001.json
 1.4167 41.0002 2017-11-22T10:35:13
 ```
@@ -61,7 +61,7 @@ Opening file ../data/exp0001.json
 Using the option '-label' the corresponding option names required by the COSMO Lagrangian Model are included.
 
 ```
-$ python3 release-point.py -label ../data/exp001.json
+$ python3 release_point.py -label ../data/exp001.json
 Opening file ../data/exp0001.json
 -xo  1.4167 -yo  41.0002  -do  2017-11-22T10:35:13
 ```
@@ -74,3 +74,17 @@ A visualization tool to visualize ocean currents. It can load fields directly fr
 ```
 $ python3 cosmo-view.py
 ```
+
+A detailed User Documentation will be upload shortly.
+
+## Authors
+
+* **Joaquim Ballabrera** (*ICM/CSIC*) E-mail: joaquim@icm.csic.es
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgements
+
+The COSMO project is funded by the Spanish Government Minstry of Economy and Competitivity (CTM2016-79474-R, MINECO/FEDER, UE). This work is the result of the collaboration of ICM-CSIC Research Team: Dr. Emilio García, Dr. Jordi Isern, Dr. Jordi Solé and Dr. José Antonio Jiménez. 
