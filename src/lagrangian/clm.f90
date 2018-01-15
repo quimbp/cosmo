@@ -18,6 +18,8 @@
 ! ...      RHS
 ! ...      cubic
 ! ... Version 0.1, released October 2017
+! ... Version 0.2, released December 2017
+! ...              Increase length for filenames (len=maxlen).
 ! ***************************************************************************
 
 module clm
@@ -164,7 +166,7 @@ type cdf_vgrid
   integer                               :: ny       =  1
   integer                               :: nz       =  1
   integer                               :: nt       =  1
-  character(len=80)                     :: filename = ''
+  character(len=maxlen)                 :: filename = ''
   character(len=80)                     :: varname  = ''
   character(len=80)                     :: xname    = ''
   character(len=80)                     :: yname    = ''
@@ -201,7 +203,7 @@ type cdf_tgrid
   integer                               :: ny       =  1
   integer                               :: nz       =  1
   integer                               :: nt       =  1
-  character(len=80)                     :: filename = ''
+  character(len=maxlen)                 :: filename = ''
   character(len=80)                     :: tempname = ''
   character(len=80)                     :: saltname = ''
   character(len=80)                     :: densname = ''
@@ -241,6 +243,7 @@ type(cdf_vgrid), INTENT(inout)           :: UCDF
 type(gcdf)                               :: icdf
 integer                                  :: err,ndims,idv,i
 
+write(*,*) 'Input file: ', trim(UCDF%filename)
 call gcdf_open (UCDF%filename,icdf,err)
 UCDF%fid = icdf%fid
 
@@ -446,9 +449,9 @@ type(cdf_tgrid), INTENT(inout)           :: TCDF
 type(gcdf)                               :: icdf
 integer                                  :: err,ndims,idv,i
 
+write(*,*) 'Input file: ', trim(TCDF%filename)
 call gcdf_open (TCDF%filename,icdf,err)
 TCDF%fid = icdf%fid
-
 
 if (trim(TCDF%xname).ne.trim(icdf%xname)) then
   err = NF90_INQ_VARID (TCDF%fid,TCDF%xname,TCDF%idx)
@@ -1062,7 +1065,7 @@ type(floater)                           :: FLT
 ! ... Local variables:
 ! ...
 logical init
-integer flo,kout
+integer flo,kout,nfloating,nstranded,noutside
 integer                                  :: external_step
 real(dp)                                 :: external_time
 real(dp)                                 :: internal_time
@@ -1303,9 +1306,25 @@ do external_step=1,external_nsteps
 
     enddo     ! End loop over floats
 
+    nfloating = 0
+    nstranded = 0
+    noutside = 0
+    do flo=1,FLT%n
+      if (FLT%released(flo)) then
+        if (FLT%floating(flo)) then
+          nfloating = nfloating + 1
+        endif
+        if (FLT%stranded(flo)) then
+          nstranded = nstranded + 1
+        endif
+        if (FLT%outside(flo)) then
+          noutside = noutside + 1
+        endif
+      endif
+    enddo
+
     write(*,'("Step: ",I4.4,". Floats released: ",I4.4,", floating: ",I4.4,", stranded: ",I4.4,", outside: ", I4.4)') &
-       internal_step, count(FLT%released), count(FLT%floating), &
-                      count(FLT%stranded), count(FLT%outside)
+       internal_step, count(FLT%released), nfloating, nstranded, noutside
 
     internal_time = internal_time + internal_dt
     FLT%time(:) = internal_time - initial_time - FLT%release_time(:)

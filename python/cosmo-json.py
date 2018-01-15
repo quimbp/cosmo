@@ -18,8 +18,8 @@ from matplotlib.figure import Figure
 from mpl_toolkits.basemap import Basemap
 
 
-PROGNAME = 'TRAJECTORY'
-VERSION = '0.2 (December 2017)'
+PROGNAME = 'COSMO-JASON'
+VERSION = '0.3 (December 2017)'
 AUTHOR = 'Quim Ballabrera (ICM/CSIC)'
 
 
@@ -249,8 +249,10 @@ class GUI:
     F1.grid_rowconfigure(0,weight=0)
     F1.grid_columnconfigure(0,weight=0)
 
+    global DPI
+
     FC = ttk.Frame(self.page1)
-    self.fig = Figure(dpi=100)
+    self.fig = Figure(dpi=DPI)
     self.ax1 = self.fig.add_subplot(111)
     #self.canvas = FigureCanvasTkAgg(self.fig,master=self.page1)
     self.canvas = FigureCanvasTkAgg(self.fig,master=FC)
@@ -452,6 +454,7 @@ class GUI:
       self.Deploy_date.set(self.Trajectory_date[0])
       self.Recover_date.set(self.Trajectory_date[self.Trajectory_length.get()-1])
  
+      self.fig.set_dpi(200)
       self.ax1.clear()
       self.draw_map()
       self.make_plot()
@@ -869,7 +872,9 @@ class GUI:
     self.canvas.draw()
 
 
+# ==========
 def main():
+# ==========
   root = tk.Tk()
   root.title(PROGNAME)
   #root.resizable(width=True,height=True)
@@ -878,5 +883,35 @@ def main():
   app = GUI(root)
   root.mainloop()
 
+# ==========
+def usage():
+# ==========
+  print('Script trajectory.py')
+  print('Usage: ')
+  print('python [--help] [DPI]')
+  print('Option DPI adapts the size of the GUI. Default (100)')
+
 if __name__ == '__main__':
-  main()
+  global DPI
+
+  DPI = 100
+  leave = False
+
+  try:
+    option = str(sys.argv[1])
+    if option == str('--help'):
+      leave = True
+      usage()
+    else:
+      try:
+        DPI = int(sys.argv[1])
+      except:
+        usage()
+        leave = True
+  except:
+    pass
+
+  if leave:
+    sys.exit(1)
+  else:
+    main()

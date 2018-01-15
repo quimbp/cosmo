@@ -17,6 +17,10 @@
 ! ...       Beaching control
 ! ...       Same spatial interpolation for velocity and tracers
 ! ...       Fill coastal point for tracers using linear interpolation
+! ... v0.2: Update version (December 2017)
+! ...       New float initial release options (time (secs) or date).
+! ...       Correct the fact that input filename was too short (80).
+! ...       Allow user to change the name of the initial release file
 ! ...
 ! ...      
 ! ****************************************************************************
@@ -30,7 +34,7 @@ use mod_out
 
 implicit none
 
-character(len=*), parameter             :: version = 'v0.1'
+character(len=*), parameter             :: version = 'v0.2'
 character(len=*), parameter             :: author = 'Quim Ballabrera'
 
 type(floater)                           :: FLT
@@ -51,6 +55,7 @@ logical                                 :: out = .false.  ! Flag output file
 logical                                 :: fvc = .false.  ! Flag stationary fld
 logical                                 :: hlp = .false.  ! Flag for help
 logical                                 :: frs = .false.  ! Flag Rand seed
+logical                                 :: fcl = .false.  ! Flag rand cloud rel.
 
 integer                                 :: iseed
 integer, dimension(:), allocatable      :: rseed
@@ -62,6 +67,7 @@ integer                                 :: i
 integer                                 :: na
 integer                                 :: iu
 integer                                 :: flo
+real(dp)                                :: system_time
 character(len=maxlen)                   :: ofile = 'out.nc'   ! Output filename
 character(len=4000)                     :: Ulist=''
 character(len=4000)                     :: Vlist=''
@@ -100,19 +106,27 @@ call argdbl('-miss',fmv,missing)
 call argdbl('-time_scal',tscale_flag,tscale)
 call argstr('-cal',fcal,calendar)
 call argflg('-stat',stationary)
+call argflg('-cl',fcl)
 call argint('-rec',fvc,record)
 call argdbl('-time_sim',ftimesim,simulation_length)
 call argint('-steps',fent,external_nsteps)
 call argdbl('-edt',fedt,external_dt)
+call argdbl('-external_dt',fedt,external_dt)
 call argdbl('-idt',fidt,internal_dt)
+call argdbl('-internal_dt',fidt,internal_dt)
 call argflg('-rev',reverse)
 call argint('-seed',frs,iseed)
 
 call argdbl('-Rx',frx,Radius_x)
 call argdbl('-Ry',fry,Radius_y)
+call argdbl('-Rt',frt,Radius_t)
 call argdbl('-xo',ffx,fxo)
 call argdbl('-yo',ffy,fyo)
+call argdbl('-to',fft,fto)
+call argdbl('-time_rel',fft,fto)
+call argstr('-do',ffd,fdo)
 call argint('-nf',fnp,Nfloats)
+call argint('-Nf',fnp,Nfloats)
 
 ! ... Not yet implemented
 !call argdbl('-so',fso,south)
@@ -126,8 +140,12 @@ if (count((/fuu,fvv/)).ne.2) &
 if (count((/ffx,ffy/)).eq.1) &
    call stop_error(1,'Error. Use both -xo and -yo options')
 
-if (frx.or.fry) random_floats = .true.
+if (count((/fft,ffd/)).eq.2) &
+   call stop_error(1,'Error. Incompatible options -to and -do options')
+
+if (frx.or.fry.or.fcl) random_floats = .true.
 if (.not.ffx.and..not.fre_in) random_floats = .true.
+if (ffx) fre_in = .false.  ! We keep the name it will not be read, but written
 
 if (ftimesim.and.fent) &
    call stop_error(1,'Incompatible options -time_simulation and -steps')
@@ -276,6 +294,19 @@ else
   time_direction = 1
 endif
 
+
+! ... Get the release time (seconds after initial model time)
+! ... from the release date
+! ...
+if (ffd) then
+  if (record.eq.-1) then
+    system_time = UCDF%time_ref + tscale*UCDF%t(1)/86400.0_dp
+  else
+    system_time = UCDF%time_ref + tscale*UCDF%t(record)/86400.0_dp
+  endif
+  fdateo = string2date(fdo)
+  fto = max(0,nint((date2jd(fdateo) - system_time)*86400))
+endif
 
 call floats_ini(FLT,UCDF%x,UCDF%y,UCDF%land(:,:,1))
 

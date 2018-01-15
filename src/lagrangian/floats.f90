@@ -13,6 +13,9 @@
 ! ...   1: Left the system
 ! ...   2: Stranded
 ! ... Version 0.1, released October 2017
+! ... Version 0.2, released December 2017
+! ...              New float release options from command line
+! ...              Allow user to change the name of the initial release file
 ! ****************************************************************************
 
 module mod_floats
@@ -31,18 +34,25 @@ logical                                  :: fnp              = .false.
 logical                                  :: ffx              = .false.
 logical                                  :: ffy              = .false.
 logical                                  :: ffz              = .false.
+logical                                  :: fft              = .false.
+logical                                  :: ffd              = .false.
 logical                                  :: frx              = .false.
 logical                                  :: fry              = .false.
-character(len=180)                       :: release_file_in  = ''
+logical                                  :: frt              = .false.
+character(len=180)                       :: release_file_in  = 'release.ini'
 character(len=180)                       :: release_file_out = 'release.out'
 integer                                  :: Nfloats          = 10
-real(dp)                                 :: Radius_x         = one
-real(dp)                                 :: Radius_y         = one
+real(dp)                                 :: Radius_x         = 0.1D0
+real(dp)                                 :: Radius_y         = 0.1D0
+real(dp)                                 :: Radius_t         = zero
 
 
 real(dp)                                 :: fxo
 real(dp)                                 :: fyo
 real(dp)                                 :: fzo              = zero
+real(dp)                                 :: fto              = zero
+character(len=20)                        :: fdo              = ''
+type(date_type)                          :: fdateo         ! Release date
 
 
 type floater
@@ -80,7 +90,7 @@ logical, dimension(:,:), intent(in)        :: land
 
 logical itsbeach,itsout
 integer ii,jj,flo,iu
-real(dp) xmin,ymin,x0,x1,y0,y1,rnd(2)
+real(dp) xmin,ymin,tmin,x0,x1,y0,y1,rnd(3)
 
 x0 = minval(x)
 x1 = maxval(x)
@@ -105,10 +115,16 @@ else
       call floats_alloc (FLT)
       xmin = fxo - half*Radius_x
       ymin = fyo - half*Radius_y
+      if (fto.eq.0) then
+        tmin = fto 
+      else
+        tmin = fto - half*Radius_t
+      endif
       do flo=1,FLT%n
         20 call RANDOM_NUMBER(rnd)
         FLT%lon(flo) = Radius_x*rnd(1) + xmin
         FLT%lat(flo) = Radius_y*rnd(2) + ymin
+        FLT%release_time(flo) = Radius_t*rnd(3) + tmin
         ii = locate(x,FLT%lon(flo))
         jj = locate(y,FLT%lat(flo))
         itsbeach = any((/land(ii,jj),      &
@@ -122,7 +138,6 @@ else
         if (itsbeach.or.itsout) goto 20
       enddo
       FLT%depth(:)        = fzo
-      FLT%release_time(:) = zero
       FLT%stranded(:)     = .false.
       FLT%outside(:)      = .false.
     else
@@ -131,7 +146,7 @@ else
       FLT%lon(1)          = fxo
       FLT%lat(1)          = fyo
       FLT%depth(1)        = fzo
-      FLT%release_time(:) = zero
+      FLT%release_time(:) = fto
     endif
   else if (random_floats) then
     write(*,*) 
@@ -157,15 +172,16 @@ else
       if (itsbeach.or.itsout) goto 30
     enddo
     FLT%depth(:)        = fzo
-    FLT%release_time(:) = zero
+    FLT%release_time(:) = fto             ! v0.2: Can be user specified
     FLT%stranded(:)     = .false.
     FLT%outside(:)      = .false.
   else
     call stop_error(1,'Incorrect specification floats releasing')
   endif
 
+  write(*,*) 'Saving release information in : ', trim(release_file_in)
   iu = unitfree()
-  open(iu,file='release.ini',status='unknown')
+  open(iu,file=release_file_in,status='unknown')
 
   write(*,*)
   write(*,*) 'Initial position, and release time (secs after initial time) of the floats'
@@ -173,9 +189,9 @@ else
 
   rewind(iu)
   do flo=1,FLT%n
-    write(*,'(3F10.4,F10.0)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
+    write(*,'(3F10.4,F11.0)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
                      FLT%release_time(flo)
-    write(iu,'(3F10.4,F10.0)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
+    write(iu,'(3F10.4,F11.0)') FLT%lon(flo), FLT%lat(flo), FLT%depth(flo), &
                      FLT%release_time(flo)
   enddo
   close(iu)

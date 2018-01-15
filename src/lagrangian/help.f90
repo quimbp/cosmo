@@ -4,6 +4,8 @@
 ! ... COSMO Lagrangian model
 ! ... Help information for program lagrangian
 ! ... Version 0.1, released October 2017
+! ... V0.2: Update version (December 2017)
+! ...       Include new options -Rt, -to, -do
 ! ****************************************************************************
 
 subroutine program_help(version,author)
@@ -26,8 +28,8 @@ call help_summary('Reads the zonal and meridional velocity components &
   &floats is not provided, NFLOATS positions will be randomly generated. The &
   &number and position of the floats may be read from an ASCII file &
   &(LON, LAT, DEPTH, RELEASE_TIME [,...]) or passed though command line &
-  &using options -xo and -yo. In the later case, a cloud of &
-  &NFLOATS may also be generated using the option -cloud. &
+  &using options -xo and -yo (and optionally -to or -do). In the later case, &
+  &a cloud of NFLOATS may also be generated using the option -cloud. &
   &The number of internal time steps can be modified using the &
   &option -idt, that specifies the time step of the internal loop. &
   &The program writes a trajectory file (NetCDF) and the final position of &
@@ -43,15 +45,24 @@ call help_option ('-edt        DT (in seconds)','Option to select the &
  &step)','86400')
 call help_option ('-end        filename ','Output final position file name', &
         'release.out')
+call help_option ('-do         RELEASE_DATE','Optional value of the float &
+ &initial release time (Date in iso8601 format)','')
 call help_option ('-idt        DT (in seconds)','Option to select the &
  &time step of the internal loop','3600')
+call help_option ('-missing    MISSING_VALUE','Missing value in input velocity field','Read from input NetCDF U file')
 call help_option ('-nfloats    NFLOATS','Number of floats to be randomly &
  &generated if the positions file is not provided.','10')
 call help_option ('-record     RECORD','Option to start the trajectories &
  &from the specified record. In case of streamlines, use the selected record &
  &in the file','1')
-call help_option ('-release    filename ','Input position release file name','')
+call help_option ('-release    filename ','Initial position release file name. &
+ &It must exist if no initial position is specified (-xo and -yo options). &
+ &It will be created if the initial position is specified.','release.ini (if created)')
 call help_option ('-reverse           ','Option for backward integration','')
+call help_option ('-Rt      RADIUS_T','If options -xo and -yo are used, the &
+ &-Rt option allows the randomly release in time. If initial time is 0, the &
+ &time period is [0, RADIUS_T]. Otherwise the time period is [TO-RADIUS_T/2, &
+ &TO+RADIUS_T/2].','0')
 call help_option ('-Rx      RADIUS_X','If options -xo and -yo are used, the &
  &-Rx option allows setting a cloud of NFLOATS floats randomly distributed &
  &in a RADIUS_X x RADIUS_Y region centered at the (XO,YO) position.','0.1')
@@ -67,6 +78,8 @@ call help_option ('-time_sim  Time_length (in days)','Option to select the &
  &length of the simulation (if input velocity field has only one time &
  &step)','7')
 call help_option ('-trajectory filename ','Output trajectory file name','out.nc')
+call help_option ('-to         TO','Optional value of the float initial &
+ &release time (seconds after initial simulation time)','0')
 call help_option ('-xo         XO','Optional value of the float initial &
  &position','')
 call help_option ('-yo         YO','Optional value of the float initial &
