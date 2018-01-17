@@ -371,9 +371,8 @@ class WinDrawPlot():
     menu.add_command(label='Quit',command=self._close)
 
     menu = tk.Menu(self.menubar, tearoff=0)
-    self.menubar.add_cascade(label='Import',menu=menu)
+    self.menubar.add_cascade(label='Import/Select',menu=menu)
     menu.add_command(label='SAIDIN',command=self.saidin)
-    menu.add_command(label="SMOS",command=self.isobat_config)
     menu.add_command(label='CODAR',command=self.codar)
     #menu.add_command(label='Field',command=self.logo_config)
     #menu.add_command(label='Vector',command=self.logo_config)
@@ -390,7 +389,6 @@ class WinDrawPlot():
                      command=lambda:self.contour_config(self.FIELD))
     menu.add_separator()
     menu.add_command(label='SAIDIN',command=lambda:self.contour_config(self.SAIDIN))
-    menu.add_command(label="SMOS",command=self.isobat_config)
     menu.add_command(label='CODAR', \
              command=lambda:self.vector_config(self.CODAR[self.CODAR_INDX.get()].PLOT,self.CODAR_BACKUP.PLOT))
     #menu.add_command(label='Field',command=self.logo_config)
@@ -1902,12 +1900,32 @@ class WinDrawPlot():
       print(command)
       os.system(command)
 
-      FLT = lagrangian.Read(self.CLM.TRAJECTORY.get())
-      self.nfloat += 1
-      self.FLOAT.append(FLT)
-      self.FLOAT_INDX.set(self.nfloat-1)
-      self.FLOAT_LIST = list(range(self.nfloat))
-      self.make_plot()
+      if os.path.isfile(self.CLM.TRAJECTORY.get()):
+        FLT = lagrangian.Read(self.CLM.TRAJECTORY.get())
+        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-\
+                              self.FLD.DATE[0]).total_seconds() \
+                              for i in range(FLT.nrecords)])
+        FLT.MAPX = []
+        FLT.MAPY = []
+        if FLT.nfloats > 1:
+          for i in range(FLT.nfloats):
+            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]), bounds_error=False, fill_value=np.NaN)
+            FLT.MAPX.append(list(f(self.FLD.TIME)))
+            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]), bounds_error=False, fill_value=np.NaN)
+            FLT.MAPY.append(list(f(self.FLD.TIME)))
+        else:
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon), bounds_error=False, fill_value=np.NaN)
+          FLT.MAPX = list(f(self.FLD.TIME))
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat), bounds_error=False, fill_value=np.NaN)
+          FLT.MAPY = list(f(self.FLD.TIME))
+
+        self.nfloat += 1
+        self.FLOAT.append(FLT)
+        self.FLOAT_INDX.set(self.nfloat-1)
+        self.FLOAT_LIST = list(range(self.nfloat))
+        self.make_plot()
+      else:
+        messagebox.showinfo(message='COSMO Lagrangian Model failed')
 
 
     def _help():
