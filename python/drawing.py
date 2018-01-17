@@ -209,7 +209,7 @@ class WinDrawPlot():
       self.kbox.configure(state='disabled')
     else:
       self.kbox['values'] = list(range(len(self.FLD.K_LIST)))
-      self.PLOT.ZLABEL.set(str(self.CURRENTS.Z_LIST[self.FLD.K.get()]))
+      self.PLOT.ZLABEL.set(str(self.FLD.Z_LIST[self.FLD.K.get()]))
 
     ttk.Entry(FD,textvariable=self.PLOT.ZLABEL, \
               state='readonly',width=10).grid(row=0,column=2,sticky='ew')
@@ -345,20 +345,6 @@ class WinDrawPlot():
     self.PLOT.PARALLEL_INI.set(np.trunc(self.PLOT.DATA_SOUTH/tmp2 - 1)*tmp2)
     self.PLOT.PARALLEL_FIN.set(np.trunc(self.PLOT.DATA_NORTH/tmp2 + 1)*tmp2)
     tmp2 = None
-
-    # Time and Depth selectors
-    #if icdf.idk > -1:
-    #  wrk = ncid.variables[icdf.zname][:]
-    #  self.CURRENTS.Z_LIST = list(wrk)
-    #else:
-    #  self.CURRENTS.Z_LIST = []
-    #if icdf.idl > -1:
-    #  wrk = ncid.variables[icdf.tname][:]
-    #  self.CURRENTS.T_LIST = list(wrk)
-    #else:
-    #  self.CURRENTS.T_LIST = []
-    #self.CURRENTS.K_LIST      = list(np.arange(0,icdf.nz))
-    #self.CURRENTS.L_LIST      = list(np.arange(0,icdf.nt))
 
     try:
       self.PLOT.XLABEL.set(ncid.variables[icdf.xname].getncattr('long_name'))

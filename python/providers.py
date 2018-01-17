@@ -236,15 +236,15 @@ class WinOpendap:
     PARAMS.NAME = self.providerbox.get()
 
     if PARAMS.NAME == 'SAMPA':
-      PARAMS.YEAR_INI  = PARAMS.PROVIDER_INIT_YEAR[0]
-      PARAMS.MONTH_INI = PARAMS.PROVIDER_INIT_MONTH[0]
+      PARAMS.YEAR_INI  = PARAMS.INIT_YEAR[0]
+      PARAMS.MONTH_INI = PARAMS.INIT_MONTH[0]
       self.freq_var.set(PARAMS.FREQUENCY)
       self.daily.configure(state='!disabled')
       self.hourly.configure(state='!disabled')
 
     if PARAMS.NAME == 'SOCIB':
-      PARAMS.YEAR_INI  = PARAMS.PROVIDER_INIT_YEAR[1]
-      PARAMS.MONTH_INI = PARAMS.PROVIDER_INIT_MONTH[1]
+      PARAMS.YEAR_INI  = PARAMS.INIT_YEAR[1]
+      PARAMS.MONTH_INI = PARAMS.INIT_MONTH[1]
       self.freq_var.set('D')
       self.daily.configure(state='disabled')
       self.hourly.configure(state='disabled')
