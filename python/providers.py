@@ -17,6 +17,7 @@ import datetime
 from datetime import timedelta
 from calendar import monthrange
 import wget
+import os
 
 
 # =====================
@@ -93,6 +94,9 @@ class WinOpendap:
     OLD_DAY      = PARAMS.DAY
     OLD_HOUR     = PARAMS.HOUR
 
+    self.HTML = ['http://opendap.puertos.es/thredds/catalog/circulation_regional_gib/catalog.html', \
+                 'http://thredds.socib.es/thredds/catalog/operational_models/oceanographical/hydrodynamics/wmop_surface/catalog.html']
+
     self.master = master
     self.frame = tk.Frame(self.master)
     #ttk.Label(self.frame,text='URL',font='Helvetica 12 bold').grid(row=0,column=0)
@@ -148,6 +152,9 @@ class WinOpendap:
     self.hourly.grid(row=2,column=3)
 
 
+    ttk.Button(self.frame,text='Webpage',                               \
+                          command=lambda : self.visit(PARAMS), \
+                          padding=5).grid(row=3,column=2,sticky='e')
     ttk.Button(self.frame,text='Cancel',                               \
                           command=lambda : self.cancel(master,PARAMS), \
                           padding=5).grid(row=3,column=3,sticky='e')
@@ -165,6 +172,15 @@ class WinOpendap:
     master.destroy()
     master = None
     
+
+  def visit(self,PARAMS):
+    if PARAMS.NAME == 'SOCIB':
+      pp = 1
+    else:
+      pp = 0
+
+    command = 'firefox ' + self.HTML[pp]
+    os.system(command)
 
   def download(self,PARAMS):
     if PARAMS.NAME == 'SOCIB':

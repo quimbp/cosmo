@@ -152,6 +152,19 @@ class WinDrawPlot():
 
     self.CODAR_BACKUP  = codar.CODAR_CLASS() 
 
+    self.VIDEO_NAME    = tk.StringVar()
+    self.VIDEO_TITLE   = tk.StringVar()
+    self.VIDEO_AUTHOR  = tk.StringVar()
+    self.VIDEO_COMMENT = tk.StringVar()
+    self.VIDEO_FPS     = tk.IntVar()
+    self.VIDEO_DPI     = tk.IntVar()
+    self.VIDEO_NAME.set('movie.mp4')
+    self.VIDEO_TITLE.set('COSMO-VIEW Movie')
+    self.VIDEO_AUTHOR.set('Matplotlib')
+    self.VIDEO_COMMENT.set('Ocean currents movie')
+    self.VIDEO_FPS.set(2)
+    self.VIDEO_DPI.set(100)
+
     # Input velocity units
     try:
       theunits = FLD.ncid.variables[FLD.icdf.vname[FLD.uid]].getncattr('units')
@@ -281,6 +294,7 @@ class WinDrawPlot():
     self.Window_float_config  = None
     self.Window_clm           = None
     self.Window_dpi           = None
+    self.Window_anim          = None
 
 
   def saveconf(self):
@@ -2102,20 +2116,62 @@ class WinDrawPlot():
   # ==================
     ''' Launch the matplotlib animation'''
 
-    import matplotlib.animation as manimation
-    FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title='COSMO-VIEW Movie', artist='Matplotlib', \
-                    comment='Ocean currents movie')
-    writer = FFMpegWriter(fps=15,metadata=metadata)
+    # -----------
+    def _close():
+    # -----------
+      self.Window_anim.destroy()
+      self.Window_anim = None
 
-    with writer.saving(self.fig,"movie.mp4",100):
-      for L in range(self.FLD.icdf.nt):
-        self.FLD.L.set(L)
-        self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
-        self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
-        self.make_plot()
-        writer.grab_frame()
+    def _done():
+    # ----------
 
+      import matplotlib.animation as manimation
+      FFMpegWriter = manimation.writers['ffmpeg']
+      metadata = dict(title=self.VIDEO_TITLE.get(), artist=self.VIDEO_AUTHOR.get(), \
+                      comment=self.VIDEO_COMMENT.get())
+      writer = FFMpegWriter(fps=self.VIDEO_FPS.get(),metadata=metadata)
+
+      with writer.saving(self.fig,self.VIDEO_NAME.get(),self.VIDEO_DPI.get()):
+        for L in range(self.FLD.icdf.nt):
+          self.FLD.L.set(L)
+          self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
+          self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
+          self.make_plot()
+          writer.grab_frame()
+      messagebox.showinfo(message='Movie has been saved')
+
+    # Main
+    # ----
+    if self.Window_anim is None:
+      self.Window_anim = tk.Toplevel(self.master)
+      self.Window_anim.title('Animation creation')
+      self.Window_anim.resizable(width=True,height=True)
+      self.Window_anim.protocol('WM_DELETE_WINDOW',_close)
+      F0 = ttk.Frame(self.Window_anim,borderwidth=5,padding=5)
+      ttk.Label(F0,text='Output filename : ').grid(row=0,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_NAME,width=40).grid(row=0,column=1,columnspan=4,sticky='w')
+      ttk.Label(F0,text='Video title : ').grid(row=1,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_TITLE,width=40).grid(row=1,column=1,columnspan=4,sticky='w')
+      ttk.Label(F0,text='Author : ').grid(row=2,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_AUTHOR,width=40).grid(row=2,column=1,columnspan=4,sticky='w')
+      ttk.Label(F0,text='Comment : ').grid(row=3,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_COMMENT,width=40).grid(row=3,column=1,columnspan=4,sticky='w')
+      ttk.Label(F0,text='FPS : ').grid(row=4,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_FPS,width=7).grid(row=4,column=1,sticky='w')
+      ttk.Label(F0,text='DPI : ').grid(row=5,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_DPI,width=7).grid(row=5,column=1,sticky='w')
+      cancel = ttk.Button(F0,text='Cancel',command=_close)
+      cancel.grid(row=6,column=2,padx=3)
+      cancel.bind("<Return>",lambda e:_close())
+      done = ttk.Button(F0,text='Done',command=_done)
+      done.grid(row=6,column=3,padx=3)
+      done.bind("<Return>",lambda e:_done())
+      close = ttk.Button(F0,text='Close',command=_close)
+      close.grid(row=6,column=4,padx=3)
+      close.bind("<Return>",lambda e:_close())
+      F0.grid()
+    else:
+      self.Window_anim.lift()
 
 # =========
 def main():
