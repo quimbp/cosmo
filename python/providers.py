@@ -148,16 +148,15 @@ class WinOpendap:
     self.hourly.grid(row=2,column=3)
 
 
-    ttk.Button(self.frame,text='Cancel',      \
-                          command=lambda : self.cancel(master,PARAMS),\
+    ttk.Button(self.frame,text='Cancel',                               \
+                          command=lambda : self.cancel(master,PARAMS), \
                           padding=5).grid(row=3,column=3,sticky='e')
-    ttk.Button(self.frame,text='Download',      \
-                          command=lambda : self.download(PARAMS),\
+    ttk.Button(self.frame,text='Download',                             \
+                          command=lambda : self.download(PARAMS),      \
                           padding=5).grid(row=3,column=4,sticky='e')
-    ttk.Button(self.frame,text='Done',        \
-                          command=lambda : self.done(master,PARAMS),padding=5).grid(row=3,column=5,sticky='e')
-    #ttk.Button(self.frame,text='Load',        \
-    #                      command=lambda : self.done(master,PARAMS),padding=5).grid(row=3,column=5,sticky='e')
+    ttk.Button(self.frame,text='Done',                                 \
+                          command=lambda : self.done(master,PARAMS),   \
+                          padding=5).grid(row=3,column=5,sticky='e')
 
     self.frame.grid(padx=5,pady=5)
 
@@ -179,7 +178,7 @@ class WinOpendap:
       filename = wget.download(theurl)
       messagebox.showinfo(message='Download complete')
     except:
-      messagebox.showinfo(message='Unable to download complete')
+      messagebox.showinfo(message='Unable to complete download')
 
 
   def done(self,master,PARAMS):
@@ -207,11 +206,18 @@ class WinOpendap:
     PARAMS.DAY       = self.day_var.get()
     PARAMS.HOUR      = self.hour_var.get()
     PARAMS.FREQUENCY = self.freq_var.get()
+
+    dini = datetime.date(PARAMS.YEAR,PARAMS.MONTH,PARAMS.DAY)
     if PARAMS.NAME     == 'SOCIB':
-      theurl = PATH+str(PARAMS.YEAR)+'/' + '%02d'%PARAMS.MONTH+'/roms_wmop_' + \
-               str(PARAMS.YEAR)+'%02d'%PARAMS.MONTH+'%02d'%PARAMS.DAY+'.nc'
+      if dini < datetime.date(2017,12,1):
+        theurl = PATH+str(PARAMS.YEAR)+'/'+'%02d'%PARAMS.MONTH+ \
+                '/roms_wmop_' + str(PARAMS.YEAR)+               \
+                '%02d'%PARAMS.MONTH+ '%02d'%PARAMS.DAY+'.nc'
+      else:
+        theurl = PATH+str(PARAMS.YEAR)+'/'+'%02d'%PARAMS.MONTH+ \
+                '/roms_wmop_surface_' + str(PARAMS.YEAR)+               \
+                '%02d'%PARAMS.MONTH+ '%02d'%PARAMS.DAY+'.nc'
     else:
-      dini = datetime.date(PARAMS.YEAR,PARAMS.MONTH,PARAMS.DAY)
       dmid = dini + timedelta(days=1)
       dfin = dini + timedelta(days=2)
       if PARAMS.FREQUENCY == 'H':

@@ -53,11 +53,13 @@ class GUI:
     self.dpi = tk.IntVar()
     self.dpi.set(DPI)
 
-    self.ncid          = None
-    self.Window_ncdump = None
-    self.Window_about  = None
-    self.Window_codar  = None
-    self.Window_dpi    = None
+    self.ncid            = None
+    self.icdf            = None
+    self.Window_ncdump   = None
+    self.Window_about    = None
+    self.Window_codar    = None
+    self.Window_showgrid = None
+    self.Window_dpi      = None
 
     menubar = tk.Menu(self.master)
     menu = tk.Menu(menubar,tearoff=0)
@@ -221,13 +223,13 @@ class GUI:
     def _draw():
     # -----------
       if not empty(self.Uname.get()) and not empty(self.Vname.get()):
-        uid = icdf.vname.index(self.Uname.get())
-        vid = icdf.vname.index(self.Vname.get())
+        uid = self.icdf.vname.index(self.Uname.get())
+        vid = self.icdf.vname.index(self.Vname.get())
         print('uid = ',uid)
         print('vid = ',vid)
 
         FLD = cosmo_view_field(self.FILENAME.get(),self.ncid, \
-                               icdf,uid,vid)
+                               self.icdf,uid,vid)
         Window_drawing = tk.Toplevel(self.master)
         Window_drawing.title('DRAW CURRENTS')
         Window_drawing.resizable(width=True, height=True)
@@ -244,12 +246,12 @@ class GUI:
       self.ncid = None
       return
 
-    icdf = geocdf(self.FILENAME.get())
+    self.icdf = geocdf(self.FILENAME.get())
 
     Window_axes = tk.Toplevel(self.master)
     Window_axes.title('Axes selection')
     Window_axes.protocol('WM_DELETE_WINDOW',_close)
-    axesid = WinGeoaxes(icdf,Window_axes)
+    axesid = WinGeoaxes(self.icdf,Window_axes)
 
     self.Uname = tk.StringVar()
     self.Vname = tk.StringVar()
@@ -262,13 +264,13 @@ class GUI:
     ttk.Label(Fr2,text='Zonal (U)',borderwidth=3,font='bold').grid(row=0,column=1)
     Ubox = ttk.Combobox(Fr2,textvariable=self.Uname,width=12)
     Ubox.grid(row=0,column=2,sticky='W')
-    Ubox['values'] = icdf.VAR_MENU
+    Ubox['values'] = self.icdf.VAR_MENU
 
     ttk.Label(Fr2,text='Meridional (V)', \
             font='bold').grid(row=0,column=3,padx=(20,10))
     Vbox = ttk.Combobox(Fr2,textvariable=self.Vname,width=12)
     Vbox.grid(row=0,column=4,sticky='e')
-    Vbox['values'] = icdf.VAR_MENU
+    Vbox['values'] = self.icdf.VAR_MENU
 
     Fr2.grid(sticky='we')
     # --
@@ -316,12 +318,21 @@ class GUI:
     # -----------
     def _close():
     # -----------
-      Window_showgrid.destroy()
+      self.Window_showgrid.destroy()
 
 
     if self.ncid is None:
       messagebox.showinfo(message='Load a file fisrt')
       return
+
+    if self.Window_showgrid is None:
+      self.Window_showgrid = tk.Toplevel(self.master)
+      self.Window_showgrid.title('showgrid')
+      self.Window_showgrid.resizable(width=True,height=True)
+      self.Window_showgrid.protocol('WM_DELETE_WINDOW',_close)
+      WinShowgrid(self.Window_showgrid,self.ncid,self.icdf)
+    else:
+      self.Window_showgrid.lift()
 
      
   # ==================
