@@ -7,7 +7,6 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-import dateutil.parser as dparser
 import json
 
 import matplotlib
@@ -17,9 +16,10 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 from mpl_toolkits.basemap import Basemap
 
+import dateutil.parser as dparser
 
-PROGNAME = 'COSMO-JASON'
-VERSION = '0.3 (December 2017)'
+PROGNAME = 'COSMO-JSON'
+VERSION = '0.2 (December 2017)'
 AUTHOR = 'Quim Ballabrera (ICM/CSIC)'
 
 
@@ -96,8 +96,7 @@ class GUI:
   def __init__(self,master):
 
     self.master = master
-    self.master.protocol('WM_DELETE_WINDOW',self.close)
-
+    self.main   = tk.Frame(self.master)
 
     # GEOJSON structure
     self.DATA = None
@@ -199,21 +198,20 @@ class GUI:
 
     # Filename frame (top of the window)
 
-    F0 = ttk.Frame(self.master,padding=5)
+    F0 = ttk.Frame(self.main,padding=5)
     ttk.Label(F0,text='Filename',padding=5).grid(row=0,column=0,sticky='w')
-    ttk.Entry(F0,textvariable=self.Trajectory_name,justify='left',width=100). \
-        grid(row=0,column=1,sticky='ew')
-    ttk.Button(F0,text='Load',state='enabled',command=self.open_geojson,padding=3). \
-        grid(row=0,column=14,padx=5,sticky='e')
-    F0.grid(row=0,column=0,columnspan=14,sticky='ew')
-    F0.grid_columnconfigure(0,weight=0)    # Allows horizontal stretching
-    F0.grid_rowconfigure(0,weight=0)
+    ttk.Entry(F0,textvariable=self.Trajectory_name,justify='left',width=89). \
+        grid(row=0,column=1,columnspan=10,sticky='ew')
+    ttk.Button(F0,text='Load',state='enabled',      \
+               command=self.open_geojson,padding=3). \
+        grid(row=0,column=12,sticky='e')
+    F0.grid()
+    F0.grid_columnconfigure(0,weight=0)
 
     # Define tabs:
-    self.nb = ttk.Notebook(self.master)
+    self.nb = ttk.Notebook(self.main)
     self.page1 = ttk.Frame(self.nb)
     self.page2 = ttk.Frame(self.nb)
-
     self.nb.add(self.page1,text='Canvas')
     self.nb.add(self.page2,text='Attributes')
 
@@ -230,9 +228,9 @@ class GUI:
     self.wrecover.bind('<Return>', lambda f: self.recovertime())
 
     ttk.Label(F1,text='West = ',padding=3).grid(row=0,column=4)
-    ttk.Entry(F1,textvariable=self.Mapxmax,width=10).grid(row=0,column=5,columnspan=2,sticky='ew')
+    ttk.Entry(F1,textvariable=self.Mapxmin,width=10).grid(row=0,column=5,columnspan=2,sticky='ew')
     ttk.Label(F1,text='East = ',padding=3).grid(row=1,column=4)
-    ttk.Entry(F1,textvariable=self.Mapxmin,width=10).grid(row=1,column=5,columnspan=2,sticky='ew')
+    ttk.Entry(F1,textvariable=self.Mapxmax,width=10).grid(row=1,column=5,columnspan=2,sticky='ew')
 
     ttk.Label(F1,text='South = ',padding=3).grid(row=0,column=7)
     ttk.Entry(F1,textvariable=self.Mapymin,width=10).grid(row=0,column=8,columnspan=2,sticky='ew')
@@ -249,23 +247,15 @@ class GUI:
     F1.grid_rowconfigure(0,weight=0)
     F1.grid_columnconfigure(0,weight=0)
 
-    global DPI
 
-    FC = ttk.Frame(self.page1)
-    self.fig = Figure(dpi=DPI)
+    self.fig = Figure(dpi=150)
     self.ax1 = self.fig.add_subplot(111)
-    #self.canvas = FigureCanvasTkAgg(self.fig,master=self.page1)
-    self.canvas = FigureCanvasTkAgg(self.fig,master=FC)
+    self.canvas = FigureCanvasTkAgg(self.fig,master=self.page1)
     self.canvas.show()
-    self.canvas._tkcanvas.grid(sticky='nsew')
-    self.canvas._tkcanvas.grid_rowconfigure(0,weight=1)
-    self.canvas._tkcanvas.grid_columnconfigure(0,weight=1)
+    self.canvas.get_tk_widget().grid(sticky='nsew')
+    self.canvas._tkcanvas.grid()
     self.ax1.get_xaxis().set_visible(False)
     self.ax1.get_yaxis().set_visible(False)
-    FC.grid(sticky='nswe')
-    FC.grid_rowconfigure(0,weight=1)
-    FC.grid_columnconfigure(0,weight=1)
-
 
     # Bottom menu
     F2 = ttk.Frame(self.page1,padding=5)
@@ -277,19 +267,18 @@ class GUI:
     self.wstat.bind('<Return>', lambda f: self.station_manual())
     ttk.Label(F2,text='/ ',padding=3).grid(row=0,column=4)
     ttk.Entry(F2,textvariable=self.Trajectory_length).grid(row=0,column=5,columnspan=2)
-    ttk.Checkbutton(F2,text='Reject',command=self.reject_this,variable=self.Station_reject). \
-                       grid(row=0,column=7)
-    ttk.Button(F2,text='Reject stations before this',command=self.reject_before). \
-                       grid(row=0,column=8,columnspan=2)
-    ttk.Button(F2,text='Reject stations after this',command=self.reject_after). \
-                       grid(row=0,column=11,columnspan=2)
+    ttk.Checkbutton(F2,text='Reject',command=self.reject_this, \
+                    variable=self.Station_reject).grid(row=0,column=7)
+    ttk.Button(F2,text='Reject stations before this', \
+               command=self.reject_before).grid(row=0,column=8,columnspan=2)
+    ttk.Button(F2,text='Reject stations after this', \
+               command=self.reject_after).grid(row=0,column=11,columnspan=2)
 
 
     ttk.Button(F2,text='-',command=self.station_down,padding=3). \
                       grid(row=1,column=0)
     ttk.Label(F2,text='Date = ',padding=3).grid(row=1,column=1)
     ttk.Entry(F2,textvariable=self.Station_date).grid(row=1,column=2,columnspan=2)
-
     ttk.Label(F2,text='Longitude = ',padding=3).grid(row=1,column=4)
     ttk.Entry(F2,textvariable=self.Station_lon).grid(row=1,column=5,columnspan=2)
     ttk.Label(F2,text='Latitude = ',padding=3).grid(row=1,column=7)
@@ -301,8 +290,6 @@ class GUI:
     ttk.Button(F2,text='Save as',command=self.save).grid(row=2,column=11)
     ttk.Button(F2,text='Close',command=self.close).grid(row=2,column=12)
     F2.grid(sticky='ew')
-    F2.grid_rowconfigure(0,weight=0)
-    F2.grid_columnconfigure(0,weight=0)
 
     # PAGE 2: ATTRIBUTES
     ttk.Label(self.page2,text='Properties',padding=3,font='Helvetical 12 bold').grid(row=0,column=0)
@@ -346,10 +333,8 @@ class GUI:
 
 
     # PACK THE WHOLE THING
-
-    self.nb.grid(sticky='nswe')
-    self.nb.grid_columnconfigure(0,weight=1)
-    self.nb.grid_rowconfigure(0,weight=1)
+    self.nb.grid()
+    self.main.grid()
 
   # ---------------------
   def close(self):
@@ -384,20 +369,18 @@ class GUI:
       for i in range(self.Nfeatures):
         if self.DATA["features"][i]["geometry"]["type"] == "LineString":
           self.Trajectory_POINTS = self.DATA["features"][i]["geometry"]["coordinates"]
-          DATES = self.DATA["features"][i]["properties"]["time"]["data"]
+          self.Trajectory_date = self.DATA["features"][i]["properties"]["time"]["data"]
           self.Trajectory_temp = self.DATA["features"][i]["properties"]["sst"]["data"]
 
-      self.Trajectory_length.set(len(DATES))
+      self.Trajectory_length.set(len(self.Trajectory_date))
 
       self.Trajectory_lon = [self.Trajectory_POINTS[j][0] for j in range(self.Trajectory_length.get())]
       self.Trajectory_lat = [self.Trajectory_POINTS[j][1] for j in range(self.Trajectory_length.get())]
 
-      self.Trajectory_date = []
       self.Trajectory_seconds = []
       for i in range(self.Trajectory_length.get()):
-        d = dparser.parse(DATES[i])
-        self.Trajectory_date.append(d)
-        self.Trajectory_seconds.append(int(d.strftime('%s')))
+        tt = dparser.parse(self.Trajectory_date[i])
+        self.Trajectory_seconds.append(int(tt.strftime('%s')))
 
 
       # Get travelled distance (in meters)
@@ -421,7 +404,11 @@ class GUI:
         if i == 0:
           self.Trajectory_time.append(float(0))
         else:
-          secs = (self.Trajectory_date[i]-self.Trajectory_date[i-1]).seconds
+          #now = iso8601.parse_date(self.Trajectory_date[i])
+          #pre = iso8601.parse_date(self.Trajectory_date[i-1])
+          now = datetime.datetime.strptime(self.Trajectory_date[i],'%Y-%m-%dT%H:%M:%SZ')
+          pre = datetime.datetime.strptime(self.Trajectory_date[i-1],'%Y-%m-%dT%H:%M:%SZ')
+          secs = (now-pre).seconds
           self.Trajectory_time.append(secs)
 
       # Speed required to move between stations
@@ -454,7 +441,6 @@ class GUI:
       self.Deploy_date.set(self.Trajectory_date[0])
       self.Recover_date.set(self.Trajectory_date[self.Trajectory_length.get()-1])
  
-      self.fig.set_dpi(200)
       self.ax1.clear()
       self.draw_map()
       self.make_plot()
@@ -584,7 +570,11 @@ class GUI:
       if i == 0:
         self.Trajectory_time.append(float(0))
       else:
-        secs = (self.Trajectory_date[i]-self.Trajectory_date[i-1]).seconds
+        #now = iso8601.parse_date(self.Trajectory_date[i])
+        #pre = iso8601.parse_date(self.Trajectory_date[i-1])
+        now = datetime.datetime.strptime(self.Trajectory_date[i],'%Y-%m-%dT%H:%M:%SZ')
+        pre = datetime.datetime.strptime(self.Trajectory_date[i-1],'%Y-%m-%dT%H:%M:%SZ')
+        secs = (now-pre).seconds
         self.Trajectory_time.append(secs)
 
     # Speed required to move between stations
@@ -648,7 +638,7 @@ class GUI:
 
       with open(outfile,'w') as fp:
         json.dump(self.DATA,fp)
-      print('File %s written',outfile)
+      print('File %s written' % outfile)
 
 
   # --------------------
@@ -847,7 +837,7 @@ class GUI:
                 urcrnrlon=self.Mapxmax.get(),         \
                 fix_aspect=self.aspectratio,          \
                 ax=self.ax1)
-    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 1000, verbose= True)
+    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 2000, verbose= True)
 
     self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
     self.m.plot(self.xx[self.Station_pointer.get()], \
@@ -872,46 +862,12 @@ class GUI:
     self.canvas.draw()
 
 
-# ==========
 def main():
-# ==========
   root = tk.Tk()
   root.title(PROGNAME)
-  #root.resizable(width=True,height=True)
-  root.grid_columnconfigure(0,weight=1)
-  root.grid_rowconfigure(0,weight=1)
+  root.resizable(width=True,height=True)
   app = GUI(root)
   root.mainloop()
 
-# ==========
-def usage():
-# ==========
-  print('Script trajectory.py')
-  print('Usage: ')
-  print('python [--help] [DPI]')
-  print('Option DPI adapts the size of the GUI. Default (100)')
-
 if __name__ == '__main__':
-  global DPI
-
-  DPI = 100
-  leave = False
-
-  try:
-    option = str(sys.argv[1])
-    if option == str('--help'):
-      leave = True
-      usage()
-    else:
-      try:
-        DPI = int(sys.argv[1])
-      except:
-        usage()
-        leave = True
-  except:
-    pass
-
-  if leave:
-    sys.exit(1)
-  else:
-    main()
+  main()
