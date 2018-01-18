@@ -576,14 +576,19 @@ class WinDrawPlot():
     ttk.Label(f0,text='Final').grid(row=8,column=1,sticky='w')
     wdx = ttk.Entry(f0,textvariable=self.PLOT.PARALLEL_FIN,justify='left',width=8)
     wdx.grid(row=8,column=2)
-    ttk.Label(f0,text='Configuration',font='Helvetica 12 bold').grid(row=10,column=0,sticky='w')
+    ttk.Label(f0,text='Configuration',font='Helvetica 12 bold') \
+       .grid(row=10,column=0,sticky='w')
     ttk.Label(f0,text='Character Size').grid(row=11,column=1,sticky='w')
-    wdx = ttk.Entry(f0,textvariable=self.PLOT.LONLAT_SIZE,justify='left',width=8)
-    wdx.grid(row=11,column=2)
-    ttk.Button(f0,text='Apply',command=_apply,padding=5).grid(row=13,column=2,pady=[5,3])
-    ttk.Button(f0,text='Cancel',command=_close,padding=5).grid(row=14,column=1,pady=3)
+    ttk.Entry(f0,textvariable=self.PLOT.LONLAT_SIZE,justify='left',width=8) \
+       .grid(row=11,column=2)
+    ttk.Label(f0,text='Character Color').grid(row=12,column=1,sticky='w')
+    ttk.Entry(f0,textvariable=self.PLOT.LONLAT_COLOR,justify='left',width=8) \
+       .grid(row=12,column=2)
+
+    ttk.Button(f0,text='Apply',command=_apply,padding=5).grid(row=13,column=0,pady=[5,3])
+    ttk.Button(f0,text='Cancel',command=_close,padding=5).grid(row=13,column=1,pady=3)
     done = ttk.Button(f0,text='Done',command=_done,padding=5)
-    done.grid(row=14,column=2,pady=3)
+    done.grid(row=13,column=2,pady=3)
     done.bind("<Return>",lambda e:_done())
     f0.grid()
 
@@ -1521,13 +1526,15 @@ class WinDrawPlot():
                              self.PLOT.MERIDIAN_FIN.get(), \
                              self.PLOT.MERIDIAN_INT.get())
       m.drawmeridians(vmeridians,labels=[1,0,0,1], \
-                        fontsize=self.PLOT.LONLAT_SIZE.get())
+                        fontsize=self.PLOT.LONLAT_SIZE.get(), \
+                        color=self.PLOT.LONLAT_COLOR.get())
 
       vparallels = np.arange(self.PLOT.PARALLEL_INI.get(), \
                              self.PLOT.PARALLEL_FIN.get(), \
                              self.PLOT.PARALLEL_INT.get())
       m.drawparallels(vparallels,labels=[0,1,0,1], \
-                        fontsize=self.PLOT.LONLAT_SIZE.get())
+                        fontsize=self.PLOT.LONLAT_SIZE.get(), \
+                        color=self.PLOT.LONLAT_COLOR.get())
 
 
     # Plot currents
@@ -1557,6 +1564,23 @@ class WinDrawPlot():
       weight = 'normal'
     self.ax1.set_title(self.PLOT.TITLE.get(), \
                         fontsize=self.PLOT.TITLE_SIZE.get(),fontweight=weight)
+
+    # Time stamp
+    try:
+      self.time_stamp.remove()
+    except:
+      pass
+    if self.PLOT.TIMESTAMP_SHOW.get():
+      if self.PLOT.TIMESTAMP_BOLD.get():
+        weight = 'bold'
+      else:
+        weight = 'normal'
+      self.time_stamp = self.fig.text(self.PLOT.TIMESTAMP_X.get(),     \
+                                      self.PLOT.TIMESTAMP_Y.get(),     \
+                                      self.FLD.DATE[self.FLD.L.get()], \
+                                      fontsize=self.PLOT.TIMESTAMP_SIZE.get(), \
+                                      color=self.PLOT.TIMESTAMP_COLOR.get(), \
+                                      fontweight=weight)
 
     if self.PLOT.LOGO_DISPLAY.get() == 1:
       self.plot_logo()
@@ -1622,22 +1646,59 @@ class WinDrawPlot():
       self.Window_labelconfig.resizable(width=True,height=True)
       self.Window_labelconfig.protocol('WM_DELETE_WINDOW',_close)
     
+    # Main
+    # ----
     frame = ttk.Frame(self.Window_labelconfig,borderwidth=5,padding=5)
     ttk.Label(frame,text='Title').grid(row=0,column=0,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.TITLE,width=40).grid(row=0,column=1,columnspan=3)
-    ttk.Checkbutton(frame,text='Bold',variable=self.PLOT.TITLE_BOLD).grid(row=0,column=5)
+    ttk.Entry(frame,textvariable=self.PLOT.TITLE,width=40). \
+        grid(row=0,column=1,columnspan=3)
+    ttk.Checkbutton(frame,text='Bold',variable=self.PLOT.TITLE_BOLD). \
+        grid(row=0,column=5)
     ttk.Label(frame,text='Size').grid(row=1,column=0,columnspan=1,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.TITLE_SIZE,width=7).grid(row=1,column=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.TITLE_SIZE,width=7). \
+        grid(row=1,column=1,sticky='w')
     ttk.Label(frame,text='X label').grid(row=2,column=0,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.XLABEL,width=40).grid(row=2,column=1,columnspan=3,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.XLABEL,width=40). \
+        grid(row=2,column=1,columnspan=3,sticky='w')
     ttk.Label(frame,text='Y label').grid(row=3,column=0,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.YLABEL,width=40).grid(row=3,column=1,columnspan=3,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.YLABEL,width=40). \
+        grid(row=3,column=1,columnspan=3,sticky='w')
     ttk.Label(frame,text='Size').grid(row=4,column=0,columnspan=1,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.LABEL_SIZE,width=5).grid(row=4,column=1,columnspan=1,sticky='w')
-    ttk.Label(frame,text='Label Pad').grid(row=5,column=0,columnspan=1,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.LABEL_PAD,width=5).grid(row=5,column=1,columnspan=1,sticky='w')
-    ttk.Checkbutton(frame,text='Plot logo',variable=self.PLOT.LOGO_DISPLAY).grid(row=6,column=1,sticky='w')
-    ttk.Button(frame,text='Done',command=_done).grid(row=7,column=5)
+    ttk.Entry(frame,textvariable=self.PLOT.LABEL_SIZE,width=5). \
+        grid(row=4,column=1,columnspan=1,sticky='w')
+    ttk.Label(frame,text='Label Pad'). \
+        grid(row=5,column=0,columnspan=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.LABEL_PAD,width=5). \
+        grid(row=5,column=1,columnspan=1,sticky='w')
+    ttk.Checkbutton(frame,text='Plot logo',variable=self.PLOT.LOGO_DISPLAY). \
+        grid(row=6,column=1,sticky='w')
+    ttk.Label(frame,text='Timestamp'). \
+        grid(row=7,column=0,pady=4,sticky='w')
+
+    ttk.Checkbutton(frame,text='Show',variable=self.PLOT.TIMESTAMP_SHOW). \
+        grid(row=8,column=1,sticky='w')
+    ttk.Checkbutton(frame,text='Bold',variable=self.PLOT.TIMESTAMP_BOLD). \
+        grid(row=9,column=1,sticky='w')
+    ttk.Label(frame,text='X pos'). \
+        grid(row=10,column=0,columnspan=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_X,width=5). \
+        grid(row=10,column=1,columnspan=1,sticky='w')
+    ttk.Label(frame,text='Y pos'). \
+        grid(row=11,column=0,columnspan=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_Y,width=5). \
+        grid(row=11,column=1,columnspan=1,sticky='w')
+    ttk.Label(frame,text='Size'). \
+        grid(row=12,column=0,columnspan=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_SIZE,width=5). \
+        grid(row=12,column=1,columnspan=1,sticky='w')
+    ttk.Label(frame,text='Color'). \
+        grid(row=13,column=0,columnspan=1,sticky='w')
+    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_COLOR,width=10). \
+        grid(row=13,column=1,columnspan=2,sticky='w')
+
+
+
+    ttk.Button(frame,text='Done',command=_done).grid(row=14,column=5,pady=4)
     frame.grid()
 
 
@@ -2138,7 +2199,7 @@ class WinDrawPlot():
           self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
           self.make_plot()
           writer.grab_frame()
-      messagebox.showinfo(message='Movie has been saved')
+      messagebox.showinfo(self.Window_anim,message='Movie has been saved')
 
     # Main
     # ----
@@ -2181,6 +2242,7 @@ def main():
   root.title('DRAW CURRENTS')
   root.grid_rowconfigure(0,weight=1)
   root.grid_columnconfigure(0,weight=1)
+  root.protocol('WM_DELETE_WINDOW',quit)
 
 
   PLOT = plot_params()
@@ -2191,13 +2253,13 @@ def main():
 
   ifile = 'SAMGIB-PdE-dm-2017122600-2017122823-B2017122600-FC.nc'
   ifile = 'roms_wmop_20171121.nc'
-  ifile = '../test/roms_wmop_20171122.nc'
+  ifile = 'roms_wmop_20171122.nc'
   ncid  = Dataset(ifile,'r')
   icdf  = geocdf(ifile)
   uid = icdf.vname.index('u')
   vid = icdf.vname.index('v')
   FLD = cosmo_view_field(ifile,ncid,icdf,uid,vid)
-  WinDrawPlot(root,FLD,200)
+  WinDrawPlot(root,FLD,100)
   root.mainloop()
 
 if __name__ == '__main__':

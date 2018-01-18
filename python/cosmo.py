@@ -337,7 +337,9 @@ class plot_params():
     self.PARALLEL_FIN      = tk.DoubleVar()
     self.PARALLEL_INT      = tk.DoubleVar()
 
+    self.LONLAT_COLOR      = tk.StringVar()
     self.LONLAT_SIZE       = tk.IntVar()
+    self.LONLAT_COLOR.set('black')
     self.LONLAT_SIZE.set(12)
     self.X                 = None
     self.Y                 = None
@@ -402,6 +404,18 @@ class plot_params():
     for i in range(self.nisobat):
       self.wvar.append(tk.IntVar())
 
+    self.TIMESTAMP_SHOW    = tk.BooleanVar()
+    self.TIMESTAMP_BOLD    = tk.BooleanVar()
+    self.TIMESTAMP_X       = tk.DoubleVar()
+    self.TIMESTAMP_Y       = tk.DoubleVar()
+    self.TIMESTAMP_SIZE    = tk.IntVar()
+    self.TIMESTAMP_COLOR   = tk.StringVar()
+    self.TIMESTAMP_SHOW.set(True)
+    self.TIMESTAMP_BOLD.set(True)
+    self.TIMESTAMP_X.set(0.07)
+    self.TIMESTAMP_Y.set(0.03)
+    self.TIMESTAMP_COLOR.set('black')
+    self.TIMESTAMP_SIZE.set(15)
 
 
 # =================
