@@ -12,13 +12,7 @@ except:
   import tkMessageBox as messagebox
   from tkColorChooser import askcolor
 
-
 import datetime
-import matplotlib, sys
-matplotlib.use('TkAgg')
-import matplotlib.cm as cm
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
 
 
 # ============================
