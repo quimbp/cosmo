@@ -12,7 +12,6 @@ except:
   import tkMessageBox as messagebox
   from tkColorChooser import askcolor
 
-import datetime
 
 
 # ============================
