@@ -7,13 +7,16 @@ try:
   import tkinter as tk
   from tkinter import ttk
   from tkinter import messagebox
+  from tkinter import filedialog
 except:
   import Tkinter as tk
   import ttk
   import tkMessageBox as messagebox
+  import tkFileDialog as filedialog
 
 import dateutil.parser as dparser
 import numpy as np
+import datetime
 
 from cosmo import *
 import lineplot
@@ -39,7 +42,6 @@ class FLOAT_CLASS():
     self.I             = tk.IntVar()
     self.L             = tk.IntVar()
 
-
     self.PLOT          = lineplot.parameters()
     self.nfloats       = None
     self.nrecords      = None
@@ -63,13 +65,14 @@ class Read:
 
   def __init__ (self,filename):
 
-
-
     if filename.lower().endswith(('.nc','.cdf','.ncdf')):
       self = self.read_trajectory_ncdf(filename)
 
     elif filename.lower().endswith(('.geojson','.json')):
       self = self.read_trajectory_json(filename)
+
+    elif filename.lower().endswith(('.txt')):
+      self = self.read_trajectory_txt(filename)
 
     elif filename.lower().endswith(('.csv')):
       print('csv: not yet coded')
@@ -82,7 +85,6 @@ class Read:
       self.nfloats  = None
       self.nrecords = None
       return
-
 
   # --------------------------------------
   def read_trajectory_ncdf(self,filename):
@@ -117,7 +119,6 @@ class Read:
     self.I.set(0)
     self.L.set(0)
 
-
   # --------------------------------------
   def read_trajectory_json(self,filename):
   # --------------------------------------
@@ -150,6 +151,41 @@ class Read:
     self.FILENAME.set(filename)
     self.I.set(0)
     self.L.set(0)
+
+  # --------------------------------------
+  def read_trajectory_txt(self,filename):
+  # --------------------------------------
+    '''Read a trajectory from a txt file'''
+
+    print('Reading txt file ',filename)
+
+    self.lon  = []
+    self.lat  = []
+    self.date = []
+    with open(filename) as datafile:
+      for line in datafile.readlines():
+        line = line.strip()
+        columns = line.split(',')
+        self.lon.append(float(columns[2]))
+        self.lat.append(float(columns[1]))
+        year   = int(columns[3])
+        month  = int(columns[4])
+        day    = int(columns[5])
+        hour   = int(columns[6])
+        minute = int(columns[7])
+        second = int(columns[8])
+        self.date.append(datetime.datetime(year,month,day, \
+                                           hour,minute,second))
+    self.nfloats  = 1
+    self.nrecords = len(self.lon)
+    self.FILENAME      = tk.StringVar()
+    self.I             = tk.IntVar()
+    self.L             = tk.IntVar()
+    self.PLOT          = lineplot.parameters()
+    self.FILENAME.set(filename)
+    self.I.set(0)
+    self.L.set(0)
+
 
 
 # ======================================
@@ -223,6 +259,8 @@ def ShowData(master,LL):
 
     log = tk.Text(master)
     log.grid(row=0,column=0,padx=10,pady=10,sticky='nsew')
+    log.grid_columnconfigure(0,weight=1)
+    log.grid_rowconfigure(0,weight=1)
     # Scrollbar
     scrollb = tk.Scrollbar(master,command=log.yview)
     scrollb.grid(row=0,column=1,sticky='nsew',padx=2,pady=2)
@@ -244,8 +282,6 @@ def ShowData(master,LL):
                                                    LL.date[l])
         log.insert('end',string)
 
-
-
   iselection(LL)
 
   F0 = ttk.Frame(master)
@@ -260,12 +296,23 @@ def ShowData(master,LL):
     ibox.configure(state='!disabled')
   F0.grid()
 
+
 def main():
 
-  filename = 'trajectory_20171122.nc'
-  tr = read_trajectory(filename)
-  print(tr.nfloats)
-  print('------------------')
+  root = tk.Tk()
+  nn = filedialog.askopenfile()
+  if nn is None:
+    quit()
+ 
+  filename = '%s' % nn.name
+  #filename = 'trajectory_20171122.nc'
+  #filename = 'histo-300234060640350.txt'
+  root.title(filename)
+  root.resizable(width=False,height=True)
+  root.rowconfigure(0,weight=1)
+  tr = Read(filename)
+  ShowData(root,tr)
+  root.mainloop()
 
 if __name__ == '__main__':
   main()

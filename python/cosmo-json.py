@@ -3,20 +3,26 @@
 # Input: geojson file
 # Output (optional): A json file with the same structure as the input file
 #
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import messagebox
-import json
+
+try:
+  import tkinter as tk
+  from tkinter import ttk
+  from tkinter import messagebox
+  from tkinter import filedialog
+except:
+  import Tkinter as tk
+  import ttk
+  import tkMessageBox as messagebox
+  import tkFileDialog as filedialog
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from mpl_toolkits.basemap import Basemap
-
 import dateutil.parser as dparser
+import json
 
 PROGNAME = 'COSMO-JSON'
 VERSION = '0.2 (December 2017)'
@@ -351,7 +357,7 @@ class GUI:
     ''' Opening geojson file '''
     backup = self.Trajectory_name.get()
     try:
-      nn = tk.filedialog.askopenfile(filetypes=[('GEOJSON','*.geojson'),('JSON','*.json'),('ALL','*.*')])
+      nn = filedialog.askopenfile(filetypes=[('GEOJSON','*.geojson'),('JSON','*.json'),('ALL','*.*')])
       self.Trajectory_name.set(nn.name)
     except:
       self.Trajectory_name.set(backup)
@@ -600,7 +606,7 @@ class GUI:
   # -------------
     '''Save new file'''
 
-    nn = tk.filedialog.asksaveasfilename(title='Save',confirmoverwrite=True)
+    nn = filedialog.asksaveasfilename(title='Save',confirmoverwrite=True)
     if nn is not None:
       outfile = '%s' % nn
 
