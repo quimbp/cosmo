@@ -398,11 +398,19 @@ class plot_params():
     self.ISOBAT_PATH.set('../data/isobaths/')
     self.ISOBAT_COLOR.set('black')
     self.ISOBAT_WIDTH.set(1)
+    self.ISOBAT_indx       = []
     self.ISOBAT_selected   = []
     self.ISOBAT_Z          = []
     self.wvar              = []
     for i in range(self.nisobat):
       self.wvar.append(tk.IntVar())
+    self.ISOBAT_LABEL      = [      '',  '50 m', '100 m', '200 m', '400 m', \
+                               '600 m', '800 m','1000 m','1200 m','1400 m', \
+                              '1600 m','1800 m','2000 m','2500 m','3000 m', \
+                              '3500 m','4000 m','4500 m','5000 m','5500 m', \
+                              '6000 m'   ]
+    self.ISOBAT_LABEL_SIZE = tk.IntVar()
+    self.ISOBAT_LABEL_SIZE.set(12)
 
     self.TIMESTAMP_SHOW    = tk.BooleanVar()
     self.TIMESTAMP_BOLD    = tk.BooleanVar()

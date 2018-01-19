@@ -12,6 +12,9 @@ except:
   import tkMessageBox as messagebox
   from tkColorChooser import askcolor
 
+from math import atan2,degrees
+import numpy as np
+
 
 
 # ============================
@@ -150,7 +153,7 @@ def WinConfig(parent,PLOT):
   F2.grid()
 
 # ========================================
-def WinOnMapConfig(parent,PLOT):
+def WinOnMapConfig(parent,PLOT,LL):
 # ========================================
   ''' Interactive widget to modify the options of 2D line plots'''
 
@@ -170,8 +173,8 @@ def WinOnMapConfig(parent,PLOT):
   MARKER_STYLE_LIST = ['.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_']
 
   F0 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F0,text='Map synchronize',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F0,text='On Map show',font='Helvetica 12 bold',variable=PLOT.ONMAP).grid(row=1,column=1)
+  ttk.Label(F0,text='Trajectory interpolation',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
+  tk.Checkbutton(F0,text='Show interpolated',font='Helvetica 12 bold',variable=PLOT.ONMAP).grid(row=1,column=1)
   ttk.Label(F0,text='Marker Style').grid(row=2,column=0,columnspan=1,sticky='w')
   ttk.Combobox(F0,textvariable=PLOT.ONMAP_STYLE,values=MARKER_STYLE_LIST,width=7).grid(row=2,column=1,sticky='w')
   ttk.Label(F0,text='Marker Size').grid(row=3,column=0,sticky='w')
@@ -180,4 +183,77 @@ def WinOnMapConfig(parent,PLOT):
   ttk.Entry(F0,textvariable=PLOT.ONMAP_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
   ttk.Button(F0,text='Select',command=marker_color).grid(row=7,column=2,padx=3,sticky='ew')
   F0.grid()
+
+  F1 = ttk.Frame(parent,borderwidth=5,padding=5)
+  ttk.Label(F1,text='Trajectory limits',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
+  ttk.Label(F1,text='Initial record').grid(row=1,column=0,sticky='w')
+  ttk.Entry(F1,textvariable=LL.I1,width=7).grid(row=1,column=1,sticky='w')
+  ttk.Label(F1,text='Last record').grid(row=2,column=0,columnspan=1,sticky='w')
+  ttk.Entry(F1,textvariable=LL.I2,justify='left',width=7).grid(row=2,column=1,sticky='w')
+  F1.grid()
+
+
+# ======================================================
+def LabelLine(ax,line,x,label=None,align=True,**kwargs):
+# ======================================================
+  ''' Label line with line2D label data
+      Update from the script writen by NauticalMile
+      https://stackoverflow.com/questions/16992038/inline-labels-in-matplotlib
+  '''
+
+  xdata = line.get_xdata()
+  ydata = line.get_ydata()
+
+  if (x < xdata[0]) or (x > xdata[-1]):
+    print('x label location is outside data range!')
+    return
+
+  #Find corresponding y co-ordinate and angle of the line
+  ip = 1
+  for i in range(len(xdata)):
+    if x < xdata[i]:
+      ip = i
+      break
+
+  y = ydata[ip-1] + \
+      (ydata[ip]-ydata[ip-1])*(x-xdata[ip-1])/(xdata[ip]-xdata[ip-1])
+
+  if not label:
+    label = line.get_label()
+
+  if align:
+    #Compute the slope
+    dx = xdata[ip] - xdata[ip-1]
+    dy = ydata[ip] - ydata[ip-1]
+    ang = degrees(atan2(dy,dx))
+
+    #Transform to screen co-ordinates
+    pt = np.array([x,y]).reshape((1,2))
+    trans_angle = ax.transData.transform_angles(np.array((ang,)),pt)[0]
+
+  else:
+    trans_angle = 0
+
+  #Set a bunch of keyword arguments
+  if 'color' not in kwargs:
+    kwargs['color'] = line.get_color()
+
+  if ('horizontalalignment' not in kwargs) and ('ha' not in kwargs):
+    kwargs['ha'] = 'center'
+
+  if ('verticalalignment' not in kwargs) and ('va' not in kwargs):
+    kwargs['va'] = 'center'
+
+  if 'backgroundcolor' not in kwargs:
+    kwargs['backgroundcolor'] = ax.get_facecolor()
+
+  if 'clip_on' not in kwargs:
+    kwargs['clip_on'] = True
+
+  if 'zorder' not in kwargs:
+    kwargs['zorder'] = 2.5
+
+  t = ax.text(x,y,label,rotation=trans_angle,**kwargs)
+  t.set_bbox(dict(alpha=0.1))
+
 

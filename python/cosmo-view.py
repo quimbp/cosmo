@@ -232,6 +232,7 @@ class GUI:
                                self.icdf,uid,vid)
         Window_drawing = tk.Toplevel(self.master)
         Window_drawing.title('DRAW CURRENTS')
+        Window_drawing.protocol('WM_DELETE_WINDOW',Window_drawing.destroy)
         Window_drawing.resizable(width=True, height=True)
         Window_drawing.grid_rowconfigure(0,weight=1)
         Window_drawing.grid_columnconfigure(0,weight=1)

@@ -13,13 +13,14 @@ try:
   from tkinter import ttk
   from tkinter import messagebox
   from tkinter import filedialog as filedialog
+  from tkcolorpicker import askcolor
 except:
   import Tkinter as tk
   import ttk
   import tkMessageBox as messagebox
   import tkFileDialog as filedialog
+  from tkColorChooser import askcolor
 
-from tkcolorpicker import askcolor
 from netCDF4 import Dataset,num2date
 import matplotlib
 matplotlib.use('TkAgg')
@@ -158,6 +159,8 @@ class WinDrawPlot():
     self.VIDEO_COMMENT = tk.StringVar()
     self.VIDEO_FPS     = tk.IntVar()
     self.VIDEO_DPI     = tk.IntVar()
+    self.VIDEO_L1      = tk.IntVar()
+    self.VIDEO_L2      = tk.IntVar()
     self.VIDEO_NAME.set('movie.mp4')
     self.VIDEO_TITLE.set('COSMO-VIEW Movie')
     self.VIDEO_AUTHOR.set('Matplotlib')
@@ -208,6 +211,8 @@ class WinDrawPlot():
     self.read_UV(FLD.ncid,FLD.icdf,FLD.uid,FLD.vid)
 
     self.with_logo        = None
+    self.VIDEO_L1.set(0)
+    self.VIDEO_L2.set(self.FLD.icdf.nt-1)
 
     # Define main app window:
 
@@ -312,9 +317,7 @@ class WinDrawPlot():
         print('SAIDIN SST = ', self.SAIDIN.F(event.xdata,event.ydata))
       self.CLM.xo.set(event.xdata)
       self.CLM.yo.set(event.ydata)
-    else:
-      print('Outside axes')
-
+    
 
   # ==================================
   def plot_initialize(self,ncid,icdf):
@@ -746,7 +749,7 @@ class WinDrawPlot():
     lineplot.WinConfig(page1,LL.PLOT)
 
     # Page 2
-    lineplot.WinOnMapConfig(page2,LL.PLOT)
+    lineplot.WinOnMapConfig(page2,LL.PLOT,LL)
 
     # Page 3
     lagrangian.ShowData(page3,LL)
@@ -1283,8 +1286,6 @@ class WinDrawPlot():
   # =============================
     '''Read 2D data according to user selections'''
 
-    print(self.init_field)
-
     if sid < 0:
       self.FIELD.data = None
       self.init_field = True
@@ -1326,7 +1327,6 @@ class WinDrawPlot():
           self.FIELD.missing_value = None
  
       self.superpose = True
-      print(self.init_field)
       if self.init_field:
         self.FIELD.minval = self.FIELD.data.min()
         self.FIELD.maxval = self.FIELD.data.max()
@@ -1494,9 +1494,12 @@ class WinDrawPlot():
           ilon = z['lon'][z['tini'][segment]:z['tfin'][segment]]
           ilat = z['lat'][z['tini'][segment]:z['tfin'][segment]]
           isox,isoy = m(ilon,ilat)
-          m.plot(isox,isoy,marker=None, \
-                 linewidth=self.PLOT.ISOBAT_WIDTH.get(), \
-                 color=self.PLOT.ISOBAT_COLOR.get())
+          isbt, = m.plot(isox,isoy,marker=None, \
+                    linewidth=self.PLOT.ISOBAT_WIDTH.get(), \
+                    color=self.PLOT.ISOBAT_COLOR.get(),     \
+                    label=self.PLOT.ISOBAT_LABEL[self.PLOT.ISOBAT_indx[ii]])
+
+          #lineplot.LabelLine(self.ax1,isbt,-4,isbt.get_label(),align=True)
 
     if self.PLOT.WATER_COLOR.get() is not 'None':
       m.drawmapboundary(fill_color=self.PLOT.WATER_COLOR.get())
@@ -1770,7 +1773,6 @@ class WinDrawPlot():
           self.PLOT.selec.append(self.PLOT.ISOBATHS[i])
 
     def lims_reset():
-      global m
       self.PLOT.WEST.set(self.PLOT.DATA_WEST)
       self.PLOT.EAST.set(self.PLOT.DATA_EAST)
       self.PLOT.SOUTH.set(self.PLOT.DATA_SOUTH)
@@ -1799,9 +1801,11 @@ class WinDrawPlot():
 
     def get_isobaths():
       self.PLOT.ISOBAT_selected = []
+      self.PLOT.ISOBAT_indx = []
       for i in range(self.PLOT.nisobat):
         if self.PLOT.wvar[i].get() == 1:
           self.PLOT.ISOBAT_selected.append(self.PLOT.ISOBATHS[i])
+          self.PLOT.ISOBAT_indx.append(i)
           #print(str(self.PLOT.ISOBATHS[i]) + ' added')
 
     def _cancel():
@@ -2012,30 +2016,44 @@ class WinDrawPlot():
     # ================
 
       options = clm.Basic_options(self.CLM)
+      if empty(options):
+        return
 
-      if self.CLM.reverse.get():
-        try:
-          aa = ' -to %s' % 0.0
-          options += aa
-        except:
-          pass
-        try:
-          aa = ' -record %s' % self.FLD.L.get() + 1
-          options += aa
-        except:
-          pass
-        options += ' -reverse'
+      if self.CLM.INI_USE.get():
+        pass
       else:
+        if self.CLM.reverse.get():
+          try:
+            aa = ' -to %s' % 0.0
+            options += aa
+          except:
+            pass
+        else:
+          if self.CLM.to_use.get():
+            try:
+              aa = ' -to %s' % self.CLM.to.get()
+              options += aa
+            except:
+              messagebox.showinfo('Invalid release time')
+              return
+          else:
+            if empty(self.CLM.do.get()):
+              messagebox.showinfo('Invalid release date')
+              return
+            else:
+              aa = ' -do %s' % self.CLM.do.get()
+              options += aa
+
+      if self.CLM.record_use.get():
         try:
-          aa = ' -to %s' % self.CLM.to.get()
+          aa = ' -record %s' % self.CLM.record.get()
           options += aa
         except:
-          pass
-        try:
-          aa = ' -do %s' % self.CLM.do.get()
-          options += aa
-        except:
-          pass
+          messagebox.showinfo('Invalid simulation starting record')
+          return
+      
+      if self.CLM.reverse.get():
+        options += ' -reverse'
 
       _run(options)
 
@@ -2046,31 +2064,46 @@ class WinDrawPlot():
 
       if self.CLM.reverse.get():
 
-        try:
-          aa = ' -to %s' % 0.0
-          options += aa
-        except:
-          pass
-        try:
-          aa = ' -record %s' % self.FLD.L.get() + 1
-          options += aa
-        except:
-          pass
-
         options += ' -reverse'
+
+        if self.CLM.INI_USE.get():
+          pass
+        else:
+          try:
+            aa = ' -to %s' % 0.0
+            options += aa
+          except:
+            pass
+
       else:
 
-        try:
-          aa = ' -to %s' % self.CLM.to.get()
-          options += aa
-        except:
+        if self.CLM.INI_USE.get():
           pass
-        try:
-          aa = ' -do %s' % self.CLM.do.get()
-          options += aa
-        except:
-          pass
+        else:
+          if self.CLM.to_use.get():
+            try:
+              aa = ' -to %s' % self.CLM.to.get()
+              options += aa
+            except:
+              messagebox.showinfo('Invalid release time')
+              return
+          else:
+             if empty(self.CLM.do.get()):
+               messagebox.showinfo('Invalid release date')
+               return
+             else:
+               aa = ' -do %s' % self.CLM.do.get()
+               options += aa
 
+
+      if self.CLM.record_use.get():
+        try:
+          aa = ' -record %s' % self.CLM.record.get()
+          options += aa
+        except:
+          messagebox.showinfo('Invalid simulation starting record')
+          return
+      
       try:
         aa = ' -seed %s' % self.CLM.seed.get()
         options += aa
@@ -2115,6 +2148,8 @@ class WinDrawPlot():
                                  units=self.FLD.icdf.time_units, \
                                  calendar=self.FLD.icdf.time_calendar))
     self.CLM.do.set(string.replace(' ','T'))
+    self.CLM.to.set(self.FLD.TIME[self.FLD.L.get()])
+    self.CLM.record.set(self.FLD.L.get()+1)
 
     self.Window_clm = tk.Toplevel(self.master)
     self.Window_clm.title('COSMO Lagrangian Model options')
@@ -2193,8 +2228,12 @@ class WinDrawPlot():
       writer = FFMpegWriter(fps=self.VIDEO_FPS.get(),metadata=metadata)
 
       with writer.saving(self.fig,self.VIDEO_NAME.get(),self.VIDEO_DPI.get()):
-        for L in range(self.FLD.icdf.nt):
+        for L in range(self.VIDEO_L1.get(),self.VIDEO_L2.get()+1):
           self.FLD.L.set(L)
+          string = '{}'.format(num2date(self.FLD.T_LIST[L], \
+                                        units=self.FLD.icdf.time_units, \
+                                        calendar=self.FLD.icdf.time_calendar))
+          self.PLOT.TLABEL.set(string)
           self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
           self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
           self.make_plot()
@@ -2217,18 +2256,22 @@ class WinDrawPlot():
       ttk.Entry(F0,textvariable=self.VIDEO_AUTHOR,width=40).grid(row=2,column=1,columnspan=4,sticky='w')
       ttk.Label(F0,text='Comment : ').grid(row=3,column=0)
       ttk.Entry(F0,textvariable=self.VIDEO_COMMENT,width=40).grid(row=3,column=1,columnspan=4,sticky='w')
-      ttk.Label(F0,text='FPS : ').grid(row=4,column=0)
-      ttk.Entry(F0,textvariable=self.VIDEO_FPS,width=7).grid(row=4,column=1,sticky='w')
-      ttk.Label(F0,text='DPI : ').grid(row=5,column=0)
-      ttk.Entry(F0,textvariable=self.VIDEO_DPI,width=7).grid(row=5,column=1,sticky='w')
+      ttk.Label(F0,text='Initial frame : ').grid(row=4,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_L1,width=7).grid(row=4,column=1,sticky='w')
+      ttk.Label(F0,text='Final frame : ').grid(row=5,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_L2,width=7).grid(row=5,column=1,sticky='w')
+      ttk.Label(F0,text='FPS : ').grid(row=6,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_FPS,width=7).grid(row=6,column=1,sticky='w')
+      ttk.Label(F0,text='DPI : ').grid(row=7,column=0)
+      ttk.Entry(F0,textvariable=self.VIDEO_DPI,width=7).grid(row=7,column=1,sticky='w')
       cancel = ttk.Button(F0,text='Cancel',command=_close)
-      cancel.grid(row=6,column=2,padx=3)
+      cancel.grid(row=8,column=2,padx=3)
       cancel.bind("<Return>",lambda e:_close())
       done = ttk.Button(F0,text='Done',command=_done)
-      done.grid(row=6,column=3,padx=3)
+      done.grid(row=8,column=3,padx=3)
       done.bind("<Return>",lambda e:_done())
       close = ttk.Button(F0,text='Close',command=_close)
-      close.grid(row=6,column=4,padx=3)
+      close.grid(row=8,column=4,padx=3)
       close.bind("<Return>",lambda e:_close())
       F0.grid()
     else:
@@ -2254,6 +2297,7 @@ def main():
   ifile = 'SAMGIB-PdE-dm-2017122600-2017122823-B2017122600-FC.nc'
   ifile = 'roms_wmop_20171121.nc'
   ifile = 'roms_wmop_20171122.nc'
+  ifile = 'SAMGIB-PdE-hm-2018011800-2018012023-B2018011800-FC.nc'
   ncid  = Dataset(ifile,'r')
   icdf  = geocdf(ifile)
   uid = icdf.vname.index('u')

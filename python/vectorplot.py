@@ -5,10 +5,12 @@ try:
   import tkinter as tk
   from tkinter import ttk
   from tkinter import messagebox
+  from tkcolorpicker import askcolor
 except:
   import Tkinter as tk
   import ttk
   import tkMessageBox as messagebox
+  from tkColorChooser import askcolor
 
 
 import datetime
@@ -17,7 +19,6 @@ matplotlib.use('TkAgg')
 import matplotlib.cm as cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from tkcolorpicker import askcolor
 
 
 # ============================

@@ -27,20 +27,20 @@ __date__    = "July 2017"
 
 class FLOAT_CLASS():
 # ===================
-  ''' Parameters for CODAR stations'''
+  ''' Parameters for Lagrangian floats'''
   
-  __version__ = "1.2"
+  __version__ = "0.2"
   __author__  = "Quim Ballabrera"
-  __date__    = "July 2017"
+  __date__    = "January 2018"
 
-  # Version 1.0 (June 2017) : Initial version
-  # Version 1.1 (July 2017) : Allows multiple time steps in CODAR file
-  # Version 1.2 (December 2017) : Update path names
+  # Version 0.2 (January 2018) : Initial version
 
   def __init__ (self):
     self.FILENAME      = tk.StringVar()
     self.I             = tk.IntVar()
     self.L             = tk.IntVar()
+    self.I1            = tk.IntVar()
+    self.I2            = tk.IntVar()
 
     self.PLOT          = lineplot.parameters()
     self.nfloats       = None
@@ -96,9 +96,9 @@ class Read:
     ncid = Dataset(filename)
     self.nfloats  = ncid.dimensions['floats'].size
     self.nrecords = ncid.dimensions['time'].size
-    self.lon  = ncid.variables['lon'][:,:]           # Buoys, Time
-    self.lat  = ncid.variables['lat'][:,:]           # Buoys, Time
-    TT        = ncid.variables['system_date']        #        Time
+    self.lon  = ncid.variables['lon'][:,:].squeeze()    
+    self.lat  = ncid.variables['lat'][:,:].squeeze()   
+    TT        = ncid.variables['system_date']         
 
     # In python 3.x, the read-in characters are bytes.
     # Use the decode function to decode the input, a byte at a time.
@@ -114,10 +114,14 @@ class Read:
     self.FILENAME      = tk.StringVar()
     self.I             = tk.IntVar()
     self.L             = tk.IntVar()
+    self.I1            = tk.IntVar()
+    self.I2            = tk.IntVar()
     self.PLOT          = lineplot.parameters()
     self.FILENAME.set(filename)
     self.I.set(0)
     self.L.set(0)
+    self.I1.set(0)
+    self.I2.set(self.nrecords-1)
 
   # --------------------------------------
   def read_trajectory_json(self,filename):
@@ -147,10 +151,14 @@ class Read:
     self.FILENAME      = tk.StringVar()
     self.I             = tk.IntVar()
     self.L             = tk.IntVar()
+    self.I1            = tk.IntVar()
+    self.I2            = tk.IntVar()
     self.PLOT          = lineplot.parameters()
     self.FILENAME.set(filename)
     self.I.set(0)
     self.L.set(0)
+    self.I1.set(0)
+    self.I2.set(self.nrecords-1)
 
   # --------------------------------------
   def read_trajectory_txt(self,filename):
@@ -181,10 +189,14 @@ class Read:
     self.FILENAME      = tk.StringVar()
     self.I             = tk.IntVar()
     self.L             = tk.IntVar()
+    self.I1            = tk.IntVar()
+    self.I2            = tk.IntVar()
     self.PLOT          = lineplot.parameters()
     self.FILENAME.set(filename)
     self.I.set(0)
     self.L.set(0)
+    self.I1.set(0)
+    self.I2.set(self.nrecords-1)
 
 
 
@@ -197,9 +209,12 @@ def drawing(fig,ax,m,FLT):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
+  r1 = FLT.I1.get()
+  r2 = FLT.I2.get() + 1
+
   if FLT.nfloats > 1:
     for i in range(FLT.nfloats):       # Loop over buoys
-      xx,yy = m(FLT.lon[:,i],FLT.lat[:,i])
+      xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
       if FLT.PLOT.LINE_SHOW.get():
         m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
                linewidth=FLT.PLOT.LINE_WIDTH.get(), \
@@ -209,7 +224,7 @@ def drawing(fig,ax,m,FLT):
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
                color=FLT.PLOT.LINE_COLOR.get())
       if FLT.PLOT.INITIAL_SHOW.get():
-        m.plot(xx[0],yy[0],                    \
+        m.plot(xx[r1],yy[r1],                    \
                FLT.PLOT.INITIAL_STYLE.get(),  \
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
                color=FLT.PLOT.INITIAL_COLOR.get())
@@ -221,7 +236,7 @@ def drawing(fig,ax,m,FLT):
                ms=FLT.PLOT.ONMAP_SIZE.get(),    \
                color=FLT.PLOT.ONMAP_COLOR.get())
   else:
-    xx,yy = m(FLT.lon,FLT.lat)
+    xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
     if FLT.PLOT.LINE_SHOW.get():
       m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
              linewidth=FLT.PLOT.LINE_WIDTH.get(), \
@@ -231,7 +246,7 @@ def drawing(fig,ax,m,FLT):
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
              color=FLT.PLOT.LINE_COLOR.get())
     if FLT.PLOT.INITIAL_SHOW.get():
-      m.plot(xx[0],yy[0],                    \
+      m.plot(xx[r1],yy[r1],                    \
              FLT.PLOT.INITIAL_STYLE.get(),  \
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
              color=FLT.PLOT.INITIAL_COLOR.get())
