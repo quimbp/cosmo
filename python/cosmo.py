@@ -291,7 +291,7 @@ class plot_params():
 
     self.COASTLINE         = tk.IntVar()
     self.COASTLINE.set(1)
-    self.COASTLINE_WIDTH   = tk.IntVar()
+    self.COASTLINE_WIDTH   = tk.DoubleVar()
     self.COASTLINE_WIDTH.set(1)
     self.COASTLINE_COLOR   = tk.StringVar()
     self.COASTLINE_COLOR.set('black')
@@ -393,7 +393,7 @@ class plot_params():
                                1000,1200,1400,1600,1800,2000,2500, \
                                3000,3500,4000,4500,5000,5500,6000]
     self.nisobat = len(self.ISOBATHS)
-    self.ISOBAT_WIDTH      = tk.IntVar()
+    self.ISOBAT_WIDTH      = tk.DoubleVar()
     self.ISOBAT_COLOR      = tk.StringVar()
     self.ISOBAT_PATH.set('../data/isobaths/')
     self.ISOBAT_COLOR.set('black')
