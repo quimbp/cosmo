@@ -66,7 +66,7 @@ class parameters():
     self.KEY_SHOW.set(True)
     self.KEY_VALUE.set(1)
     self.KEY_LABEL.set('m/s')
-    self.KEY_X.set(0.75)
+    self.KEY_X.set(0.85)
     self.KEY_Y.set(0.05)
     self.KEY_POS.set('E')
     self.KEY_COLOR.set('black')

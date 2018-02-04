@@ -238,6 +238,7 @@ class WinDrawPlot():
     self.lbox = ttk.Combobox(FT,textvariable=self.FLD.L,width=5)
     self.lbox.grid(row=0,column=1,sticky='ew')
     self.lbox.bind('<<ComboboxSelected>>',lambda e: self.lselection(FLD.icdf))
+    self.lbox.bind('<Return>',lambda e: self.lselection(FLD.icdf))
 
     ttk.Button(FT,text='PREV',command=self.tprev,width=5).grid(row=0,column=2,sticky='e')
     if FLD.icdf.idt < 0:
@@ -2264,10 +2265,7 @@ class WinDrawPlot():
       ttk.Entry(F0,textvariable=self.VIDEO_FPS,width=7).grid(row=6,column=1,sticky='w')
       ttk.Label(F0,text='DPI : ').grid(row=7,column=0)
       ttk.Entry(F0,textvariable=self.VIDEO_DPI,width=7).grid(row=7,column=1,sticky='w')
-      cancel = ttk.Button(F0,text='Cancel',command=_close)
-      cancel.grid(row=8,column=2,padx=3)
-      cancel.bind("<Return>",lambda e:_close())
-      done = ttk.Button(F0,text='Done',command=_done)
+      done = ttk.Button(F0,text='Do it',command=_done)
       done.grid(row=8,column=3,padx=3)
       done.bind("<Return>",lambda e:_done())
       close = ttk.Button(F0,text='Close',command=_close)
