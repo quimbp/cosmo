@@ -62,11 +62,10 @@ class WinTracking():
           self.FILE.set(line[0:-1])
       f.close()
     except:
-      self.python   = '/usr/bin/python'
-      self.motu     = \
-             '/home/joaquim/programs/python/motu-client-python/motu-client.py'
-      self.user     = 'jballabrera'
-      self.password = 'SQ2SSeNx'
+      self.python = '/usr/bin/python'
+      self.motu = '/usr/local/src/motu-client-python/motu-client.py'
+      self.user = 'USERNAME_REQUIRED'
+      self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('./')
       self.FILE.set('out.nc')
 
