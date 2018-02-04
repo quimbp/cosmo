@@ -21,6 +21,8 @@
 ! ...       New float initial release options (time (secs) or date).
 ! ...       Correct the fact that input filename was too short (80).
 ! ...       Allow user to change the name of the initial release file
+! ... v0.3: Change name of default output filename lagrangian-out.nc
+! ...       Use updated cosmo library.
 ! ...
 ! ...      
 ! ****************************************************************************
@@ -68,7 +70,7 @@ integer                                 :: na
 integer                                 :: iu
 integer                                 :: flo
 real(dp)                                :: system_time
-character(len=maxlen)                   :: ofile = 'out.nc'   ! Output filename
+character(len=maxlen)                   :: ofile = 'lagrangian-out.nc' 
 character(len=4000)                     :: Ulist=''
 character(len=4000)                     :: Vlist=''
 character(len=4000)                     :: Wlist=''

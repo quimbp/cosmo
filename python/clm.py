@@ -77,11 +77,29 @@ class parameters:
     self.Ry         = tk.DoubleVar()
     self.Rt         = tk.DoubleVar()
 
-    self.PATH.set('/home/joaquim/cosmo/bin/')
-    self.BIN.set('lagrangian')
-    self.TRAJECTORY.set('out.nc')
-    self.INI.set('')
-    self.FIN.set('out.end')
+    try:
+      f = open('clm.conf','r')
+      ii = -1 
+      for line in f:
+        ii += 1
+        if ii == 0:
+          self.PATH.set(line[0:-1])
+        elif ii == 1:
+          self.BIN.set(line[0:-1])
+        elif ii == 2:
+          self.TRAJECTORY.set(line[0:-1])
+        elif ii == 3:
+          self.INI.set(line[0:-1])
+        elif ii == 4:
+          self.FIN.set(line[0:-1])
+      f.close()
+    except:
+      # Default COSMO LAGRANGIAN MDOEL PATHS
+      self.PATH.set('/home/joaquim/cosmo/bin/')
+      self.BIN.set('lagrangian')
+      self.TRAJECTORY.set('out.nc')
+      self.INI.set('')
+      self.FIN.set('out.end')
 
     self.xo.set(None)
     self.yo.set(None)

@@ -3,7 +3,9 @@
 ! ... Routines to simplify generic NetCDF operations-
 ! ... COSMO project
 ! ... Quim Ballabrera, March 2017
-! ... Version 0.1, released October 2017
+! ... Version 0.3, released February 2018
+! ...              Deal with the suffix UTC in time attributes.
+! ...   
 ! *****************************************************************************
 
 module cdf
@@ -210,6 +212,7 @@ i = len_trim(att)
 if (att(i:i).EQ.'Z') att(i:) = ''
 
 
+att = line_replace(att,'UTC',' ')
 att = line_replace(att,'-',' ')
 att = line_replace(att,':',' ')
 att = line_replace(att,'T',' ')

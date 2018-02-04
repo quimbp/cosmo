@@ -9,6 +9,8 @@
 ! ...   out_exitmode
 ! ...   out_close
 ! ... Version 0.1, released October 2017
+! ... Version 0.3, released February 2018
+! ...              Output position set to missing for unreleased buoys.
 ! ****************************************************************************
 
 module mod_out
@@ -139,10 +141,17 @@ err = NF90_PUT_VAR(ncId,odsysdate,(/date_string(FLT%date,'iso')/),(/1,kk/),(/15,
 call cdf_error(err,'Unable to save system_date')
 
 do flo=1,FLT%n
-  err = NF90_PUT_VAR(ncId,odx,(/FLT%lon(flo)/),(/flo,kk/),(/1,1/))
-  call cdf_error(err,'Unable to save lon')
-  err = NF90_PUT_VAR(ncId,ody,(/FLT%lat(flo)/),(/flo,kk/),(/1,1/))
-  call cdf_error(err,'Unable to save lat')
+  if (FLT%released(flo)) then
+    err = NF90_PUT_VAR(ncId,odx,(/FLT%lon(flo)/),(/flo,kk/),(/1,1/))
+    call cdf_error(err,'Unable to save lon')
+    err = NF90_PUT_VAR(ncId,ody,(/FLT%lat(flo)/),(/flo,kk/),(/1,1/))
+    call cdf_error(err,'Unable to save lat')
+  else
+    err = NF90_PUT_VAR(ncId,odx,(/FLT%missing/),(/flo,kk/),(/1,1/))
+    call cdf_error(err,'Unable to save lon')
+    err = NF90_PUT_VAR(ncId,ody,(/FLT%missing/),(/flo,kk/),(/1,1/))
+    call cdf_error(err,'Unable to save lat')
+  endif
   err = NF90_PUT_VAR(ncId,odz,(/FLT%depth(flo)/),(/flo,kk/),(/1,1/))
   call cdf_error(err,'Unable to save depth')
   err = NF90_PUT_VAR(ncId,odt,(/FLT%time(flo)/),(/flo,kk/),(/1,1/))
