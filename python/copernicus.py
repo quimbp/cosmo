@@ -245,16 +245,18 @@ class WinTracking():
       self.master.tk.call(master, "config", "-menu", self.menubar)
 
 
+    image = Image.open('cosmo-logo.ico')
+    photo = ImageTk.PhotoImage(image)
 
     # Window construction:
     frame1 = tk.Frame(self.master,background='#87CEEB')
 
-    ttk.Label(frame1,text='BASIN',font='Helvetica 12 bold',padding=3,background='#87CEEB').grid(row=0,column=0,sticky='w',padx=3)
+    ttk.Label(frame1,text='PRODUCT',font='Helvetica 12 bold',padding=3,background='#87CEEB').grid(row=0,column=0,sticky='w',padx=3)
     wprod = ttk.Combobox(frame1,textvariable=self.BASIN,width=15)
     wprod.grid(row=0,column=1,columnspan=3,sticky='ew',padx=3)
     wprod['values'] = self.BASIN_LIST
     wprod.bind('<<ComboboxSelected>>',lambda e: self.product_selection())
-    ttk.Label(frame1,text='Product',padding=3,background='#87CEEB').grid(row=1,column=0,sticky='w',padx=3)
+    ttk.Label(frame1,text='Name',padding=3,background='#87CEEB').grid(row=1,column=0,sticky='w',padx=3)
     ttk.Entry(frame1,textvariable=self.PRODUCT,width=60) \
        .grid(row=1,column=1,columnspan=12,sticky='ew',padx=3)
 
@@ -320,6 +322,8 @@ class WinTracking():
                           command=self.master.quit,  \
                           padding=5).grid(row=1,column=5,sticky='e')
 
+    ttk.Label(frame4,image=photo).grid()
+   
     frame4.grid(padx=5,pady=5)
 
     self.Window_pref = None
@@ -525,11 +529,16 @@ class WinTracking():
 
 def main():
 
+  image = Image.open('cosmo-logo.ico')
+
   root = tk.Tk()
-  root.title('TRACKING')
+  root.title('COPERNICUS')
   root.resizable(False,False)
   root.configure(background='#87CEEB')
   root.protocol('WM_DELETE_WINDOW',quit)
+  photo = ImageTk.PhotoImage(image)
+  root.tk.call('wm','iconphoto',root._w,photo)
+
   WinTracking(root)
   root.mainloop()
 
