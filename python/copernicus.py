@@ -319,7 +319,7 @@ class WinTracking():
                           command=self.get,    \
                           padding=5).grid(row=1,column=4,sticky='e')
     ttk.Button(frame4,text='Quit',        \
-                          command=self.master.quit,  \
+                          command=self.master.destroy,  \
                           padding=5).grid(row=1,column=5,sticky='e')
 
     ttk.Label(frame4,image=photo).grid()

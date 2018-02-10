@@ -24,6 +24,7 @@ except:
 
 
 import cosmo
+import copernicus
 from providers import *
 from ncdump import *
 from showgrid import *
@@ -68,6 +69,8 @@ class GUI:
                      command=self.get_opendap_filename)
     menu.add_command(label='CODAR filename', \
                      command=self.get_codar_filename)
+    menu.add_command(label='Download Copernicus', \
+                     command=self.copernicus)
     menu.add_command(label='Local filename', \
                      command=self.get_local_filename)
     menu.add_separator()
@@ -173,6 +176,24 @@ class GUI:
 
 
   # =============================
+  def copernicus(self):
+  # =============================
+    ''' Download a Copernicus file'''
+    print('copernicus')
+
+    Window_drawing = tk.Toplevel(self.master)
+    Window_drawing.title('COPERNICUS')
+    Window_drawing.protocol('WM_DELETE_WINDOW',Window_drawing.destroy)
+    #Window_drawing.resizable(width=False, height=False)
+
+    image = Image.open('cosmo-logo.png')
+    photo = ImageTk.PhotoImage(image)
+    Window_drawing.tk.call('wm','iconphoto',Window_drawing._w,photo)
+    copernicus.WinTracking(Window_drawing)
+    Window_drawing.wait_window()
+
+
+  # =============================
   def get_codar_filename(self):
   # =============================
     ''' Obtain a HFR CODAR file name'''
@@ -237,6 +258,9 @@ class GUI:
         Window_drawing.grid_rowconfigure(0,weight=1)
         Window_drawing.grid_columnconfigure(0,weight=1)
 
+        image = Image.open('cosmo-logo.png')
+        photo = ImageTk.PhotoImage(image)
+        Window_drawing.tk.call('wm','iconphoto',Window_drawing._w,photo)
         
         WinDrawPlot(Window_drawing,FLD,self.dpi.get())
 
@@ -258,11 +282,13 @@ class GUI:
     self.Vname = tk.StringVar()
 
     # --
-    Fr2 = ttk.Frame(Window_axes,padding=5,width=700,borderwidth=5,relief='sunken')
+    Fr2 = ttk.Frame(Window_axes,padding=5,width=700, \
+                    borderwidth=5,relief='sunken')
 
     ttk.Label(Fr2,text='Velocity field: ',width=15, \
             font='bold').grid(row=0,column=0)
-    ttk.Label(Fr2,text='Zonal (U)',borderwidth=3,font='bold').grid(row=0,column=1)
+    ttk.Label(Fr2,text='Zonal (U)',borderwidth=3,   \
+            font='bold').grid(row=0,column=1)
     Ubox = ttk.Combobox(Fr2,textvariable=self.Uname,width=12)
     Ubox.grid(row=0,column=2,sticky='W')
     Ubox['values'] = self.icdf.VAR_MENU
@@ -390,6 +416,11 @@ def main():
   root = tk.Tk()
   root.title(PROGNAME)
   root.resizable(width=True,height=True)
+
+  image = Image.open('cosmo-logo.png')
+  photo = ImageTk.PhotoImage(image)
+  root.tk.call('wm','iconphoto',root._w,photo)
+
   PROVIDER = PROVIDER_CLASS()
   CODAR_STATION = CODAR_CLASS()
   GUI(root)

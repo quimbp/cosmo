@@ -21,6 +21,7 @@ except:
   import tkFileDialog as filedialog
   from tkColorChooser import askcolor
 
+from PIL import Image, ImageTk
 from netCDF4 import Dataset,num2date
 import matplotlib
 matplotlib.use('TkAgg')
@@ -39,6 +40,7 @@ from subprocess import call
 import os
 
 from cosmo import *
+from ncdump import *
 import vectorplot
 import contourplot
 import lineplot
@@ -89,20 +91,45 @@ class field_parameters():
     self.mask          = tk.BooleanVar()
     self.mask.set(True)
 
+    self.show          = tk.BooleanVar()
+    self.show.set(True)
+
     self.lon           = None
     self.lat           = None
     self.xx            = None
     self.yy            = None
     self.F             = None
-    #self.sst           = None
     self.minval        = None
     self.maxval        = None
+    self.data          = None
     self.varname       = None
     self.units         = None
     self.missing_value = None
     self.cbar          = None
     self.FILENAME.set('')
     self.PLOT.CONTOUR_MODE.set(0)
+
+class cdf_parameters():
+  def __init__ (self):
+    self.FILENAME      = tk.StringVar()
+    self.varname       = tk.StringVar()
+    self.K             = tk.IntVar()
+    self.L             = tk.IntVar()
+    self.ZLABEL        = tk.StringVar()
+    self.TLABEL        = tk.StringVar()
+    self.ncid          = None
+    self.icdf          = None
+    self.varid         = None
+    self.K_LIST        = []
+    self.L_LIST        = []
+    self.Z_LIST        = []
+    self.T_LIST        = []
+    self.DATE          = []
+    self.TIME          = None
+    self.FIELD         = field_parameters()
+    self.K.set(0)
+    self.L.set(0)
+    self.FIELD.PLOT.CONTOUR_MODE.set(1)
 
 # ==================
 class WinDrawPlot():
@@ -150,6 +177,13 @@ class WinDrawPlot():
     self.FLOAT_LIST    = ['0']
     self.FLOAT_INDX    = tk.IntVar()
     self.FLOAT_INDX.set(0)
+
+    self.ncdf          = 0
+    self.CDF           = []
+    self.CDF_LIST      = [None]
+    self.CDF_INDX      = tk.IntVar()
+    self.CDF_INDX.set(0)
+    self.cdfbar        = []
 
     self.CODAR_BACKUP  = codar.CODAR_CLASS() 
 
@@ -280,6 +314,8 @@ class WinDrawPlot():
 
     self.canvas._tkcanvas.grid()
     self.canvas.callbacks.connect('button_press_event',self.on_click)
+    self.canvas.callbacks.connect('key_press_event',self.on_key)
+    #self.canvas.get_tk_widget().bind("<Any-KeyPress>",self.on_key)
     ttk.Label(self.frame,text='COSMO project, December 2017').grid(column=9,padx=3,sticky='e')
 
     self.make_plot()
@@ -301,11 +337,19 @@ class WinDrawPlot():
     self.Window_clm           = None
     self.Window_dpi           = None
     self.Window_anim          = None
+    self.Window_ncdf          = None
 
 
   def saveconf(self):
     print('Saving configuration ...')
 
+
+  # ==================================
+  def on_key(self,event):
+  # ==================================
+    print('on_key...')
+    print('Key: ', event.key)
+  
 
   # ==================================
   def on_click(self,event):
@@ -392,7 +436,7 @@ class WinDrawPlot():
     self.menubar.add_cascade(label='Import/Select',menu=menu)
     menu.add_command(label='SAIDIN',command=self.saidin)
     menu.add_command(label='CODAR',command=self.codar)
-    #menu.add_command(label='Field',command=self.logo_config)
+    menu.add_command(label='Field',command=self.netcdf)
     #menu.add_command(label='Vector',command=self.logo_config)
     menu.add_command(label='Lagrangian',command=self.floats)
 
@@ -409,7 +453,7 @@ class WinDrawPlot():
     menu.add_command(label='SAIDIN',command=lambda:self.contour_config(self.SAIDIN))
     menu.add_command(label='CODAR', \
              command=lambda:self.vector_config(self.CODAR[self.CODAR_INDX.get()].PLOT,self.CODAR_BACKUP.PLOT))
-    #menu.add_command(label='Field',command=self.logo_config)
+    menu.add_command(label='Field',command=lambda:self.contour_config(self.CDF[self.CDF_INDX.get()].FIELD))
     #menu.add_command(label='Vector',command=self.logo_config)
     menu.add_command(label='Trajectories', \
              command=self.lagrangian_config)
@@ -968,8 +1012,6 @@ class WinDrawPlot():
     else:
       ii = -1
 
-    print('main codar window, ii = ',ii)
-
     _frame0 = ttk.Frame(self.Window_codar,padding=5)
     ttk.Label(_frame0,text='CODAR').grid(row=0,column=0,padx=3)
     
@@ -1023,6 +1065,375 @@ class WinDrawPlot():
       _next['state'] = 'disabled'
 
 
+  # ===========================================
+  def read_Field(self,FIELD,ncid,icdf,sid,K,L):
+  # ===========================================
+    '''Read 2D data according to user selections'''
+
+    if sid < 0:
+      FIELD.data = None
+      return
+
+    FIELD.lon = ncid.variables[icdf.xname][:]
+    FIELD.lat = ncid.variables[icdf.yname][:]
+    FIELD.xx,FIELD.yy = np.meshgrid(FIELD.lon,FIELD.lat)
+
+    sname = '%s' % icdf.vname[sid]
+    print('READ_FIELD Reading Level and Time:', sname, K, L)
+
+    ndim = icdf.ndims[sid]
+    if ndim == 2:
+      FIELD.data = ncid.variables[sname][:,:]
+    elif ndim == 3:
+      if icdf.ppl[sid] > -1:
+        FIELD.data = ncid.variables[sname][L,:,:].squeeze()
+      elif icdf.ppk[sid]  > -1:
+        FIELD.data = ncid.variables[sname][K,:,:].squeeze()
+      else:
+        messagebox.showinfo(message='Invalid variable dimensions')
+        FIELD.data = None
+    elif ndim == 4:
+      FIELD.data = ncid.variables[sname][L,K,:,:].squeeze()
+
+    FIELD.varname = '%s' % sname
+    print(FIELD.varname)
+    FIELD.missing_value = None
+
+    if FIELD.data is not None:
+      try:
+        FIELD.units = ncid.variables[sname].getncattr('units')
+      except:
+        FIELD.units = ''
+
+      try:
+        FIELD.missing_value = ncid.variables[sname].getncattr('_FillValue')
+      except:
+        try:
+          FIELD.missing_value = ncid.variables[sname].getncattr('missing_value')
+        except:
+          FIELD.missing_value = None
+ 
+      if FIELD.missing_value is not None:
+        FIELD.data[FIELD.data==FIELD.missing_value] = np.nan
+
+      FIELD.minval = FIELD.data.min()
+      FIELD.maxval = FIELD.data.max()
+      print('Min val = ',FIELD.minval)
+      print('Max val = ',FIELD.maxval)
+
+      FIELD.PLOT.CONTOUR_MIN.set(FIELD.minval)
+      FIELD.PLOT.CONTOUR_MAX.set(FIELD.maxval)
+      ds = 0.10*(FIELD.PLOT.CONTOUR_MAX.get()-FIELD.PLOT.CONTOUR_MIN.get())
+      FIELD.PLOT.CONTOUR_INTERVAL.set(ds)
+
+
+  # ==============
+  def netcdf(self):
+  # ==============
+    '''Widget to read Netcdf files'''
+
+    def _close():
+    # ===========
+      self.Window_ncdf.destroy()
+      self.Window_ncdf = None
+      return
+
+    def _done():
+    # ===========
+      self.read_Field(self.CDF[ii].FIELD,   \
+                      self.CDF[ii].ncid,    \
+                      self.CDF[ii].icdf,    \
+                      self.CDF[ii].varid,   \
+                      self.CDF[ii].K.get(), \
+                      self.CDF[ii].L.get())
+      _close()
+      self.make_plot()
+
+    def _clear():
+    # ===========
+      if self.ncdf == 0:
+        _close()
+      ii = self.CDF_INDX.get()
+      print('Erasing record ', ii)
+      del self.CDF[ii]
+      self.ncdf -= 1
+      ii = self.ncdf-1 if ii >= self.ncdf else ii
+      self.CDF_INDX.set(ii)
+      _refill(ii)
+      self.make_plot()
+      _close()
+    
+    def _reget():
+    # ===========
+      self.CDF_INDX.set(_wsel.get())
+      ii = self.CDF_INDX.get()
+      _refill(ii)
+
+    def _refill(ii):
+    # ==============
+
+      if ii >= 0:
+        self.CDF_LIST = list(range(self.ncdf))
+        _wsel.configure(state='!disabled')
+        _wsel['values'] = self.CDF_LIST
+        _went['textvariable'] = self.CDF[ii].FILENAME
+        _wvar.configure(state='!disabled')
+        _wvar['textvariable'] = self.CDF[ii].varname
+        _wvar['values'] = self.CDF[ii].icdf.VAR_MENU
+        _kbox.configure(state='!disabled')
+        _kbox['textvariable'] = self.CDF[ii].K
+        _kbox['values'] = self.CDF[ii].K_LIST
+        _lbox.configure(state='!disabled')
+        _lbox['textvariable'] = self.CDF[ii].L
+        _lbox['values'] = self.CDF[ii].L_LIST
+        if self.CDF[ii].icdf.idz < 0:
+          _kbox.configure(state='disabled')
+          _zbox['text']='--'
+        else:
+          _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
+        if self.CDF[ii].icdf.idt < 0:
+          _lbox.configure(state='disabled')
+          _dbox['text']='--'
+        else:
+          _lbox['textvariable'] = self.CDF[ii].L
+          _lbox['values'] = self.CDF[ii].L_LIST
+          _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+        _show['variable'] = self.CDF[ii].FIELD.show
+
+      else:
+        self.CDF         = []
+        self.CDF_LIST    = [None]
+        self.CDF_INDX    = tk.IntVar()
+        self.CDF_INDX.set(0)
+
+        _wsel.configure(state='disabled')
+        _wvar.configure(state='disabled')
+        _kbox.configure(state='disabled')
+        _lbox.configure(state='disabled')
+        _wsel['values'] = self.CDF_LIST
+        _went['textvariable'] = ''
+        _wvar['textvariable'] = ''
+        _wvar['values'] = ['']
+        _wvar.configure(state='disabled')
+        _kbox['textvariable'] = ''
+        _kbox['values'] = ['']
+        _zbox['text'] = '--'
+        _lbox['text'] = ''
+        _lbox['values'] = ['']
+        _lbox['textvariable'] = ''
+        _lbox['values'] = ['']
+        _dbox['text'] = ['--']
+
+    def _add():
+    # ========
+
+      global Window_select
+
+      def _cancel():
+      # ============
+        global Window_select
+        Window_select.destroy()
+        Window_select = None
+
+      def _done():
+      # ==========
+        global Window_select
+        global _wvar
+
+        if empty(CDF.varname.get()):
+          CDF.varid = -1
+        else:
+          CDF.varid = CDF.icdf.vname.index(CDF.varname.get())
+        self.ncdf += 1
+        self.CDF.append(CDF)
+        self.CDF_INDX.set(self.ncdf-1)
+        self.CDF_LIST = list(range(self.ncdf))
+        ii = self.CDF_INDX.get()
+        _refill(ii)
+        Window_select.destroy()
+        Window_select = None
+
+
+      nn = filedialog.askopenfile(filetypes=[('Netcdf','*.nc'),  \
+                                             ('CDF','*.cdf'),  \
+                                             ('ALL','*')])
+      try:
+        if empty(nn.name):
+          return
+      except:
+        return
+
+      # Not empty filename:
+      CDF = cdf_parameters()
+      CDF.FILENAME.set(nn.name)
+      CDF.ncid = Dataset(nn.name)
+      CDF.icdf = geocdf(nn.name)
+      CDF.K_LIST = list(np.arange(0,CDF.icdf.nz))
+      CDF.L_LIST = list(np.arange(0,CDF.icdf.nt))
+      if CDF.icdf.idk > -1:
+        wrk = CDF.ncid.variables[CDF.icdf.zname][:]
+        CDF.Z_LIST = list(wrk)
+      else:
+        CDF.Z_LIST = [0]
+      if CDF.icdf.idl > -1:
+        wrk = CDF.ncid.variables[CDF.icdf.tname][:]
+        CDF.T_LIST = list(wrk)
+      else:
+        CDF.T_LIST = [0]
+      CDF.DATE = []
+      for i in range(CDF.icdf.nt):
+        CDF.DATE.append(num2date(CDF.T_LIST[i],            \
+                         units=CDF.icdf.time_units, \
+                         calendar=CDF.icdf.time_calendar))
+
+      CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]).total_seconds() \
+                           for i in range(CDF.icdf.nt)])
+      CDF.FIELD.show.set(True)
+
+
+      if Window_select is None:
+        Window_select = tk.Toplevel(self.master)
+        Window_select.title('SELECT VARIABLES')
+        Window_select.protocol('WM_DELETE_WINDOW',Window_select.destroy)
+      else:
+        Window_select.lift()
+        return
+
+      axesid = WinGeoaxes(CDF.icdf,Window_select)
+
+      F0 = ttk.Frame(Window_select,padding=5,borderwidth=5)
+      ttk.Label(F0,text='Select variable',borderwidth=3,font='bold') \
+         .grid(row=0,column=0)
+      vbox = ttk.Combobox(F0,textvariable=CDF.varname, \
+                          values=CDF.icdf.VAR_MENU,width=20)
+      vbox.grid(row=0,column=1,columnspan=2)
+      F0.grid()
+
+      F1 = ttk.Frame(Window_select,padding=5)
+      cancel = ttk.Button(F1,text='Cancel',command=_cancel)
+      cancel.grid(row=0,column=3,sticky='e',padx=10)
+      cancel.bind("<Return>",lambda e:_cancel())
+      done = ttk.Button(F1,text='Done',command=_done)
+      done.grid(row=0,column=4,sticky='e',padx=10)
+      done.bind("<Return>",lambda e:_done())
+      F1.grid(sticky='we')
+
+    def _lselection():
+    # ================
+      _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+
+    def _kselection():
+    # ================
+      _zbox['text'] = self.CDF[ii].Z_LIST[self.CDF[ii].L.get()]
+
+    def _vselection():
+    # ================
+      try:
+        self.CDF[ii].varid = self.CDF[ii].icdf.vname.index( \
+                                             self.CDF[ii].varname.get())
+      except:
+        self.CDF[ii].varid = -1
+      print(self.CDF[ii].varid)
+
+
+# AAA
+
+    # Main window:
+    # ============
+    if self.Window_ncdf is None:
+      self.Window_ncdf = tk.Toplevel(self.master)
+      self.Window_ncdf.title("Netcdf files")
+      self.Window_ncdf.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_ncdf.lift()
+
+    if self.ncdf > 0:
+      ii = self.CDF_INDX.get()
+    else:
+      ii = -1
+
+    global Window_select
+    global _wvar
+
+    Window_select = None
+    F0 = ttk.Frame(self.Window_ncdf,padding=5)
+
+    # Add
+    ttk.Button(F0,text='Add',command=_add).grid(row=0,column=0,padx=3)
+
+    # Filename:
+    ttk.Label(F0,text='Netcdf file').grid(row=0,column=1,padx=3)
+    _wsel = ttk.Combobox(F0,textvariable=self.CDF_INDX, \
+                                  values=self.CDF_LIST,width=5)
+    _wsel.grid(row=0,column=2)
+    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+
+    # Variable:
+    ttk.Label(F0,text='Variable').grid(row=1,column=1,padx=3,pady=3)
+    _wvar = ttk.Combobox(F0,width=15)
+    _wvar.grid(row=1,column=2,columnspan=2,sticky='w')
+    _wvar.bind('<<ComboboxSelected>>',lambda e: _vselection())
+
+    # Depth:
+    ttk.Label(F0,text='Depth').grid(row=2,column=1,padx=3,pady=3)
+    _kbox = ttk.Combobox(F0,values=['0'],width=5)
+    _kbox.grid(row=2,column=2)
+    _zbox = ttk.Label(F0,width=20)
+    _zbox.grid(row=2,column=3,columnspan=2,sticky='w')
+
+    # Time:
+    ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
+    _lbox = ttk.Combobox(F0,width=5)
+    _lbox.grid(row=3,column=2)
+    _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
+    _dbox = ttk.Label(F0,width=20)
+    _dbox.grid(row=3,column=3,columnspan=2,sticky='w')
+
+    if ii == -1:
+      _wsel.configure(state='disabled')
+      _wvar.configure(state='disabled')
+      _kbox.configure(state='disabled')
+      _lbox.configure(state='disabled')
+    else:
+      _went['textvariable'] = self.CDF[ii].FILENAME
+      _wvar['textvariable'] = self.CDF[ii].varname
+      _wvar['values'] = self.CDF[ii].icdf.VAR_MENU
+      _kbox['textvariable'] = self.CDF[ii].K
+      _kbox['values'] = self.CDF[ii].K_LIST
+      if self.CDF[ii].icdf.idz < 0:
+        _kbox.configure(state='disabled')
+        _zbox['text']='--'
+      else:
+        _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
+      if self.CDF[ii].icdf.idt < 0:
+        _lbox.configure(state='disabled')
+        _dbox['text']='--'
+      else:
+        _lbox['textvariable'] = self.CDF[ii].L
+        _lbox['values'] = self.CDF[ii].L_LIST
+        _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+
+    F0.grid(row=0,column=0)
+ 
+    F1 = ttk.Frame(self.Window_ncdf,padding=5)
+    if ii == -1:
+      _show = ttk.Checkbutton(F1,text='Show')
+    else:
+      _show = ttk.Checkbutton(F1,text='Show')
+      _show['variable']=self.CDF[ii].FIELD.show
+    _show.grid(row=1,column=5)
+    ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
+    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
+    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=8,padx=3)
+    F1.grid(row=1,column=0)
+      
+
+
+
+
+
   # ==============
   def floats(self):
   # ==============
@@ -1070,7 +1481,6 @@ class WinDrawPlot():
         _wsel['values'] = self.FLOAT_LIST
         _went['textvariable'] = ''
         _wstat['text'] = ''
-
 
     def _add():
     # ========
@@ -1458,6 +1868,14 @@ class WinDrawPlot():
     except:
       pass
  
+    for bar in self.cdfbar:
+      try:
+         bar.remove()
+      except:
+        pass
+    self.cdfbar = []
+
+
     self.ax1.clear()
 
     global m
@@ -1540,6 +1958,15 @@ class WinDrawPlot():
                         fontsize=self.PLOT.LONLAT_SIZE.get(), \
                         color=self.PLOT.LONLAT_COLOR.get())
 
+
+    if self.ncdf > 0:
+      for ii in range(self.ncdf):
+        if self.CDF[ii].FIELD.show.get():
+          self.cdfbar.append (contourplot.drawing(self.fig,self.ax1,m, \
+                                    self.CDF[ii].FIELD.xx,   \
+                                    self.CDF[ii].FIELD.yy,   \
+                                    self.CDF[ii].FIELD.data, \
+                                    self.CDF[ii].FIELD.PLOT))
 
     # Plot currents
     vectorplot.drawing(self.fig,self.ax1,m,self.CURRENTS)
@@ -2285,6 +2712,10 @@ def main():
   root.grid_columnconfigure(0,weight=1)
   root.protocol('WM_DELETE_WINDOW',quit)
 
+  image = Image.open('cosmo-logo.png')
+  photo = ImageTk.PhotoImage(image)
+  root.tk.call('wm','iconphoto',root._w,photo)
+
 
   PLOT = plot_params()
   PLOT.SOUTH = 38
@@ -2294,8 +2725,8 @@ def main():
 
   ifile = 'SAMGIB-PdE-dm-2017122600-2017122823-B2017122600-FC.nc'
   ifile = 'roms_wmop_20171121.nc'
-  ifile = 'roms_wmop_20171122.nc'
   ifile = 'SAMGIB-PdE-hm-2018011800-2018012023-B2018011800-FC.nc'
+  ifile = 'roms_wmop_20171122.nc'
   ncid  = Dataset(ifile,'r')
   icdf  = geocdf(ifile)
   uid = icdf.vname.index('u')
