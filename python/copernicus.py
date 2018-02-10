@@ -67,7 +67,7 @@ class WinTracking():
       self.user = 'USERNAME_REQUIRED'
       self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('./')
-      self.FILE.set('out.nc')
+      self.FILE.set('')
 
 
     # Define basins: Example: Global, Mediterraneans
@@ -330,6 +330,18 @@ class WinTracking():
     self.Window_user = None
     self.Window_out  = None
 
+  def out(self):
+  #=============
+
+    if empty(self.FILE.get()):
+       idate = self.INITIAL.get().replace(" ","").replace("-","") \
+                                 .replace('"','').replace(":","")
+       fdate = self.FINAL.get().replace(" ","").replace("-","") \
+                                 .replace('"','').replace(":","")
+       ofile = '%s-%s-%s.nc' % (self.BASIN.get().lower(),idate,fdate)
+       self.FILE.set(ofile)
+
+    return self.FILE.get()
 
   def product_selection(self):
   # ==========================
@@ -337,8 +349,6 @@ class WinTracking():
 
     self.BASIN_ID = self.BASIN_LIST.index(self.BASIN.get()) 
     self.PRODUCT.set(self.BASIN_PRODUCT[self.BASIN_ID])
-    #self.DATA.set(self.DATA_LIST[self.BASIN_ID])
-    #self.VAR.set(self.VAR_LIST[self.BASIN_ID])
     self.WEST.set(self.BASIN_WEST[self.BASIN_ID])
     self.EAST.set(self.BASIN_EAST[self.BASIN_ID])
     self.SOUTH.set(self.BASIN_SOUTH[self.BASIN_ID])
@@ -512,6 +522,16 @@ class WinTracking():
     f.write(' --date-max %s' % self.FINAL.get())
     f.write(' %s' % self.BASIN_VARS[self.BASIN_ID])
     f.write(' -o %s' % self.PATH.get())
+
+    # Get the output file:
+    self.out()
+    #if empty(self.FILE.get()):
+    #   idate = self.INITIAL.get().replace(" ","").replace("-","") \
+    #                             .replace('"','').replace(":","")
+    #   fdate = self.FINAL.get().replace(" ","").replace("-","") \
+    #                             .replace('"','').replace(":","")
+    #   ofile = '%s-%s-%s.nc' % (self.BASIN.get().lower(),idate,fdate)
+    #   print(ofile)
     f.write(' -f %s' % self.FILE.get())
     f.write('\n')
     f.close()
@@ -521,6 +541,7 @@ class WinTracking():
   def get(self):
   # ============
     self.script(filename='.tmp.sh')
+    os.system('cat .tmp.sh')
     os.system('chmod +x .tmp.sh')
     os.system('./.tmp.sh')
     os.system('rm -f .tmp.sh')

@@ -189,8 +189,11 @@ class GUI:
     image = Image.open('cosmo-logo.png')
     photo = ImageTk.PhotoImage(image)
     Window_drawing.tk.call('wm','iconphoto',Window_drawing._w,photo)
-    copernicus.WinTracking(Window_drawing)
+    product = copernicus.WinTracking(Window_drawing)
     Window_drawing.wait_window()
+    ofile = product.out()
+    self.FILENAME.set(ofile)
+    print(self.FILENAME.get())
 
 
   # =============================
