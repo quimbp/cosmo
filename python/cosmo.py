@@ -866,3 +866,202 @@ def empty(string):
   else:
     return True
 
+# =====================
+class Select_Columns():
+# =====================
+  '''Widget to select the column content of colum table'''
+
+  __version__ = "0.0"
+  __author__  = "Quim Ballabrerera"
+  __date__    = "February 2018"
+
+  def __init__ (self,master,line,sep):
+
+    self.master = master
+    self.LINE = tk.StringVar()
+    self.SEPARATOR = tk.StringVar()
+
+    line = line.strip()
+    self.LINE.set(line)
+    self.SEPARATOR.set(sep)
+    self.columns = line.split(self.SEPARATOR.get())
+
+    self.ncol = len(self.columns)
+    self.clist = list(range(self.ncol))
+
+    # Add an exra option to signal that the variable is not present
+    self.columns.append(' ')
+    self.clist.append(-1)
+
+    self.LON    = tk.StringVar()
+    self.LAT    = tk.StringVar()
+    self.YEAR   = tk.StringVar()
+    self.MONTH  = tk.StringVar()
+    self.DAY    = tk.StringVar()
+    self.HOUR   = tk.StringVar()
+    self.MINUTE = tk.StringVar()
+    self.SECOND = tk.StringVar()
+
+    self.LON.set('0')
+    self.LAT.set('0')
+    self.YEAR.set('0')
+    self.MONTH.set('0')
+    self.DAY.set('0')
+    self.HOUR.set('0')
+    self.MINUTE.set('0')
+    self.SECOND.set('0')
+
+    F0 = ttk.Frame(self.master,padding=5)
+    ttk.Label(F0,text='Select the float column information') \
+       .grid(row=0,column=0,columnspan=3)
+    ttk.Label(F0,text='Variable').grid(row=1,column=0,padx=3)
+    ttk.Label(F0,text='Longitude').grid(row=1,column=1,padx=3)
+    ttk.Label(F0,text='Latitude').grid(row=1,column=2,padx=3)
+    ttk.Label(F0,text='Year').grid(row=1,column=3,padx=3)
+    ttk.Label(F0,text='Month').grid(row=1,column=4,padx=3)
+    ttk.Label(F0,text='Day').grid(row=1,column=5,padx=3)
+    ttk.Label(F0,text='Hour').grid(row=1,column=6,padx=3)
+    ttk.Label(F0,text='Minute').grid(row=1,column=7,padx=3)
+    ttk.Label(F0,text='Second').grid(row=1,column=8,padx=3)
+
+    self.clon = ttk.Combobox(F0,textvariable=self.LON,values=self.clist,width=5) 
+    self.clon.grid(row=2,column=1,padx=3,pady=5)
+    self.clon.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.clat = ttk.Combobox(F0,textvariable=self.LAT,values=self.clist,width=5) 
+    self.clat.grid(row=2,column=2,padx=3,pady=5)
+    self.clat.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.cyea = ttk.Combobox(F0,textvariable=self.YEAR,values=self.clist,width=5)
+    self.cyea.grid(row=2,column=3,padx=3,pady=5)
+    self.cyea.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.cmon = ttk.Combobox(F0,textvariable=self.MONTH,values=self.clist,width=5)
+    self.cmon.grid(row=2,column=4,padx=3,pady=5)
+    self.cmon.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.cday = ttk.Combobox(F0,textvariable=self.DAY,values=self.clist,width=5)
+    self.cday.grid(row=2,column=5,padx=3,pady=5)
+    self.cday.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.chou = ttk.Combobox(F0,textvariable=self.HOUR,values=self.clist,width=5)
+    self.chou.grid(row=2,column=6,padx=3,pady=5)
+    self.chou.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.cmin = ttk.Combobox(F0,textvariable=self.MINUTE,values=self.clist,width=5)
+    self.cmin.grid(row=2,column=7,padx=3,pady=5)
+    self.cmin.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    self.csec = ttk.Combobox(F0,textvariable=self.SECOND,values=self.clist,width=5)
+    self.csec.grid(row=2,column=8,padx=3,pady=5)
+    self.csec.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
+    ttk.Label(F0,text='Value').grid(row=3,column=0,padx=3)
+    self.wlon = ttk.Label(F0,text=self.columns[int(self.LON.get())],width=5)
+    self.wlon.grid(row=3,column=1,padx=3,pady=5)
+    self.wlat = ttk.Label(F0,text=self.columns[int(self.LAT.get())],width=5)
+    self.wlat.grid(row=3,column=2,padx=3,pady=5)
+    self.wyea = ttk.Label(F0,text=self.columns[int(self.YEAR.get())],width=5)
+    self.wyea.grid(row=3,column=3,padx=3,pady=5)
+    self.wmon = ttk.Label(F0,text=self.columns[int(self.MONTH.get())],width=5)
+    self.wmon.grid(row=3,column=4,padx=3,pady=5)
+    self.wday = ttk.Label(F0,text=self.columns[int(self.DAY.get())],width=5)
+    self.wday.grid(row=3,column=5,padx=3,pady=5)
+    self.whou = ttk.Label(F0,text=self.columns[int(self.HOUR.get())],width=5)
+    self.whou.grid(row=3,column=6,padx=3,pady=5)
+    self.wmin = ttk.Label(F0,text=self.columns[int(self.MINUTE.get())],width=5)
+    self.wmin.grid(row=3,column=7,padx=3,pady=5)
+    self.wsec = ttk.Label(F0,text=self.columns[int(self.SECOND.get())],width=5)
+    self.wsec.grid(row=3,column=8,padx=3,pady=5)
+
+    ttk.Label(F0,text='First line').grid(row=4,column=0,padx=3,pady=5)
+    ttk.Entry(F0,textvariable=self.LINE,width=50,state='readonly') \
+       .grid(row=4,column=1,columnspan=8,padx=3,pady=5,sticky='w')
+    ttk.Label(F0,text='Separator').grid(row=5,column=0,padx=3,pady=5)
+    self.sep = ttk.Entry(F0,textvariable=self.SEPARATOR,width=5)
+    self.sep.grid(row=5,column=1,padx=3,pady=5,sticky='w')
+    self.sep.bind('<Return>',lambda e: self.recount())
+    tk.Label(F0,text='Num col :').grid(row=5,column=2,padx=3,pady=5)
+    self.wcol = ttk.Label(F0,text='%s' % self.ncol)
+    self.wcol.grid(row=5,column=3,padx=3,pady=5,sticky='w')
+
+    ttk.Button(F0,text='Cancel',command=self.cancel).grid(row=5,column=7,padx=3,pady=5)
+    ttk.Button(F0,text='Done',command=self.done).grid(row=5,column=8,padx=3,pady=5)
+    F0.grid()
+    self.lon = 1
+
+  def recount(self):
+  # ================
+    line = self.LINE.get()
+    line = line.strip()
+    self.columns = line.split(self.SEPARATOR.get())
+
+    self.ncol = len(self.columns)
+    self.clist = list(range(self.ncol))
+    self.columns.append(' ')
+    self.clist.append(-1)
+
+    self.wcol['text']   = '%s' % self.ncol
+    self.clon['values'] = self.clist
+    self.clat['values'] = self.clist
+    self.cyea['values'] = self.clist
+    self.cmon['values'] = self.clist
+    self.cday['values'] = self.clist
+    self.chou['values'] = self.clist
+    self.cmin['values'] = self.clist
+    self.csec['values'] = self.clist
+
+  def cancel(self):
+  # ================
+    self.master.destroy()
+    self.lon    = None
+    self.lat    = None
+    self.year   = None
+    self.month  = None
+    self.day    = None
+    self.hour   = None
+    self.minute = None
+    self.second = None
+
+  def done(self):
+  # ================
+    self.lon    = None
+    self.lat    = None
+    self.year   = None
+    self.month  = None
+    self.day    = None
+    self.hour   = None
+    self.minute = None
+    self.second = None
+
+    if int(self.LON.get()) > -1:
+      self.lon = int(self.LON.get())
+    if int(self.LAT.get()) > -1:
+      self.lat = int(self.LAT.get())
+    if int(self.YEAR.get()) > -1:
+      self.year = int(self.YEAR.get())
+    if int(self.MONTH.get()) > -1:
+      self.month = int(self.MONTH.get())
+    if int(self.DAY.get()) > -1:
+      self.day = int(self.DAY.get())
+    if int(self.HOUR.get()) > -1:
+      self.hour = int(self.HOUR.get())
+    if int(self.MINUTE.get()) > -1:
+      self.minute = int(self.MINUTE.get())
+    if int(self.SECOND.get()) > -1:
+      self.second = int(self.SECOND.get())
+
+    self.master.destroy()
+    return
+
+  def relabel(self):
+  # ================
+    self.wlon['text'] = self.columns[int(self.LON.get())]
+    self.wlat['text'] = self.columns[int(self.LAT.get())]
+    self.wyea['text'] = self.columns[int(self.YEAR.get())]
+    self.wmon['text'] = self.columns[int(self.MONTH.get())]
+    self.wday['text'] = self.columns[int(self.DAY.get())]
+    self.whou['text'] = self.columns[int(self.HOUR.get())]
+    self.wmin['text'] = self.columns[int(self.MINUTE.get())]
+    self.wsec['text'] = self.columns[int(self.SECOND.get())]
+
