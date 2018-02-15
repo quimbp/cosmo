@@ -19,6 +19,9 @@ import matplotlib.cm as cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 
 import numpy as np
+import os
+
+COSMOCPATH = os.path.expanduser('~') + os.sep + '.cosmo-view'
 
 # ===========
 class geocdf:
