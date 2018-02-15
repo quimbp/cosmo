@@ -161,6 +161,30 @@ def WinOnMapConfig(parent,PLOT,LL):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
+  def iselection():
+    '''Select floater'''
+    cbox['text'] = LL.FLOAT_COLOR[LL.I.get()]
+
+  def cselection():
+    '''Select floater'''
+    print(cbox.get())
+    LL.FLOAT_COLOR[LL.I.get()].set(cbox.get())
+
+  def default_color():
+    for i in range(LL.nfloats):
+      LL.FLOAT_COLOR[i].set(LL.PLOT.LINE_COLOR.get())
+
+  def line_color():
+    if LL.FLOAT_COLOR[LL.I.get()].get() == 'None':
+      rgb, hx = askcolor(parent=parent)
+    else:
+      backup = LL.FLOAT_COLOR[LL.I.get()].get()
+      rgb, hx = askcolor(color=LL.FLOAT_COLOR[LL.I.get()].get(),parent=parent)
+      if hx is None:
+        LL.FLOAT_COLOR[LL.I.get()].set(backup)
+      else:
+        LL.FLOAT_COLOR[LL.I.get()].set(hx)
+
   def marker_color():
     if PLOT.ONMAP_COLOR.get() == 'None':
       rgb, hx = askcolor(parent=parent)
@@ -192,6 +216,22 @@ def WinOnMapConfig(parent,PLOT,LL):
   ttk.Entry(F1,textvariable=LL.I2,justify='left',width=7).grid(row=2,column=1,sticky='w')
   F1.grid()
 
+  F2 = ttk.Frame(parent,borderwidth=5,padding=5)
+  ttk.Label(F2,text='Individual Float Color',font='Helvetica 12 bold').grid(row=0,column=0,columnspan=2,sticky='w')
+  tk.Checkbutton(F2,text='Individual colors',font='Helvetica 12 bold',variable=LL.SEPARATED_COLOR).grid(row=1,column=1,columnspan=2)
+  ttk.Label(F2,text='Floater:').grid(row=2,column=0,padx=3)
+  ibox = ttk.Combobox(F2,textvariable=LL.I,width=5)
+  ibox.grid(row=2,column=1)
+  ibox.bind('<<ComboboxSelected>>',lambda e: iselection())
+  ibox['values'] = list(range(LL.nfloats))
+  ttk.Label(F2,text='Line Color').grid(row=2,column=2,columnspan=1,sticky='w')
+  cbox = ttk.Entry(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],justify='left',width=10)
+  cbox.grid(row=2,column=3,sticky='w')
+  cbox.bind('<Return>',lambda e: cselection())
+  # AAA
+  ttk.Button(F2,text='Select',command=line_color).grid(row=2,column=4,padx=3,sticky='ew')
+  ttk.Button(F2,text='Default',command=default_color).grid(row=2,column=5,padx=3,sticky='ew')
+  F2.grid()
 
 # ======================================================
 def LabelLine(ax,line,x,label=None,align=True,**kwargs):

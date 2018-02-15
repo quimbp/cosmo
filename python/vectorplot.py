@@ -73,7 +73,7 @@ class parameters():
 
 
 # ========================================
-def config(parent,PLOT,BACKUP):
+def config(parent,PLOT):
 # ========================================
   ''' Interactive widget to modify the options of 2D vector plots'''
 
@@ -97,35 +97,6 @@ def config(parent,PLOT,BACKUP):
     PLOT.STREAM_COLOR.set(hx)
 
 
-  def creset():
-    ''' Reset to original values'''
-    PLOT.CURRENT_NX.set(BACKUP.CURRENT_NX.get())
-    PLOT.CURRENT_NY.set(BACKUP.CURRENT_NY.get())
-    PLOT.CURRENT_SCALE.set(BACKUP.CURRENT_SCALE.get())
-    PLOT.CURRENT_WIDTH.set(BACKUP.CURRENT_WIDTH.get())
-    PLOT.CURRENT_HEADLENGTH.set(BACKUP.CURRENT_HEADLENGTH.get())
-    PLOT.CURRENT_HEADWIDTH.set(BACKUP.CURRENT_HEADWIDTH.get())
-    PLOT.CURRENT_COLOR.set(BACKUP.CURRENT_COLOR.get())
-
-
-  def sreset():
-    ''' Reset to original values'''
-    PLOT.STREAM_DENSITY.set(BACKUP.STREAM_DENSITY.get())
-    PLOT.STREAM_WIDTH.set(BACKUP.STREAM_WIDTH.get())
-    PLOT.STREAM_COLOR.set(BACKUP.STREAM_COLOR.get())
-
-
-  def kreset():
-    ''' Reset to original values'''
-    PLOT.KEY_SHOW.set(BACKUP.KEY_SHOW.get())
-    PLOT.KEY_LABEL.set(BACKUP.KEY_LABEL.get())
-    PLOT.KEY_VALUE.set(BACKUP.KEY_VALUE.get())
-    PLOT.KEY_X.set(BACKUP.KEY_X.get())
-    PLOT.KEY_Y.set(BACKUP.KEY_Y.get())
-    PLOT.KEY_POS.set(BACKUP.KEY_POS.get())
-    PLOT.KEY_COLOR.set(BACKUP.KEY_COLOR.get())
-
-
   frame = ttk.Frame(parent,borderwidth=5,padding=5)
   ttk.Label(frame,text='Current vector options',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
   ttk.Label(frame,text='Number X points').grid(row=1,column=0,sticky='w')
@@ -143,7 +114,6 @@ def config(parent,PLOT,BACKUP):
   ttk.Label(frame,text='Color').grid(row=7,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame,textvariable=PLOT.CURRENT_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
   ttk.Button(frame,text='Select',command=cselection).grid(row=7,column=2,padx=3,sticky='ew')
-  ttk.Button(frame,text='Reset',command=creset).grid(row=8,column=2,padx=3,pady=6,sticky='ew')
   frame.grid()
 
   frame2 = ttk.Frame(parent,borderwidth=5,padding=5)
@@ -161,7 +131,6 @@ def config(parent,PLOT,BACKUP):
   ttk.Entry(frame2,textvariable=PLOT.KEY_POS,width=7).grid(row=5,column=1,sticky='w')
   ttk.Label(frame2,text='Label color').grid(row=6,column=0,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.KEY_COLOR,width=7).grid(row=6,column=1,sticky='w')
-  ttk.Button(frame2,text='Reset',command=creset).grid(row=7,column=2,padx=3,pady=6,sticky='ew')
   frame2.grid(row=9,column=0)
 
   frame4 = ttk.Frame(parent,borderwidth=5,padding=5)
@@ -177,7 +146,6 @@ def config(parent,PLOT,BACKUP):
   ttk.Label(frame3,text='Color').grid(row=3,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame3,textvariable=PLOT.STREAM_COLOR,justify='left',width=7).grid(row=3,column=1,sticky='w')
   ttk.Button(frame3,text='Select',command=tselection).grid(row=3,column=2,padx=3,sticky='ew')
-  ttk.Button(frame3,text='Reset',command=sreset).grid(row=4,column=2,padx=3,pady=6,sticky='ew')
   #frame3.grid(row=17,column=0)
   frame3.grid()
 

@@ -1,4 +1,4 @@
-''' COSMO-VIEW,
+''',COSMO-VIEW,
     Quim Ballabrera, May 2017
     Script for visualizing model outputs provided by various operational
       systems'''
@@ -29,15 +29,16 @@ import matplotlib.pyplot as plt
 import matplotlib.image as image
 from mpl_toolkits.basemap import Basemap
 import matplotlib.font_manager as font_manager
-#from matplotlib.backend_bases import key_press_handler
+from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 from matplotlib.offsetbox import TextArea, OffsetImage, AnnotationBbox
 import matplotlib.cm as cm
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import json
 from subprocess import call
 import os
+import io
 
 from cosmo import *
 from ncdump import *
@@ -48,6 +49,12 @@ import codar
 import saidin
 import lagrangian
 import clm
+
+try:
+  to_unicode = unicode
+except:
+  to_unicode = str
+
 
 class command_parameters():
   def __init__ (self):
@@ -71,7 +78,6 @@ class current_parameters():
   def __init__ (self):
     self.FILENAME      = tk.StringVar()
     self.PLOT          = vectorplot.parameters()
-    self.BACKUP        = vectorplot.parameters()
     self.lon           = None
     self.lat           = None
     self.xx            = None
@@ -85,7 +91,6 @@ class field_parameters():
   def __init__ (self):
     self.FILENAME      = tk.StringVar()
     self.PLOT          = contourplot.parameters()
-    self.BACKUP        = contourplot.parameters()
 
     self.missing       = tk.DoubleVar()
     self.mask          = tk.BooleanVar()
@@ -159,7 +164,6 @@ class WinDrawPlot():
     self.init_field    = True
 
     self.PLOT          = plot_params()
-    self.BACKUP        = plot_params()    # Default initial parameters
     self.PLOT.DPI.set(DPI)
 
     self.superpose     = False
@@ -185,8 +189,6 @@ class WinDrawPlot():
     self.CDF_INDX.set(0)
     self.cdfbar        = []
 
-    self.CODAR_BACKUP  = codar.CODAR_CLASS() 
-
     self.VIDEO_NAME    = tk.StringVar()
     self.VIDEO_TITLE   = tk.StringVar()
     self.VIDEO_AUTHOR  = tk.StringVar()
@@ -208,7 +210,6 @@ class WinDrawPlot():
     except:
       theunits = 'm/s'
     self.CURRENTS.PLOT.KEY_LABEL.set(theunits)
-    self.CURRENTS.BACKUP.KEY_LABEL.set(theunits)
    
 
     self.SAIDIN = field_parameters() 
@@ -306,16 +307,15 @@ class WinDrawPlot():
     #  The CANVAS:
    
     self.fig = Figure(figsize=(9,6),dpi=self.PLOT.DPI.get())
-    #self.fig = Figure(dpi=self.PLOT.DPI.get())
     self.ax1 = self.fig.add_subplot(111)
     self.canvas = FigureCanvasTkAgg(self.fig,master=self.frame)
     self.canvas.show()
     self.canvas.get_tk_widget().grid(row=3,column=0,columnspan=11,sticky='wn')
 
-    self.canvas._tkcanvas.grid()
     self.canvas.callbacks.connect('button_press_event',self.on_click)
     self.canvas.callbacks.connect('key_press_event',self.on_key)
-    #self.canvas.get_tk_widget().bind("<Any-KeyPress>",self.on_key)
+    #self.canvas.mpl_connect('key_press_event',self.on_key2)
+
     ttk.Label(self.frame,text='COSMO project, December 2017').grid(column=9,padx=3,sticky='e')
 
     self.make_plot()
@@ -340,8 +340,260 @@ class WinDrawPlot():
     self.Window_ncdf          = None
 
 
+  # ==================================
   def saveconf(self):
+  # ==================================
+    ''' Saving Drawing configuration using json'''
     print('Saving configuration ...')
+    plotconfig = {}
+    plotconfig['MAP_PROJECTION'] = self.PLOT.MAP_PROJECTION.get()
+    plotconfig['MAP_RESOLUTION'] = self.PLOT.MAP_RESOLUTION.get()
+    plotconfig['SOUTH'] = self.PLOT.SOUTH.get()
+    plotconfig['NORTH'] = self.PLOT.NORTH.get()
+    plotconfig['WEST'] = self.PLOT.WEST.get()
+    plotconfig['EAST'] = self.PLOT.EAST.get()
+    plotconfig['COASTLINE'] = self.PLOT.COASTLINE.get()
+    plotconfig['COASTLINE_WIDTH'] = self.PLOT.COASTLINE_WIDTH.get()
+    plotconfig['COASTLINE_COLOR'] = self.PLOT.COASTLINE_COLOR.get()
+    plotconfig['LAND_COLOR'] = self.PLOT.LAND_COLOR.get()
+    plotconfig['WATER_COLOR'] = self.PLOT.WATER_COLOR.get()
+    plotconfig['TITLE'] = self.PLOT.TITLE.get()
+    plotconfig['TITLE_SIZE'] = self.PLOT.TITLE_SIZE.get()
+    plotconfig['TITLE_BOLD'] = self.PLOT.TITLE_BOLD.get()
+    plotconfig['XLABEL'] = self.PLOT.XLABEL.get()
+    plotconfig['YLABEL'] = self.PLOT.YLABEL.get()
+    plotconfig['LABEL_SIZE'] = self.PLOT.LABEL_SIZE.get()
+    plotconfig['LABEL_PAD'] = self.PLOT.LABEL_PAD.get()
+    plotconfig['OUT_DPI'] = self.PLOT.OUT_DPI.get()
+    plotconfig['SHOW_GRID'] = self.PLOT.SHOW_GRID.get()
+    plotconfig['MERIDIAN_INI'] = self.PLOT.MERIDIAN_INI.get()
+    plotconfig['MERIDIAN_FIN'] = self.PLOT.MERIDIAN_FIN.get()
+    plotconfig['MERIDIAN_INT'] = self.PLOT.MERIDIAN_INT.get()
+    plotconfig['PARALLEL_INI'] = self.PLOT.PARALLEL_INI.get()
+    plotconfig['PARALLEL_FIN'] = self.PLOT.PARALLEL_FIN.get()
+    plotconfig['PARALLEL_INT'] = self.PLOT.PARALLEL_INT.get()
+    plotconfig['LONLAT_COLOR'] = self.PLOT.LONLAT_COLOR.get()
+    plotconfig['LONLAT_SIZE'] = self.PLOT.LONLAT_SIZE.get()
+    plotconfig['BLUEMARBLE'] = self.PLOT.BLUEMARBLE.get()
+    plotconfig['ETOPO'] = self.PLOT.ETOPO.get()
+    plotconfig['RIVERS'] = self.PLOT.RIVERS.get()
+    plotconfig['RIVERS_WIDTH'] = self.PLOT.RIVERS_WIDTH.get()
+    plotconfig['RIVERS_COLOR'] = self.PLOT.RIVERS_COLOR.get()
+    plotconfig['ARCGISIMAGE'] = self.PLOT.ARCGISIMAGE.get()
+    plotconfig['ARCGISSERVICE'] = self.PLOT.ARCGISSERVICE.get()
+    plotconfig['ARCGISPIXELS'] = self.PLOT.ARCGISPIXELS.get()
+    plotconfig['ARCGISDPI'] = self.PLOT.ARCGISDPI.get()
+    plotconfig['ARCGISVERBOSE'] = self.PLOT.ARCGISVERBOSE.get()
+    plotconfig['LOGO_FILE'] = self.PLOT.LOGO_FILE.get()
+    plotconfig['LOGO_ZOOM'] = self.PLOT.LOGO_ZOOM.get()
+    plotconfig['LOGO_LOCATION'] = self.PLOT.LOGO_LOCATION.get()
+    plotconfig['LOGO_X'] = self.PLOT.LOGO_X.get()
+    plotconfig['LOGO_Y'] = self.PLOT.LOGO_Y.get()
+    plotconfig['LOGO_DISPLAY'] = self.PLOT.LOGO_DISPLAY.get()
+    plotconfig['ISOBAT_PATH'] = self.PLOT.ISOBAT_PATH.get()
+    plotconfig['ISOBAT_WIDTH'] = self.PLOT.ISOBAT_WIDTH.get()
+    plotconfig['ISOBAT_COLOR'] = self.PLOT.ISOBAT_COLOR.get()
+    aa = []
+    for a in self.PLOT.wvar:
+      aa.append(a.get())
+    plotconfig['WVAR'] = aa
+    plotconfig['ISOBAT_LABEL_SIZE'] = self.PLOT.ISOBAT_LABEL_SIZE.get()
+    plotconfig['TIMESTAMP_SHOW'] = self.PLOT.TIMESTAMP_SHOW.get()
+    plotconfig['TIMESTAMP_BOLD'] = self.PLOT.TIMESTAMP_BOLD.get()
+    plotconfig['TIMESTAMP_X'] = self.PLOT.TIMESTAMP_X.get()
+    plotconfig['TIMESTAMP_Y'] = self.PLOT.TIMESTAMP_Y.get()
+    plotconfig['TIMESTAMP_SIZE'] = self.PLOT.TIMESTAMP_SIZE.get()
+    plotconfig['TIMESTAMP_COLOR'] = self.PLOT.TIMESTAMP_COLOR.get()
+    plotconfig['CURRENT_NX'] = self.CURRENTS.PLOT.CURRENT_NX.get()
+    plotconfig['CURRENT_NY'] = self.CURRENTS.PLOT.CURRENT_NY.get()
+    plotconfig['CURRENT_SCALE'] = self.CURRENTS.PLOT.CURRENT_SCALE.get()
+    plotconfig['CURRENT_WIDTH'] = self.CURRENTS.PLOT.CURRENT_WIDTH.get()
+    plotconfig['CURRENT_HEADLENGTH'] = self.CURRENTS.PLOT.CURRENT_HEADLENGTH.get()
+    plotconfig['CURRENT_HEADWIDTH'] = self.CURRENTS.PLOT.CURRENT_HEADWIDTH.get()
+    plotconfig['CURRENT_COLOR'] = self.CURRENTS.PLOT.CURRENT_COLOR.get()
+    plotconfig['STREAM_PLOT'] = self.CURRENTS.PLOT.STREAM_PLOT.get()
+    plotconfig['STREAM_DENSITY'] = self.CURRENTS.PLOT.STREAM_DENSITY.get()
+    plotconfig['STREAM_WIDTH'] = self.CURRENTS.PLOT.STREAM_WIDTH.get()
+    plotconfig['STREAM_COLOR'] = self.CURRENTS.PLOT.STREAM_COLOR.get()
+    plotconfig['KEY_SHOW'] = self.CURRENTS.PLOT.KEY_SHOW.get()
+    plotconfig['KEY_LABEL'] = self.CURRENTS.PLOT.KEY_LABEL.get()
+    plotconfig['KEY_X'] = self.CURRENTS.PLOT.KEY_X.get()
+    plotconfig['KEY_Y'] = self.CURRENTS.PLOT.KEY_Y.get()
+    plotconfig['KEY_VALUE'] = self.CURRENTS.PLOT.KEY_VALUE.get()
+    plotconfig['KEY_LABEL'] = self.CURRENTS.PLOT.KEY_LABEL.get()
+    plotconfig['KEY_POS'] = self.CURRENTS.PLOT.KEY_POS.get()
+    plotconfig['KEY_COLOR'] = self.CURRENTS.PLOT.KEY_COLOR.get()
+    plotconfig['SAIDIN_CONTOUR_MODE'] = self.SAIDIN.PLOT.CONTOUR_MODE.get()
+    plotconfig['SAIDIN_CONTOUR_MIN'] = self.SAIDIN.PLOT.CONTOUR_MIN.get()
+    plotconfig['SAIDIN_CONTOUR_MAX'] = self.SAIDIN.PLOT.CONTOUR_MAX.get()
+    plotconfig['SAIDIN_CONTOUR_INTERVAL'] = self.SAIDIN.PLOT.CONTOUR_INTERVAL.get()
+    plotconfig['SAIDIN_CONTOUR_WIDTH'] = self.SAIDIN.PLOT.CONTOUR_WIDTH.get()
+    plotconfig['SAIDIN_CONTOUR_DASHEDNEG'] = self.SAIDIN.PLOT.CONTOUR_DASHEDNEG.get()
+    plotconfig['SAIDIN_CONTOUR_LINEMODE'] = self.SAIDIN.PLOT.CONTOUR_LINEMODE.get()
+    plotconfig['SAIDIN_CONTOUR_COLOR'] = self.SAIDIN.PLOT.CONTOUR_COLOR.get()
+    plotconfig['SAIDIN_CONTOUR_COLORMAP'] = self.SAIDIN.PLOT.CONTOUR_COLORMAP.get()
+    plotconfig['SAIDIN_ALPHA'] = self.SAIDIN.PLOT.ALPHA.get()
+    plotconfig['SAIDIN_COLORBAR_SHOW'] = self.SAIDIN.PLOT.COLORBAR_SHOW.get()
+    plotconfig['SAIDIN_COLORBAR_LOCATION'] = self.SAIDIN.PLOT.COLORBAR_LOCATION.get()
+    plotconfig['SAIDIN_COLORBAR_PAD'] = self.SAIDIN.PLOT.COLORBAR_PAD.get()
+    plotconfig['SAIDIN_COLORBAR_LABEL'] = self.SAIDIN.PLOT.COLORBAR_LABEL.get()
+    plotconfig['SAIDIN_COLORBAR_LABELPAD'] = self.SAIDIN.PLOT.COLORBAR_LABELPAD.get()
+    plotconfig['SAIDIN_LABEL_SHOW'] = self.SAIDIN.PLOT.LABEL_SHOW.get()
+    plotconfig['SAIDIN_LABEL_SET'] = self.SAIDIN.PLOT.LABEL_SET.get()
+    plotconfig['SAIDIN_LABEL_SIZE'] = self.SAIDIN.PLOT.LABEL_SIZE.get()
+    plotconfig['SAIDIN_LABEL_VALUES'] = self.SAIDIN.PLOT.LABEL_VALUES.get()
+
+
+    # AAAA 
+    filetypes = [('COSMO-VIEW','.cvw')]
+    nn = tk.filedialog.asksaveasfilename(title='Save Configuration', \
+                             filetypes=filetypes,confirmoverwrite=True)
+    if nn is None or len(nn) == 0:
+      return
+
+    # Write JSON file:
+    with io.open(nn,'w',encoding='utf8') as outfile:
+      str_ = json.dumps(plotconfig,ensure_ascii=False, \
+                                   sort_keys=True,     \
+                                   indent=2,           \
+                                   separators=(',',': '))
+      outfile.write(to_unicode(str_))
+
+
+  # ==================================
+  def loadconf(self):
+  # ==================================
+    ''' Loading Drawing configuration using json'''
+    print('Loading configuration ...')
+
+    nn = tk.filedialog.askopenfile(title='Save Configuration', \
+                             filetypes=[('COSMO-VIEW','.cvw')])
+    if empty(nn.name):
+      return
+
+    # Write JSON file:
+    with open(nn.name,'r') as infile:
+      conf = json.load(infile)
+
+    # Recover parameters:
+    self.PLOT.MAP_PROJECTION.set(conf['MAP_PROJECTION'])
+    self.PLOT.MAP_RESOLUTION.set(conf['MAP_RESOLUTION'])
+    self.PLOT.SOUTH.set(conf['SOUTH'])
+    self.PLOT.NORTH.set(conf['NORTH'])
+    self.PLOT.WEST.set(conf['WEST'])
+    self.PLOT.EAST.set(conf['EAST'])
+    self.PLOT.COASTLINE.set(conf['COASTLINE'])
+    self.PLOT.COASTLINE_WIDTH.set(conf['COASTLINE_WIDTH'])
+    self.PLOT.COASTLINE_COLOR.set(conf['COASTLINE_COLOR'])
+    self.PLOT.LAND_COLOR.set(conf['LAND_COLOR'])
+    self.PLOT.WATER_COLOR.set(conf['WATER_COLOR'])
+    self.PLOT.TITLE.set(conf['TITLE'])
+    self.PLOT.TITLE_SIZE.set(conf['TITLE_SIZE'])
+    self.PLOT.TITLE_BOLD.set(conf['TITLE_BOLD'])
+    self.PLOT.XLABEL.set(conf['XLABEL'])
+    self.PLOT.YLABEL.set(conf['YLABEL'])
+    self.PLOT.LABEL_SIZE.set(conf['LABEL_SIZE'])
+    self.PLOT.LABEL_PAD.set(conf['LABEL_PAD'])
+    self.PLOT.OUT_DPI.set(conf['OUT_DPI'])
+    self.PLOT.SHOW_GRID.set(conf['SHOW_GRID'])
+    self.PLOT.MERIDIAN_INI.set(conf['MERIDIAN_INI'])
+    self.PLOT.MERIDIAN_FIN.set(conf['MERIDIAN_FIN'])
+    self.PLOT.MERIDIAN_INT.set(conf['MERIDIAN_INT'])
+    self.PLOT.PARALLEL_INI.set(conf['PARALLEL_INI'])
+    self.PLOT.PARALLEL_FIN.set(conf['PARALLEL_FIN'])
+    self.PLOT.PARALLEL_INT.set(conf['PARALLEL_INT'])
+    self.PLOT.LONLAT_COLOR.set(conf['LONLAT_COLOR'])
+    self.PLOT.LONLAT_SIZE.set(conf['LONLAT_SIZE'])
+    self.PLOT.BLUEMARBLE.set(conf['BLUEMARBLE'])
+    self.PLOT.ETOPO.set(conf['ETOPO'])
+    self.PLOT.RIVERS.set(conf['RIVERS'])
+    self.PLOT.RIVERS_WIDTH.set(conf['RIVERS_WIDTH'])
+    self.PLOT.RIVERS_COLOR.set(conf['RIVERS_COLOR'])
+    self.PLOT.ARCGISIMAGE.set(conf['ARCGISIMAGE'])
+    self.PLOT.ARCGISSERVICE.set(conf['ARCGISSERVICE'])
+    self.PLOT.ARCGISPIXELS.set(conf['ARCGISPIXELS'])
+    self.PLOT.ARCGISDPI.set(conf['ARCGISDPI'])
+    self.PLOT.ARCGISVERBOSE.set(conf['ARCGISVERBOSE'])
+    self.PLOT.LOGO_FILE.set(conf['LOGO_FILE'])
+    self.PLOT.LOGO_ZOOM.set(conf['LOGO_ZOOM'])
+    self.PLOT.LOGO_LOCATION.set(conf['LOGO_LOCATION'])
+    self.PLOT.LOGO_X.set(conf['LOGO_X'])
+    self.PLOT.LOGO_Y.set(conf['LOGO_Y'])
+    self.PLOT.LOGO_DISPLAY.set(conf['LOGO_DISPLAY'])
+    self.PLOT.ISOBAT_PATH.set(conf['ISOBAT_PATH'])
+    self.PLOT.ISOBAT_WIDTH.set(conf['ISOBAT_WIDTH'])
+    self.PLOT.ISOBAT_COLOR.set(conf['ISOBAT_COLOR'])
+    aa = conf['WVAR'][:]
+    for i in range(len(aa)):
+      self.PLOT.wvar[i].set(aa[i])
+    self.PLOT.ISOBAT_LABEL_SIZE.set(conf['ISOBAT_LABEL_SIZE'])
+    self.PLOT.TIMESTAMP_SHOW.set(conf['TIMESTAMP_SHOW'])
+    self.PLOT.TIMESTAMP_BOLD.set(conf['TIMESTAMP_BOLD'])
+    self.PLOT.TIMESTAMP_X.set(conf['TIMESTAMP_X'])
+    self.PLOT.TIMESTAMP_Y.set(conf['TIMESTAMP_Y'])
+    self.PLOT.TIMESTAMP_SIZE.set(conf['TIMESTAMP_SIZE'])
+    self.PLOT.TIMESTAMP_COLOR.set(conf['TIMESTAMP_COLOR'])
+    self.CURRENTS.PLOT.CURRENT_NX.set(conf['CURRENT_NX'])
+    self.CURRENTS.PLOT.CURRENT_NY.set(conf['CURRENT_NY'])
+    self.CURRENTS.PLOT.CURRENT_SCALE.set(conf['CURRENT_SCALE'])
+    self.CURRENTS.PLOT.CURRENT_WIDTH.set(conf['CURRENT_WIDTH'])
+    self.CURRENTS.PLOT.CURRENT_HEADLENGTH.set(conf['CURRENT_HEADLENGTH'])
+    self.CURRENTS.PLOT.CURRENT_HEADWIDTH.set(conf['CURRENT_HEADWIDTH'])
+    self.CURRENTS.PLOT.CURRENT_COLOR.set(conf['CURRENT_COLOR'])
+    self.CURRENTS.PLOT.STREAM_PLOT.set(conf['STREAM_PLOT'])
+    self.CURRENTS.PLOT.STREAM_DENSITY.set(conf['STREAM_DENSITY'])
+    self.CURRENTS.PLOT.STREAM_WIDTH.set(conf['STREAM_WIDTH'])
+    self.CURRENTS.PLOT.STREAM_COLOR.set(conf['STREAM_COLOR'])
+    self.CURRENTS.PLOT.KEY_SHOW.set(conf['KEY_SHOW'])
+    self.CURRENTS.PLOT.KEY_LABEL.set(conf['KEY_LABEL'])
+    self.CURRENTS.PLOT.KEY_X.set(conf['KEY_X'])
+    self.CURRENTS.PLOT.KEY_Y.set(conf['KEY_Y'])
+    self.CURRENTS.PLOT.KEY_VALUE.set(conf['KEY_VALUE'])
+    self.CURRENTS.PLOT.KEY_POS.set(conf['KEY_POS'])
+    self.CURRENTS.PLOT.KEY_COLOR.set(conf['KEY_COLOR'])
+
+    self.SAIDIN.PLOT.CONTOUR_MODE.set(conf['SAIDIN_CONTOUR_MODE'])
+    self.SAIDIN.PLOT.CONTOUR_MIN.set(conf['SAIDIN_CONTOUR_MIN'])
+    self.SAIDIN.PLOT.CONTOUR_MAX.set(conf['SAIDIN_CONTOUR_MAX'])
+    self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(conf['SAIDIN_CONTOUR_INTERVAL'])
+    self.SAIDIN.PLOT.CONTOUR_WIDTH.set(conf['SAIDIN_CONTOUR_WIDTH'])
+    self.SAIDIN.PLOT.CONTOUR_DASHEDNEG.set(conf['SAIDIN_CONTOUR_DASHEDNEG'])
+    self.SAIDIN.PLOT.CONTOUR_LINEMODE.set(conf['SAIDIN_CONTOUR_LINEMODE'])
+    self.SAIDIN.PLOT.CONTOUR_COLOR.set(conf['SAIDIN_CONTOUR_COLOR'])
+    self.SAIDIN.PLOT.CONTOUR_COLORMAP.set(conf['SAIDIN_CONTOUR_COLORMAP'])
+    self.SAIDIN.PLOT.ALPHA.set(conf['SAIDIN_ALPHA'])
+    self.SAIDIN.PLOT.COLORBAR_SHOW.set(conf['SAIDIN_COLORBAR_SHOW'])
+    self.SAIDIN.PLOT.COLORBAR_LOCATION.set(conf['SAIDIN_COLORBAR_LOCATION'])
+    self.SAIDIN.PLOT.COLORBAR_PAD.set(conf['SAIDIN_COLORBAR_PAD'])
+    self.SAIDIN.PLOT.COLORBAR_LABEL.set(conf['SAIDIN_COLORBAR_LABEL'])
+    self.SAIDIN.PLOT.COLORBAR_LABELPAD.set(conf['SAIDIN_COLORBAR_LABELPAD'])
+    self.SAIDIN.PLOT.LABEL_SHOW.set(conf['SAIDIN_LABEL_SHOW'])
+    self.SAIDIN.PLOT.LABEL_SET.set(conf['SAIDIN_LABEL_SET'])
+    self.SAIDIN.PLOT.LABEL_SIZE.set(conf['SAIDIN_LABEL_SIZE'])
+    self.SAIDIN.PLOT.LABEL_VALUES.set(conf['SAIDIN_LABEL_VALUES'])
+
+
+    self.PLOT.LOGO_IMAGE = image.imread(self.PLOT.LOGO_FILE.get())
+
+    self.PLOT.ISOBAT_selected = []
+    self.PLOT.ISOBAT_indx = []
+    for i in range(self.PLOT.nisobat):
+      if self.PLOT.wvar[i].get() == 1:
+        self.PLOT.ISOBAT_selected.append(self.PLOT.ISOBATHS[i])
+        self.PLOT.ISOBAT_indx.append(i)
+    self.PLOT.ISOBAT_Z = []
+    for i in range(len(self.PLOT.ISOBAT_selected)):
+      filejson = self.PLOT.ISOBAT_PATH.get() + \
+                 '/%04d' % self.PLOT.ISOBAT_selected[i] + '.json'
+      print('Loading file ' + filejson)
+      try:
+        with open(filejson) as infile:
+          d = json.load(infile)
+          self.PLOT.ISOBAT_Z.append(d)
+      except:
+        messagebox.showinfo(message='Error file '+filejson+' not found')
+
+    self.make_plot()
 
 
   # ==================================
@@ -446,17 +698,20 @@ class WinDrawPlot():
     menu.add_command(label='Grid',command=self.grid_config)
     menu.add_command(label='Labels',command=self.label_config)
     menu.add_command(label='Vectors', \
-                     command=lambda:self.vector_config(self.CURRENTS.PLOT,self.CURRENTS.BACKUP))
+                     command=lambda:self.vector_config(self.CURRENTS.PLOT))
     menu.add_command(label='Contours', \
                      command=lambda:self.contour_config(self.FIELD))
     menu.add_separator()
     menu.add_command(label='SAIDIN',command=lambda:self.contour_config(self.SAIDIN))
     menu.add_command(label='CODAR', \
-             command=lambda:self.vector_config(self.CODAR[self.CODAR_INDX.get()].PLOT,self.CODAR_BACKUP.PLOT))
+             command=lambda:self.vector_config(self.CODAR[self.CODAR_INDX.get()].PLOT))
     menu.add_command(label='Field',command=lambda:self.contour_config(self.CDF[self.CDF_INDX.get()].FIELD))
     #menu.add_command(label='Vector',command=self.logo_config)
     menu.add_command(label='Trajectories', \
              command=self.lagrangian_config)
+    menu.add_separator()
+    menu.add_command(label='Save',command=self.saveconf)
+    menu.add_command(label='Load',command=self.loadconf)
 
     menu = tk.Menu(self.menubar, tearoff=0)
     self.menubar.add_cascade(label='Tools',menu=menu)
@@ -642,28 +897,11 @@ class WinDrawPlot():
 
 
   # ===============================
-  def vector_config(self,CUR,BACK):
+  def vector_config(self,CUR):
   # ===============================
 
     def _cancel():
     # ============
-      CUR.CURRENT_NX.set(BACK.CURRENT_NX.get())
-      CUR.CURRENT_NY.set(BACK.CURRENT_NY.get())
-      CUR.CURRENT_SCALE.set(BACK.CURRENT_SCALE.get())
-      CUR.CURRENT_WIDTH.set(BACK.CURRENT_WIDTH.get())
-      CUR.CURRENT_HEADLENGTH.set(BACK.CURRENT_HEADLENGTH.get())
-      CUR.CURRENT_HEADWIDTH.set(BACK.CURRENT_HEADWIDTH.get())
-      CUR.CURRENT_COLOR.set(BACK.CURRENT_COLOR.get())
-      CUR.KEY_SHOW.set(BACK.KEY_SHOW.get())
-      CUR.KEY_LABEL.set(BACK.KEY_LABEL.get())
-      CUR.KEY_VALUE.set(BACK.KEY_VALUE.get())
-      CUR.KEY_X.set(BACK.KEY_X.get())
-      CUR.KEY_Y.set(BACK.KEY_Y.get())
-      CUR.KEY_POS.set(BACK.KEY_POS.get())
-      CUR.KEY_COLOR.set(BACK.KEY_COLOR.get())
-      CUR.STREAM_DENSITY.set(BACK.STREAM_DENSITY.get())
-      CUR.STREAM_WIDTH.set(BACK.STREAM_WIDTH.get())
-      CUR.STREAM_COLOR.set(BACK.STREAM_COLOR.get())
       self.Window_vectorconfig.destroy()
       self.Window_vectorconfig = None
 
@@ -686,7 +924,7 @@ class WinDrawPlot():
       self.Window_vectorconfig.resizable(width=True,height=True)
       self.Window_vectorconfig.protocol('WM_DELETE_WINDOW',_cancel)
     
-    vectorplot.config(parent=self.Window_vectorconfig,PLOT=CUR,BACKUP=BACK)
+    vectorplot.config(parent=self.Window_vectorconfig,PLOT=CUR)
 
     f0 = ttk.Frame(self.Window_vectorconfig,padding=5)
     ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -798,20 +1036,6 @@ class WinDrawPlot():
 
     # Page 3
     lagrangian.ShowData(page3,LL)
-
-    #log = tk.Text(page2)
-    #log.grid(row=0,column=0,padx=10,pady=10,sticky='nsew')
-    ## Scrollbar
-    #scrollb = tk.Scrollbar(page2,command=log.yview)
-    #scrollb.grid(row=0,column=1,sticky='nsew',padx=2,pady=2)
-    #log['yscrollcommand'] = scrollb.set
-#
-#    for i in range(LL.nrecords):
-#      string = '\t {} \t {: 7.3f} \t {: 7.3f} \t {} \n'.format(i,LL.lon[i], \
-#                                                     LL.lat[i], \
-#                                                     LL.date[i])
-#      log.insert('end',string)
-
 
     f0 = ttk.Frame(self.Window_lineconfig,padding=5)
     ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -1335,8 +1559,6 @@ class WinDrawPlot():
         self.CDF[ii].varid = -1
       print(self.CDF[ii].varid)
 
-
-# AAA
 
     # Main window:
     # ============
@@ -2160,33 +2382,53 @@ class WinDrawPlot():
       mrl.config(text=rdict[self.PLOT.MAP_RESOLUTION.get()],width=10)
 
     def ccselection():
+      backup = self.PLOT.COASTLINE_COLOR.get()
       rgb, hx = askcolor(color=self.PLOT.COASTLINE_COLOR.get(),parent=self.master)
-      self.PLOT.COASTLINE_COLOR.set(hx)
+      if hx is None:
+        self.PLOT.COASTLINE_COLOR.set(backup)
+      else:
+        self.PLOT.COASTLINE_COLOR.set(hx)
 
     def icselection():
+      backup = self.PLOT.ISOBAT_COLOR.get()
       rgb, hx = askcolor(color=self.PLOT.ISOBAT_COLOR.get(),parent=self.master)
-      self.PLOT.ISOBAT_COLOR.set(hx)
+      if hx is None:
+        self.PLOT.ISOBAT_COLOR.set(backup)
+      else:
+        self.PLOT.ISOBAT_COLOR.set(hx)
 
     def lcselection():
+      backup = self.PLOT.LAND_COLOR.get()
       if self.PLOT.LAND_COLOR.get() == 'None':
         rgb, hx = askcolor(parent=self.master)
       else:
         rgb, hx = askcolor(color=self.PLOT.LAND_COLOR.get(),parent=self.master)
-      self.PLOT.LAND_COLOR.set(hx)
+      if hx is None:
+        self.PLOT.LAND_COLOR.set(backup)
+      else:
+        self.PLOT.LAND_COLOR.set(hx)
 
     def wcselection():
+      backup = self.PLOT.WATER_COLOR.get()
       if self.PLOT.WATER_COLOR.get() == 'None':
         rgb, hx = askcolor(parent=self.master)
       else:
         rgb, hx = askcolor(color=self.PLOT.WATER_COLOR.get(),parent=self.master)
-      self.PLOT.WATER_COLOR.set(hx)
+      if hx is None:
+        self.PLOT.WATER_COLOR.set(backup)
+      else:
+        self.PLOT.WATER_COLOR.set(hx)
 
     def rcselection():
+      backup = self.PLOT.RIVERS_COLOR.get()
       if self.PLOT.RIVERS_COLOR.get() == 'None':
         rgb, hx = askcolor(parent=self.master)
       else:
         rgb, hx = askcolor(color=self.PLOT.RIVERS_COLOR.get(),parent=self.master)
-      self.PLOT.RIVERS_COLOR.set(hx)
+      if hx is None:
+        self.PLOT.RIVERS_COLOR.set(backup)
+      else:
+        self.PLOT.RIVERS_COLOR.set(hx)
 
     def lims_apply():
       global m

@@ -30,6 +30,7 @@ from ncdump import *
 from showgrid import *
 from codar import *
 from drawing import *
+import os
 
 PROGNAME   = 'COSMO-VIEW'
 VERSION    = '0.3 (December 2017)'
@@ -462,5 +463,12 @@ if __name__ == '__main__':
 
   if leave:
     sys.exit(1)
+ 
+  # Check for existence of the configuration folder:
+  if os.path.exists(cosmo.COSMOCPATH):
+    print('Folder %s exists' % cosmo.COSMOCPATH)
   else:
-    main()
+    print('Creating folder %s ' % cosmo.COSMOCPATH)
+    os.mkdir(cosmo.COSMOCPATH)
+  
+  main()

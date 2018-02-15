@@ -36,22 +36,25 @@ class FLOAT_CLASS():
   # Version 0.2 (January 2018) : Initial version
 
   def __init__ (self):
-    self.FILENAME      = tk.StringVar()
-    self.I             = tk.IntVar()
-    self.L             = tk.IntVar()
-    self.I1            = tk.IntVar()
-    self.I2            = tk.IntVar()
+    self.FILENAME        = tk.StringVar()
+    self.I               = tk.IntVar()
+    self.L               = tk.IntVar()
+    self.I1              = tk.IntVar()
+    self.I2              = tk.IntVar()
+    self.SEPARATED_COLOR = tk.BooleanVar()
 
-    self.PLOT          = lineplot.parameters()
-    self.nfloats       = None
-    self.nrecords      = None
-    self.lon           = None
-    self.lat           = None
-    self.date          = None
-    self.speed         = None
+    self.PLOT            = lineplot.parameters()
+    self.nfloats         = None
+    self.nrecords        = None
+    self.lon             = None
+    self.lat             = None
+    self.date            = None
+    self.speed           = None
     self.I.set(0)
     self.L.set(0)
     self.PLOT.LINE_COLOR.set('red')
+    self.SEPARATED_COLOR.set(False)
+    self.FLOAT_COLOR   = []
 
 
 # =========
@@ -122,6 +125,14 @@ class Read:
     self.L.set(0)
     self.I1.set(0)
     self.I2.set(self.nrecords-1)
+    self.FLOAT_COLOR = []
+    for i in range(self.nfloats):
+      a = tk.StringVar()
+      a.set(self.PLOT.LINE_COLOR.get())
+      self.FLOAT_COLOR.append(a)
+    self.SEPARATED_COLOR = tk.BooleanVar()
+    self.SEPARATED_COLOR.set(False)
+
 
   # --------------------------------------
   def read_trajectory_json(self,filename):
@@ -159,6 +170,13 @@ class Read:
     self.L.set(0)
     self.I1.set(0)
     self.I2.set(self.nrecords-1)
+    self.FLOAT_COLOR = []
+    for i in range(self.nfloats):
+      a = tk.StringVar()
+      a.set(self.PLOT.LINE_COLOR.get())
+      self.FLOAT_COLOR.append(a)
+    self.SEPARATED_COLOR = tk.BooleanVar()
+    self.SEPARATED_COLOR.set(False)
 
   # --------------------------------------
   def read_trajectory_txt(self,filename):
@@ -197,7 +215,13 @@ class Read:
     self.L.set(0)
     self.I1.set(0)
     self.I2.set(self.nrecords-1)
-
+    self.FLOAT_COLOR = []
+    for i in range(self.nfloats):
+      a = tk.StringVar()
+      a.set(self.PLOT.LINE_COLOR.get())
+      self.FLOAT_COLOR.append(a)
+    self.SEPARATED_COLOR = tk.BooleanVar()
+    self.SEPARATED_COLOR.set(False)
 
 
 # ======================================
@@ -214,15 +238,20 @@ def drawing(fig,ax,m,FLT):
 
   if FLT.nfloats > 1:
     for i in range(FLT.nfloats):       # Loop over buoys
+      if FLT.SEPARATED_COLOR.get():
+        color = FLT.FLOAT_COLOR[i].get()
+      else:
+        color = FLT.PLOT.LINE_COLOR.get()
+
       xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
       if FLT.PLOT.LINE_SHOW.get():
         m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
                linewidth=FLT.PLOT.LINE_WIDTH.get(), \
-               color=FLT.PLOT.LINE_COLOR.get())
+               color=color)
       if FLT.PLOT.MARKER_SHOW.get():
         m.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
-               color=FLT.PLOT.LINE_COLOR.get())
+               color=FLT.PLOT.MARKER_COLOR.get())
       if FLT.PLOT.INITIAL_SHOW.get():
         m.plot(xx[r1],yy[r1],                    \
                FLT.PLOT.INITIAL_STYLE.get(),  \
@@ -237,10 +266,14 @@ def drawing(fig,ax,m,FLT):
                color=FLT.PLOT.ONMAP_COLOR.get())
   else:
     xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
+    if FLT.SEPARATED_COLOR.get():
+      color = FLT.FLOAT_COLOR[0].get()
+    else:
+      color = FLT.PLOT.LINE_COLOR.get()
     if FLT.PLOT.LINE_SHOW.get():
       m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
              linewidth=FLT.PLOT.LINE_WIDTH.get(), \
-             color=FLT.PLOT.LINE_COLOR.get())
+             color=color)
     if FLT.PLOT.MARKER_SHOW.get():
       m.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
