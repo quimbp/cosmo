@@ -25,23 +25,26 @@ __version__ = "1.1"
 __author__  = "Quim Ballabrera"
 __date__    = "July 2017"
 
-class FLOAT_CLASS():
+class Float():
 # ===================
   ''' Parameters for Lagrangian floats'''
   
-  __version__ = "0.2"
+  __version__ = "0.3"
   __author__  = "Quim Ballabrera"
-  __date__    = "January 2018"
+  __date__    = "February 2018"
 
   # Version 0.2 (January 2018) : Initial version
 
-  def __init__ (self):
+  def __init__ (self,filename):
+  # ===========================
     self.FILENAME        = tk.StringVar()
     self.I               = tk.IntVar()
     self.L               = tk.IntVar()
-    self.I1              = tk.IntVar()
-    self.I2              = tk.IntVar()
+    self.L1              = tk.IntVar()
+    self.L2              = tk.IntVar()
     self.SEPARATED_COLOR = tk.BooleanVar()
+    self.FLOAT_COLOR     = []
+    self.FLOAT_SHOW      = []
 
     self.PLOT            = lineplot.parameters()
     self.nfloats         = None
@@ -54,174 +57,160 @@ class FLOAT_CLASS():
     self.L.set(0)
     self.PLOT.LINE_COLOR.set('red')
     self.SEPARATED_COLOR.set(False)
-    self.FLOAT_COLOR   = []
+
+    self.FILENAME.set(filename)
+    self.Read()
+
+  def Read(self):
+  # ======================
+    '''Opens and reads a trajectory file'''
+
+    __version__ = "0.3"
+    __author__  = "Quim Ballabrera"
+    __date__    = "February 2018"
+
+    # --------------------------------------
+    def read_trajectory_ncdf(filename):
+    # --------------------------------------
+      '''Read a set of trajectories from a netcdf file'''
+      from netCDF4 import Dataset
+
+      print('Reading netcdf file ',filename)
+      ncid = Dataset(filename)
+      self.nfloats  = ncid.dimensions['floats'].size
+      self.nrecords = ncid.dimensions['time'].size
+      self.lon  = ncid.variables['lon'][:,:].squeeze()    
+      self.lat  = ncid.variables['lat'][:,:].squeeze()   
+      TT        = ncid.variables['system_date']         
+
+      # In python 3.x, the read-in characters are bytes.
+      # Use the decode function to decode the input, a byte at a time.
+      #
+      self.date = []
+      for i in range(self.nrecords):
+          a = TT[i,:]
+          b = ''.join(a[e].decode('utf-8') for e in range(14))
+          c = str("%s-%s-%s:%s:%s" % (b[0:4],b[4:6],b[6:11],b[11:13],b[13:15]))
+          d = dparser.parse(c)
+          self.date.append(d)
+
+    # --------------------------------------
+    def read_trajectory_json(filename):
+    # --------------------------------------
+      '''Read a trajectory from a json file'''
+      import json
+
+      print('Reading json file ',filename)
+      with open(filename) as datafile:
+        DATA = json.load(datafile)
+
+      nf = len(DATA["features"])
+      for i in range(nf):
+        if DATA["features"][i]["geometry"]["type"] == "LineString":
+          POINTS = DATA["features"][i]["geometry"]["coordinates"]
+          DATES  = DATA["features"][i]["properties"]["time"]["data"]
+
+      self.nfloats  = 1
+      self.nrecords = len(DATES)
+      self.lon = [POINTS[j][0] for j in range(self.nrecords)]
+      self.lat = [POINTS[j][1] for j in range(self.nrecords)]
+      self.date = []
+      for i in range(self.nrecords):
+        d = dparser.parse(DATES[i])
+        self.date.append(d)
+
+    # --------------------------------------
+    def read_trajectory_txt(filename):
+    # --------------------------------------
+      '''Read a trajectory from a txt file'''
+
+      with open(filename,'r') as f:
+        first_line = f.readline()
+
+      print('Reading txt file ',filename)
+      win = tk.Toplevel()
+      win.title('Float column')
+      Axes = Select_Columns(win,first_line,' ')
+      win.wait_window()
+
+      self.nfloats  = None
+      self.nrecords = None
+      self.lon  = []
+      self.lat  = []
+      self.date = []
+      if Axes.lon is None:
+        return
+      if Axes.lat is None:
+        return
+
+      with open(filename) as datafile:
+        for line in datafile.readlines():
+          line = line.strip()
+          columns = line.split(Axes.SEPARATOR.get())
+
+          self.lon.append(float(columns[Axes.lon]))
+          self.lat.append(float(columns[Axes.lat]))
+          year   = int(columns[Axes.year])
+          month  = int(columns[Axes.month])
+          day    = int(columns[Axes.day])
+          if Axes.hour is None:
+            hour = 0
+          else:
+            hour   = int(columns[Axes.hour])
+          if Axes.minute is None:
+            minute = 0
+          else:
+            minute = int(columns[Axes.minute])
+          if Axes.second is None:
+            second = 0
+          else:
+            second = int(columns[Axes.second])
+          self.date.append(datetime.datetime(year,month,day, \
+                                             hour,minute,second))
+      self.nfloats  = 1
+      self.nrecords = len(self.lon)
 
 
-# =========
-class Read:
-# =========
-  '''Opens and reads a trajectory file'''
-
-  __version__ = "0.1"
-  __author__  = "Quim Ballabrera"
-  __date__    = "December 2017"
-
-  def __init__ (self,filename):
-
+    filename = self.FILENAME.get()
     if filename.lower().endswith(('.nc','.cdf','.ncdf')):
-      self = self.read_trajectory_ncdf(filename)
+      read_trajectory_ncdf(filename)
 
     elif filename.lower().endswith(('.geojson','.json')):
-      self = self.read_trajectory_json(filename)
+      read_trajectory_json(filename)
 
     elif filename.lower().endswith(('.txt')):
-      self = self.read_trajectory_txt(filename)
+      read_trajectory_txt(filename)
 
     elif filename.lower().endswith(('.csv')):
       print('csv: not yet coded')
       self.nfloats  = None
       self.nrecords = None
-      return
 
     elif filename.lower().endswith(('.dat','.data')):
       print('ascii data: not yet coded')
       self.nfloats  = None
       self.nrecords = None
+
+
+    # Cheack that something has been read:
+    if self.nfloats is None:
+      self = None
       return
 
-  # --------------------------------------
-  def read_trajectory_ncdf(self,filename):
-  # --------------------------------------
-    '''Read a set of trajectories from a netcdf file'''
-    from netCDF4 import Dataset
-
-    print('Reading netcdf file ',filename)
-    ncid = Dataset(filename)
-    self.nfloats  = ncid.dimensions['floats'].size
-    self.nrecords = ncid.dimensions['time'].size
-    self.lon  = ncid.variables['lon'][:,:].squeeze()    
-    self.lat  = ncid.variables['lat'][:,:].squeeze()   
-    TT        = ncid.variables['system_date']         
-
-    # In python 3.x, the read-in characters are bytes.
-    # Use the decode function to decode the input, a byte at a time.
-    #
-    self.date = []
-    for i in range(self.nrecords):
-        a = TT[i,:]
-        b = ''.join(a[e].decode('utf-8') for e in range(14))
-        c = str("%s-%s-%s:%s:%s" % (b[0:4],b[4:6],b[6:11],b[11:13],b[13:15]))
-        d = dparser.parse(c)
-        self.date.append(d)
-
-    self.FILENAME      = tk.StringVar()
-    self.I             = tk.IntVar()
-    self.L             = tk.IntVar()
-    self.I1            = tk.IntVar()
-    self.I2            = tk.IntVar()
-    self.PLOT          = lineplot.parameters()
-    self.FILENAME.set(filename)
+    # If we have data, we fill some fields to their default value.
     self.I.set(0)
     self.L.set(0)
-    self.I1.set(0)
-    self.I2.set(self.nrecords-1)
+    self.L1.set(0)
+    self.L2.set(self.nrecords-1)
     self.FLOAT_COLOR = []
+    self.FLOAT_SHOW  = []
     for i in range(self.nfloats):
       a = tk.StringVar()
+      b = tk.BooleanVar()
       a.set(self.PLOT.LINE_COLOR.get())
+      b.set(True)
       self.FLOAT_COLOR.append(a)
-    self.SEPARATED_COLOR = tk.BooleanVar()
-    self.SEPARATED_COLOR.set(False)
-
-
-  # --------------------------------------
-  def read_trajectory_json(self,filename):
-  # --------------------------------------
-    '''Read a trajectory from a json file'''
-    import json
-
-    print('Reading json file ',filename)
-    with open(filename) as datafile:
-      DATA = json.load(datafile)
-
-    nf = len(DATA["features"])
-    for i in range(nf):
-      if DATA["features"][i]["geometry"]["type"] == "LineString":
-        POINTS = DATA["features"][i]["geometry"]["coordinates"]
-        DATES  = DATA["features"][i]["properties"]["time"]["data"]
-
-    self.nfloats  = 1
-    self.nrecords = len(DATES)
-    self.lon = [POINTS[j][0] for j in range(self.nrecords)]
-    self.lat = [POINTS[j][1] for j in range(self.nrecords)]
-    self.date = []
-    for i in range(self.nrecords):
-      d = dparser.parse(DATES[i])
-      self.date.append(d)
-
-    self.FILENAME      = tk.StringVar()
-    self.I             = tk.IntVar()
-    self.L             = tk.IntVar()
-    self.I1            = tk.IntVar()
-    self.I2            = tk.IntVar()
-    self.PLOT          = lineplot.parameters()
-    self.FILENAME.set(filename)
-    self.I.set(0)
-    self.L.set(0)
-    self.I1.set(0)
-    self.I2.set(self.nrecords-1)
-    self.FLOAT_COLOR = []
-    for i in range(self.nfloats):
-      a = tk.StringVar()
-      a.set(self.PLOT.LINE_COLOR.get())
-      self.FLOAT_COLOR.append(a)
-    self.SEPARATED_COLOR = tk.BooleanVar()
-    self.SEPARATED_COLOR.set(False)
-
-  # --------------------------------------
-  def read_trajectory_txt(self,filename):
-  # --------------------------------------
-    '''Read a trajectory from a txt file'''
-
-    print('Reading txt file ',filename)
-
-    self.lon  = []
-    self.lat  = []
-    self.date = []
-    with open(filename) as datafile:
-      for line in datafile.readlines():
-        line = line.strip()
-        columns = line.split(',')
-        self.lon.append(float(columns[2]))
-        self.lat.append(float(columns[1]))
-        year   = int(columns[3])
-        month  = int(columns[4])
-        day    = int(columns[5])
-        hour   = int(columns[6])
-        minute = int(columns[7])
-        second = int(columns[8])
-        self.date.append(datetime.datetime(year,month,day, \
-                                           hour,minute,second))
-    self.nfloats  = 1
-    self.nrecords = len(self.lon)
-    self.FILENAME      = tk.StringVar()
-    self.I             = tk.IntVar()
-    self.L             = tk.IntVar()
-    self.I1            = tk.IntVar()
-    self.I2            = tk.IntVar()
-    self.PLOT          = lineplot.parameters()
-    self.FILENAME.set(filename)
-    self.I.set(0)
-    self.L.set(0)
-    self.I1.set(0)
-    self.I2.set(self.nrecords-1)
-    self.FLOAT_COLOR = []
-    for i in range(self.nfloats):
-      a = tk.StringVar()
-      a.set(self.PLOT.LINE_COLOR.get())
-      self.FLOAT_COLOR.append(a)
-    self.SEPARATED_COLOR = tk.BooleanVar()
-    self.SEPARATED_COLOR.set(False)
+      self.FLOAT_SHOW.append(b)
 
 
 # ======================================
@@ -233,8 +222,8 @@ def drawing(fig,ax,m,FLT):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
-  r1 = FLT.I1.get()
-  r2 = FLT.I2.get() + 1
+  r1 = FLT.L1.get()
+  r2 = FLT.L2.get() + 1
 
   if FLT.nfloats > 1:
     for i in range(FLT.nfloats):       # Loop over buoys

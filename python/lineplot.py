@@ -211,9 +211,9 @@ def WinOnMapConfig(parent,PLOT,LL):
   F1 = ttk.Frame(parent,borderwidth=5,padding=5)
   ttk.Label(F1,text='Trajectory limits',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
   ttk.Label(F1,text='Initial record').grid(row=1,column=0,sticky='w')
-  ttk.Entry(F1,textvariable=LL.I1,width=7).grid(row=1,column=1,sticky='w')
+  ttk.Entry(F1,textvariable=LL.L1,width=7).grid(row=1,column=1,sticky='w')
   ttk.Label(F1,text='Last record').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F1,textvariable=LL.I2,justify='left',width=7).grid(row=2,column=1,sticky='w')
+  ttk.Entry(F1,textvariable=LL.L2,justify='left',width=7).grid(row=2,column=1,sticky='w')
   F1.grid()
 
   F2 = ttk.Frame(parent,borderwidth=5,padding=5)

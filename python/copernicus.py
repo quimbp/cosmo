@@ -245,7 +245,7 @@ class WinTracking():
       self.master.tk.call(master, "config", "-menu", self.menubar)
 
 
-    image = Image.open('cosmo-logo.ico')
+    image = Image.open('cosmo-logo.png')
     photo = ImageTk.PhotoImage(image)
 
     # Window construction:
@@ -550,7 +550,7 @@ class WinTracking():
 
 def main():
 
-  image = Image.open('cosmo-logo.ico')
+  image = Image.open('cosmo-logo.png')
 
   root = tk.Tk()
   root.title('COPERNICUS')

@@ -1718,7 +1718,10 @@ class WinDrawPlot():
         return
 
       # Not empty filename:
-      FLT = lagrangian.Read(nn.name)
+      FLT = lagrangian.Float(nn.name)
+      if FLT is None:
+        return
+
       FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-self.FLD.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
       FLT.MAPX = []
       FLT.MAPY = []
@@ -1741,8 +1744,6 @@ class WinDrawPlot():
       ii = self.FLOAT_INDX.get()
       _refill(ii)
 
-      #_wsel['values'] = self.FLOAT_LIST
-      #_went['textvariable'] = self.FLOAT[ii].FILENAME
       self.make_plot()
 
     # Main window:
@@ -2650,7 +2651,10 @@ class WinDrawPlot():
       os.system(command)
 
       if os.path.isfile(self.CLM.TRAJECTORY.get()):
-        FLT = lagrangian.Read(self.CLM.TRAJECTORY.get())
+        FLT = lagrangian.Float(self.CLM.TRAJECTORY.get())
+        if FLT is None:
+          return
+
         FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-\
                               self.FLD.DATE[0]).total_seconds() \
                               for i in range(FLT.nrecords)])
@@ -2969,6 +2973,7 @@ def main():
   ifile = 'roms_wmop_20171121.nc'
   ifile = 'SAMGIB-PdE-hm-2018011800-2018012023-B2018011800-FC.nc'
   ifile = 'roms_wmop_20171122.nc'
+  ifile = 'SAMGIB-PdE-hm-2018021500-2018021723-B2018021500-FC.nc'
   ncid  = Dataset(ifile,'r')
   icdf  = geocdf(ifile)
   uid = icdf.vname.index('u')
