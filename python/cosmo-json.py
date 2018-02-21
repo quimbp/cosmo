@@ -376,7 +376,10 @@ class GUI:
         if self.DATA["features"][i]["geometry"]["type"] == "LineString":
           self.Trajectory_POINTS = self.DATA["features"][i]["geometry"]["coordinates"]
           self.Trajectory_date = self.DATA["features"][i]["properties"]["time"]["data"]
-          self.Trajectory_temp = self.DATA["features"][i]["properties"]["sst"]["data"]
+          try:
+            self.Trajectory_temp = self.DATA["features"][i]["properties"]["sst"]["data"]
+          except:
+            self.Trajectory_temp = []
 
       self.Trajectory_length.set(len(self.Trajectory_date))
 
@@ -412,8 +415,8 @@ class GUI:
         else:
           #now = iso8601.parse_date(self.Trajectory_date[i])
           #pre = iso8601.parse_date(self.Trajectory_date[i-1])
-          now = datetime.datetime.strptime(self.Trajectory_date[i],'%Y-%m-%dT%H:%M:%SZ')
-          pre = datetime.datetime.strptime(self.Trajectory_date[i-1],'%Y-%m-%dT%H:%M:%SZ')
+          now = datetime.datetime.strptime(self.Trajectory_date[i][0:18],'%Y-%m-%dT%H:%M:%S')
+          pre = datetime.datetime.strptime(self.Trajectory_date[i-1][0:18],'%Y-%m-%dT%H:%M:%S')
           secs = (now-pre).seconds
           self.Trajectory_time.append(secs)
 
@@ -465,6 +468,11 @@ class GUI:
             self.owner.set(self.DATA["features"][i]["properties"]["owner"])
             self.event0_date.set(self.DATA["features"][i]["properties"]["time"]["data"][0])
             self.event0_qc.set(self.DATA["features"][i]["properties"]["time"]["qc_data"])
+            try:
+              a = self.event0_qc.get()
+            except:
+              self.event0_qc.set(0)
+            #self.event0_qc.set(self.DATA["features"][i]["properties"]["qc"])
             self.time_units.set(self.DATA["features"][i]["properties"]["time"]["units"])
 
           if self.DATA["features"][i]["properties"]["event"] == 1:
@@ -472,6 +480,11 @@ class GUI:
             self.event1_lat.set(self.DATA["features"][i]["geometry"]["coordinates"][1])
             self.event1_date.set(self.DATA["features"][i]["properties"]["time"]["data"][0])
             self.event1_qc.set(self.DATA["features"][i]["properties"]["time"]["qc_data"])
+            try: 
+              a = self.event1_qc.get()
+            except:
+              self.event1_qc.set(0)
+            #self.event1_qc.set(self.DATA["features"][i]["properties"]["qc"])
             
       self.buoy_name_orig = self.buoy_name.get()
       self.source_orig = self.source.get()
@@ -550,7 +563,10 @@ class GUI:
         del self.Trajectory_lon[i]
         del self.Trajectory_lat[i]
         del self.Trajectory_date[i]
-        del self.Trajectory_temp[i]
+        try:
+          del self.Trajectory_temp[i]
+        except:
+          pass
 
     self.Trajectory_length.set(len(self.Trajectory_lon))
     self.Station_pointer.set(0)
@@ -578,8 +594,8 @@ class GUI:
       else:
         #now = iso8601.parse_date(self.Trajectory_date[i])
         #pre = iso8601.parse_date(self.Trajectory_date[i-1])
-        now = datetime.datetime.strptime(self.Trajectory_date[i],'%Y-%m-%dT%H:%M:%SZ')
-        pre = datetime.datetime.strptime(self.Trajectory_date[i-1],'%Y-%m-%dT%H:%M:%SZ')
+        now = datetime.datetime.strptime(self.Trajectory_date[i][0:18],'%Y-%m-%dT%H:%M:%S')
+        pre = datetime.datetime.strptime(self.Trajectory_date[i-1][0:18],'%Y-%m-%dT%H:%M:%S')
         secs = (now-pre).seconds
         self.Trajectory_time.append(secs)
 
@@ -615,7 +631,8 @@ class GUI:
         if self.DATA["features"][i]["geometry"]["type"] == "LineString":
           self.DATA["features"][i]["geometry"]["coordinates"] = self.Trajectory_POINTS
           self.DATA["features"][i]["properties"]["time"]["data"] = self.Trajectory_date
-          self.DATA["features"][i]["properties"]["sst"]["data"] = self.Trajectory_temp
+          if len(self.Trajectory_temp) > 0:
+            self.DATA["features"][i]["properties"]["sst"]["data"] = self.Trajectory_temp
 
       # The following values may have changed: COORDINATES, PROPERTIES
       for i in range(self.Nfeatures):
@@ -843,7 +860,7 @@ class GUI:
                 urcrnrlon=self.Mapxmax.get(),         \
                 fix_aspect=self.aspectratio,          \
                 ax=self.ax1)
-    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 2000, verbose= True)
+    self.m.arcgisimage(service='ESRI_Imagery_World_2D', xpixels = 900, verbose= True)
 
     self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
     self.m.plot(self.xx[self.Station_pointer.get()], \
