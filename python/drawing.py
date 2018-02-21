@@ -376,7 +376,7 @@ class WinDrawPlot():
     plotconfig['LONLAT_SIZE'] = self.PLOT.LONLAT_SIZE.get()
     plotconfig['BLUEMARBLE'] = self.PLOT.BLUEMARBLE.get()
     plotconfig['ETOPO'] = self.PLOT.ETOPO.get()
-    plotconfig['RIVERS'] = self.PLOT.RIVERS.get()
+    plotconfig['RIVERS_SHOW'] = self.PLOT.RIVERS_SHOW.get()
     plotconfig['RIVERS_WIDTH'] = self.PLOT.RIVERS_WIDTH.get()
     plotconfig['RIVERS_COLOR'] = self.PLOT.RIVERS_COLOR.get()
     plotconfig['ARCGISIMAGE'] = self.PLOT.ARCGISIMAGE.get()
@@ -506,7 +506,7 @@ class WinDrawPlot():
     self.PLOT.LONLAT_SIZE.set(conf['LONLAT_SIZE'])
     self.PLOT.BLUEMARBLE.set(conf['BLUEMARBLE'])
     self.PLOT.ETOPO.set(conf['ETOPO'])
-    self.PLOT.RIVERS.set(conf['RIVERS'])
+    self.PLOT.RIVERS_SHOW.set(conf['RIVERS_SHOW'])
     self.PLOT.RIVERS_WIDTH.set(conf['RIVERS_WIDTH'])
     self.PLOT.RIVERS_COLOR.set(conf['RIVERS_COLOR'])
     self.PLOT.ARCGISIMAGE.set(conf['ARCGISIMAGE'])
@@ -1820,16 +1820,6 @@ class WinDrawPlot():
       self.SAIDIN.sst = scdf.variables[self.SAIDIN.varname][0,:,:].squeeze()
       self.SAIDIN.xx,self.SAIDIN.yy = np.meshgrid(self.SAIDIN.lon,self.SAIDIN.lat)
 
-      # Check if data has to be masked:
-      if self.SAIDIN.mask.get():
-        print('Applyng land/sea mask ...')
-        _a   = self.SAIDIN.sst.copy()
-        msk1 = ma.getmask(self.SAIDIN.sst)
-        tmp  = scdf.variables['lsmask'][0,:,:].squeeze()
-        msk2 = ma.make_mask(ma.masked_values(tmp,1),dtype=bool)
-        msk  = ma.mask_or(msk1,msk2)
-        self.SAIDIN.sst = ma.array(_a,mask=msk).copy()
-
       try:
         self.SAIDIN.units = scdf.variables[self.SAIDIN.varname].getncattr('units')
       except:
@@ -1843,12 +1833,39 @@ class WinDrawPlot():
         except:
           self.SAIDIN.missing_value = None
  
-      self.SAIDIN.minval = self.SAIDIN.sst.min()
-      self.SAIDIN.maxval = self.SAIDIN.sst.max()
-      self.SAIDIN.PLOT.CONTOUR_MIN.set(truncation(self.SAIDIN.minval))
-      self.SAIDIN.PLOT.CONTOUR_MAX.set(truncation(self.SAIDIN.maxval))
-      self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(truncation(0.1*(self.SAIDIN.PLOT.CONTOUR_MAX.get() \
-                                                           -self.SAIDIN.PLOT.CONTOUR_MIN.get())))
+      print(type(self.SAIDIN.sst))
+      print(self.SAIDIN.sst.min())
+      print(self.SAIDIN.sst.max())
+      #self.SAIDIN.sst[self.SAIDIN.sst==self.SAIDIN.missing_value] = np.nan
+      #print(self.SAIDIN.sst.min())
+      #print(self.SAIDIN.sst.max())
+      if self.SAIDIN.mask.get():
+        print('Applying land/sea mask ...')
+        _a  = self.SAIDIN.sst.copy()
+        tmp  = scdf.variables['lsmask'][0,:,:].squeeze()
+        msk = ma.masked_where(tmp==1,tmp)
+        self.SAIDIN.sst = ma.array(_a,mask=msk).copy()
+
+      self.SAIDIN.PLOT.CONTOUR_MIN.set(self.SAIDIN.sst.min())
+      self.SAIDIN.PLOT.CONTOUR_MAX.set(self.SAIDIN.sst.max())
+      self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(0.5)
+
+      # Check if data has to be masked:
+      #if self.SAIDIN.mask.get():
+      #  print('Applyng land/sea mask ...')
+      #  _a   = self.SAIDIN.sst.copy()
+      #  msk1 = ma.getmask(self.SAIDIN.sst)
+      #  tmp  = scdf.variables['lsmask'][0,:,:].squeeze()
+      #  msk2 = ma.make_mask(ma.masked_values(tmp,1),dtype=bool)
+      #  msk  = ma.mask_or(msk1,msk2)
+      #  self.SAIDIN.sst = ma.array(_a,mask=msk).copy()
+
+      #self.SAIDIN.minval = self.SAIDIN.sst.min()
+      #self.SAIDIN.maxval = self.SAIDIN.sst.max()
+      #self.SAIDIN.PLOT.CONTOUR_MIN.set(truncation(self.SAIDIN.minval))
+      #self.SAIDIN.PLOT.CONTOUR_MAX.set(truncation(self.SAIDIN.maxval))
+      #self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(truncation(0.1*(self.SAIDIN.PLOT.CONTOUR_MAX.get() \
+      #            -self.SAIDIN.PLOT.CONTOUR_MIN.get())))
       self.SAIDIN.PLOT.CONTOUR_MODE.set(1)
       self.SAIDIN.F = interpolate.interp2d(self.SAIDIN.lon, \
                                            self.SAIDIN.lat, \
@@ -2149,14 +2166,14 @@ class WinDrawPlot():
     if self.PLOT.LAND_COLOR.get() is not 'None':
       m.fillcontinents(color=self.PLOT.LAND_COLOR.get())
 
-    if self.PLOT.RIVERS.get() == 1:
+    if self.PLOT.RIVERS_SHOW.get():
       m.drawrivers(linewidth=self.PLOT.RIVERS_WIDTH.get(), \
                    color=self.PLOT.RIVERS_COLOR.get())
 
-    if self.PLOT.BLUEMARBLE.get() == 1:
+    if self.PLOT.BLUEMARBLE.get():
       m.bluemarble()
 
-    if self.PLOT.ETOPO.get() == 1:
+    if self.PLOT.ETOPO.get():
       m.etopo()
 
     if self.PLOT.ARCGISIMAGE.get() == 1:
@@ -2286,11 +2303,20 @@ class WinDrawPlot():
       self.Window_labelconfig.destroy()
       self.Window_labelconfig = None
 
-    def _done():
+    def _apply():
       self.make_plot()
+
+    def _done():
       self.Window_labelconfig.destroy()
       self.Window_labelconfig = None
 
+    def _save():
+      pass
+
+    def _load():
+      pass
+
+    # Main Window
     if self.Window_labelconfig is not None:
       self.Window_labelconfig.lift()
       return
@@ -2299,13 +2325,24 @@ class WinDrawPlot():
       self.Window_labelconfig.title('Title and Label options')
       self.Window_labelconfig.resizable(width=True,height=True)
       self.Window_labelconfig.protocol('WM_DELETE_WINDOW',_close)
+      menubar = tk.Menu(self.Window_labelconfig)
+      menu = tk.Menu(menubar,tearoff=0)
+      menubar.add_cascade(label='Configuration',menu=menu)
+      menu.add_command(label='Load',command=_load)
+      menu.add_command(label='Save',command=_save)
+      try:
+        self.Window_labelconfig.config(menu=menubar)
+      except AttributeError:
+        # master is a toplevel window (Python 2.4/Tkinter 1.63)
+        master.tk.call(Window_labelconfig, "config", "-menu", menubar)
+
     
     # Main
     # ----
     frame = ttk.Frame(self.Window_labelconfig,borderwidth=5,padding=5)
     ttk.Label(frame,text='Title').grid(row=0,column=0,sticky='w')
     ttk.Entry(frame,textvariable=self.PLOT.TITLE,width=40). \
-        grid(row=0,column=1,columnspan=3)
+        grid(row=0,column=1,columnspan=4)
     ttk.Checkbutton(frame,text='Bold',variable=self.PLOT.TITLE_BOLD). \
         grid(row=0,column=5)
     ttk.Label(frame,text='Size').grid(row=1,column=0,columnspan=1,sticky='w')
@@ -2313,10 +2350,10 @@ class WinDrawPlot():
         grid(row=1,column=1,sticky='w')
     ttk.Label(frame,text='X label').grid(row=2,column=0,sticky='w')
     ttk.Entry(frame,textvariable=self.PLOT.XLABEL,width=40). \
-        grid(row=2,column=1,columnspan=3,sticky='w')
+        grid(row=2,column=1,columnspan=4,sticky='w')
     ttk.Label(frame,text='Y label').grid(row=3,column=0,sticky='w')
     ttk.Entry(frame,textvariable=self.PLOT.YLABEL,width=40). \
-        grid(row=3,column=1,columnspan=3,sticky='w')
+        grid(row=3,column=1,columnspan=4,sticky='w')
     ttk.Label(frame,text='Size').grid(row=4,column=0,columnspan=1,sticky='w')
     ttk.Entry(frame,textvariable=self.PLOT.LABEL_SIZE,width=5). \
         grid(row=4,column=1,columnspan=1,sticky='w')
@@ -2347,11 +2384,11 @@ class WinDrawPlot():
         grid(row=12,column=1,columnspan=1,sticky='w')
     ttk.Label(frame,text='Color'). \
         grid(row=13,column=0,columnspan=1,sticky='w')
-    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_COLOR,width=10). \
+    ttk.Entry(frame,textvariable=self.PLOT.TIMESTAMP_COLOR,width=20). \
         grid(row=13,column=1,columnspan=2,sticky='w')
 
-
-
+    ttk.Button(frame,text='Cancel',command=_close).grid(row=14,column=3,pady=4)
+    ttk.Button(frame,text='Apply',command=_apply).grid(row=14,column=4,pady=4)
     ttk.Button(frame,text='Done',command=_done).grid(row=14,column=5,pady=4)
     frame.grid()
 
@@ -2557,7 +2594,7 @@ class WinDrawPlot():
 
     f3 = ttk.Frame(self.Window_mapconfig,borderwidth=5,padding=5)
     ttk.Label(f3,text='Rivers').grid(row=0,column=0,padx=3,sticky='w')
-    ttk.Checkbutton(f3,text='Show',variable=self.PLOT.RIVERS).grid(row=0,column=1,padx=3)
+    ttk.Checkbutton(f3,text='Show',variable=self.PLOT.RIVERS_SHOW).grid(row=0,column=1,padx=3)
     ttk.Label(f3,text='Rivers width').grid(row=1,column=0,padx=3,sticky='w')
     ttk.Entry(f3,textvariable=self.PLOT.RIVERS_WIDTH,justify='left',width=7). \
               grid(row=1,column=1,padx=3,sticky='we')
@@ -2972,12 +3009,12 @@ def main():
   ifile = 'SAMGIB-PdE-dm-2017122600-2017122823-B2017122600-FC.nc'
   ifile = 'roms_wmop_20171121.nc'
   ifile = 'SAMGIB-PdE-hm-2018011800-2018012023-B2018011800-FC.nc'
-  ifile = 'roms_wmop_20171122.nc'
   ifile = 'SAMGIB-PdE-hm-2018021500-2018021723-B2018021500-FC.nc'
+  ifile = 'global-20180218000000-20180223120000.nc'
   ncid  = Dataset(ifile,'r')
   icdf  = geocdf(ifile)
-  uid = icdf.vname.index('u')
-  vid = icdf.vname.index('v')
+  uid = icdf.vname.index('uo')
+  vid = icdf.vname.index('vo')
   FLD = cosmo_view_field(ifile,ncid,icdf,uid,vid)
   WinDrawPlot(root,FLD,100)
   root.mainloop()

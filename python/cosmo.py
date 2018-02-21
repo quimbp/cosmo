@@ -20,6 +20,14 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 
 import numpy as np
 import os
+import json
+import io
+try:
+  to_unicode = unicode
+except:
+  to_unicode = str
+
+
 
 COSMOCPATH = os.path.expanduser('~') + os.sep + '.cosmo-view'
 
@@ -347,16 +355,17 @@ class plot_params():
     self.X                 = None
     self.Y                 = None
 
-    self.BLUEMARBLE        = tk.IntVar()
-    self.ETOPO             = tk.IntVar()
-    self.RIVERS            = tk.IntVar()
-    self.BLUEMARBLE.set(0)
-    self.ETOPO.set(0)
-    self.RIVERS.set(0)
+    self.BLUEMARBLE        = tk.BooleanVar()
+    self.ETOPO             = tk.BooleanVar()
+    self.BLUEMARBLE.set(False)
+    self.ETOPO.set(False)
+
+    self.RIVERS_SHOW       = tk.BooleanVar()
     self.RIVERS_WIDTH      = tk.IntVar()
-    self.RIVERS_WIDTH.set(1)
     self.RIVERS_COLOR      = tk.StringVar()
-    self.RIVERS_COLOR.set('black')
+    self.RIVERS_SHOW.set(True)
+    self.RIVERS_WIDTH.set(2)
+    self.RIVERS_COLOR.set('blue')
 
     self.ARCGISIMAGE       = tk.IntVar()
     self.ARCGISIMAGE.set(0)
@@ -428,6 +437,109 @@ class plot_params():
     self.TIMESTAMP_COLOR.set('black')
     self.TIMESTAMP_SIZE.set(15)
 
+    cfilename = '%s' % COSMOCPATH + os.sep + 'drawing.cvw'
+    try:
+      # Read configuration
+      with open(cfilename) as infile:
+        conf = json.load(infile)
+
+      # Recover parameters:
+      self.MAP_PROJECTION.set(conf['MAP_PROJECTION'])
+      self.MAP_RESOLUTION.set(conf['MAP_RESOLUTION'])
+      self.COASTLINE.set(conf['COASTLINE'])
+      self.COASTLINE_WIDTH.set(conf['COASTLINE_WIDTH'])
+      self.COASTLINE_COLOR.set(conf['COASTLINE_COLOR'])
+      self.LAND_COLOR.set(conf['LAND_COLOR'])
+      self.WATER_COLOR.set(conf['WATER_COLOR'])
+      self.TITLE_SIZE.set(conf['TITLE_SIZE'])
+      self.TITLE_BOLD.set(conf['TITLE_BOLD'])
+      self.LABEL_SIZE.set(conf['LABEL_SIZE'])
+      self.LABEL_PAD.set(conf['LABEL_PAD'])
+      self.OUT_DPI.set(conf['OUT_DPI'])
+      self.SHOW_GRID.set(conf['SHOW_GRID'])
+      self.LONLAT_COLOR.set(conf['LONLAT_COLOR'])
+      self.LONLAT_SIZE.set(conf['LONLAT_SIZE'])
+      self.BLUEMARBLE.set(conf['BLUEMARBLE'])
+      self.ETOPO.set(conf['ETOPO'])
+      self.RIVERS_SHOW.set(conf['RIVERS_SHOW'])
+      self.RIVERS_WIDTH.set(conf['RIVERS_WIDTH'])
+      self.RIVERS_COLOR.set(conf['RIVERS_COLOR'])
+      self.ARCGISIMAGE.set(conf['ARCGISIMAGE'])
+      self.ARCGISSERVICE.set(conf['ARCGISSERVICE'])
+      self.ARCGISPIXELS.set(conf['ARCGISPIXELS'])
+      self.ARCGISDPI.set(conf['ARCGISDPI'])
+      self.ARCGISVERBOSE.set(conf['ARCGISVERBOSE'])
+      self.LOGO_FILE.set(conf['LOGO_FILE'])
+      self.LOGO_ZOOM.set(conf['LOGO_ZOOM'])
+      self.LOGO_LOCATION.set(conf['LOGO_LOCATION'])
+      self.LOGO_X.set(conf['LOGO_X'])
+      self.LOGO_Y.set(conf['LOGO_Y'])
+      self.LOGO_DISPLAY.set(conf['LOGO_DISPLAY'])
+      self.ISOBAT_PATH.set(conf['ISOBAT_PATH'])
+      self.ISOBAT_WIDTH.set(conf['ISOBAT_WIDTH'])
+      self.ISOBAT_COLOR.set(conf['ISOBAT_COLOR'])
+      self.ISOBAT_LABEL_SIZE.set(conf['ISOBAT_LABEL_SIZE'])
+      self.TIMESTAMP_SHOW.set(conf['TIMESTAMP_SHOW'])
+      self.TIMESTAMP_BOLD.set(conf['TIMESTAMP_BOLD'])
+      self.TIMESTAMP_X.set(conf['TIMESTAMP_X'])
+      self.TIMESTAMP_Y.set(conf['TIMESTAMP_Y'])
+      self.TIMESTAMP_SIZE.set(conf['TIMESTAMP_SIZE'])
+      self.TIMESTAMP_COLOR.set(conf['TIMESTAMP_COLOR'])
+      self.LOGO_IMAGE = image.imread(self.LOGO_FILE.get())
+      print('Drawing configuration file read')
+
+    except:
+      conf = {}
+      conf['MAP_PROJECTION'] = self.MAP_PROJECTION.get()
+      conf['MAP_RESOLUTION'] = self.MAP_RESOLUTION.get()
+      conf['COASTLINE'] = self.COASTLINE.get()
+      conf['COASTLINE_WIDTH'] = self.COASTLINE_WIDTH.get()
+      conf['COASTLINE_COLOR'] = self.COASTLINE_COLOR.get()
+      conf['LAND_COLOR'] = self.LAND_COLOR.get()
+      conf['WATER_COLOR'] = self.WATER_COLOR.get()
+      conf['TITLE_SIZE'] = self.TITLE_SIZE.get()
+      conf['TITLE_BOLD'] = self.TITLE_BOLD.get()
+      conf['LABEL_SIZE'] = self.LABEL_SIZE.get()
+      conf['LABEL_PAD'] = self.LABEL_PAD.get()
+      conf['OUT_DPI'] = self.OUT_DPI.get()
+      conf['SHOW_GRID'] = self.SHOW_GRID.get()
+      conf['LONLAT_COLOR'] = self.LONLAT_COLOR.get()
+      conf['LONLAT_SIZE'] = self.LONLAT_SIZE.get()
+      conf['BLUEMARBLE'] = self.BLUEMARBLE.get()
+      conf['ETOPO'] = self.ETOPO.get()
+      conf['RIVERS_SHOW'] = self.RIVERS_SHOW.get()
+      conf['RIVERS_WIDTH'] = self.RIVERS_WIDTH.get()
+      conf['RIVERS_COLOR'] = self.RIVERS_COLOR.get()
+      conf['ARCGISIMAGE'] = self.ARCGISIMAGE.get()
+      conf['ARCGISSERVICE'] = self.ARCGISSERVICE.get()
+      conf['ARCGISPIXELS'] = self.ARCGISPIXELS.get()
+      conf['ARCGISDPI'] = self.ARCGISDPI.get()
+      conf['ARCGISVERBOSE'] = self.ARCGISVERBOSE.get()
+      conf['LOGO_FILE'] = self.LOGO_FILE.get()
+      conf['LOGO_ZOOM'] = self.LOGO_ZOOM.get()
+      conf['LOGO_LOCATION'] = self.LOGO_LOCATION.get()
+      conf['LOGO_X'] = self.LOGO_X.get()
+      conf['LOGO_Y'] = self.LOGO_Y.get()
+      conf['LOGO_DISPLAY'] = self.LOGO_DISPLAY.get()
+      conf['ISOBAT_PATH'] = self.ISOBAT_PATH.get()
+      conf['ISOBAT_WIDTH'] = self.ISOBAT_WIDTH.get()
+      conf['ISOBAT_COLOR'] = self.ISOBAT_COLOR.get()
+      conf['ISOBAT_LABEL_SIZE'] = self.ISOBAT_LABEL_SIZE.get()
+      conf['TIMESTAMP_SHOW'] = self.TIMESTAMP_SHOW.get()
+      conf['TIMESTAMP_BOLD'] = self.TIMESTAMP_BOLD.get()
+      conf['TIMESTAMP_X'] = self.TIMESTAMP_X.get()
+      conf['TIMESTAMP_Y'] = self.TIMESTAMP_Y.get()
+      conf['TIMESTAMP_SIZE'] = self.TIMESTAMP_SIZE.get()
+      conf['TIMESTAMP_COLOR'] = self.TIMESTAMP_COLOR.get()
+  
+      # Write JSON file:
+      print('Saving drawing configuration file')
+      with io.open(cfilename,'w',encoding='utf8') as outfile:
+        str_ = json.dumps(conf,ensure_ascii=False, \
+                               sort_keys=True,     \
+                               indent=2,           \
+                               separators=(',',': '))
+        outfile.write(to_unicode(str_))
 
 # =================
 class WinGeoaxes():
@@ -895,6 +1007,7 @@ class Select_Columns():
 
     self.LON    = tk.StringVar()
     self.LAT    = tk.StringVar()
+    self.DEPTH  = tk.StringVar()
     self.YEAR   = tk.StringVar()
     self.MONTH  = tk.StringVar()
     self.DAY    = tk.StringVar()
@@ -904,6 +1017,7 @@ class Select_Columns():
 
     self.LON.set('0')
     self.LAT.set('0')
+    self.DEPTH.set('0')
     self.YEAR.set('0')
     self.MONTH.set('0')
     self.DAY.set('0')
@@ -917,12 +1031,13 @@ class Select_Columns():
     ttk.Label(F0,text='Variable').grid(row=1,column=0,padx=3)
     ttk.Label(F0,text='Longitude').grid(row=1,column=1,padx=3)
     ttk.Label(F0,text='Latitude').grid(row=1,column=2,padx=3)
-    ttk.Label(F0,text='Year').grid(row=1,column=3,padx=3)
-    ttk.Label(F0,text='Month').grid(row=1,column=4,padx=3)
-    ttk.Label(F0,text='Day').grid(row=1,column=5,padx=3)
-    ttk.Label(F0,text='Hour').grid(row=1,column=6,padx=3)
-    ttk.Label(F0,text='Minute').grid(row=1,column=7,padx=3)
-    ttk.Label(F0,text='Second').grid(row=1,column=8,padx=3)
+    ttk.Label(F0,text='Depth').grid(row=1,column=3,padx=3)
+    ttk.Label(F0,text='Year').grid(row=1,column=4,padx=3)
+    ttk.Label(F0,text='Month').grid(row=1,column=5,padx=3)
+    ttk.Label(F0,text='Day').grid(row=1,column=6,padx=3)
+    ttk.Label(F0,text='Hour').grid(row=1,column=7,padx=3)
+    ttk.Label(F0,text='Minute').grid(row=1,column=8,padx=3)
+    ttk.Label(F0,text='Second').grid(row=1,column=9,padx=3)
 
     self.clon = ttk.Combobox(F0,textvariable=self.LON,values=self.clist,width=5) 
     self.clon.grid(row=2,column=1,padx=3,pady=5)
@@ -932,28 +1047,32 @@ class Select_Columns():
     self.clat.grid(row=2,column=2,padx=3,pady=5)
     self.clat.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
+    self.cdep = ttk.Combobox(F0,textvariable=self.DEPTH,values=self.clist,width=5)
+    self.cdep.grid(row=2,column=3,padx=3,pady=5)
+    self.cdep.bind('<<ComboboxSelected>>',lambda e: self.relabel())
+
     self.cyea = ttk.Combobox(F0,textvariable=self.YEAR,values=self.clist,width=5)
-    self.cyea.grid(row=2,column=3,padx=3,pady=5)
+    self.cyea.grid(row=2,column=4,padx=3,pady=5)
     self.cyea.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     self.cmon = ttk.Combobox(F0,textvariable=self.MONTH,values=self.clist,width=5)
-    self.cmon.grid(row=2,column=4,padx=3,pady=5)
+    self.cmon.grid(row=2,column=5,padx=3,pady=5)
     self.cmon.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     self.cday = ttk.Combobox(F0,textvariable=self.DAY,values=self.clist,width=5)
-    self.cday.grid(row=2,column=5,padx=3,pady=5)
+    self.cday.grid(row=2,column=6,padx=3,pady=5)
     self.cday.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     self.chou = ttk.Combobox(F0,textvariable=self.HOUR,values=self.clist,width=5)
-    self.chou.grid(row=2,column=6,padx=3,pady=5)
+    self.chou.grid(row=2,column=7,padx=3,pady=5)
     self.chou.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     self.cmin = ttk.Combobox(F0,textvariable=self.MINUTE,values=self.clist,width=5)
-    self.cmin.grid(row=2,column=7,padx=3,pady=5)
+    self.cmin.grid(row=2,column=8,padx=3,pady=5)
     self.cmin.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     self.csec = ttk.Combobox(F0,textvariable=self.SECOND,values=self.clist,width=5)
-    self.csec.grid(row=2,column=8,padx=3,pady=5)
+    self.csec.grid(row=2,column=9,padx=3,pady=5)
     self.csec.bind('<<ComboboxSelected>>',lambda e: self.relabel())
 
     ttk.Label(F0,text='Value').grid(row=3,column=0,padx=3)
@@ -961,18 +1080,20 @@ class Select_Columns():
     self.wlon.grid(row=3,column=1,padx=3,pady=5)
     self.wlat = ttk.Label(F0,text=self.columns[int(self.LAT.get())],width=5)
     self.wlat.grid(row=3,column=2,padx=3,pady=5)
+    self.wdep = ttk.Label(F0,text=self.columns[int(self.YEAR.get())],width=5)
+    self.wdep.grid(row=3,column=3,padx=3,pady=5)
     self.wyea = ttk.Label(F0,text=self.columns[int(self.YEAR.get())],width=5)
-    self.wyea.grid(row=3,column=3,padx=3,pady=5)
+    self.wyea.grid(row=3,column=4,padx=3,pady=5)
     self.wmon = ttk.Label(F0,text=self.columns[int(self.MONTH.get())],width=5)
-    self.wmon.grid(row=3,column=4,padx=3,pady=5)
+    self.wmon.grid(row=3,column=5,padx=3,pady=5)
     self.wday = ttk.Label(F0,text=self.columns[int(self.DAY.get())],width=5)
-    self.wday.grid(row=3,column=5,padx=3,pady=5)
+    self.wday.grid(row=3,column=6,padx=3,pady=5)
     self.whou = ttk.Label(F0,text=self.columns[int(self.HOUR.get())],width=5)
-    self.whou.grid(row=3,column=6,padx=3,pady=5)
+    self.whou.grid(row=3,column=7,padx=3,pady=5)
     self.wmin = ttk.Label(F0,text=self.columns[int(self.MINUTE.get())],width=5)
-    self.wmin.grid(row=3,column=7,padx=3,pady=5)
+    self.wmin.grid(row=3,column=8,padx=3,pady=5)
     self.wsec = ttk.Label(F0,text=self.columns[int(self.SECOND.get())],width=5)
-    self.wsec.grid(row=3,column=8,padx=3,pady=5)
+    self.wsec.grid(row=3,column=9,padx=3,pady=5)
 
     ttk.Label(F0,text='First line').grid(row=4,column=0,padx=3,pady=5)
     ttk.Entry(F0,textvariable=self.LINE,width=50,state='readonly') \
@@ -1004,6 +1125,7 @@ class Select_Columns():
     self.wcol['text']   = '%s' % self.ncol
     self.clon['values'] = self.clist
     self.clat['values'] = self.clist
+    self.cdep['values'] = self.clist
     self.cyea['values'] = self.clist
     self.cmon['values'] = self.clist
     self.cday['values'] = self.clist
@@ -1016,6 +1138,7 @@ class Select_Columns():
     self.master.destroy()
     self.lon    = None
     self.lat    = None
+    self.depth  = None
     self.year   = None
     self.month  = None
     self.day    = None
@@ -1027,6 +1150,7 @@ class Select_Columns():
   # ================
     self.lon    = None
     self.lat    = None
+    self.depth  = None
     self.year   = None
     self.month  = None
     self.day    = None
@@ -1038,6 +1162,8 @@ class Select_Columns():
       self.lon = int(self.LON.get())
     if int(self.LAT.get()) > -1:
       self.lat = int(self.LAT.get())
+    if int(self.DEPTH.get()) > -1:
+      self.depth = int(self.DEPTH.get())
     if int(self.YEAR.get()) > -1:
       self.year = int(self.YEAR.get())
     if int(self.MONTH.get()) > -1:
@@ -1058,6 +1184,7 @@ class Select_Columns():
   # ================
     self.wlon['text'] = self.columns[int(self.LON.get())]
     self.wlat['text'] = self.columns[int(self.LAT.get())]
+    self.wdep['text'] = self.columns[int(self.DEPTH.get())]
     self.wyea['text'] = self.columns[int(self.YEAR.get())]
     self.wmon['text'] = self.columns[int(self.MONTH.get())]
     self.wday['text'] = self.columns[int(self.DAY.get())]

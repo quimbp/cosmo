@@ -17,6 +17,13 @@ except:
 import dateutil.parser as dparser
 import numpy as np
 import datetime
+import json
+import os
+import io
+try:
+  to_unicode = unicode
+except:
+  to_unicode = str
 
 from cosmo import *
 import lineplot
@@ -33,7 +40,8 @@ class Float():
   __author__  = "Quim Ballabrera"
   __date__    = "February 2018"
 
-  # Version 0.2 (January 2018) : Initial version
+  # Version 0.2 (January 2018)  : Initial version
+  # Version 0.3 (February 2018) : Compacted version.
 
   def __init__ (self,filename):
   # ===========================
@@ -55,12 +63,63 @@ class Float():
     self.speed           = None
     self.I.set(0)
     self.L.set(0)
-    self.PLOT.LINE_COLOR.set('red')
+    self.PLOT.LINE_COLOR.set('blue')
     self.SEPARATED_COLOR.set(False)
 
     self.FILENAME.set(filename)
     self.Read()
 
+    cfilename = '%s' % COSMOCPATH + os.sep + 'lagrangian.cvw'
+
+    try:
+      # Read configuration
+      with open(cfilename) as infile:
+        conf = json.load(infile)
+      # Recover configuration parameters
+      self.PLOT.LINE_SHOW.set(conf['LINE_SHOW'])
+      self.PLOT.LINE_STYLE.set(conf['LINE_STYLE'])
+      self.PLOT.LINE_WIDTH.set(conf['LINE_WIDTH'])
+      self.PLOT.LINE_COLOR.set(conf['LINE_COLOR'])
+      self.PLOT.MARKER_SHOW.set(conf['MARKER_SHOW'])
+      self.PLOT.MARKER_STYLE.set(conf['MARKER_STYLE'])
+      self.PLOT.MARKER_SIZE.set(conf['MARKER_SIZE'])
+      self.PLOT.MARKER_COLOR.set(conf['MARKER_COLOR'])
+      self.PLOT.INITIAL_SHOW.set(conf['INITIAL_SHOW'])
+      self.PLOT.INITIAL_STYLE.set(conf['INITIAL_STYLE'])
+      self.PLOT.INITIAL_SIZE.set(conf['INITIAL_SIZE'])
+      self.PLOT.INITIAL_COLOR.set(conf['INITIAL_COLOR'])
+      self.PLOT.ONMAP_SHOW.set(conf['ONMAP_SHOW'])
+      self.PLOT.ONMAP_STYLE.set(conf['ONMAP_STYLE'])
+      self.PLOT.ONMAP_SIZE.set(conf['ONMAP_SIZE'])
+      self.PLOT.ONMAP_COLOR.set(conf['ONMAP_COLOR'])
+      self.SEPARATED_COLOR.set(conf['SEPARATED_COLOR'])
+    except:
+      conf = {}
+      conf['LINE_SHOW']  = self.PLOT.LINE_SHOW.get()
+      conf['LINE_STYLE'] = self.PLOT.LINE_STYLE.get()
+      conf['LINE_WIDTH'] = self.PLOT.LINE_WIDTH.get()
+      conf['LINE_COLOR'] = self.PLOT.LINE_COLOR.get()
+      conf['MARKER_SHOW'] = self.PLOT.MARKER_SHOW.get()
+      conf['MARKER_STYLE'] = self.PLOT.MARKER_STYLE.get()
+      conf['MARKER_SIZE'] = self.PLOT.MARKER_SIZE.get()
+      conf['MARKER_COLOR'] = self.PLOT.MARKER_COLOR.get()
+      conf['INITIAL_SHOW'] = self.PLOT.INITIAL_SHOW.get()
+      conf['INITIAL_STYLE'] = self.PLOT.INITIAL_STYLE.get()
+      conf['INITIAL_SIZE'] = self.PLOT.INITIAL_SIZE.get()
+      conf['INITIAL_COLOR'] = self.PLOT.INITIAL_COLOR.get()
+      conf['ONMAP_SHOW'] = self.PLOT.ONMAP_SHOW.get()
+      conf['ONMAP_STYLE'] = self.PLOT.ONMAP_STYLE.get()
+      conf['ONMAP_SIZE'] = self.PLOT.ONMAP_SIZE.get()
+      conf['ONMAP_COLOR'] = self.PLOT.ONMAP_COLOR.get()
+      conf['SEPARATED_COLOR'] = self.SEPARATED_COLOR.get()
+      with io.open(cfilename,'w',encoding='utf8') as outfile:
+        str_ = json.dumps(conf,ensure_ascii=False,   \
+                               sort_keys=True,       \
+                               indent=2,             \
+                               separators=(',',': '))
+        outfile.write(to_unicode(str_))
+      
+      pass
   def Read(self):
   # ======================
     '''Opens and reads a trajectory file'''
@@ -246,7 +305,7 @@ def drawing(fig,ax,m,FLT):
                FLT.PLOT.INITIAL_STYLE.get(),  \
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
                color=FLT.PLOT.INITIAL_COLOR.get())
-      if FLT.PLOT.ONMAP.get():
+      if FLT.PLOT.ONMAP_SHOW.get():
         L = FLT.L.get()
         xx,yy = m(FLT.MAPX[i][L],FLT.MAPY[i][L])
         m.plot(xx,yy,  \
@@ -272,7 +331,7 @@ def drawing(fig,ax,m,FLT):
              FLT.PLOT.INITIAL_STYLE.get(),  \
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
              color=FLT.PLOT.INITIAL_COLOR.get())
-    if FLT.PLOT.ONMAP.get():
+    if FLT.PLOT.ONMAP_SHOW.get():
       L = FLT.L.get()
       xx,yy = m(FLT.MAPX[L],FLT.MAPY[L])
       m.plot(xx,yy,  \
@@ -347,7 +406,7 @@ def main():
   root.title(filename)
   root.resizable(width=False,height=True)
   root.rowconfigure(0,weight=1)
-  tr = Read(filename)
+  tr = Float(filename)
   ShowData(root,tr)
   root.mainloop()
 

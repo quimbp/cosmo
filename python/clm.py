@@ -237,11 +237,13 @@ class WinConfig:
            self.wdo.configure(state='!disabled')
 
      def open_traj():
-       nn = filedialog.askopenfile()
-       if nn is None:
+       nn = tk.filedialog.asksaveasfilename(title='Save', \
+                                           filetypes=[('Netcdf','*.nc')], \
+                                           confirmoverwrite=True)
+       if len(nn) == 0:
          pass
        else:
-         CLM.TRAJECTORY.set(nn.name)
+         CLM.TRAJECTORY.set(nn)
 
      def open_init():
        nn = filedialog.askopenfile()
@@ -373,10 +375,10 @@ class WinConfig:
                font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
      ttk.Label(F5,text='Trajectory =').grid(row=1,column=0,padx=3)
      ttk.Entry(F5,textvariable=CLM.TRAJECTORY,width=50).grid(row=1,column=1,columnspan=5)
-     ttk.Button(F5,text='Open',padding=3,command=open_traj).grid(row=1,column=6,padx=[5,1])
+     ttk.Button(F5,text='Select',padding=3,command=open_traj).grid(row=1,column=6,padx=[5,1])
      ttk.Label(F5,text='Initial positions =').grid(row=2,column=0,padx=3)
      ttk.Entry(F5,textvariable=CLM.INI,width=50).grid(row=2,column=1,columnspan=5)
-     ttk.Button(F5,text='Open',padding=3,command=open_init).grid(row=2,column=6,padx=[5,1])
+     ttk.Button(F5,text='Select',padding=3,command=open_init).grid(row=2,column=6,padx=[5,1])
      ttk.Label(F5,text='Final positions =').grid(row=3,column=0,padx=3)
      ttk.Entry(F5,textvariable=CLM.FIN,width=50).grid(row=3,column=1,columnspan=5)
      F5.grid(pady=5)

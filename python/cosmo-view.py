@@ -184,6 +184,7 @@ class GUI:
 
     Window_drawing = tk.Toplevel(self.master)
     Window_drawing.title('COPERNICUS')
+    Window_drawing.configure(background='#87CEEB')
     Window_drawing.protocol('WM_DELETE_WINDOW',Window_drawing.destroy)
     #Window_drawing.resizable(width=False, height=False)
 

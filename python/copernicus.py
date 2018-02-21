@@ -39,6 +39,7 @@ class WinTracking():
 
     self.PATH           = tk.StringVar()
     self.FILE           = tk.StringVar()
+    self.USER_FILE      = tk.StringVar()
 
 
     # Configure the access credentials
@@ -59,7 +60,7 @@ class WinTracking():
         elif ii == 4:
           self.PATH.set(line[0:-1])
         elif ii == 5:
-          self.FILE.set(line[0:-1])
+          self.USER_FILE.set(line[0:-1])
       f.close()
     except:
       self.python = '/usr/bin/python'
@@ -67,7 +68,7 @@ class WinTracking():
       self.user = 'USERNAME_REQUIRED'
       self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('./')
-      self.FILE.set('')
+      self.USER_FILE.set('')
 
 
     # Define basins: Example: Global, Mediterraneans
@@ -245,8 +246,8 @@ class WinTracking():
       self.master.tk.call(master, "config", "-menu", self.menubar)
 
 
-    image = Image.open('cosmo-logo.png')
-    photo = ImageTk.PhotoImage(image)
+    #image = Image.open('cosmo-logo.png')
+    #photo = ImageTk.PhotoImage(image)
 
     # Window construction:
     frame1 = tk.Frame(self.master,background='#87CEEB')
@@ -305,9 +306,6 @@ class WinTracking():
        .grid(row=3,column=3,sticky='w',padx=3)
     weast = ttk.Entry(frame3,textvariable=self.FINAL,width=20)
     weast.grid(row=3,column=4,sticky='ew',padx=3)
-    #ttk.Label(frame3,text='"YYYY-MM-DD HH:MM:SS"',padding=3,background='#87CEEB')  \
-    #   .grid(row=3,column=5,sticky='w',padx=3)
-
     frame3.grid()
 
 
@@ -321,9 +319,6 @@ class WinTracking():
     ttk.Button(frame4,text='Quit',        \
                           command=self.master.destroy,  \
                           padding=5).grid(row=1,column=5,sticky='e')
-
-    ttk.Label(frame4,image=photo).grid()
-   
     frame4.grid(padx=5,pady=5)
 
     self.Window_pref = None
@@ -333,13 +328,17 @@ class WinTracking():
   def out(self):
   #=============
 
-    if empty(self.FILE.get()):
-       idate = self.INITIAL.get().replace(" ","").replace("-","") \
-                                 .replace('"','').replace(":","")
-       fdate = self.FINAL.get().replace(" ","").replace("-","") \
-                                 .replace('"','').replace(":","")
-       ofile = '%s-%s-%s.nc' % (self.BASIN.get().lower(),idate,fdate)
-       self.FILE.set(ofile)
+    if empty(self.USER_FILE.get()):
+      print('Here ...')
+      print(self.BASIN.get())
+      idate = self.INITIAL.get().replace(" ","").replace("-","") \
+                                .replace('"','').replace(":","")
+      fdate = self.FINAL.get().replace(" ","").replace("-","") \
+                                .replace('"','').replace(":","")
+      ofile = '%s-%s-%s.nc' % (self.BASIN.get().lower(),idate,fdate)
+      self.FILE.set(ofile)
+    else:
+      self.FILE.set(self.USER_FILE.get())
 
     return self.FILE.get()
 
@@ -413,7 +412,7 @@ class WinTracking():
     self.wop.grid(row=0,column=1,columnspan=2,padx=3,pady=3,sticky='w')
 
     tk.Label(self.Window_out,text='Output filename',font='bold').grid(row=1,column=0,padx=3,pady=3,sticky='w')
-    self.wof = tk.Entry(self.Window_out,textvariable=self.FILE,width=60)
+    self.wof = tk.Entry(self.Window_out,textvariable=self.USER_FILE,width=60)
     self.wof.grid(row=1,column=1,columnspan=2,padx=3,pady=3,sticky='w')
 
     ttk.Button(self.Window_out,text='Save',command=self.save).grid(row=2,column=2,padx=3,pady=3)
@@ -525,13 +524,6 @@ class WinTracking():
 
     # Get the output file:
     self.out()
-    #if empty(self.FILE.get()):
-    #   idate = self.INITIAL.get().replace(" ","").replace("-","") \
-    #                             .replace('"','').replace(":","")
-    #   fdate = self.FINAL.get().replace(" ","").replace("-","") \
-    #                             .replace('"','').replace(":","")
-    #   ofile = '%s-%s-%s.nc' % (self.BASIN.get().lower(),idate,fdate)
-    #   print(ofile)
     f.write(' -f %s' % self.FILE.get())
     f.write('\n')
     f.close()
