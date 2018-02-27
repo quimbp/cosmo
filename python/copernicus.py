@@ -354,6 +354,8 @@ class WinTracking():
     self.NORTH.set(self.BASIN_NORTH[self.BASIN_ID])
     self.ZMIN.set(self.BASIN_ZMIN[self.BASIN_ID])
     self.ZMAX.set(self.BASIN_ZMAX[self.BASIN_ID])
+    self.Rindex = 0
+    self.REGION.set(self.Rname[self.Rindex])
 
 
   def region(self):
