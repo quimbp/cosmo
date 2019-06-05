@@ -26,11 +26,12 @@ logical                                 :: cgrid = .false.
 logical                                 :: fdx   = .false.
 logical                                 :: fdy   = .false.
 logical                                 :: hlp   = .false.
+logical                                 :: fscal = .false.
 
 ! ...
 integer na,nx,ny,i,j,err,fid,idi,idj,idx,idy,idp,idu,idv
 integer idxp,idyp,idxu,idyu,idxv,idyv
-real(dp)  dx,dy
+real(dp)  dx,dy,Uscale
 real(dp), dimension(:), allocatable     :: x,y
 real(dp), dimension(:), allocatable     :: xu,yu
 real(dp), dimension(:), allocatable     :: xv,yv
@@ -51,6 +52,7 @@ call help_option('-A              ','Output in Arakawa A grid','A')
 call help_option('-C              ','Output in Arakawa C grid','')
 call help_option('-dx             DX','Zonal grid interval','0.1')
 call help_option('-dy             DY','Meridional grid interval','0.1')
+call help_option('-scale       SCALE','Velocity scale','1.0')
 call help_option ('--options  filename','To read the commandline options &
   &from a file.','')
 call help_option ('--help','To show this help','')
@@ -59,8 +61,9 @@ call help_example ('> streamline -C -o c_grid.nc')
 
 ! ... Default values:
 ! ...
-dx = 0.1
-dy = 0.1
+dx = 0.1_dp
+dy = 0.1_dp
+Uscale = 1.0_dp
 ofile = 'streamline.nc'
 
 ! ... Lineargs
@@ -81,6 +84,7 @@ call argflg('-A',agrid)
 call argflg('-C',cgrid)
 call argdbl('-dx',fdx,dx)
 call argdbl('-dy',fdy,dy)
+call argdbl('-scale',fscal,Uscale)
 
 if (agrid.and.cgrid) call stop_error(1,'Incompatible options -A and -C')
 agrid = .not.cgrid
@@ -118,8 +122,8 @@ if (agrid) then
   do i=1,nx
     ! u(i,j) = -half*(psifunc(x(i),y(j)+dy) - psifunc(x(i),y(j)-dy))/dy
     ! v(i,j) =  half*(psifunc(x(i)+dx,y(j)) - psifunc(x(i)-dx,y(j)))/dx
-      u(i,j) = -dpdy(x(i),y(j))
-      v(i,j) =  dpdx(x(i),y(j))
+      u(i,j) = -dpdy(x(i),y(j))*Uscale
+      v(i,j) =  dpdx(x(i),y(j))*Uscale
   enddo
   enddo
 
@@ -157,8 +161,8 @@ else
   do i=1,nx
     !u(i,j) = -half*(psifunc(xu(i),yu(j)+dy) - psifunc(xu(i),yu(j)-dy))/dy
     !v(i,j) =  half*(psifunc(xv(i)+dx,yv(j)) - psifunc(xv(i)-dx,yv(j)))/dx
-    u(i,j) = -dpdy(xu(i),yu(j))
-    v(i,j) =  dpdx(xv(i),yv(j))
+    u(i,j) = -dpdy(xu(i),yu(j))*Uscale
+    v(i,j) =  dpdx(xv(i),yv(j))*Uscale
   enddo
   enddo
 

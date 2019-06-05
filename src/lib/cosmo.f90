@@ -19,6 +19,7 @@ module cosmo
   use runge_kutta
   use dates
   use ocean
+  use geojson
 
   implicit none
 

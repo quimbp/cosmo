@@ -1,0 +1,131 @@
+- Comprobar unidades de longitudes al leer el fichero y tratarlas de la forma correcta según su unidad de medida
+
+- Comprobar unidades de latitudes al leer el fichero y tratarlas de la forma correcta según su unidad de medida
+
+- Comprobar qué campo lee en U y V, he puesto solo 3 dimensiones, así que no sé si está leyendo el primero o el último
+
+- Si U y V están en ficheros separados, comprobar que las latitudes, longitudes y tiempo coinciden. En caso contrario, reinterpolar todo a la misma malla.
+AHORA MISMO LO LEE TODO DEL FICHERO DE U
+
+- En el procedimiento ReadNetCDF(), mirar cómom definir
+ CHARACTER (len = maxlen)  :: attribute  !! to check unit of variables
+ para que sea un tamaño variable (ALLOCATABLE)
+
+-- Mira cómo hacer allocatable a la variable "arg" para asegurarme que no se deja nunca nada fuera, ahora la tengo con tamaño igual a MAXLEN
+
+-- Mirar cómo se inicializa el generador de números aleatorios que lleva el gfortran con RANDOM_SEED y RANDOM_NUMBER que he probado y no me toma el reloj de sistema, así que me quedo solo con la función ran() de Numerical Recipes in F90
+
+-- En el archivo de posiciones iniciales, MIRAR para qué coño es la cuarta columna, si no es para nada eliminarla y no crearla  en GenerateInitialPoints donde se escribe una columna de ceros al final
+
+- Hacer función para establecer las unidades temporales
+
+- Activar la opción -edt para decir cada cuánto tiempo se escriben las trayectorias, ahora mismo lo hago con el mismo paso que el Runge
+
+- Generalizar la utilización del tiempo para no hacer el chanchullo y utilize el vector de tiempos. En la función SetFactor comprueba que los intervalos de tiempo no cambian y selecciona el factor de conversión para pasar de m/s a m/fotico, así que tendrás que modificarla cuando generalices el uso del tiempo
+
+-- Revisar TOSCA-dev.f90 y TOSCA-dev-Jordi.f90 para ver las funciones que me faltan por recuperar para tenerlo todo junto.
+
+-- Revisar el motivo por el que no te deja poner como dinámica la variable para los argumentos de línea de comandos:
+  !CHARACTER(:), ALLOCATABLE :: arg   !! argumentos introducidos en línea de comandos
+  CHARACTER(len = MAXLEN) :: arg   !! argumentos introducidos en línea de comandos
+Casi siempre se va a tomar por saco cuando uso ALLOCATABLE
+
+
+-- IMPORTANTE, COMPROBAR que el fichero nc tiene al menos 4 foticos, ya que en caso contrario NO podemos hacer una interpolación bicúbica. Ahora falta elegir bilineal en este caso, para que haga algún cálculo
+
+--- IMPORTANTE: Ajustar el tiempo para que coincida con los rangos de la matriz, INICIALIZAR mivx,....., y lo que haga falta para que rule todo
+el tiempo se ajusta manualmente en AdvectaParticula (y al leer los datos)
+  DOUBLE PRECISION :: tiempoaux, tiempo1aux ! tiempos convertidos en el intervalo [time_I,time_F] ARREGLAR ESTE CHANCHULLO
+
+
+---- A ARREGLAR, que cuando no encuentre el scale factor o el offset, se de cuenta de que es el error -43 y lo ignore, lo mismo para el offset. Se puede ver el significado de los errores con:
+  PRINT*, NF90_STRERROR(status)
+
+-- A COMPROBAR, la variable paso se supone que es en segundos, así que comprobar que el tiempo se mide en segundos en la entrada y si no es así corregir el valor de la variable paso (paso entre dos puntos de una trayectoria simulada)
+
+-- GENERALIZAR la lectura del release.ini. Ahora mismo estoy pasando de la tercera columna (el tiempo de espera hasta lanzar la boya) y la cuarta columna, que no tengo ni idea de para qué es.
+
+
+OPCIONES de compilación para ajustarse a los estándares ISO:
+-std=std
+Specify the standard to which the program is expected to conform, which may be one of ‘f95’, ‘f2003’, ‘f2008’, ‘f2018’, ‘gnu’, or ‘legacy’. The default value for std is ‘gnu’, which specifies a superset of the latest Fortran standard that includes all of the extensions supported by GNU Fortran, although warnings will be given for obsolete extensions not recommended for use in new code. The ‘legacy’ value is equivalent but without the warnings for obsolete extensions, and may be useful for old non-standard programs. The ‘f95’, ‘f2003’, ‘f2008’, and ‘f2018’ values specify strict conformance to the Fortran 95, Fortran 2003, Fortran 2008 and Fortran 2018 standards, respectively; errors are given for all extensions beyond the relevant language standard, and warnings are given for the Fortran 77 features that are permitted but obsolescent in later standards. The deprecated option ‘-std=f2008ts’ acts as an alias for ‘-std=f2018’. It is only present for backwards compatibility with earlier gfortran versions and should not be used any more.
+
+
+
+gfortran -O3 -o prueba guarreo.f90 -fcheck=all -std=f2003 -pedantic -Wall -Wextra -I/usr/include -lnetcdff 
+
+
+
+
+******************* opciones de advertencias  ******************
+Errors are diagnostic messages that report that the GNU Fortran compiler cannot compile the relevant piece of source code. The compiler will continue to process the program in an attempt to report further errors to aid in debugging, but will not produce any compiled output.
+
+Warnings are diagnostic messages that report constructions which are not inherently erroneous but which are risky or suggest there is likely to be a bug in the program. Unless -Werror is specified, they do not prevent compilation of the program.
+
+You can request many specific warnings with options beginning -W, for example -Wimplicit to request warnings on implicit declarations. Each of these specific warning options also has a negative form beginning -Wno- to turn off warnings; for example, -Wno-implicit. This manual lists only one of the two forms, whichever is not the default.
+
+These options control the amount and kinds of errors and warnings produced by GNU Fortran:
+
+
+-Wpedantic
+-pedantic
+Issue warnings for uses of extensions to Fortran. -pedantic also applies to C-language constructs where they occur in GNU Fortran source files, such as use of ‘\e’ in a character constant within a directive like #include.
+
+Valid Fortran programs should compile properly with or without this option. However, without this option, certain GNU extensions and traditional Fortran features are supported as well. With this option, many of them are rejected.
+
+Some users try to use -pedantic to check programs for conformance. They soon find that it does not do quite what they want—it finds some nonstandard practices, but not all. However, improvements to GNU Fortran in this area are welcome.
+
+This should be used in conjunction with -std=f95, -std=f2003, -std=f2008 or -std=f2018.
+
+
+-Wall
+Enables commonly used warning options pertaining to usage that we recommend avoiding and that we believe are easy to avoid. This currently includes -Waliasing, -Wampersand, -Wconversion, -Wsurprising, -Wc-binding-type, -Wintrinsics-std, -Wtabs, -Wintrinsic-shadow, -Wline-truncation, -Wtarget-lifetime, -Winteger-division, -Wreal-q-constant, -Wunused and -Wundefined-do-loop.
+
+-Warray-temporaries
+Warn about array temporaries generated by the compiler. The information generated by this warning is sometimes useful in optimization, in order to avoid such temporaries.
+
+-Wcharacter-truncation
+Warn when a character assignment will truncate the assigned string.
+
+-Wconversion-extra
+Warn about implicit conversions between different types and kinds. This option does not imply -Wconversion.
+
+-Wextra
+Enables some warning options for usages of language features which may be problematic. This currently includes -Wcompare-reals, -Wunused-parameter and -Wdo-subscript.
+
+-Wfrontend-loop-interchange
+Enable warning for loop interchanges performed by the -ffrontend-loop-interchange option.
+
+-Wimplicit-interface
+Warn if a procedure is called without an explicit interface. Note this only checks that an explicit interface is present. It does not check that the declared interfaces are consistent across program units.
+
+-Wimplicit-procedure
+Warn if a procedure is called that has neither an explicit interface nor has been declared as EXTERNAL.
+
+-Wsurprising
+Produce a warning when “suspicious” code constructs are encountered. While technically legal these usually indicate that an error has been made.
+
+This currently produces a warning under the following circumstances:
+
+An INTEGER SELECT construct has a CASE that can never be matched as its lower value is greater than its upper value.
+A LOGICAL SELECT construct has three CASE statements.
+A TRANSFER specifies a source that is shorter than the destination.
+The type of a function result is declared more than once with the same type. If -pedantic or standard-conforming mode is enabled, this is an error.
+A CHARACTER variable is declared with negative length.
+
+
+-Wuse-without-only
+Warn if a USE statement has no ONLY qualifier and thus implicitly imports all public entities of the used module.
+
+-Wfunction-elimination
+Warn if any calls to functions are eliminated by the optimizations enabled by the -ffrontend-optimize option.
+
+-Wrealloc-lhs
+Warn when the compiler might insert code to for allocation or reallocation of an allocatable array variable of intrinsic type in intrinsic assignments. In hot loops, the Fortran 2003 reallocation feature may reduce the performance. If the array is already allocated with the correct shape, consider using a whole-array array-spec (e.g. (:,:,:)) for the variable on the left-hand side to prevent the reallocation check. Note that in some cases the warning is shown, even if the compiler will optimize reallocation checks away. For instance, when the right-hand side contains the same variable multiplied by a scalar. See also -frealloc-lhs.
+
+-Wrealloc-lhs-all
+Warn when the compiler inserts code to for allocation or reallocation of an allocatable variable; this includes scalars and derived types.
+
+
+-Werror
+Turns all warnings into errors.

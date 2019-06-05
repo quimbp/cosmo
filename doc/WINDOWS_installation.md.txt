@@ -1,0 +1,258 @@
+### Installing (Windows-10, [MSC v.1900 64 bit (AMD64)] on win32)
+
+The basic steps are summarised as follows: 
+
+  i) Download and install **Anaconda Python**
+ ii) Download **cosmo** into a working folder.
+iii) Download and install **CyGwin** with FORTRAN compiler and netCDF library. 
+ iv) Compile the FORTRAN codes
+  v) Optimize ANACONDA distribution
+ vi) Install **cosmo modules**
+
+The following instructions are valid to proceed with the available versions executed in 07/2018. The package is based
+on using **cygwin** ([https://www.cygwin.com/](https://www.cygwin.com/)) and **Anaconda** ([https://anaconda.org/](https://anaconda.org/)) 
+distribution of **Pyhton** ([https://www.python.org/](https://www.python.org/)).
+
+#### 1) Download cosmo
+
+The best choice is to unzip the cosmo package (zip or tar file) into the main user folder:
+
+```C:\Users\yomismo\cosmo```
+
+   where "yomismo" is your username in the Windows system.
+
+#### 2) Download and install Anaconda-Pyhton
+
+Tests have been done with the following product (about 15-20 minutes installation):
+
+  * URL: [https://www.anaconda.com/download/](https://www.anaconda.com/download/)
+  * Installer: Version 5.2.0,  Release Date: May 30, 2018
+  * Python: 3.6.5
+
+The procedure downloads first an executable installer that performs both 
+downloading and installation of all standard packages. 
+
+**IMPORTANT: if the installer ask you for a "personal" or "All users" installation choose the later**
+
+
+#### 3) Download and install CYGWIN to compile FORTRAN codes and link netCDF libraries. 
+
+  * URL: [https://www.cygwin.com/](https://www.cygwin.com/)
+  * Installer: Version 2.891 (64 bit) ([https://www.cygwin.com/setup-x86_64.exe](https://www.cygwin.com/setup-x86_64.exe))
+
+   1. Download and run the installer with all default actions/choices. This first step needs to identify 
+the installation folder, the multiuser vs single user option and the intermediate downloading folder.
+
+    * Concerning the multiuser vs single user selection mark "All Users" option
+    * Concerning the folder installation, the installer proposes by default (recommended) the following folder: 
+```C:\cygwin64```
+    * Downloading folder is used as a temporary folder to install but also serves to store the installer/updater. This should be not removed if you want to install more tools in the future. 
+    * In the selection page shoose to continue to the next step and it will install a minimal installation. This will take 
+After the installation basically you will have an icon ![alt text][cglogo] in your Desktop which points to a Cygwin terminal. 
+When clicking on it you will see a typical DOS console or Unix terminal:
+	
+	![alt text][cygwinterminal]
+
+[cglogo]: http://www.sharetechnote.com/image/Linux_Cygwin_Icon_01.png
+[cygwinterminal]: http://www.sharetechnote.com/image/Linux_Cygwin_Test_01.png
+
+   2. Then re-run the "setup-x86_64" program again but go directly to the package selection page, select the "Full" option in the "view" entry (up-left corner):
+	
+        * Write "make" in the "Search" field and choose "make: the GNU version of the 'make' utility"
+        * Write "gcc-fortran" in the "Search" field and choose "gcc-fortran: GNU compiler Collection (Fortran)"
+        * Write "libnetcdf-fortran" in the "Search" field and choose "libnetcdf-fortran-devel: Fortran (Network Common Data Form) (development)
+	
+    * Press the next button to install such libraries
+	
+   3. In order to test the complete installation. Open a cygwin window:
+	
+    * type "make -v" the result should be something similar to
+```
+GNU Make 4.2.1
+Este programa fue construido para x86_64-unknown-cygwin
+Copyright (C) 1988-2016 Free Software Foundation, Inc.
+Licencia GPLv3+: GNU GPL versión 3 o posterior <http://gnu.org/licenses/gpl.html>
+Este es software libre: cualquiera es libre para redistribuirlo y modificarlo.
+No existe GARANTÍA ALGUNA, hasta los límites permitidos por las leyes aplicables.
+```
+   * type "gfortran -v" the result should be something similar to
+```
+Usando especificaciones internas.
+COLLECT_GCC=gfortran
+COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-pc-cygwin/7.3.0/lto-wrapper.exe
+Objetivo: x86_64-pc-cygwin
+Configurado con: /cygdrive/i/szsz/tmpp/gcc/gcc-7.3.0-3.x86_64/src/gcc-7.3.0/configure --srcdir=/cygdrive/i/szsz/tmpp/gcc/gcc-7.3.0-3.x86_64/src/gcc-7.3.0 --prefix=/usr --exec-prix=/usr --localstatedir=/var --sysconfdir=/etc --docdir=/usr/share/doc/gcc --htmldir=/usr/share/doc/gcc/html -C --build=x86_64-pc-cygwin --host=x86_64-pc-cygwin --target=x86_64--cygwin --without-libiconv-prefix --without-libintl-prefix --libexecdir=/usr/lib --enable-shared --enable-shared-libgcc --enable-static --enable-version-specific-runtime-libs --able-bootstrap --enable-__cxa_atexit --with-dwarf2 --with-tune=generic --enable-languages=ada,c,c++,fortran,lto,objc,obj-c++ --enable-graphite --enable-threads=posix --enable-litomic --enable-libcilkrts --enable-libgomp --enable-libitm --enable-libquadmath --enable-libquadmath-support --disable-libssp --enable-libada --disable-symvers --with-gnu-ld --wh-gnu-as --with-cloog-include=/usr/include/cloog-isl --without-libiconv-prefix --without-libintl-prefix --with-system-zlib --enable-linker-build-id --with-default-libstdcxx-abi=c4-compatible --enable-libstdcxx-filesystem-ts
+Modelo de hilos: posix
+gcc versión 7.3.0 (GCC)
+```
+   * type  "ls /lib/libnetcdf*" then you will see something as:
+```
+/lib/libnetcdf.dll.a  /lib/libnetcdf.settings  /lib/libnetcdff.dll.a
+```
+
+
+#### 4) Compiling FORTRAN code
+
+To compile the lagrangian models that come with the distribution follow the next steps:
+
+1) Open a Cygwin Terminal: This will open a console that is located by default in the subfolder:
+```
+C:\cygwin64\home\yomismo
+```
+where "yomismo" is your username in the system.
+ 
+2) Then you must go where your **cosmo** distribution is by writing the following command. If you have unzip the **cosmo** as in the step 1) then you just have to type:
+```
+$ cd /cygdrive/c/Users/yomismo/cosmo
+```
+
+3) Configure the ```C:\Users\yomismo\cosmo\make.inc``` file. This can be done in two ways: i) using the "vi" editor. If you are Linux user you must know how to do from 
+Cygwin console, just type "vi make.inc" or ii) opening a "Mis Documents" folder and go to cosmo folder and edit "make.inc" with any text editor notebook, wordpad o 
+even the word editor saving it as "txt" or "ascii "option not "word" document. 
+
+Whithin "make.inc" You need to modify the path of the ```COSMO``` variable and the path pointing to FORTRAN and netCDF libraries. Basically if you have used the options 
+by default indicated before you just need edit/modify or uncomment the following three lines (removing the #):
+```
+COSMO=/cygdrive/c/Users/yomismo/cosmo
+.
+.
+.
+NF90_INC = /usr/include/
+NF90_LIB = /usr/lib/
+.
+.
+```
+4) Go into the Cygwin Terminal and execute the ```make``` command typing:
+
+```$ make```
+
+5) Fix the Anaconda PATH. Just close the Cygwin Terminal and open an ANACONDA 
+Console. Then type
+```
+C:\Users\yomismo> cd cosmo
+C:\Users\yomismo\cosmo> set PATH=%PATH%C:\cygwin64\bin
+```
+that's all. You may test if the FORTRAN codes run appropriately by typing:
+```
+C:\Users\yomismo\cosmo> cd bin
+C:\Users\yomismo\cosmo\bin> blm.exe --help
+```
+
+#### 5) Optimize ANACONDA Python distribution
+
+Now we proceed to optimize some Python modules needed by the **cosmo** software. Basically here is the list of
+the Python modules needed by **cosmo** and whether they are already present in the default installation of 
+Anaconda:
+
+```
+sys ................. (Yes)
+os .................. (Yes)
+json ................ (Yes)
+io .................. (Yes)
+tkinter ............. (Yes)
+PIL ................. (Yes)
+matplotlib .......... (Yes)
+math ................ (Yes)
+numpy ............... (Yes)
+numpy.ma ............ (Yes)
+scipy ............... (Yes)
+datetime ............ (Yes)
+dateutil.parser ..... (Yes)
+calendar ............ (Yes)
+requests ............ (Yes)
+
+psycopg2 ............ (Not)
+tkcolorpicker ....... (Not)
+wget ................ (Not)
+mpl_toolkits.basemap  (Not)
+netCDF4 ............. (Not)
+```
+
+In order to implement the absent python packages it is important **to proceed with the Anaconda
+Console executed with administrative privileges***. To do that just choose to open the 
+"Anaconda Prompt" comming in the Programs menu of your desktop and by clicking "the mouse right button" choose 
+"Execute as Administrator". The console now appears prompting  
+```
+(base) C:\WINDOWS\system32>
+```
+
+Then install:
+
+* **mpl_toolkits.basemap**: The Basemap is a module comming by default but with an old version and an update is necessary. When trying
+to install it with the ```conda``` command and the standard channel there appear conflicts with the present package distribution, In order to upgrade the Basemap, just type:
+```
+C:\WINDOWS\system32> conda install -c conda-forge basemap
+``` 
+this intalls basemap 1.1.0.
+
+* **netcdf4**: Type
+```
+C:\WINDOWS\system32> conda install -c anaconda netCDF4
+```
+this intalls netcdf4-1.4.1
+
+* **psycopg2**: Type
+```
+C:\WINDOWS\system32> conda install -c anaconda psycopg2
+```
+this intalls psycopg2-2.7.5
+
+* **wget**: This package does not come with the default installation and is not present in the Anaconda channels. Just type
+```
+C:\WINDOWS\system32> pip install wget
+```
+
+* **tkcolorpicker**: This package does not come with the default installationa and is not present in the Anaconda channels. Just type
+
+```C:\WINDOWS\system32> pip install tkcolorpicker```
+
+Close the Anaconda console.
+
+#### 6) Preparing **cosmo**
+Open and edit the file **C:\Users\ICM\cosmo\modules\cosmo\__init__py** and then modfify line 13
+```
+COSMO_ROOT=""
+```
+by 
+```
+COSMO_ROOT="c:/Users/ICM/cosmo"
+```
+and save.
+
+#### 7) Installing **cosmo**
+On an Anaconda console and go to
+
+```
+C:\Users\yomismo> cd cosmo/modules
+```
+and type:
+```
+C:\Users\yomismo\cosmo\modules> python setup.py sdist
+C:\Users\yomismo\cosmo\modules> python setup.py install
+```
+This installs the module "COSMO". You can verify the correct installation typing
+```
+C:\Users\yomismo\cosmo\modules> conda list
+```
+and look to see the following lines
+```
+	.
+	.
+	contextlib2               0.5.5            py36he5d52c0_0
+	COSMO                     1.0                       <pip>
+	cryptography              2.2.2            py36hfa6e2cd_0
+	.
+	.
+```
+That's all !!.
+
+#### 8) Start cosmo-view
+Open an Anaconda console and go to
+```
+C:\Users\yomismo> cd cosmo/bin
+```
+and type
+```
+C:\Users\yomismo\cosmo\bin
+C:\Users\yomismo\cosmo\bin> python cosmo-view
+```

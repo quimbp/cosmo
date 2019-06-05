@@ -14,7 +14,7 @@ private
 public compress,lowercase,line_word,menu,numlines,now,numwords, &
        stop_error,strcat,unitfree,uppercase,say,whitechar, &
        coords2index,index2coords,locate,filetype,mkdir, newfilename, &
-       get_commandline,line_replace,token_read
+       get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr
 
 contains
 ! ...
@@ -217,8 +217,9 @@ character(len=*), intent(out)   :: commandline
 integer i
 character(len=280) word
 
-commandline = ''
-do i=0,iargc()
+call getarg(0,word)
+commandline = trim(word)
+do i=1,iargc()
   word = ''
   call getarg(i,word)
   commandline = trim(commandline)//' '//trim(adjustl(word))
@@ -756,6 +757,127 @@ else if (trim(ans).eq.'NONE') then
 endif
 
 end function token_read
+! ...
+! =====================================================================
+! ...
+pure function rangestr(nmax,k) result(a)
+
+implicit none
+
+integer, intent(in)                    :: nmax,k
+character(len=:), allocatable          :: a
+
+integer i
+character(len=180) fmt,aa
+
+i = log10(1.0_dp*nmax) + 1
+write(fmt,'("(I",I5,".",I5,")")') i,i
+fmt = line_replace(fmt,' ','',-1)
+
+write(aa,fmt) k
+a = trim(aa)
+
+return
+end function rangestr
+! ...
+! =====================================================================
+! ...
+function i2str(f,fmt) result(a)
+
+implicit none
+
+integer, intent(in)                    :: f
+character(len=*), intent(in), optional :: fmt
+character(len=:), allocatable          :: a
+
+integer i,io
+character(len=180) aa
+character(len=180) lfmt 
+
+if (present(fmt)) then
+  lfmt = '('//trim(fmt)//')'
+  
+  write(aa,lfmt) f
+else
+  write(aa,*) f
+  aa = compress(aa)
+endif
+a = trim(aa)
+
+end function i2str
+! ...
+! =====================================================================
+! ...
+function f2str(f,fmt) result(a)
+
+implicit none
+
+real(dp), intent(in)                   :: f
+character(len=*), intent(in), optional :: fmt
+character(len=:), allocatable          :: a
+
+integer i,io
+character(len=180) aa
+character(len=180) lfmt 
+
+if (present(fmt)) then
+  lfmt = '('//trim(fmt)//')'
+  
+  write(aa,lfmt) f
+else
+  write(aa,*) f
+  ! ... Trim decimal zeroes
+  ! ...
+  io = index(aa,'.') + 2
+  do i=len(trim(aa)),io,-1
+    if (aa(i:i).eq.'0') then
+      aa(i:i) = ' '
+    else
+      exit
+    endif
+  enddo
+endif
+a = trim(aa)
+
+end function f2str
+! ...
+! =========================================================================
+! ...
+function ff2str (ff,fmt) result (a)
+
+implicit none
+
+real(dp), dimension(:), intent(in)     :: ff
+character(len=*), intent(in), optional :: fmt
+character(len=:), allocatable          :: a
+
+integer i,io
+real(dp) f
+character(len=18000) aa
+
+if (present(fmt)) then
+  do i=1,size(ff)
+    if (i.eq.1) then
+      aa = '[' // compress(f2str(ff(i),fmt))
+    else
+      aa = trim(aa) // ', ' // compress(f2str(ff(i),fmt))
+    endif
+  enddo
+  aa = trim(aa) // ']'
+else
+  do i=1,size(ff)
+    if (i.eq.1) then
+      aa = '[' // compress(f2str(ff(i)))
+    else
+      aa = trim(aa) // ', ' // compress(f2str(ff(i)))
+    endif
+  enddo
+  aa = trim(aa) // ']'
+endif
+
+a = trim(aa)
+
+end function ff2str
 ! ...
 ! =====================================================================
 ! ...

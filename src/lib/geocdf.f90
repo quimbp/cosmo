@@ -193,6 +193,9 @@ do var=1,fnvars
   
 enddo
 
+err = 0
+return
+
 end subroutine gcdf_open
 ! ...
 ! ======================================================================
@@ -467,7 +470,7 @@ subroutine gcdf_varnames(verb,ifile,cdf,err)
 
 LOGICAL, INTENT(in)                        :: verb
 character(LEN=*), INTENT(in)               :: ifile
-TYPE(gcdf), INTENT(out)                    :: cdf
+TYPE(gcdf), INTENT(inout)                  :: cdf
 integer, INTENT(out)                       :: err
 
 LOGICAL fdi,fdj,fdk,fdl,fvx,fvy,fvz,fvt,nemo
@@ -502,52 +505,34 @@ if (nemo) then
   cdf%yname = 'nav_lat'
   cdf%zname = 'deptht'
   cdf%tname = 'time_counter'
+  return
 else
+  ! ... Overwrite any variable name by a user-specified name
+  ! ...
+  call argstr('-iname',fdi,cdf%iname)
+  call argstr('-jname',fdj,cdf%jname)
+  call argstr('-kname',fdk,cdf%kname)
+  call argstr('-lname',fdl,cdf%lname)
+  call argstr('-xname',fvx,cdf%xname)
+  call argstr('-yname',fvy,cdf%yname)
+  call argstr('-zname',fvz,cdf%zname)
+  call argstr('-tname',fvt,cdf%tname)
+endif
 
-  if (len_trim(cdf%iname).gt.0) return
-  if (len_trim(cdf%jname).gt.0) return
-  if (len_trim(cdf%kname).gt.0) return
-  if (len_trim(cdf%lname).gt.0) return
-  if (len_trim(cdf%xname).gt.0) return
-  if (len_trim(cdf%yname).gt.0) return
-  if (len_trim(cdf%zname).gt.0) return
-  if (len_trim(cdf%tname).gt.0) return
+! ... Check file contents
+! ... 
+err = NF90_OPEN(ifile,NF90_NOWRITE,fid)
+call cdf_error (err,'Unable to open file')
 
-  ! ... Check file contents
-  ! ... 
-  err = NF90_OPEN(ifile,NF90_NOWRITE,fid)
-  call cdf_error (err,'Unable to open file')
+err = NF90_INQUIRE (fid,ndims,nvars,natts,unlimid)
+call cdf_error (err,'Unable to inquire file')
 
-  err = NF90_INQUIRE (fid,ndims,nvars,natts,unlimid)
-  call cdf_error (err,'Unable to inquire file')
 
-  idi = -1; idj = -1; idk = -1; idl = -1
-  do dim=1,ndims
-    word = ''
-    err  = NF90_INQUIRE_DIMENSION (fid,dim,name=word)
-    word = uppercase (word)
-    if (word(1:1).eq.'X')   idi = dim
-    if (word(1:3).eq.'LON') idi = dim
-    if (word(1:2).eq.'NX')  idi = dim
-    if (word(1:3).eq.'COL') idi = dim
-    if (word(1:1).eq.'Y')   idj = dim
-    if (word(1:3).eq.'LAT') idj = dim
-    if (word(1:2).eq.'NY')  idj = dim
-    if (word(1:3).eq.'ROW') idj = dim
-    if (word(1:1).eq.'Z')   idk = dim
-    if (word(1:3).eq.'DEP') idk = dim
-    if (word(1:2).eq.'NZ')  idk = dim
-    if (word(1:1).eq.'T')   idl = dim
-    if (word(1:3).eq.'TIM') idl = dim
-    if (word(1:2).eq.'NT')  idl = dim
-    if (index(word,'TIME').GT.0) idl = dim
-  enddo
-  if (idi.GT.0) err = NF90_INQUIRE_DIMENSION (fid,idi,name=cdf%iname)
-  if (idj.GT.0) err = NF90_INQUIRE_DIMENSION (fid,idj,name=cdf%jname)
-  if (idk.GT.0) err = NF90_INQUIRE_DIMENSION (fid,idk,name=cdf%kname)
-  if (idl.GT.0) err = NF90_INQUIRE_DIMENSION (fid,idl,name=cdf%lname)
-
-  idx = -1; idy = -1; idz = -1; idt = -1
+idx = -1
+if (len_trim(cdf%xname).gt.0) then
+  err = NF90_INQ_VARID(fid,cdf%xname,idx)
+  call cdf_error(err,'Variable '//trim(cdf%xname)//' not found')
+else
   do var=1,nvars
     word = ''
     err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
@@ -555,43 +540,97 @@ else
     if (idx.LT.0.AND.word(1:1).eq.'X')       idx = var
     if (idx.LT.0.AND.word(1:3).eq.'LON')     idx = var
     if (idx.LT.0.AND.word(1:7).eq.'NAV_LON') idx = var
+  enddo
+  if (idx.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idx,name=cdf%xname)
+endif
+if (idx.gt.0) then
+  err = NF90_INQUIRE_VARIABLE (fid,idx,ndims=ndims,dimids=dimids)
+  call cdf_error(err,'Error inquiring lon variable')
+  if (ndims.eq.1) then
+    err = NF90_INQUIRE_DIMENSION(fid,dimids(1),name=cdf%iname)
+   call cdf_error(err,'Error inquiring dimension')
+  else
+    call stop_error(1,'software not yet ready to use irregular grids')
+  endif
+endif
 
+idy = -1
+if (len_trim(cdf%yname).gt.0) then
+  err = NF90_INQ_VARID(fid,cdf%yname,idy)
+  call cdf_error(err,'Variable '//trim(cdf%yname)//' not found')
+else
+  do var=1,nvars
+    word = ''
+    err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+    word = uppercase(word)
     if (idy.LT.0.AND.word(1:1).eq.'Y')       idy = var
     if (idy.LT.0.AND.word(1:3).eq.'LAT')     idy = var
     if (idy.LT.0.AND.word(1:7).eq.'NAV_LAT') idy = var
-
-    if (idz.LT.0.AND.word(1:1).eq.'Z') then
-      if (ndims.eq.1.AND.dimids(1).eq.idk)   idz = var
-    endif
-    if (idz.LT.0.AND.word(1:3).eq.'DEP') then
-      if (ndims.eq.1.AND.dimids(1).eq.idk)   idz = var
-    endif
-
-    if (idt.LT.0.AND.word(1:1).eq.'T') then
-      if (ndims.eq.1.AND.dimids(1).eq.idl)   idt = var
-    endif
-    if (index(word,'TIME').GT.0)             idt = var
   enddo
-
-  if (idx.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idx,name=cdf%xname)
   if (idy.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idy,name=cdf%yname)
-  if (idz.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idz,name=cdf%zname)
-  if (idt.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idt,name=cdf%tname)
-
-  err = NF90_CLOSE(fid)
-
+endif
+if (idy.gt.0) then
+  err = NF90_INQUIRE_VARIABLE (fid,idy,ndims=ndims,dimids=dimids)
+  call cdf_error(err,'Error inquiring lat variable')
+  if (ndims.eq.1) then
+    err = NF90_INQUIRE_DIMENSION(fid,dimids(1),name=cdf%jname)
+   call cdf_error(err,'Error inquiring dimension')
+  else
+    call stop_error(1,'software not yet ready to use irregular grids')
+  endif
 endif
 
-! ... Finally, overwrite any variable name by a user-specified name
-! ...
-call argstr('-iname',fdi,cdf%iname)
-call argstr('-jname',fdj,cdf%jname)
-call argstr('-kname',fdk,cdf%kname)
-call argstr('-lname',fdl,cdf%lname)
-call argstr('-xname',fvx,cdf%xname)
-call argstr('-yname',fvy,cdf%yname)
-call argstr('-zname',fvz,cdf%zname)
-call argstr('-tname',fvt,cdf%tname)
+idz = -1
+if (len_trim(cdf%zname).gt.0) then
+  err = NF90_INQ_VARID(fid,cdf%zname,idz)
+  call cdf_error(err,'Variable '//trim(cdf%zname)//' not found')
+else
+  do var=1,nvars
+    word = ''
+    err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+    word = uppercase(word)
+    if (idz.LT.0.AND.word(1:1).eq.'Z')       idz = var
+    if (idz.LT.0.AND.word(1:3).eq.'DEP')     idz = var
+  enddo
+  if (idz.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idz,name=cdf%zname)
+endif
+if (idz.gt.0) then
+  err = NF90_INQUIRE_VARIABLE (fid,idz,ndims=ndims,dimids=dimids)
+  call cdf_error(err,'Error inquiring depth variable')
+  if (ndims.eq.1) then
+    err = NF90_INQUIRE_DIMENSION(fid,dimids(1),name=cdf%kname)
+   call cdf_error(err,'Error inquiring dimension')
+  else
+    call stop_error(1,'Error: Only one depth dimenion allowed')
+  endif
+endif
+
+
+
+idt = -1
+if (len_trim(cdf%tname).gt.0) then
+  err = NF90_INQ_VARID(fid,cdf%tname,idt)
+  call cdf_error(err,'Variable '//trim(cdf%tname)//' not found')
+else
+  do var=1,nvars
+    word = ''
+    err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+    word = uppercase(word)
+    if (idt.LT.0.AND.word(1:1).eq.'T')       idt = var
+    if (index(word,'TIME').GT.0)             idt = var
+  enddo
+  if (idt.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idt,name=cdf%tname)
+endif
+if (idt.gt.0) then
+  err = NF90_INQUIRE_VARIABLE (fid,idt,ndims=ndims,dimids=dimids)
+  call cdf_error(err,'Error inquiring time variable')
+  if (ndims.eq.1) then
+    err = NF90_INQUIRE_DIMENSION(fid,dimids(1),name=cdf%lname)
+   call cdf_error(err,'Error inquiring dimension')
+  else
+    call stop_error(1,'Error: Only one time dimenion allowed')
+  endif
+endif
 
 if (verb) then
   write(*,*) 'Dimension names :'
@@ -605,8 +644,6 @@ if (verb) then
   write(*,*) 'zname = ', trim(cdf%zname)
   write(*,*) 'tname = ', trim(cdf%tname)
 endif
-
-return
 
 end subroutine gcdf_varnames
 ! ...

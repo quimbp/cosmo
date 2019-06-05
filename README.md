@@ -77,12 +77,6 @@ $ python3 cosmo-view.py
 
 A detailed User Documentation will be uploaded shortly.
 
-## Bathymetric data
-
-Bathymetric contours can be downloaded from: https://nuvol.cmima.csic.es/owncloud/s/W6NRpTaUjGXpyS4
-Unzip this file at the cosmo folder. It will create (if necessary) the forlders data and data/isobaths
-
-
 ## Authors
 
 * **Joaquim Ballabrera** (*ICM/CSIC*) E-mail: joaquim@icm.csic.es

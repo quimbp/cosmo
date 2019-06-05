@@ -17,15 +17,19 @@
 # NF90_LIB = Path to the  NetCDF Fortran 90 libraries
 # 
 
-COSMO = $(HOME)/cosmo
+COSMO = /home/joaquim/projects/cosmo
+
+PYTHON2 = /bin/python
+PYTHON3 = /bin/python3
 
 FC = gfortran
 FFLAGS = -O4 -fno-range-check -finit-real=nan -finit-integer=0 -finit-character=0 -finit-logical=false 
 INSTALL = install
 AR = ar cq
 
-NF90_INC = /usr/lib64/gfortran/modules/
-NF90_LIB = /usr/lib64/
+# CENTOS
+NF90_INC = /usr/include/
+NF90_LIB = /usr/lib/i386-linux-gnu/
 
 # Folders where files are going to be installed
 #

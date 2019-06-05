@@ -12,10 +12,16 @@ use types, only: sp,dp
 implicit none
 
 private
+public True,False
 public pi,e_,nan,inf,deg2rad,rad2deg,i_,dpi,hpi
-public zero,one,half,two,ten,hundred
+public zero,one,half,quarter,two,ten,hundred
 public nan4,inf4
 public grav,Rearth,Omega
+
+! ... Logical constants
+! ...
+logical, parameter     :: True    = .true.
+logical, parameter     :: False   = .false.
 
 ! ... Mathematical constants
 ! ...
@@ -23,6 +29,7 @@ real(dp), parameter    :: zero    = 0.0_dp
 real(dp), parameter    :: one     = 1.0_dp
 real(dp), parameter    :: two     = 2.0_dp
 real(dp), parameter    :: half    = 0.5_dp
+real(dp), parameter    :: quarter = 0.25_dp
 real(dp), parameter    :: ten     = 10.0_dp
 real(dp), parameter    :: hundred = 100.0_dp
 real(dp), parameter    :: pi      = 3.1415926535897932384626433832795_dp

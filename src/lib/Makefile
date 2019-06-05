@@ -3,9 +3,10 @@ include ../../make.inc
 TARGET = $(LIBDIR)/libcosmo.a
 INC = $(CDFINC) -I$(INCDIR)
 
+FFLAGS = -fno-range-check  -fbounds-check
 all: cosmo
 OBJ = types.o constants.o utils.o lineargs.o help.o dates.o cdf.o geocdf.o \
-      runge_kutta.o math.o lorenz.o ocean.o cosmo.o
+      runge_kutta.o math.o lorenz.o ocean.o geojson.o cosmo.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< $(INC)

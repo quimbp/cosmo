@@ -9,11 +9,13 @@
 module math
 
 use types, only: dp
-use constants, only: zero,one,nan
+use constants, only: zero,one,two,nan,half,Rearth,deg2rad
+use utils, only: locate,stop_error
 
 implicit none
 private
-public identity,akima,dakima,arange,mean,indexx
+public identity,akima,dakima,arange,mean,indexx,interplin,haversine
+public d_interpol
 !public norm2
 
 interface akima
@@ -21,6 +23,38 @@ interface akima
 end interface akima
 
 contains
+! ...
+! =============================================================================
+! ...
+function interplin (x,f,xx) result(ff)
+
+real(dp), dimension(:), intent(in)  :: x,f
+real(dp), intent(in)                :: xx
+real(dp)                            :: ff
+
+! ... Local variables
+! ...
+integer i
+
+
+ff = nan
+if (size(x).ne.size(f)) call stop_error(1,'Error interplin: Incompatible sizes')
+if (size(x).le.1) call stop_error(1,'Error interplin: N must be > 1')
+
+if (abs(xx-x(1)).lt.1d-5*abs(x(2)-x(1))) then
+  ff = f(1)
+  return
+endif
+
+i = locate(x,xx)
+if (i.lt.1.or.i.ge.size(x)) then
+  ff = nan
+  return
+endif
+
+ff = f(i) + (f(i+1)-f(i))*(xx-x(i))/(x(i+1)-x(i))
+
+end function interplin
 ! ...
 ! =============================================================================
 ! ...
@@ -345,6 +379,85 @@ end function mean
       goto 1
       end subroutine indexx
 !  (C) Copr. 1986-92 Numerical Recipes Software *5sV1.
+! ...
+! =============================================================================
+! ...
+! ************************************************************************
+! ... haversine.f90
+! ... Quim Ballabrera, May 2015
+! ...
+! ... Calculates the great circle distance using the haversine distance
+! ...  6371.0 km is the authalic radius based on/extracted from surface area;
+! ...  6372.8 km is an approximation of the radius of the average circumference
+! ...   (i.e., the average great-elliptic or great-circle radius), where the
+! ...   boundaries are the meridian (6367.45 km) and the equator (6378.14 km).
+! ...
+! ************************************************************************
+
+real(dp) pure function haversine (x1,y1,x2,y2)
+
+implicit none
+
+real(dp), intent(in)          :: x1, y1
+real(dp), intent(in)          :: x2, y2
+
+! ... Local variables
+! ...
+real(dp) lam1,lam2,phi1,phi2
+real(dp) dlam,dphi
+real(dp) SINPHI,SINLAM,a,c
+
+phi1 = deg2rad * y1
+phi2 = deg2rad * y2
+dphi = deg2rad * (y2 - y1)
+dlam = deg2rad * (x2 - x1)
+
+SINPHI = sin(half*dphi)
+SINLAM = sin(half*dlam)
+
+a = SINPHI*SINPHI + cos(phi1)*cos(phi2)*SINLAM*SINLAM
+c = two * asin(sqrt(a))
+haversine = Rearth * c
+
+end function haversine
+
+! ...
+! =============================================================================
+! ...
+real(dp) function d_interpol (d,f)
+
+implicit none
+
+real(dp), dimension(:), intent(in)     :: d
+real(dp), dimension(:), intent(in)     :: f
+
+! ... Local variables
+! ...
+integer                                :: n,i,j
+real(dp), dimension(size(d))           :: a
+real(dp)                               :: dc,sw
+
+dc = 1.0D-7 * mean(d)
+
+do i=1,n
+  if (d(i).lt.dc) then
+    d_interpol = f(i)
+    return
+  endif
+enddo
+
+do i=1,n
+  sw = zero
+  do j=1,n
+    if (j.ne.i) sw = sw + d(i)/d(j)
+  enddo
+  a(i) = one / (one + sw)
+enddo
+
+d_interpol = dot_product(a,f)
+
+end function d_interpol
+
 ! ...
 ! =============================================================================
 ! ...

@@ -1,0 +1,80 @@
+# Sistema Operativo
+SCBL049:Cosmo Emma$ sw_vers
+ProductName:    Mac OS X
+ProductVersion:    10.11.6
+BuildVersion:    15G1510
+# Versión gfotran
+SCBL049:Cosmo Emma$ gfortran -v
+Using built-in specs.
+COLLECT_GCC=gfortran
+COLLECT_LTO_WRAPPER=/usr/local/Cellar/gcc/8.2.0/libexec/gcc/x86_64-apple-darwin15.6.0/8.2.0/lto-wrapper
+Target: x86_64-apple-darwin15.6.0
+Configured with: ../configure --build=x86_64-apple-darwin15.6.0 --prefix=/usr/local/Cellar/gcc/8.2.0 --libdir=/usr/local/Cellar/gcc/8.2.0/lib/gcc/8 --enable-languages=c,c++,objc,obj-c++,fortran --program-suffix=-8 --with-gmp=/usr/local/opt/gmp --with-mpfr=/usr/local/opt/mpfr --with-mpc=/usr/local/opt/libmpc --with-isl=/usr/local/opt/isl --with-system-zlib --enable-checking=release --with-pkgversion='Homebrew GCC 8.2.0' --with-bugurl=https://github.com/Homebrew/homebrew-core/issues --disable-nls
+Thread model: posix
+gcc version 8.2.0 (Homebrew GCC 8.2.0)
+# Versión librerías netcdf
+SCBL049:bin Emma$ ./nc-config --all
+This netCDF 4.6.1 has been built with the following features:
+  --cc        -> /usr/local/Homebrew/Library/Homebrew/shims/super/clang
+  --cflags    -> -I/usr/local/Cellar/netcdf/4.6.1_2/include
+  --libs      -> -L/usr/local/Cellar/netcdf/4.6.1_2/lib -lnetcdf -lhdf5_hl -lhdf5 -lsz -lz -ldl -lm -lcurl
+  --has-c++   -> no
+  --cxx       ->
+  --has-c++4  -> no
+  --cxx4      ->
+  --has-fortran-> yes
+  --fc        -> nf-config not yet implemented for cmake builds
+  --fflags    -> nf-config not yet implemented for cmake builds
+  --flibs     -> nf-config not yet implemented for cmake builds
+  --has-f90   -> nf-config not yet implemented for cmake builds
+  --has-f03   -> nf-config not yet implemented for cmake builds
+  --has-dap   -> yes
+  --has-dap2  -> yes
+  --has-dap4  -> yes
+  --has-nc2   -> yes
+  --has-nc4   -> yes
+  --has-hdf5  -> yes
+  --has-hdf4  -> no
+  --has-logging-> no
+  --has-pnetcdf-> no
+  --has-szlib -> no
+  --has-cdf5 -> no
+  --has-parallel-> no
+  --prefix    -> /usr/local/Cellar/netcdf/4.6.1_2
+  --includedir-> /usr/local/Cellar/netcdf/4.6.1_2/include
+  --libdir    -> /usr/local/Cellar/netcdf/4.6.1_2/lib
+  --version   -> netCDF 4.6.1
+---
+La invocación de "make"  me dio dos errores (en diferences ejecuciones): 
+1) Error 1
+......
+use netcdf
+    1
+Fatal Error: Can't open module file 'netcdf.mod' for reading at (1): No such file or directory
+compilation terminated.
+make[1]: *** [cdf.o] Error 1
+make: *** [COSMO] Error 2
+
+1>> Solución: hice un "brew update" y "brew upgrade" y reconstruí netcdf, netcdf-cxx y netcdf-fortran
+> brew update
+> brew upgrade
+
+2) Error 2
+...
+ld: symbol(s) not found for architecture x86_64
+collect2: error: ld returned 1 exit status
+make[1]: *** [all] Error 1
+make: *** [LAGRANGIAN] Error 2
+
+2 >> Solución: añadí -lnetcdff en CDFLIB
+CDFLIB = -L$(NF90_LIB) -lnetcdf -lnetcdff
+---
+Finalmente, en el directorio ./bin obtengo 3 ejecutables:
+SCBL049:bin Emma$ ls -alrt
+total 1056
+drwxr-xr-x@ 14 Emma  staff     476 21 ago 12:50 ..
+-rwxr-xr-x   1 Emma  staff   79632 23 ago 11:56 streamline
+-rwxr-xr-x   1 Emma  staff  349916 23 ago 11:56 lagrangian
+-rwxr-xr-x   1 Emma  staff  103680 23 ago 11:56 floatpos
+drwxr-xr-x   5 Emma  staff     170 23 ago 11:56 .
+

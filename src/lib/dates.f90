@@ -9,13 +9,17 @@
 module dates
 
 use types, only: dp
-use utils, only: stop_error,line_replace
+use utils, only: stop_error,line_replace,uppercase
+use constants,  only: zero,one
 
 implicit none
-private
-public date_type
-public date_string,string2date,cal2date,cal2jd,jd2cal, &
-       jd2date,date2jd,caldat,julday,sec2time
+!private
+!public date_type
+!public date_string,string2date,cal2date,cal2jd,jd2cal, &
+!       jd2date,date2jd,caldat,julday,sec2time, &
+!       date_today
+!public :: assignment(<)
+!public :: assignment(>)
 
 type date_type
   integer                  :: year   = 0
@@ -26,6 +30,19 @@ type date_type
   integer                  :: second = 0
   character(len=10)        :: calendar = 'gregorian'
 end type date_type
+
+
+interface operator (<)
+  module procedure before
+end interface
+
+interface operator (>)
+  module procedure after
+end interface
+
+interface operator (==)
+  module procedure is
+end interface
 
 INTEGER, DIMENSION(12)     :: LenMonth
 INTEGER, DIMENSION(12)     :: LenMonthLeap
@@ -41,11 +58,24 @@ contains
 ! ...
 ! ============================================================================
 ! ...
+logical pure function isleap (year)
+
+INTEGER, INTENT(in)             :: year
+
+isleap = .false.
+if (MOD(year,400).eq.0) isleap = .true.
+if ((MOD(year,4).eq.0).and.(mod(year,100).ne.0)) isleap = .true.
+
+return
+end function isleap
+! ...
+! ============================================================================
+! ...
 function date_string(date,iso,extended) result(text)
 ! ... Write the date as a string "YYYY-MM-DD HH:MM:SS"
 
 type(date_type), intent(in)             :: date
-character(len=19)                       :: text
+character(len=20)                       :: text
 character(len=*), optional              :: iso
 character(len=*), optional              :: extended
 
@@ -53,7 +83,7 @@ character(len=*), optional              :: extended
 ! ...
 if (present(iso)) then
   if (present(extended)) then
-  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
+  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2,"Z")') &
       date%year, date%month, date%day, &
       date%hour, date%minute, date%second
   else
@@ -368,6 +398,153 @@ minute = mod(irest,60)
 hour = (irest-minute)/60
 
 end subroutine sec2time
+! ...
+! ============================================================================
+! ...
+function date_today(utm) result(date)
+
+character(len=*), optional              :: utm
+type(date_type)                         :: date
+
+! ... Local variables
+! ...
+integer hh,mm,ss,seconds
+real(dp) jd
+character(5)           :: zone
+integer,dimension(8)   :: values
+
+call date_and_time(VALUES=values)
+
+if (present(utm)) then
+  jd = julday(values(1),values(2),values(3))
+  hh = values(5)
+  mm = values(6)
+  ss = values(7)
+  seconds = hh*3600.0_dp + (mm-values(4))*60.0_dp + ss
+  jd = jd + seconds/86400.0_dp
+  date = jd2date(jd)
+else
+  date%year   = values(1)
+  date%month  = values(2)
+  date%day    = values(3)
+  date%hour   = values(5)
+  date%minute = values(6)
+  date%second = values(7)
+endif
+
+end function date_today
+! ...
+! ============================================================================
+! ...
+function before(d1,d2) result(q)
+
+type(date_type), intent(in)             :: d1,d2
+logical                                 :: q
+
+real(dp) j1,j2
+
+j1 = date2jd(d1)
+j2 = date2jd(d2)
+
+q = j1 .lt. j2
+
+end function before
+! ...
+! ============================================================================
+! ...
+function after(d1,d2) result(q)
+
+type(date_type), intent(in)             :: d1,d2
+logical                                 :: q
+
+real(dp) j1,j2
+
+j1 = date2jd(d1)
+j2 = date2jd(d2)
+
+q = j1 .gt. j2
+
+end function after
+! ...
+! ============================================================================
+! ...
+function is(d1,d2) result(q)
+
+type(date_type), intent(in)             :: d1,d2
+logical                                 :: q
+
+real(dp) j1,j2
+
+j1 = date2jd(d1)
+j2 = date2jd(d2)
+
+q = j1 .eq. j2
+
+end function is
+! ...
+! ============================================================================
+! ...
+function date_inc(datein,val,units) result(dateout)
+
+type(date_type), intent(in)             :: datein
+integer, intent(in)                     :: val
+character(len=*), intent(in), optional  :: units
+type(date_type)                         :: dateout
+
+! ... Local variables
+! ...
+integer year,month,day,hour,minute,second
+real(dp) jd,scale_value
+character(2) U
+
+if (present(units)) then
+  U = uppercase(units(1:2))
+  if (U.eq.'SE') then
+    scale_value = one
+  else if (U.eq.'MI') then
+    scale_value = 60.0_dp
+  else if (U.eq.'HO') then
+    scale_value = 3600.0_dp
+  else
+    scale_value = -one
+  endif
+else
+  U = 'SE'
+  scale_value = one
+endif
+
+if (U.EQ.'DA') then
+  jd = date2jd(datein) + val
+  dateout = jd2date(jd)
+else if (scale_value.gt.zero) then
+  jd = date2jd(datein) + scale_value*val/86400.0_dp
+  dateout = jd2date(jd)
+else
+  year   = datein%year
+  month  = datein%month
+  day    = datein%day
+  hour   = datein%hour
+  minute = datein%minute
+  second = datein%second
+  if (U.eq.'MO') then
+    if (month.eq.12) then
+      month = 1
+      year = year + 1
+    else
+      month = month + 1
+    endif
+  else if (U.EQ.'YE') then
+    year = year + 1
+  else
+    call stop_error(1,'In date_inc: Why am I here?')
+  endif
+  dateout = cal2date(year,month,day,hour,minute,second)
+endif
+
+jd = date2jd(dateout)
+dateout = jd2date(jd)
+
+end function date_inc
 ! ...
 ! ============================================================================
 ! ...
