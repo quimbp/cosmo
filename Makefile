@@ -4,7 +4,7 @@ all: pwd include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
 	@echo "Done"
 
 pwd:
-	rm -f .path
+	rm -f path.inc
 	echo "COSMO = ${PWD}" > path.inc
 
 include:
