@@ -1087,9 +1087,9 @@ if (gjson) then
   endif
   do flo=1,FLT%n
     Geofile(flo)%varnames   = '['// trim(varnames) //']'
-    Geofeature(flo,1)%type  = 'LineString'
-    Geofeature(flo,2)%type  = 'Point'
-    Geofeature(flo,3)%type  = 'Point'
+    Geofeature(flo,1)%ftype  = 'LineString'
+    Geofeature(flo,2)%ftype  = 'Point'
+    Geofeature(flo,3)%ftype  = 'Point'
    
     allocate(Geofeature(flo,1)%line(Nsteps+1))
 

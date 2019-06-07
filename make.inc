@@ -8,28 +8,27 @@
 
 # Modify according operative system and library paths:
 #
-# COSMO = the project root folder
-# FC = Fortran95 compiler
-# FFLAGS = Compiler options
-# INSTALL = Program used to copy files setting theis mode bits, etc.
-# AR = Library archive manager 
+# PYTHON   = Python2/3 interpreter
+# FC       = Fortran95 compiler
+# FFLAGS   = Compiler options
+# INSTALL  = Program used to copy files setting theis mode bits, etc.
+# AR       = Library archive manager 
 # NF90_INC = Path to the  NetCDF Fortran 90 modules
 # NF90_LIB = Path to the  NetCDF Fortran 90 libraries
 # 
 
-COSMO = /home/joaquim/projects/cosmo
-
-PYTHON2 = /bin/python
-PYTHON3 = /bin/python3
+PYTHON = /bin/python3
 
 FC = gfortran
-FFLAGS = -O4 -fno-range-check -finit-real=nan -finit-integer=0 -finit-character=0 -finit-logical=false 
+FFLAGS = -O3 -fno-range-check -pedantic -finit-real=nan -finit-integer=0 -finit-character=0 -finit-logical=false 
 INSTALL = install
 AR = ar cq
 
 # CENTOS
-NF90_INC = /usr/include/
-NF90_LIB = /usr/lib/i386-linux-gnu/
+#NF90_INC = /usr/include/
+#NF90_LIB = /usr/lib/i386-linux-gnu/
+NF90_INC = /usr/lib64/gfortran/modules/
+NF90_LIB = /usr/lib64/
 
 # Folders where files are going to be installed
 #

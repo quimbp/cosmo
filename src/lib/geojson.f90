@@ -14,22 +14,22 @@ use utils
 !character(len=:), parameter                :: CONVENTION = 'COSMO v.1.6'
 
 type, public :: geojson_file
-  character(len=:), allocatable            :: filename
-  character(len=:), allocatable            :: filetype
-  character(len=:), allocatable            :: convention
-  character(len=:), allocatable            :: commandline
-  character(len=:), allocatable            :: origin
-  character(len=:), allocatable            :: source
-  character(len=:), allocatable            :: name
-  character(len=:), allocatable            :: creator
-  character(len=:), allocatable            :: varnames
-  character(len=:), allocatable            :: contact
-  character(len=:), allocatable            :: experiment
-  character(len=:), allocatable            :: sn        
-  integer                                  :: numfloats = 0
+  character(len=180)                       :: filename    = ''
+  character(len=24)                        :: filetype    = ''
+  character(len=24)                        :: convention  = ''
+  character(len=1800)                      :: commandline = ''
+  character(len=180)                       :: origin      = ''
+  character(len=180)                       :: source      = ''
+  character(len=180)                       :: name        = ''
+  character(len=180)                       :: creator     = ''
+  character(len=180)                       :: varnames    = ''
+  character(len=180)                       :: contact     = ''
+  character(len=180)                       :: experiment  = ''
+  character(len=180)                       :: sn          = ''
+  integer                                  :: iu          = 0
+  integer                                  :: numfloats   = 0
+  integer                                  :: nfeatures   = 0
   type(date_type)                          :: date
-  integer                                  :: nfeatures = 0
-  integer                                  :: iu = 0
 end type geojson_file
 
 type, public :: geojson_vars
@@ -55,7 +55,7 @@ type, public :: geojson_properties
 end type geojson_properties
 
 type, public :: geojson_feature
-  character(len=:), allocatable                   :: type
+  character(len=24)                               :: ftype
   type(geojson_point)                             :: point
   type(geojson_point), dimension(:), allocatable  :: line
   type(geojson_vars)                              :: time_defs
@@ -94,20 +94,20 @@ gf%date     = date_today('utm')
 
 gf%iu = unitfree()
 
-if (.not.allocated(gf%commandline)) then
+if (len_trim(gf%commandline).eq.0) then
   call get_commandline(word)
   gf%commandline = word
 endif
 
-if (.not.allocated(gf%source)) gf%source = ''
-if (.not.allocated(gf%origin)) gf%origin = ''
-if (.not.allocated(gf%experiment)) gf%experiment = ''
-if (.not.allocated(gf%name)) gf%name = ''
-if (.not.allocated(gf%creator)) gf%creator = ''
-if (.not.allocated(gf%contact)) gf%contact = ''
-if (.not.allocated(gf%varnames)) gf%varnames = ''
-if (.not.allocated(gf%sn)) gf%sn = ''
-
+!if (.not.allocated(gf%source)) gf%source = ''
+!if (.not.allocated(gf%origin)) gf%origin = ''
+!if (.not.allocated(gf%experiment)) gf%experiment = ''
+!if (.not.allocated(gf%name)) gf%name = ''
+!if (.not.allocated(gf%creator)) gf%creator = ''
+!if (.not.allocated(gf%contact)) gf%contact = ''
+!if (.not.allocated(gf%varnames)) gf%varnames = ''
+!if (.not.allocated(gf%sn)) gf%sn = ''
+!
 open(unit=gf%iu,file=trim(filename),status='unknown')
 rewind(gf%iu)
 
@@ -200,13 +200,13 @@ endif
 gf%nfeatures = gf%nfeatures + 1
 write(gf%iu,'(T4,A)') '{"type": "Feature",'
 
-if (feature%type.eq.'Point') then
+if (feature%ftype.eq.'Point') then
   write(gf%iu,'(T5,A)') '"geometry":'
   write(gf%iu,'(T8,A)')   '{'
   write(gf%iu,'(T8,A)')   '"type": "Point",'
   write(gf%iu,'(T8,A)')   '"coordinates": ' // ff2str(feature%point%coordinates)
   write(gf%iu,'(T8,A)')   '},'
-else if (feature%type.eq.'LineString') then
+else if (feature%ftype.eq.'LineString') then
   k1 = 1
   k2 = size(feature%line)
   if (present(kk1)) k1 = kk1
@@ -298,7 +298,7 @@ if (feature%nprop.gt.0.or.gf%convention.eq.'COSMO v.1.5') then
                   trim(feature%time_defs%long_name)//'",'
   write(gf%iu,'(T10,A)') '"data": '
   write(gf%iu,'(T12,A)') '['
-  if (feature%type.eq.'LineString') then
+  if (feature%ftype.eq.'LineString') then
   do i=k1,k2
       if (i.eq.k2) then
         write(gf%iu,'(T12,A)') '"'//trim(date_string(feature%line(i)%date,'iso','extended'))//'"'
@@ -306,7 +306,7 @@ if (feature%nprop.gt.0.or.gf%convention.eq.'COSMO v.1.5') then
         write(gf%iu,'(T12,A)') '"'//trim(date_string(feature%line(i)%date,'iso','extended'))//'",'
       endif
     enddo
-  else if (feature%type.eq.'Point') then
+  else if (feature%ftype.eq.'Point') then
     write(gf%iu,'(T12,A)') '"'//trim(date_string(feature%point%date,'iso','extended'))//'"'
   endif
   write(gf%iu,'(T12,A)') ']'
@@ -328,7 +328,7 @@ if (feature%nprop.gt.0.or.gf%convention.eq.'COSMO v.1.5') then
                   trim(feature%depth_defs%long_name)//'",'
   write(gf%iu,'(T10,A)') '"data": '
   write(gf%iu,'(T12,A)') '['
-  if (feature%type.eq.'Point') then
+  if (feature%ftype.eq.'Point') then
     write(gf%iu,'(T12,A)') trim(f2str(feature%point%depth,'f6.1'))
   else
    do i=k1,k2
@@ -363,7 +363,7 @@ if (feature%nprop.gt.0.or.gf%convention.eq.'COSMO v.1.5') then
                     trim(feature%var_defs(vv)%long_name)//'",'
     write(gf%iu,'(T10,A)') '"data": '
     write(gf%iu,'(T12,A)') '['
-    if (feature%type.eq.'Point') then
+    if (feature%ftype.eq.'Point') then
      write(gf%iu,'(T12,A)') trim(f2str(feature%point%var_data(vv),'f7.2'))
     else
      do i=k1,k2

@@ -1,7 +1,11 @@
-include make.inc
+#include make.inc
 
-all: include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
+all: pwd include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
 	@echo "Done"
+
+pwd:
+	rm -f .path
+	echo "COSMO = ${PWD}" > path.inc
 
 include:
 	mkdir $@
@@ -58,6 +62,7 @@ COSMO_VIEW:
 	(cd $(BINDIR); chmod +x cosmo-view)
 
 clean:
+	(rm -f path.inc)
 	(cd src/lib; make clean)
 	(cd src/blm; make clean)
 	(cd src/mlm; make clean)

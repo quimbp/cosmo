@@ -1,3 +1,4 @@
+include ../../path.inc
 include ../../make.inc
 
 .SUFFIXES:.f90

@@ -310,7 +310,8 @@ else if (filetype(rfile).eq.'cdf') then
   FLT%floating(:) = .false.
 
   do i=1,FLT%n
-    write(*,'(I4,3F9.3,F13.0,2F9.3,X,L,L)') i,FLT%lon(i), FLT%lat(i),  &
+    write(*,'(I4,3F9.3,F13.0,2F9.3,1X,L1,L1)') i, &
+                                            FLT%lon(i), FLT%lat(i),  &
                                             FLT%depth(i), FLT%time(i), &
                                             FLT%temp(i), FLT%salt(i),  &
                                             FLT%released(i), FLT%floating(i)
