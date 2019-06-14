@@ -328,7 +328,7 @@ if (fxo) then
         dy = abs(yo - yf(1))
         if (dx.le.dxo.and.dy.le.dyo) then
         write(*,'("      Step ", I5.5, "  Float ", I4.4, ",  Date ",    &
-                                              A," : ",100(2F9.3,";"))') &
+                                        &     A," : ",100(2F9.3,";"))') &
                                                     step,i,trim(fdate), &
                                                     xf(1),yf(1)
         endif

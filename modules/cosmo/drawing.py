@@ -466,7 +466,7 @@ class DrawingConfig():
     self.COASTLINE_SHOW.set(True)
     self.COASTLINE_WIDTH.set(1)
     self.COASTLINE_COLOR.set('black')
-    self.COUNTRYLINE_SHOW.set(True)
+    self.COUNTRYLINE_SHOW.set(False)
     self.COUNTRYLINE_WIDTH.set(2)
     self.COUNTRYLINE_COLOR.set('grey')
     self.LAND_COLOR.set('coral')
@@ -522,7 +522,7 @@ class DrawingConfig():
     self.BLUEMARBLE.set(False)
     self.ETOPO.set(False)
     self.BACKGROUND_SCALE.set(1.0)
-    self.RIVERS_SHOW.set(True)
+    self.RIVERS_SHOW.set(False)
     self.RIVERS_WIDTH.set(0.2)
     self.RIVERS_COLOR.set('blue')
     self.ARCGISIMAGE.set(0)
@@ -589,8 +589,8 @@ class DrawingConfig():
     self.ISOBAT_LEGEND.TITLE.set('Isobaths')
     self.ISOBAT_LEGEND.LOC.set(2)
 
-    self.TIMESTAMP_SHOW.set(True)
-    self.TIMESTAMP_BOLD.set(True)
+    self.TIMESTAMP_SHOW.set(False)
+    self.TIMESTAMP_BOLD.set(False)
     self.TIMESTAMP_X.set(0.12)
     self.TIMESTAMP_Y.set(0.12)
     self.TIMESTAMP_COLOR.set('black')
@@ -4386,13 +4386,22 @@ class CosmoDrawing():
     if CDF.icdf.idl > -1:
       wrk = CDF.ncid.variables[CDF.icdf.tname][:]
       CDF.T_LIST = list(wrk)
-      for i in range(CDF.icdf.nt):
-        CDF.DATE.append(num2date(CDF.T_LIST[i],     \
-                         units=CDF.icdf.time_units, \
-                         calendar=CDF.icdf.time_calendar))
+      try:
+        for i in range(CDF.icdf.nt):
+          CDF.DATE.append(num2date(CDF.T_LIST[i],       \
+                          units=CDF.icdf.time_units,    \
+                          calendar=CDF.icdf.time_calendar))
+      except:
+        for i in range(CDF.icdf.nt):
+          CDF.DATE.append(i)
 
-      CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]).total_seconds() \
+      try:
+        CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]).total_seconds() \
                            for i in range(CDF.icdf.nt)])
+      except:
+        CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]) \
+                           for i in range(CDF.icdf.nt)])
+
     else:
       CDF.T_LIST = []
       CDF.DATE = [' ']

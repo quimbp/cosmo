@@ -14,8 +14,9 @@ except:
   from tkColorChooser import askcolor
 
 import datetime
-import matplotlib, sys
-matplotlib.use('TkAgg')
+import sys
+#import matplotlib
+#matplotlib.use('TkAgg')
 import matplotlib.cm as cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -89,7 +90,7 @@ class parameters():
 
     # Default attribute values'''
     #
-    self.CONTOUR_MODE.set(0)             # Default: Line contours
+    self.CONTOUR_MODE.set(2)             # Default: Line contours
     self.CONTOUR_LOG.set(False)
     self.CONTOUR_WIDTH.set(1)            # Default: Line width = 1
     self.CONTOUR_DASHEDNEG.set(True)     # Default: Dashed negative values

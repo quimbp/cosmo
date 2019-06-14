@@ -16,8 +16,8 @@ except:
   import tkFileDialog as filedialog
 
 import numpy as np
-import matplotlib
-matplotlib.use('TkAgg')
+#import matplotlib
+#matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -901,7 +901,6 @@ class EDITOR:
 
 
 def main():
-  #filename = '/home/joaquim/cosmo/test/histo-300234060640350.geojson'
   root = tk.Tk()
   root.title(PROGNAME)
   root.resizable(width=True,height=True)
