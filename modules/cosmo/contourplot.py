@@ -20,6 +20,10 @@ import sys
 import matplotlib.cm as cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from  matplotlib import rcParams
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 
 import numpy as np
 import numpy.ma as ma
@@ -344,9 +348,9 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
 # =================================================
   ''' Draw a 2D contour plot. Option of lines or filled contours'''
 
-  __version__ = "1.0"
+  __version__ = "2.0"
   __author__  = "Quim Ballabrerera"
-  __date__    = "June 2017"
+  __date__    = "June 2019"
 
 
   _levels = np.arange(PLOT.CONTOUR_MIN.get(),                            \
@@ -363,36 +367,53 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
   if PLOT.CONTOUR_LOG.get():
     FIELD = np.log10(FIELD)
   
+
   FIELD = ma.array(FIELD,mask=MASK)  
+
+  # Colormap: Direct or Reversed
+  if PLOT.CONTOUR_REVERSE.get():
+    cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get()+'_r')
+  else:
+    cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get())
+
 
   if PLOT.CONTOUR_MODE.get() == 0:
     # ----------------------------- CONTOURS
     if PLOT.CONTOUR_LINEMODE.get() == 'M':    # colormapped contours
 
-      if PLOT.CONTOUR_REVERSE.get():
-        cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get()+'_r')
+      if map is None:
+        _cl = ax.contour(X,Y,FIELD,
+                         linewidths=PLOT.CONTOUR_WIDTH.get(),
+                         levels=_levels,
+                         cmap=cmap,
+                         alpha=PLOT.ALPHA.get())
       else:
-        cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get())
-
-      _cl = map.contour(X,Y,FIELD,
-                        linewidths=PLOT.CONTOUR_WIDTH.get(),
-                        levels=_levels,
-                        cmap=cmap,
-                        latlon = True,
-                        alpha=PLOT.ALPHA.get())
+        _cl = map.contour(X,Y,FIELD,
+                          linewidths=PLOT.CONTOUR_WIDTH.get(),
+                          levels=_levels,
+                          cmap=cmap,
+                          latlon = True,
+                          alpha=PLOT.ALPHA.get())
 
     else:
       if PLOT.CONTOUR_DASHEDNEG.get():
-        matplotlib.rcParams['contour.negative_linestyle'] = 'dashed'
+        rcParams['contour.negative_linestyle'] = 'dashed'
       else:
-        matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
+        rcParams['contour.negative_linestyle'] = 'solid'
 
-      _cl = map.contour(X,Y,FIELD,                                   \
-                        linewidths=PLOT.CONTOUR_WIDTH.get(),         \
-                        levels=_levels,                              \
-                        colors=PLOT.CONTOUR_COLOR.get(),             \
-                        latlon = True,                               \
-                        alpha=PLOT.ALPHA.get())
+      if map is None:
+        _cl = ax.contour(X,Y,FIELD,                                   \
+                         linewidths=PLOT.CONTOUR_WIDTH.get(),         \
+                         levels=_levels,                              \
+                         colors=PLOT.CONTOUR_COLOR.get(),             \
+                         alpha=PLOT.ALPHA.get())
+      else:
+        _cl = map.contour(X,Y,FIELD,                                   \
+                          linewidths=PLOT.CONTOUR_WIDTH.get(),         \
+                          levels=_levels,                              \
+                          colors=PLOT.CONTOUR_COLOR.get(),             \
+                          latlon = True,                               \
+                          alpha=PLOT.ALPHA.get())
 
 
     # About contour labels
@@ -406,24 +427,50 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
 
   elif PLOT.CONTOUR_MODE.get() == 1:
     # ----------------------------- SHADED
-    if PLOT.CONTOUR_REVERSE.get():
-      cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get()+'_r')
-    else:
-      cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get())
 
-    _cf = map.contourf(X,Y,FIELD,
-                     levels=_levels,
-                     cmap=cmap,
-                     latlon = True,
-                     alpha=PLOT.ALPHA.get())
+    if map is None:
+      divider = make_axes_locatable(ax)
+      _cf = ax.contourf(X,Y,FIELD,
+                        levels=_levels,
+                        cmap=cmap,
+                        alpha=PLOT.ALPHA.get())
+
+    else:
+      _cf = map.contourf(X,Y,FIELD,
+                         levels=_levels,
+                         cmap=cmap,
+                         latlon = True,
+                         alpha=PLOT.ALPHA.get())
 
     cbar = None
     if PLOT.COLORBAR_SHOW.get():
-      padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
-      cbar = map.colorbar(_cf,location=PLOT.COLORBAR_LOCATION.get(), \
-                          pad=padding,
-                          size=PLOT.COLORBAR_SIZE.get(),
-                          fig=fig)
+      if map is None:
+        padding = PLOT.COLORBAR_PAD.get()/100
+        if PLOT.COLORBAR_LOCATION.get() == 'right':
+          location = 'right'
+          orientation = 'vertical'
+        elif PLOT.COLORBAR_LOCATION.get() == 'left':
+          location = 'left'
+          orientation = 'vertical'
+        elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
+          location = 'bottom'
+          orientation = 'horizontal'
+        else:
+          location = 'top'
+          orientation = 'horizontal'
+        
+        cax = divider.append_axes(location, \
+                                  size=PLOT.COLORBAR_SIZE.get(),
+                                  pad=padding)
+        cbar = fig.colorbar(_cf,                      \
+                            cax=cax,                  \
+                            orientation=orientation)
+      else:
+        padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
+        cbar = map.colorbar(_cf,location=PLOT.COLORBAR_LOCATION.get(), \
+                            pad=padding,
+                            size=PLOT.COLORBAR_SIZE.get(),
+                            fig=fig)
       cbar.ax.tick_params(labelsize=PLOT.COLORBAR_TICKSIZE.get())
       cbar.set_label(PLOT.COLORBAR_LABEL.get(),
                      labelpad=PLOT.COLORBAR_LABELPAD.get(),
@@ -431,24 +478,55 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
     return cbar
 
   else:
-    _cp = map.pcolormesh(X,Y,FIELD,                                  \
-                     cmap=cm.get_cmap(PLOT.CONTOUR_COLORMAP.get()),  \
-                     vmin=PLOT.CONTOUR_MIN.get(),                    \
-                     vmax=PLOT.CONTOUR_MAX.get(),                    \
-                     latlon = True,                                  \
-                     alpha=PLOT.ALPHA.get())
+    # ----------------------------- COLORMESH
+    if map is None:
+      divider = make_axes_locatable(ax)
+      _cp = ax.pcolormesh(X,Y,FIELD,                        \
+                         cmap=cmap,                         \
+                         vmin=PLOT.CONTOUR_MIN.get(),       \
+                         vmax=PLOT.CONTOUR_MAX.get(),       \
+                         alpha=PLOT.ALPHA.get())
+
+    else:
+      _cp = map.pcolormesh(X,Y,FIELD,                       \
+                           cmap=cmap,                       \
+                           vmin=PLOT.CONTOUR_MIN.get(),     \
+                           vmax=PLOT.CONTOUR_MAX.get(),     \
+                           latlon = True,                   \
+                           alpha=PLOT.ALPHA.get())
 
     cbar = None
     if PLOT.COLORBAR_SHOW.get():
-      padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
-      cbar = map.colorbar(_cp,location=PLOT.COLORBAR_LOCATION.get(), \
-                          pad=padding,
-                          size=PLOT.COLORBAR_SIZE.get(),
-                          fig=fig)
+      if map is None:
+        padding = PLOT.COLORBAR_PAD.get()/100
+        if PLOT.COLORBAR_LOCATION.get() == 'right':
+          location = 'right'
+          orientation = 'vertical'
+        elif PLOT.COLORBAR_LOCATION.get() == 'left':
+          location = 'left'
+          orientation = 'vertical'
+        elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
+          location = 'bottom'
+          orientation = 'horizontal'
+        else:
+          location = 'top'
+          orientation = 'horizontal'
+        
+        cax = divider.append_axes(location, \
+                                  size=PLOT.COLORBAR_SIZE.get(),
+                                  pad=padding)
+        cbar = fig.colorbar(_cp,                      \
+                            cax=cax,                  \
+                            orientation=orientation)
+      else:
+        padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
+        cbar = map.colorbar(_cp,location=PLOT.COLORBAR_LOCATION.get(), \
+                            pad=padding,
+                            size=PLOT.COLORBAR_SIZE.get(),
+                            fig=fig)
       cbar.ax.tick_params(labelsize=PLOT.COLORBAR_TICKSIZE.get())
       cbar.set_label(PLOT.COLORBAR_LABEL.get(),
                      labelpad=PLOT.COLORBAR_LABELPAD.get(),
                      size=PLOT.COLORBAR_LABELSIZE.get())
     return cbar
-
 

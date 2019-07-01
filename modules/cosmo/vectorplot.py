@@ -98,6 +98,8 @@ class parameters():
     self.KEY_GETXY = False
     self.KEY_OBJ   = None
 
+    self.ARAKAWA   = tk.StringVar() 
+
     # Defautl attribute values
     #
     self.DRAWING_MODE.set(0)     # 0 - Vector, 1 - Barb, 2 - Streamplot
@@ -140,6 +142,7 @@ class parameters():
     self.KEY_POS.set('E')
     self.KEY_COLOR.set('black')
     self.KEY_SIZE.set(12)
+    self.ARAKAWA.set('A')
 
     # If configuration file exists, it is read and
     # the default values are overrided. If the configuration
@@ -206,6 +209,7 @@ class parameters():
     conf['KEY_POS'] = self.KEY_POS.get()
     conf['KEY_COLOR'] = self.KEY_COLOR.get()
     conf['KEY_SIZE'] = self.KEY_SIZE.get()
+    conf['ARAKAWA'] = self.ARAKAWA.get()
     return conf
 
   def conf_set(self,conf):
@@ -255,6 +259,7 @@ class parameters():
     self.KEY_POS.set(conf['KEY_POS'])
     self.KEY_COLOR.set(conf['KEY_COLOR'])
     self.KEY_SIZE.set(conf['KEY_SIZE'])
+    self.ARAKAWA.set(conf['ARAKAWA'])
 
   def conf_load(self,filename):
   # ============================

@@ -331,13 +331,15 @@ class geocdf():
     self.xname = ''; self.yname = ''; self.zname = ''; self.tname = ''
     self.time_units = ''
     self.time_calendar = ''
-    self.regular = None
+    self.regular = True
+    self.georef  = True
 
     # We will try to identify the axes in the file:
     for name,variable in ncid.variables.items():
       try:
         axis = getattr(variable,'axis')
         if axis == 'X':
+          self.georef  = True
           self.xname = name
           self.idx = self.VAR_LIST.index(name)
           if len(variable.dimensions) == 1:
@@ -354,6 +356,7 @@ class geocdf():
                 self.idi   = dim
                 self.nx    = ncid.dimensions[dname].size
         elif axis == 'Y':
+          self.georef  = True
           self.yname = name
           self.idy = self.VAR_LIST.index(name)
           if len(variable.dimensions) == 1:
@@ -414,6 +417,9 @@ class geocdf():
     self.dlen          = []
     for dim,dname in enumerate(self.DIM_LIST):
       self.dlen.append(ncid.dimensions[dname].size)
+
+    if self.idx == -1 | self.idy == -1:
+      self.georef = False
 
     # Information about variables:
     self.vname         = []
@@ -480,6 +486,8 @@ class geocdf():
   # =================
 
     conf = {}
+    conf['regular'] = self.regular
+    conf['georef'] = self.georef
     conf['nx'] = self.nx
     conf['ny'] = self.ny
     conf['nz'] = self.nz
@@ -510,6 +518,8 @@ class geocdf():
   def conf_set(self,conf):
   # ======================
 
+    self.regular  = conf['regular']
+    self.georef  = conf['georef']
     self.nx  = conf['nx']
     self.ny  = conf['ny']
     self.nz  = conf['nz']
@@ -652,6 +662,12 @@ class WinGeoaxes():
     self.strnz.set(str(icdf.nz))
     self.strnt.set(str(icdf.nt))
 
+    self.regular = tk.BooleanVar()
+    self.georef  = tk.BooleanVar()
+    self.regular.set(icdf.regular)
+    self.georef.set(icdf.georef)
+
+
   # --------------------------------------------- Frame for X, Y, Z, T
 
     menubar = tk.Menu(self.parent)
@@ -733,6 +749,15 @@ class WinGeoaxes():
     self.Ybox.bind('<<ComboboxSelected>>',lambda e: self.yselection(icdf))
     self.Zbox.bind('<<ComboboxSelected>>',lambda e: self.zselection(icdf))
     self.Tbox.bind('<<ComboboxSelected>>',lambda e: self.tselection(icdf))
+
+    self.wgr = tk.Checkbutton(Fr1,text='Georeferenced',variable=self.georef, \
+          font=font_bold,onvalue=True,offvalue=False)
+    self.wgr.grid(row=4,column=1)
+    self.wgr.bind('<Button-1>',lambda e: self._georef(icdf))
+
+    self.wrg = tk.Checkbutton(Fr1,text='Regular grid',variable=self.regular,font=font_bold)
+    self.wrg.grid(row=4,column=3)
+
     Fr1.grid(row=1,column=0,rowspan=4,sticky='ewns')
 
     self.Window_ncdump = None
@@ -825,17 +850,45 @@ class WinGeoaxes():
     value_selected = self.Xbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
+      icdf.idx   = ind
+      icdf.xname = value_selected
+
+      print(icdf.ndims[ind])
+      print(icdf.dimids[ind])
+
       if icdf.ndims[ind] == 1:
-        icdf.idx   = ind
-        icdf.xname = value_selected
+        print('xselection 1D')
 
         # Update dimension to match selected variable
         kk = icdf.dimids[ind][0]
         icdf.idi   = kk
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
+        icdf.georef = True
+        icdf.regular = True
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
+        self.georef.set(icdf.georef)
+        self.regular.set(icdf.regular)
+      elif icdf.ndims[ind] == 2:
+        #messagebox.showinfo(message='Two-dimensional grid')
+        print('xselection 2D grid')
+        kk = icdf.dimids[ind][1]
+        icdf.idi   = kk
+        icdf.nx    = icdf.dlen[kk]
+        icdf.iname = icdf.DIM_LIST[kk]
+        icdf.georef = True
+        icdf.regular = False
+        self.Iname.set(icdf.iname)
+        self.strnx.set(str(icdf.nx))
+        self.georef.set(icdf.georef)
+        self.regular.set(icdf.regular)
+        kk = icdf.dimids[ind][0]
+        icdf.idj   = kk
+        icdf.ny    = icdf.dlen[kk]
+        icdf.jname = icdf.DIM_LIST[kk]
+        self.Jname.set(icdf.jname)
+        self.strny.set(str(icdf.ny))
       else:
         messagebox.showinfo(message='Invalid variable. \
                                      It must have a single dimension')
@@ -844,9 +897,11 @@ class WinGeoaxes():
       icdf.idx = -1
       icdf.idi = -1
       icdf.nx  =  1
+      icdf.georef =  False
       self.Xname.set(icdf.VAR_MENU[icdf.idx])
       self.Iname.set(icdf.DIM_MENU[icdf.idi])
       self.strnx.set(str(icdf.nx))
+      self.georef.set(icdf.georef)
     self.Xbox.selection_clear()
 
 
@@ -854,11 +909,30 @@ class WinGeoaxes():
     value_selected = self.Ybox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
+      icdf.idy   = ind
+      icdf.yname = value_selected
       if icdf.ndims[ind] == 1:
-        icdf.idy   = ind
-        icdf.yname = value_selected
 
         # Update dimension to match selected variable
+        kk = icdf.dimids[ind][0]
+        icdf.idj   = kk
+        icdf.ny    = icdf.dlen[kk]
+        icdf.jname = icdf.DIM_LIST[kk]
+        icdf.georef = True
+        icdf.regular = True
+        self.Jname.set(icdf.jname)
+        self.strny.set(str(icdf.ny))
+      elif icdf.ndims[ind] == 2:
+        #messagebox.showinfo(message='Two-dimensional grid')
+        print('2D grid')
+        kk = icdf.dimids[ind][1]
+        icdf.idi   = kk
+        icdf.nx    = icdf.dlen[kk]
+        icdf.iname = icdf.DIM_LIST[kk]
+        icdf.georef = True
+        icdf.regular = False
+        self.Iname.set(icdf.iname)
+        self.strnx.set(str(icdf.nx))
         kk = icdf.dimids[ind][0]
         icdf.idj   = kk
         icdf.ny    = icdf.dlen[kk]
@@ -873,13 +947,32 @@ class WinGeoaxes():
       icdf.idy = -1
       icdf.idj = -1
       icdf.ny  =  1
+      icdf.georef =  False
       self.Yname.set(icdf.VAR_MENU[icdf.idy])
       self.Jname.set(icdf.DIM_MENU[icdf.idj])
       self.strny.set(str(icdf.ny))
     self.Ybox.selection_clear()
 
+  def _georef(self,icdf):
+  # ========================
+    if self.georef.get() == False:
+      #   If self.geooref.get() == False
+      #   we pass from false to true
+      icdf.georef = True
+    else:
+      #   If self.geooref.get() == True
+      #   we pass from true to false
+      icdf.georef = False
+      icdf.idx    = -1
+      icdf.idy    = -1
+      icdf.xname = ''
+      icdf.yname = ''
+      self.Xname.set(icdf.VAR_MENU[icdf.idx])
+      self.Yname.set(icdf.VAR_MENU[icdf.idy])
+
 
   def zselection(self,icdf):
+  # ========================
     value_selected = self.Zbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
@@ -909,6 +1002,7 @@ class WinGeoaxes():
 
 
   def tselection(self,icdf):
+  # ========================
     value_selected = self.Tbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
@@ -947,6 +1041,46 @@ class WinGeoaxes():
       icdf.time_units = ''
       icdf.time_calendar = ''
     self.Tbox.selection_clear()
+
+  def selected_var(self,icdf,Vbox):
+  # ===============================
+    value_selected = Vbox.get()
+    if not empty(value_selected):
+      ind = icdf.VAR_LIST.index(value_selected)
+      dlist = icdf.dimids[ind]
+      nd = len(dlist) - dlist.count(-1)
+      dlist[nd:] = []
+      idim = 0
+      for kk in reversed(dlist):
+        idim += 1
+        if idim == 1:
+          icdf.idi   = kk
+          icdf.nx    = icdf.dlen[kk]
+          icdf.iname = icdf.DIM_LIST[kk]
+          self.Iname.set(icdf.iname)
+          self.strnx.set(str(icdf.nx))
+        elif idim == 2:
+          icdf.idj   = kk
+          icdf.ny    = icdf.dlen[kk]
+          icdf.jname = icdf.DIM_LIST[kk]
+          self.Jname.set(icdf.jname)
+          self.strny.set(str(icdf.ny))
+        elif idim == 3:
+          icdf.idk   = kk
+          icdf.nz    = icdf.dlen[kk]
+          icdf.kname = icdf.DIM_LIST[kk]
+          self.Kname.set(icdf.kname)
+          self.strnz.set(str(icdf.nz))
+        elif idim == 4:
+          icdf.idl   = kk
+          icdf.nt    = icdf.dlen[kk]
+          icdf.lname = icdf.DIM_LIST[kk]
+          self.Lname.set(icdf.lname)
+          self.strnt.set(str(icdf.nt))
+
+        
+
+
 
 def marker_string(s):
 # ===================

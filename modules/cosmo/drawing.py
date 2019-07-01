@@ -24,6 +24,7 @@ from matplotlib.figure import Figure
 from matplotlib.offsetbox import TextArea, OffsetImage, AnnotationBbox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib import cm as CM
+from matplotlib import colors
 from mpl_toolkits.basemap import Basemap
 from netCDF4 import Dataset,num2date
 from itertools import chain
@@ -1250,8 +1251,8 @@ class CosmoDrawing():
       xo,yo = self.m(event.xdata,event.ydata,inverse=True)
       print(xo,yo)
       #print('Current speed = ', self.CURRENTS.F(event.xdata,event.ydata))
-      if not empty(self.SAIDIN.FILENAME.get()):
-        print('SAIDIN SST = ', self.SAIDIN.FIELD.F(xo,yo))
+      #if not empty(self.SAIDIN.FILENAME.get()):
+      #  print('SAIDIN SST = ', self.SAIDIN.FIELD.F(xo,yo))
       self.BLM.xo.set(xo)
       self.BLM.yo.set(yo)
       self.MLM.xo.set(xo)
@@ -1462,12 +1463,12 @@ class CosmoDrawing():
         _lbox.configure(state='!disabled')
         _lbox['textvariable'] = self.VEC[ii].L
         _lbox['values'] = self.VEC[ii].L_LIST
-        if self.VEC[ii].icdf.idz < 0:
+        if self.VEC[ii].icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-        if self.VEC[ii].icdf.idt < 0:
+        if self.VEC[ii].icdf.idl < 0:
           _lbox.configure(state='disabled')
           _dbox['text']='--'
         else:
@@ -1781,12 +1782,12 @@ class CosmoDrawing():
       _vvar['values'] = self.VEC[ii].icdf.VAR_MENU
       _kbox['textvariable'] = self.VEC[ii].K
       _kbox['values'] = self.VEC[ii].K_LIST
-      if self.VEC[ii].icdf.idz < 0:
+      if self.VEC[ii].icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-      if self.VEC[ii].icdf.idt < 0:
+      if self.VEC[ii].icdf.idl < 0:
         _lbox.configure(state='disabled')
         _dbox['text']='--'
       else:
@@ -3467,10 +3468,10 @@ class CosmoDrawing():
         grid(row=7,column=0,columnspan=1,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.LABEL_PAD,width=5). \
         grid(row=7,column=1,columnspan=1,sticky='w')
-    ttk.Label(f6,text='Plot logo'). \
-        grid(row=8,column=0,sticky='w')
-    ttk.Checkbutton(f6,variable=self.PLOT.LOGO_DISPLAY). \
-        grid(row=8,column=1,sticky='w',padx=3)
+    #ttk.Label(f6,text='Plot logo'). \
+    #    grid(row=8,column=0,sticky='w')
+    #ttk.Checkbutton(f6,variable=self.PLOT.LOGO_DISPLAY). \
+    #    grid(row=8,column=1,sticky='w',padx=3)
     ttk.Label(f6,text='Timestamp'). \
         grid(row=9,column=0,sticky='w',pady=[15,1])
 
@@ -3709,38 +3710,44 @@ class CosmoDrawing():
 
 
     F0 = ttk.Frame(self.Window_logo,borderwidth=5,padding=5)
+
+    ttk.Label(F0,text='Plot logo'). \
+        grid(row=0,column=1,sticky='w')
+    ttk.Checkbutton(F0,variable=self.PLOT.LOGO_DISPLAY). \
+        grid(row=0,column=2,sticky='w',padx=3)
+
     ttk.Label(F0,text='File', \
-              font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
+              font='Helvetica 12 bold').grid(row=1,column=0,sticky='w')
     le = ttk.Entry(F0,textvariable=self.PLOT.LOGO_FILE, \
                    justify='left',width=30)
-    le.grid(row=0,column=1,columnspan=5,sticky='w')
+    le.grid(row=1,column=1,columnspan=5,sticky='w')
     le.bind('<<ComboboxSelected>>',lambda e: new_logo())
     ttk.Button(F0,text='Open', \
-               command=new_logo).grid(row=0,column=6,sticky='w')
+               command=new_logo).grid(row=1,column=6,sticky='w')
     ttk.Label(F0,text='Zoom', \
-               font='Helvetica 12 bold').grid(row=1,column=0,sticky='w')
-    ttk.Entry(F0,textvariable=self.PLOT.LOGO_ZOOM, \
-               justify='left',width=8).grid(row=1,column=1,sticky='w')
-    ttk.Label(F0,text='Location', \
                font='Helvetica 12 bold').grid(row=2,column=0,sticky='w')
+    ttk.Entry(F0,textvariable=self.PLOT.LOGO_ZOOM, \
+               justify='left',width=8).grid(row=2,column=1,sticky='w')
+    ttk.Label(F0,text='Location', \
+               font='Helvetica 12 bold').grid(row=3,column=0,sticky='w')
     ttk.Radiobutton(F0,text='SW',variable=self.PLOT.LOGO_LOCATION,\
-                    value='SW').grid(row=3,column=1,sticky='w')
+                    value='SW').grid(row=4,column=1,sticky='w')
     ttk.Radiobutton(F0,text='NW',variable=self.PLOT.LOGO_LOCATION,\
-                    value='NW').grid(row=4,column=1,sticky='w')
+                    value='NW').grid(row=5,column=1,sticky='w')
     ttk.Radiobutton(F0,text='NE',variable=self.PLOT.LOGO_LOCATION,\
-                    value='NE').grid(row=5,column=1,sticky='w')
+                    value='NE').grid(row=6,column=1,sticky='w')
     ttk.Radiobutton(F0,text='SE',variable=self.PLOT.LOGO_LOCATION,\
-                    value='SE').grid(row=6,column=1,sticky='w')
+                    value='SE').grid(row=7,column=1,sticky='w')
     ttk.Radiobutton(F0,text='Other',variable=self.PLOT.LOGO_LOCATION,\
-                    value='OTHER').grid(row=7,column=1,sticky='w')
+                    value='OTHER').grid(row=8,column=1,sticky='w')
     lx = ttk.Entry(F0,textvariable=self.PLOT.LOGO_X,\
                    justify='left',width=7)
-    lx.grid(row=7,column=2,sticky='w')
+    lx.grid(row=8,column=2,sticky='w')
     ly = ttk.Entry(F0,textvariable=self.PLOT.LOGO_Y,\
                    justify='left',width=7)
-    ly.grid(row=7,column=3,sticky='w')
+    ly.grid(row=8,column=3,sticky='w')
 
-    ttk.Button(F0,text='Apply',command=_close,padding=5).grid(row=8,column=6)
+    ttk.Button(F0,text='Apply',command=_close,padding=5).grid(row=9,column=6)
     F0.grid()
 
 
@@ -3774,7 +3781,10 @@ class CosmoDrawing():
 
     self.ab = AnnotationBbox(im,[xx,yy], xycoords='data', \
                              box_alignment=ba,pad=0.0,frameon=True)
-    self.with_logo = self.m._check_ax().add_artist(self.ab)
+    if self.PLOT.GEOMAP.get():
+      self.with_logo = self.m._check_ax().add_artist(self.ab)
+    else:
+      self.with_logo = self.ax.add_artist(self.ab)
 
 
   # =====================
@@ -4376,8 +4386,12 @@ class CosmoDrawing():
 
    # Depth selector
     if CDF.icdf.idk > -1:
-      wrk = CDF.ncid.variables[CDF.icdf.zname][:]
-      CDF.Z_LIST = list(wrk)
+      if self.PLOT.GEOMAP.get():
+        wrk = CDF.ncid.variables[CDF.icdf.zname][:]
+        CDF.Z_LIST = list(wrk)
+        print(CDF.Z_LIST)
+      else:
+        CDF.Z_LIST = np.arange(CDF.icdf.nz)
     else:
       CDF.Z_LIST = []
 
@@ -4415,8 +4429,16 @@ class CosmoDrawing():
   # ===========================================
     '''Read 1D/2D lon lat grid '''
 
-    vlon = CDF.ncid.variables[xname]
-    vlat = CDF.ncid.variables[yname]
+    if CDF.icdf.georef:
+      vlon = CDF.ncid.variables[xname]
+      vlat = CDF.ncid.variables[yname]
+      print(vlon)
+      print(vlat)
+    else:
+      print('Georef is False')
+      self.PLOT.GEOMAP.set(False)
+      vlon = np.arange(CDF.icdf.nx)
+      vlat = np.arange(CDF.icdf.ny)
 
     CDF.lon = vlon[:].copy()
     CDF.lat = vlat[:].copy()
@@ -4605,9 +4627,9 @@ class CosmoDrawing():
               self.DATE[0] = self.DATETIME
         self.CDF[ii].DATE[0] = self.DATETIME
 
-      self.CDF[ii].FIELD.F = interpolate.interp2d(self.CDF[ii].lon, \
-                                                 self.CDF[ii].lat, \
-                                                 self.CDF[ii].FIELD.data)
+      #self.CDF[ii].FIELD.F = interpolate.interp2d(self.CDF[ii].lon, \
+      #                                           self.CDF[ii].lat, \
+      #                                           self.CDF[ii].FIELD.data)
 
       _close()
       self.make_plot()
@@ -4662,12 +4684,12 @@ class CosmoDrawing():
         _lbox.configure(state='!disabled')
         _lbox['textvariable'] = self.CDF[ii].L
         _lbox['values'] = self.CDF[ii].L_LIST
-        if self.CDF[ii].icdf.idz < 0:
+        if self.CDF[ii].icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-        if self.CDF[ii].icdf.idt < 0:
+        if self.CDF[ii].icdf.idl < 0:
           _lbox.configure(state='disabled')
           _dbox['text']='--'
         else:
@@ -4790,6 +4812,7 @@ class CosmoDrawing():
         self.DATETIME = ''
 
 
+
       ISOURCE = self.CONTOUR_OPTIONS.index(SOURCE)
       if ISOURCE == 0:
         filename = self.get_opendap_filename()
@@ -4846,11 +4869,15 @@ class CosmoDrawing():
       F0 = ttk.Frame(Window_select,padding=5,borderwidth=5)
       ttk.Label(F0,text='Select variable',borderwidth=3,font='bold') \
          .grid(row=0,column=0)
-      ttk.Combobox(F0,textvariable=CDF.varname, \
+      dvar = ttk.Combobox(F0,textvariable=CDF.varname, \
                    values=CDF.icdf.VAR_MENU,    \
-                   width=20).grid(row=0,column=1,columnspan=2)
+                   width=20)
+      dvar.grid(row=0,column=1,columnspan=2)
+      dvar.bind('<<ComboboxSelected>>',lambda e: axesid.selected_var(CDF.icdf,dvar))
+
       F0.grid()
 
+      CDF.icdf.nx = -9999
       F1 = ttk.Frame(Window_select,padding=5)
       cancel = ttk.Button(F1,text='Cancel',command=_cancel)
       cancel.grid(row=0,column=3,sticky='e',padx=10)
@@ -4931,6 +4958,7 @@ class CosmoDrawing():
     ttk.Label(F0,text='Depth').grid(row=2,column=1,padx=3,pady=3)
     _kbox = ttk.Combobox(F0,values=['0'],width=5)
     _kbox.grid(row=2,column=2)
+    _kbox.bind('<<ComboboxSelected>>',lambda e: _kselection())
     _zbox = ttk.Label(F0,width=20)
     _zbox.grid(row=2,column=3,columnspan=2,sticky='w')
 
@@ -4957,12 +4985,12 @@ class CosmoDrawing():
       _wvar['values'] = self.CDF[ii].icdf.VAR_MENU
       _kbox['textvariable'] = self.CDF[ii].K
       _kbox['values'] = self.CDF[ii].K_LIST
-      if self.CDF[ii].icdf.idz < 0:
+      if self.CDF[ii].icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-      if self.CDF[ii].icdf.idt < 0:
+      if self.CDF[ii].icdf.idl < 0:
         _lbox.configure(state='disabled')
         _dsel.configure(state='enabled')
         try:
@@ -5099,9 +5127,9 @@ class CosmoDrawing():
       except:
         self.SAIDIN.FIELD.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
-      self.SAIDIN.FIELD.F = interpolate.interp2d(self.SAIDIN.lon, \
-                                           self.SAIDIN.lat, \
-                                           self.SAIDIN.FIELD.data)
+      #self.SAIDIN.FIELD.F = interpolate.interp2d(self.SAIDIN.lon, \
+      #                                     self.SAIDIN.lat, \
+      #                                     self.SAIDIN.FIELD.data)
       _close()
       self.make_plot()
 
@@ -6853,7 +6881,7 @@ class CosmoDrawing():
   # ====================
   def draw_figure(self):
   # ====================
-    '''Plotting the maps using MATPLOTLIB utilities'''
+
 
     try:
       self.scbar.remove()
@@ -6868,6 +6896,8 @@ class CosmoDrawing():
     self.cdfbar = []
 
     self.ax.clear()
+
+
 
     # EPSG
     epsg = int(self.PLOT.EPSG.get())
@@ -6892,26 +6922,34 @@ class CosmoDrawing():
     except:
       EAST  = None
 
-    if self.drawmap:
-      self.setmap(self.ax,0)
-      self.drawmap = False
+    if self.PLOT.GEOMAP.get() == False:
+      '''Plotting maps without MATPLOTLIB'''
 
-    if self.PLOT.RELIEF.get():
-      self.m.shadedrelief(scale=self.PLOT.BACKGROUND_SCALE.get())
+      self.m = None
+    else:
+      '''Plotting the maps using MATPLOTLIB utilities'''
 
-    if self.PLOT.BLUEMARBLE.get():
-      self.m.bluemarble(scale=self.PLOT.BACKGROUND_SCALE.get())
+      if self.drawmap:
+        self.setmap(self.ax,0)
+        self.drawmap = False
 
-    if self.PLOT.ETOPO.get():
-      self.m.etopo(scale=self.PLOT.BACKGROUND_SCALE.get())
+      if self.PLOT.RELIEF.get():
+        self.m.shadedrelief(scale=self.PLOT.BACKGROUND_SCALE.get())
 
-    if self.PLOT.ARCGISIMAGE.get() == 1:
-      self.m.arcgisimage(service=self.PLOT.ARCGISSERVICE.get(), \
+      if self.PLOT.BLUEMARBLE.get():
+        self.m.bluemarble(scale=self.PLOT.BACKGROUND_SCALE.get())
+
+      if self.PLOT.ETOPO.get():
+        self.m.etopo(scale=self.PLOT.BACKGROUND_SCALE.get())
+
+      if self.PLOT.ARCGISIMAGE.get() == 1:
+        self.m.arcgisimage(service=self.PLOT.ARCGISSERVICE.get(), \
                          xpixels=self.PLOT.ARCGISPIXELS.get(),  \
                          dpi=self.PLOT.ARCGISDPI.get(),         \
                          epsg=epsg,                             \
                          verbose=self.PLOT.ARCGISVERBOSE.get())
 
+ 
     # Draw SAIDIN:
     # 
     if not empty(self.SAIDIN.FILENAME.get()):
@@ -6927,11 +6965,11 @@ class CosmoDrawing():
       for ii in range(self.ncdf):
         if self.CDF[ii].FIELD.show.get():
           self.cdfbar.append (contourplot.drawing(self.fig,self.ax,self.m,
-                                    self.CDF[ii].xx,
-                                    self.CDF[ii].yy,
-                                    self.CDF[ii].FIELD.data,
-                                    self.CDF[ii].FIELD.mask,
-                                    self.CDF[ii].FIELD.PLOT))
+                                  self.CDF[ii].xx,
+                                  self.CDF[ii].yy,
+                                  self.CDF[ii].FIELD.data,
+                                  self.CDF[ii].FIELD.mask,
+                                  self.CDF[ii].FIELD.PLOT))
 
     # Draw currents:
     #
@@ -6954,94 +6992,96 @@ class CosmoDrawing():
         geomarker.drawing(self.fig,self.ax,self.m,self.MARKER[ii])
 
 
-    if self.PLOT.COASTLINE_SHOW.get():
-      self.m.drawcoastlines(linewidth=self.PLOT.COASTLINE_WIDTH.get(), \
-                       color=self.PLOT.COASTLINE_COLOR.get())
+    if self.PLOT.GEOMAP.get():
+      '''Plotting maps without MATPLOTLIB'''
+      if self.PLOT.COASTLINE_SHOW.get():
+        self.m.drawcoastlines(linewidth=self.PLOT.COASTLINE_WIDTH.get(), \
+                             color=self.PLOT.COASTLINE_COLOR.get())
  
 
-    if self.PLOT.COUNTRYLINE_SHOW.get():
-      self.m.drawcountries(linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(), \
-                        color=self.PLOT.COUNTRYLINE_COLOR.get())
+      if self.PLOT.COUNTRYLINE_SHOW.get():
+        self.m.drawcountries(linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(), \
+                            color=self.PLOT.COUNTRYLINE_COLOR.get())
 
-    if self.PLOT.ISOBAT_NPLOT > 0:
-      # Plot isobaths and its legend:
-      lines = []
-      labels = []
-      for ii in range(self.PLOT.nisobat):
-        if self.PLOT.ISOBAT_LABEL_SHOW.get():
-          label = self.PLOT.ISOBAT_LABEL[ii]
-        else:
-          label = None
-        try:
-          color = eval(self.PLOT.ISOBAT_COLOR[ii].get())
-        except:
-          color = self.PLOT.ISOBAT_COLOR[ii].get()
-        if self.PLOT.ISOBAT_SHOW[ii]:
-          z = self.PLOT.ISOBAT_DATA[ii]
-          ilon = z['lon']
-          ilat = z['lat']
-          isox,isoy = self.m(ilon,ilat)
-          for i in range(len(isox)):
-            if isox[i] > 1e29:
-              isox[i] = np.nan
-              isoy[i] = np.nan
-          isbt, = self.m.plot(isox,isoy,
-                              marker=None, 
-                              linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
-                              linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
-                              color=color)
-          lines.append(isbt)
-          labels.append(label)
+      if self.PLOT.ISOBAT_NPLOT > 0:
+        # Plot isobaths and its legend:
+        lines = []
+        labels = []
+        for ii in range(self.PLOT.nisobat):
+          if self.PLOT.ISOBAT_LABEL_SHOW.get():
+            label = self.PLOT.ISOBAT_LABEL[ii]
+          else:
+            label = None
+          try:
+            color = eval(self.PLOT.ISOBAT_COLOR[ii].get())
+          except:
+            color = self.PLOT.ISOBAT_COLOR[ii].get()
+          if self.PLOT.ISOBAT_SHOW[ii]:
+            z = self.PLOT.ISOBAT_DATA[ii]
+            ilon = z['lon']
+            ilat = z['lat']
+            isox,isoy = self.m(ilon,ilat)
+            for i in range(len(isox)):
+              if isox[i] > 1e29:
+                isox[i] = np.nan
+                isoy[i] = np.nan
+            isbt, = self.m.plot(isox,isoy,
+                                marker=None, 
+                                linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
+                                linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
+                                color=color)
+            lines.append(isbt)
+            labels.append(label)
 
-          if self.PLOT.ISOBAT_LEGEND.SHOW.get():
-            if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
-              fontsize = None
-            else:
-              fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
-            if self.PLOT.ISOBAT_LEGEND.MODE.get() == 1:
-              mode = 'expand'
-            else:
-              mode = None
-
-            self.Ilegend = plt.legend([lines[i] for i in range(len(lines))],
-                        [labels[i] for i in range(len(lines))],
-                        loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
-                        ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
-                        fontsize=fontsize,
-                        frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
-                        fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
-                        shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
-                        framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
-                        mode=mode,
-                        facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
-                        edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
-                        markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
-                        borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
-                        handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
-                        borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
-                        labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get(),
+            if self.PLOT.ISOBAT_LEGEND.SHOW.get():
+              if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
+                fontsize = None
+              else:
+                fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
+              if self.PLOT.ISOBAT_LEGEND.MODE.get() == 1:
+                mode = 'expand'
+              else:
+                mode = None
+  
+              self.Ilegend = plt.legend([lines[i] for i in range(len(lines))],
+                          [labels[i] for i in range(len(lines))],
+                          loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
+                          ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
+                          fontsize=fontsize,
+                          frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
+                          fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
+                          shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
+                          framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
+                          mode=mode,
+                          facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
+                          edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
+                          markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
+                          borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
+                          handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
+                          borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
+                          labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get(),
                                )
 
-            if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
-              try:
-                self.Ilegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
-                                 prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
-              except:
-                pass
+              if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
+                try:
+                  self.Ilegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                                   prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
+                except:
+                  pass
 
             #self.ax.add_artist(self.Ilegend)
 
 
 
-    if self.PLOT.WATER_COLOR.get() is not 'None':
-      self.m.drawmapboundary(fill_color=self.PLOT.WATER_COLOR.get())
+      if self.PLOT.WATER_COLOR.get() is not 'None':
+        self.m.drawmapboundary(fill_color=self.PLOT.WATER_COLOR.get())
 
-    if self.PLOT.LAND_COLOR.get() is not 'None':
-      self.m.fillcontinents(color=self.PLOT.LAND_COLOR.get())
+      if self.PLOT.LAND_COLOR.get() is not 'None':
+        self.m.fillcontinents(color=self.PLOT.LAND_COLOR.get())
 
-    if self.PLOT.RIVERS_SHOW.get():
-      self.m.drawrivers(linewidth=self.PLOT.RIVERS_WIDTH.get(), \
-                        color=self.PLOT.RIVERS_COLOR.get())
+      if self.PLOT.RIVERS_SHOW.get():
+        self.m.drawrivers(linewidth=self.PLOT.RIVERS_WIDTH.get(), \
+                          color=self.PLOT.RIVERS_COLOR.get())
 
 
 
@@ -7055,20 +7095,12 @@ class CosmoDrawing():
       vmeridians = np.arange(self.PLOT.MERIDIAN_INI.get(), \
                              self.PLOT.MERIDIAN_FIN.get(), \
                              self.PLOT.MERIDIAN_INT.get())
-      par = self.m.drawmeridians(vmeridians,                            \
-                        labels=[self.PLOT.GRID_WEST.get(),        \
-                                self.PLOT.GRID_EAST.get(),        \
-                                self.PLOT.GRID_NORTH.get(),       \
-                                self.PLOT.GRID_SOUTH.get()],      \
-                        fontsize=self.PLOT.GRID_SIZE.get(),       \
-                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
-                        color=self.PLOT.GRID_COLOR.get())
-      setcolor(par,self.PLOT.GRID_FONTCOLOR.get())
-
       vparallels = np.arange(self.PLOT.PARALLEL_INI.get(), \
                              self.PLOT.PARALLEL_FIN.get(), \
                              self.PLOT.PARALLEL_INT.get())
-      mer = self.m.drawparallels(vparallels,                            \
+
+      if self.PLOT.GEOMAP.get():
+        par = self.m.drawmeridians(vmeridians,                            \
                         labels=[self.PLOT.GRID_WEST.get(),        \
                                 self.PLOT.GRID_EAST.get(),        \
                                 self.PLOT.GRID_NORTH.get(),       \
@@ -7076,48 +7108,75 @@ class CosmoDrawing():
                         fontsize=self.PLOT.GRID_SIZE.get(),       \
                         linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
                         color=self.PLOT.GRID_COLOR.get())
-      setcolor(mer,self.PLOT.GRID_FONTCOLOR.get())
+        setcolor(par,self.PLOT.GRID_FONTCOLOR.get())
 
-      # Modify the line characteristics:
-      lat_lines = chain(*(tup[1][0] for tup in mer.items()))
-      lon_lines = chain(*(tup[1][0] for tup in par.items()))
-      all_lines = chain(lat_lines,lon_lines)
+        mer = self.m.drawparallels(vparallels,                            \
+                        labels=[self.PLOT.GRID_WEST.get(),        \
+                                self.PLOT.GRID_EAST.get(),        \
+                                self.PLOT.GRID_NORTH.get(),       \
+                                self.PLOT.GRID_SOUTH.get()],      \
+                        fontsize=self.PLOT.GRID_SIZE.get(),       \
+                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
+                        color=self.PLOT.GRID_COLOR.get())
+        setcolor(mer,self.PLOT.GRID_FONTCOLOR.get())
 
-      # cylce through these lines and set the desired style
-      for line in all_lines:
-        line.set(linestyle=self.PLOT.GRID_LINESTYLE.get(),
-                 alpha=self.PLOT.GRID_ALPHA.get())
+        # Modify the line characteristics:
+        lat_lines = chain(*(tup[1][0] for tup in mer.items()))
+        lon_lines = chain(*(tup[1][0] for tup in par.items()))
+        all_lines = chain(lat_lines,lon_lines)
+
+        # cylce through these lines and set the desired style
+        for line in all_lines:
+          line.set(linestyle=self.PLOT.GRID_LINESTYLE.get(),
+                   alpha=self.PLOT.GRID_ALPHA.get())
+
+      else:
+
+        self.ax.grid(True)
+
+        self.ax.set_xticks(vmeridians)
+        self.ax.set_yticks(vparallels)
+        plt.rc('grid',alpha=self.PLOT.GRID_ALPHA.get())
+        plt.rc('grid',color=colors.to_rgba(self.PLOT.GRID_COLOR.get()))
+        plt.rc('grid',linewidth= self.PLOT.GRID_LINEWIDTH.get())
+        plt.rc('grid',linestyle=self.PLOT.GRID_LINESTYLE.get())
+        plt.rc('xtick',color=self.PLOT.GRID_FONTCOLOR.get())
+        plt.rc('xtick',labelsize=self.PLOT.GRID_SIZE.get())
+        plt.rc('ytick',color=self.PLOT.GRID_FONTCOLOR.get())
+        plt.rc('ytick',labelsize=self.PLOT.GRID_SIZE.get())
 
 
 
 
-    if self.PLOT.SCALE_SHOW.get():
-        try:
-          YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
-        except:
-          YOFFSET = None
-            
-        try:
-          LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
-        except:
-          LINEWIDTH = None
+    if self.PLOT.GEOMAP.get():
+      if self.PLOT.SCALE_SHOW.get():
+          try:
+            YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
+          except:
+            YOFFSET = None
+              
+          try:
+            LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
+          except:
+            LINEWIDTH = None
 
-        self.m.drawmapscale(self.PLOT.SCALE_X.get(),
-                            self.PLOT.SCALE_Y.get(),
-                            self.PLOT.SCALE_XO.get(),
-                            self.PLOT.SCALE_YO.get(),
-                            length=self.PLOT.SCALE_LENGTH.get(),
-                            units=self.PLOT.SCALE_UNITS.get(),
-                            barstyle=self.PLOT.SCALE_STYLE.get(),
-                            fontsize=self.PLOT.SCALE_FONTSIZE.get(),
-                            yoffset=YOFFSET, 
-                            labelstyle=self.PLOT.SCALE_LABELSTYLE.get(),
-                            fontcolor=self.PLOT.SCALE_FONTCOLOR.get(),
-                            fillcolor1=self.PLOT.SCALE_FILLCOLOR1.get(),
-                            fillcolor2=self.PLOT.SCALE_FILLCOLOR2.get(),
-                            format=self.PLOT.SCALE_FORMAT.get(),
-                            linecolor=self.PLOT.SCALE_LINECOLOR.get(),
-                            linewidth=LINEWIDTH)
+          self.m.drawmapscale(self.PLOT.SCALE_X.get(),
+                              self.PLOT.SCALE_Y.get(),
+                              self.PLOT.SCALE_XO.get(),
+                              self.PLOT.SCALE_YO.get(),
+                              length=self.PLOT.SCALE_LENGTH.get(),
+                              units=self.PLOT.SCALE_UNITS.get(),
+                              barstyle=self.PLOT.SCALE_STYLE.get(),
+                              fontsize=self.PLOT.SCALE_FONTSIZE.get(),
+                              yoffset=YOFFSET, 
+                              labelstyle=self.PLOT.SCALE_LABELSTYLE.get(),
+                              fontcolor=self.PLOT.SCALE_FONTCOLOR.get(),
+                              fillcolor1=self.PLOT.SCALE_FILLCOLOR1.get(),
+                              fillcolor2=self.PLOT.SCALE_FILLCOLOR2.get(),
+                              format=self.PLOT.SCALE_FORMAT.get(),
+                              linecolor=self.PLOT.SCALE_LINECOLOR.get(),
+                              linewidth=LINEWIDTH)
+
 
     # Lables and titles:
     font_family = self.PLOT.MAP_FONT_TYPE.get()
