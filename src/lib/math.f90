@@ -16,6 +16,7 @@ implicit none
 private
 public identity,akima,dakima,arange,mean,indexx,interplin,haversine
 public d_interpol
+public grnn1
 !public norm2
 
 interface akima
@@ -457,7 +458,42 @@ enddo
 d_interpol = dot_product(a,f)
 
 end function d_interpol
+! ...
+! =============================================================================
+! ...
+function grnn1 (x,y,xo,sigma) result(yo)
 
+! ... Generalized Regression Neural Network
+! ... Wasserman, P.D., Advanced Methods in Neural Computing, New York, 
+! ...   Van Nostrand Reinhold, 1993, pp. 155–61
+! ...
+! ... [x,y] :: training data pairs (Real numbers)
+! ... sigma :: spread
+! ... xo    :: input     (Real)
+! ... yo    :: output    (Real)
+
+real(dp), dimension(:), intent(in)   :: x
+real(dp), dimension(:), intent(in)   :: y
+real(dp), intent(in)                 :: xo
+real(dp), intent(in)                 :: sigma
+real(dp)                             :: yo
+
+real(dp), dimension(size(x))         :: w,d
+real(dp) num,den
+
+d(:) = (x(:) - xo)/sigma
+w(:) = exp(-0.5*d**2)
+
+num = dot_product(w,y)
+den = sum(w)
+
+if (den.eq.zero) then
+  yo = zero
+else
+  yo = num/den
+endif
+
+end function grnn1
 ! ...
 ! =============================================================================
 ! ...

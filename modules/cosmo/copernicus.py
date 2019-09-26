@@ -68,7 +68,7 @@ class WinTracking():
 
     # Connection credentials
     #
-    print('Loading credentials')
+    print('Loading credentials from ',COSMO_CONF+'copernicus-credentials.conf')
     try:
       with open(COSMO_CONF+'copernicus-credentials.conf','r') as infile:
         conf = json.load(infile)
