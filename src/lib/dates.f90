@@ -28,7 +28,7 @@ type date_type
   integer                  :: hour   = 0
   integer                  :: minute = 0
   integer                  :: second = 0
-  character(len=10)        :: calendar = 'gregorian'
+  character(len=20)        :: calendar = 'gregorian'
 end type date_type
 
 
@@ -248,6 +248,7 @@ seconds = date%hour*3600.0_dp + date%minute*60.0_dp + date%second
 
 if ((date%calendar.eq.'gregorian').or. &
     (date%calendar.eq.'standard').or. &
+    (date%calendar.eq.'proleptic_gregorian').or. &
     (len_trim(date%calendar).eq.0)) then
   jd = julday(date%year,date%month,date%day)
 else if ((date%calendar.eq.'365_day').or. &

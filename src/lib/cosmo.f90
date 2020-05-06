@@ -20,6 +20,7 @@ module cosmo
   use dates
   use ocean
   use geojson
+  use roms
 
   implicit none
 

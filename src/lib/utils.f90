@@ -13,8 +13,15 @@ implicit none
 private
 public compress,lowercase,line_word,menu,numlines,now,numwords, &
        stop_error,strcat,unitfree,uppercase,say,whitechar, &
-       coords2index,index2coords,locate,filetype,mkdir, newfilename, &
-       get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr
+       coords2index,index2coords,locate,filetype,mkdir,ls,newfilename, &
+       get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr, &
+       rndname
+
+type ls_type
+  integer                                     :: n
+  character(len=180), dimension(:), pointer   :: name
+end type ls_type
+public ls_type
 
 contains
 ! ...
@@ -409,6 +416,39 @@ character(len=*), intent(in)    :: dirname
 call system('mkdir -p '//compress(dirname))
 
 end subroutine mkdir
+! ...
+! =============================================================================
+! ...
+subroutine ls(dirname,filelist)
+
+character(len=*), intent(in)             :: dirname
+type(ls_type), intent(out)               :: filelist
+
+integer iu,nl,i,err
+character(len=8) tmpname
+character(len=180) aa
+
+
+! ... Random filename for temporal storage
+! ... Send the contents of the selected folder to thar filename
+tmpname = '/tmp/'//rndname()
+call system('ls '//compress(dirname)//' -1 > '//tmpname)
+
+iu = unitfree()
+open(iu,file=tmpname,status='old')
+nl = numlines(iu)
+
+filelist%n = nl
+allocate(filelist%name(nl),stat=err)
+
+do i=1,nl
+  read(iu,'(A)') aa
+  filelist%name(i) = trim(aa)
+enddo
+
+close(iu,status='delete')
+
+end subroutine ls
 ! ...
 ! =============================================================================
 ! ...
@@ -878,6 +918,37 @@ endif
 a = trim(aa)
 
 end function ff2str
+! ...
+! =====================================================================
+! ...
+function rndname(iseed) result(name)
+
+integer, optional              :: iseed
+character(len=8)               :: name
+
+! ... Local variables
+integer i,io,il,j,n
+integer, dimension(:), allocatable :: seed
+real(dp) r
+
+if (present(iseed)) then
+  call random_seed(size=n)
+  allocate(seed(n))
+  seed(:) = iseed
+  call random_seed(put=seed)
+endif
+
+io = ichar('A')
+il = ichar('Z') - io
+
+do i=1,8
+  call random_number(r)
+  j = int(io + il*r)
+  name(i:i) = char(j)
+enddo
+
+return
+end function rndname
 ! ...
 ! =====================================================================
 ! ...
