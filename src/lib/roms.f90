@@ -786,6 +786,43 @@ CONTAINS
   err = NF90_GET_VAR(r%fid,ii,r%hgrid%h)
   if (err.NE.NF90_NOERR) stop 'ERROR while reading h'
 
+  ! ... masks
+  ! ...
+  err = NF90_INQ_VARID(r%fid,'mask_rho',ii)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'ERROR: while loooking for variable mask_rho'
+    stop 'variable not found'
+  endif
+  allocate(r%hgrid%mask_rho(r%hgrid%xi_rho,r%hgrid%eta_rho))
+  err = NF90_GET_VAR(r%fid,ii,r%hgrid%mask_rho)
+  if (err.NE.NF90_NOERR) stop 'ERROR while reading mask_rho'
+
+  err = NF90_INQ_VARID(r%fid,'mask_u',ii)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'WARNING: variable mask_u not found'
+  else
+    allocate(r%hgrid%mask_u(r%hgrid%xi_u,r%hgrid%eta_u))
+    err = NF90_GET_VAR(r%fid,ii,r%hgrid%mask_u)
+    if (err.NE.NF90_NOERR) stop 'ERROR while reading mask_u'
+  endif
+
+  err = NF90_INQ_VARID(r%fid,'mask_v',ii)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'ERROR: variable mask_v not found'
+  else
+    allocate(r%hgrid%mask_v(r%hgrid%xi_v,r%hgrid%eta_v))
+    err = NF90_GET_VAR(r%fid,ii,r%hgrid%mask_v)
+    if (err.NE.NF90_NOERR) stop 'ERROR while reading mask_v'
+  endif
+
+  err = NF90_INQ_VARID(r%fid,'mask_psi',ii)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'WARNING: variable mask_psi not found'
+  else
+    allocate(r%hgrid%mask_psi(r%hgrid%xi_psi,r%hgrid%eta_psi))
+    err = NF90_GET_VAR(r%fid,ii,r%hgrid%mask_psi)
+    if (err.NE.NF90_NOERR) stop 'ERROR while reading mask_psi'
+  endif
 
   err = NF90_CLOSE(r%fid) 
   return

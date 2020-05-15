@@ -15,8 +15,8 @@ OBJ = types.o constants.o utils.o lineargs.o help.o dates.o cdf.o geocdf.o \
 clean:
 	echo $(COSMO)
 	rm -f *.mod *.o $(TARGET)
-	rm -f $(INCDIR)/*
-	rm -f $(LIBDIR)/*
+	rm -f $(INCDIR)/*.mod
+	rm -f $(LIBDIR)/*.a
 
 cosmo: $(OBJ)
 	echo $(COSMO)
