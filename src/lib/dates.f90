@@ -549,4 +549,98 @@ end function date_inc
 ! ...
 ! ============================================================================
 ! ...
+integer function timediff(t1,t2,units)
+! ... Calculates t2 - t1
+
+type(date_type), intent(in)                :: t1
+type(date_type), intent(in)                :: t2
+character(len=*), optional                 :: units
+
+! ... Local variables:
+! ...
+logical isday,ismon,issec,ismin,ishou,isyea
+integer i1,i2
+real(dp) r1,r2
+character(len=10) lun
+
+issec = .false.
+ismin = .false.
+ishou = .false.
+isday = .false.
+ismon = .false.
+isyea = .false.
+
+if (PRESENT(units)) then
+  lun = uppercase(units)
+  if (lun(1:1).eq.'S') then
+    issec = .true.
+  else if (lun(1:2).eq.'MI') then
+    ismin = .true.
+  else if (lun(1:1).eq.'H') then
+    ishou = .true.
+  else if (lun(1:1).eq.'D') then
+    isday = .true.
+  else if (lun(1:2).eq.'MO') then
+    ismon = .true.
+  else if (lun(1:1).eq.'Y') then
+    isyea = .true.
+  else
+    stop 'unknown time units'
+  endif
+else
+  ! ... Default time units
+  isday = .true.
+endif
+
+if (isyea) then
+  ! ... Time difference in months:
+  ! ...
+  i1 = t1%year
+  i2 = t2%year
+  timediff = i2 - i1
+  return
+endif
+
+if (ismon) then
+  ! ... Time difference in months:
+  ! ...
+  i1 = t1%year*12 + t1%month
+  i2 = t2%year*12 + t2%month
+  timediff = i2 - i1
+  return
+endif
+
+if (isday) then
+  ! ... Time difference in days:
+  ! ...
+  i1 = date2jd(t1)
+  i2 = date2jd(t2)
+  timediff = int(i2 - i1)
+  return
+endif
+
+r1 = date2jd(t1)*86400.0d0
+r2 = date2jd(t2)*86400.0d0
+
+if (ishou) then
+  ! ... Time difference in months:
+  ! ...
+  timediff = int((r2 - r1)/3600.0d0)
+  return
+endif
+
+if (ismin) then
+  ! ... Time difference in months:
+  ! ...
+  timediff = int((r2 - r1)/60.0d0)
+  return
+endif
+
+timediff = int(r2 - r1)
+
+return
+end function timediff
+! ...
+! ============================================================================
+! ...
 end module dates

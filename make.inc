@@ -27,8 +27,8 @@ AR = ar cq
 # CENTOS
 #NF90_INC = /usr/include/
 #NF90_LIB = /usr/lib/i386-linux-gnu/
-NF90_INC = /usr/lib64/gfortran/modules/
-NF90_LIB = /usr/lib64/
+NF90_INC = /usr/include
+NF90_LIB = /usr/lib
 
 # Folders where files are going to be installed
 #
