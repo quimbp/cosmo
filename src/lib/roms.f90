@@ -8,6 +8,21 @@ use cdf
 
 implicit none
 
+TYPE vsc
+! ... Vertical S-coordinate
+  integer                             :: Vtransform  = 0
+  integer                             :: Vstretching = 0
+  integer                             :: N           = 0
+  real(dp)                            :: theta_s     = 0
+  real(dp)                            :: theta_b     = 0
+  real(dp)                            :: Tcline      = 0
+  real(dp)                            :: hc
+  real(dp), dimension(:), pointer     :: sc_r
+  real(dp), dimension(:), pointer     :: sc_w
+  real(dp), dimension(:), pointer     :: Cs_r
+  real(dp), dimension(:), pointer     :: Cs_w
+END TYPE vsc
+
 TYPE MHgrid
   integer                             :: xi_rho  = -1
   integer                             :: eta_rho = -1
@@ -36,19 +51,10 @@ TYPE MHgrid
 END TYPE MHgrid
 
 TYPE MVgrid
-  integer                             :: N   = -1
-  integer                             :: N_r = -1
-  integer                             :: N_w = -1
-  integer                             :: Vtransform
-  integer                             :: Vstretching
-  real(dp)                            :: theta_s
-  real(dp)                            :: theta_b
-  real(dp)                            :: Tcline
-  real(dp)                            :: hc
-  real(dp), dimension(:), pointer     :: s_r
-  real(dp), dimension(:), pointer     :: s_w
-  real(dp), dimension(:), pointer     :: Cs_r
-  real(dp), dimension(:), pointer     :: Cs_w
+  type(vsc)                           :: S
+  integer                             :: N   = 0
+  integer                             :: N_r = 0
+  integer                             :: N_w = 0
   real(dp), dimension(:,:,:), pointer :: z0_r
   real(dp), dimension(:,:,:), pointer :: z0_w
   real(dp), dimension(:,:,:), pointer :: z_r
@@ -145,6 +151,7 @@ CONTAINS
     return
   endif
   err = NF90_INQUIRE_DIMENSION(r%fid,ii,len=r%vgrid%N)
+  r%vgrid%S%N = r%vgrid%N
 
   err = NF90_INQ_DIMID(r%fid,'s_w',ii)
   if (err.ne.NF90_NOERR) then
@@ -179,10 +186,10 @@ CONTAINS
 
   call roms_read_hgrid(r%fid,r%hgrid,err)
 
-  nullify(r%vgrid%s_r)
-  nullify(r%vgrid%s_w)
-  nullify(r%vgrid%Cs_r)
-  nullify(r%vgrid%Cs_w)
+  nullify(r%vgrid%S%sc_r)
+  nullify(r%vgrid%S%sc_w)
+  nullify(r%vgrid%S%Cs_r)
+  nullify(r%vgrid%S%Cs_w)
 
   call roms_read_vgrid(r%fid,r%vgrid,err)
 
@@ -322,56 +329,297 @@ CONTAINS
 
   integer ii
 
-  allocate(vgrid%s_r(vgrid%N_r))
-  allocate(vgrid%s_w(vgrid%N_w))
-  allocate(vgrid%Cs_r(vgrid%N_r))
-  allocate(vgrid%Cs_w(vgrid%N_w))
+  allocate(vgrid%S%sc_r(vgrid%N_r))
+  allocate(vgrid%S%sc_w(vgrid%N_w))
+  allocate(vgrid%S%Cs_r(vgrid%N_r))
+  allocate(vgrid%S%Cs_w(vgrid%N_w))
 
   err = NF90_INQ_VARID(fid,'Vtransform',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%Vtransform)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%Vtransform)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable Vtransform not found'
 
   err = NF90_INQ_VARID(fid,'Vstretching',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%Vstretching)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%Vstretching)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable Vstretching not found'
 
   err = NF90_INQ_VARID(fid,'theta_s',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%theta_s)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%theta_s)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable theta_s not found'
 
   err = NF90_INQ_VARID(fid,'theta_b',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%theta_b)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%theta_b)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable theta_b not found'
 
   err = NF90_INQ_VARID(fid,'Tcline',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%Tcline)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%Tcline)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable Tcline not found'
 
   err = NF90_INQ_VARID(fid,'hc',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%hc)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%hc)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable hc not found'
 
   err = NF90_INQ_VARID(fid,'s_rho',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%s_r)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%sc_r)
   write(*,*) NF90_STRERROR(err)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable s_rho not found'
   
 
   err = NF90_INQ_VARID(fid,'s_w',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%s_w)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%sc_w)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable s_w not found'
 
   err = NF90_INQ_VARID(fid,'Cs_r',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%Cs_r)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%Cs_r)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable Cs_r not found'
 
   err = NF90_INQ_VARID(fid,'Cs_w',ii)
-  err = NF90_GET_VAR(fid,ii,vgrid%Cs_w)
+  err = NF90_GET_VAR(fid,ii,vgrid%S%Cs_w)
   if (err.NE.NF90_NOERR) stop 'ERROR: Variable Cs_w not found'
 
   return
 
   end subroutine roms_read_vgrid
+  ! ...
+  ! =========================================================================
+  ! ...
+  subroutine set_scoord(S,hmin)
+
+  type(vsc), intent(inout)       :: S
+  real(dp), intent(in), optional :: hmin
+
+  ! ... Local variables:
+  ! ...
+  integer k,N
+  real(dp) theta_b,theta_s
+  real(dp) cff1,cff2,ds,A,B,C
+  real(dp) Cbot,Csur,Cweight,exp_bot,exp_sur,Hscale
+  real(dp) rk,rN,sc_r,sc_w
+
+  if (S%Vtransform.le.0) stop 'Vtransform not set'
+  if (S%Vstretching.le.0) stop 'Vtransform not set'
+
+  ! ... Set hc:
+  ! ...
+  if (S%Vtransform.eq.1) then
+    if (.not.present(hmin)) stop 'Vtransform 1 requires specifying hmin value'
+    S%hc = min(hmin,S%Tcline)
+  else if (S%Vtransform.eq.2) then
+    S%hc = S%Tcline
+  endif
+
+  ! ... Allocate sigma levels and stretching functions
+  ! ...
+  N       = S%N
+  theta_s = S%theta_s
+  theta_b = S%theta_b
+
+  allocate(S%sc_r(N))
+  allocate(S%Cs_r(N))
+  allocate(S%sc_w(0:N))
+  allocate(S%Cs_w(0:N))
+
+  !-----------------------------------------------------------------------
+  !  Original vertical strectching function, Song and Haidvogel (1994).
+  !-----------------------------------------------------------------------
+  if (S%Vstretching.eq.1) then
+
+    if (theta_s.ne.zero) then
+      cff1 = one/SINH(theta_s)
+      cff2 = half/TANH(half*theta_s)
+    endif
+    S%sc_w(0) = -one
+    S%Cs_w(0) = -one
+    ds = one/REAL(N,dp)
+    do k=1,N
+      S%sc_w(k) = ds*REAL(k-N,dp)
+      S%sc_r(k) = ds*(REAL(k-N,dp)-half)
+      if (theta_s.ne.zero) then
+        S%Cs_w(k) = (one-theta_b)*cff1*SINH(theta_s*S%sc_w(k)) +   &
+                     theta_b*(cff2*TANH(theta_s*(S%sc_w(k)+half))-half)
+        S%Cs_r(k) = (one-theta_b)*cff1*SINH(theta_s*S%sc_r(k))+    &
+                     theta_b*(cff2*TANH(theta_s*(S%sc_r(k)+half))-half)
+      else
+       S%Cs_w(k) = S%sc_w(k)
+       S%Cs_r(k) = S%sc_r(k)
+      endif
+    enddo
+
+  !-----------------------------------------------------------------------
+  !  A. Shchepetkin vertical stretching function. This function was
+  !  improved further to allow bottom refiment (see Vstretching=4).
+  !-----------------------------------------------------------------------
+  else if (S%Vstretching.eq.2) then
+
+    A  = one
+    B  = one
+    ds = one/REAL(N,dp)
+
+    S%sc_w(N) = zero
+    S%Cs_w(N) = zero
+    do k=N-1,1,-1
+      sc_w = ds*REAL(k-N,dp)
+      S%sc_w(k) = sc_w
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_w))/(COSH(theta_s)-one)
+        if (theta_b.gt.zero) then
+          Cbot      = SINH(theta_b*(sc_w+one))/SINH(theta_b)-one
+          C         = (sc_w+one)**A*(one+(A/B)*(one-(sc_w+one)**B))
+          S%Cs_w(k) = C*Csur+(one-C)*Cbot
+        else
+          S%Cs_w(k) = Csur
+        endif
+      else
+        S%Cs_w(k) = sc_w
+      endif
+    enddo
+    S%sc_w(0) = -one
+    S%Cs_w(0) = -one
+
+    do k=1,N
+      sc_r=ds*(REAL(k-N,dp)-half)
+      S%sc_r(k)=sc_r
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_r))/(COSH(theta_s)-one)
+        if (theta_b.gt.zero) then
+          Cbot      = SINH(theta_b*(sc_r+one))/SINH(theta_b)-one
+          C         = (sc_r+one)**A*(one+(A/B)*(one-(sc_r+one)**B))
+          S%Cs_r(k) = C*Csur+(one-C)*Cbot
+        else
+          S%Cs_r(k) = Csur
+        endif
+      else
+        S%Cs_r(k) = sc_r
+      endif
+    enddo 
+
+  !-----------------------------------------------------------------------
+  !  R. Geyer stretching function for high bottom boundary layer
+  !  resolution.
+  !-----------------------------------------------------------------------
+  else if (S%Vstretching.eq.3) then
+
+    exp_sur = theta_s
+    exp_bot = theta_b
+    Hscale  = 3.0_dp
+    ds = one/REAL(N,dp)
+
+    S%sc_w(N) = zero
+    S%Cs_w(N) = zero
+    do k=N-1,1,-1
+      sc_w = ds*REAL(k-N,dp)
+      S%sc_w(k) = sc_w
+      Cbot =  LOG(COSH(Hscale*(sc_w+one)**exp_bot))/LOG(COSH(Hscale))-one
+      Csur = -LOG(COSH(Hscale*ABS(sc_w)**exp_sur))/LOG(COSH(Hscale))
+      Cweight = half*(one-TANH(Hscale*(sc_w+half)))
+      S%Cs_w(k) = Cweight*Cbot+(one-Cweight)*Csur
+    enddo
+    S%sc_w(0) = -one
+    S%Cs_w(0) = -one
+
+    do k=1,N
+      sc_r = ds*(REAL(k-N,dp)-half)
+      S%sc_r(k) = sc_r
+      Cbot =  LOG(COSH(Hscale*(sc_r+one)**exp_bot))/LOG(COSH(Hscale))-one
+      Csur = -LOG(COSH(Hscale*ABS(sc_r)**exp_sur))/LOG(COSH(Hscale))
+      Cweight = half*(one-TANH(Hscale*(sc_r+half)))
+      S%Cs_r(k) = Cweight*Cbot+(one-Cweight)*Csur
+    enddo
+
+  !-----------------------------------------------------------------------
+  !  A. Shchepetkin improved double vertical stretching functions with
+  !  bottom refiment.
+  !-----------------------------------------------------------------------
+  else if (S%Vstretching.eq.4) then
+  
+    ds = one/REAL(N,dp)
+
+    S%sc_w(N) = zero
+    S%Cs_w(N) = zero
+    do k=N-1,1,-1
+      sc_w      = ds*REAL(k-N,dp)
+      S%sc_w(k) = sc_w
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_w))/(COSH(theta_s)-one)
+      else
+        Csur = -sc_w**2
+      endif
+      if (theta_b.gt.zero) then
+        Cbot      = (EXP(theta_b*Csur)-one)/(one-EXP(-theta_b))
+        S%Cs_w(k) = Cbot
+      else
+        S%Cs_w(k) = Csur
+      endif
+    enddo
+    S%sc_w(0) = -one
+    S%Cs_w(0) = -one
+
+    do k=1,N
+      sc_r      = ds*(REAL(k-N,dp)-half)
+      S%sc_r(k) = sc_r
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_r))/(COSH(theta_s)-one)
+      else
+        Csur = -sc_r**2
+      endif
+      if (theta_b.gt.zero) then
+        Cbot = (EXP(theta_b*Csur)-one)/(one-EXP(-theta_b))
+        S%Cs_r(k) = Cbot
+      else
+        S%Cs_r(k) = Csur
+      endif
+    enddo
+
+  !----------------------------------------------------------------------
+  ! Stretching 5 case using a quadratic Legendre polynomial function
+  ! aproach for the s-coordinate to enhance the surface exchange layer.
+  !-----------------------------------------------------------------------
+  else if (S%Vstretching.eq.5) then
+
+    S%sc_w(N) = zero
+    S%Cs_w(N) = zero
+    do k=N-1,1,-1
+      rk = REAL(k,dp)
+      rN = REAL(N,dp)
+      sc_w = -(rk*rk - 2.0_dp*rk*rN + rk + rN*rN - rN)/(rN*rN - rN) -  &
+              0.01_dp*(rk*rk - rk*rN)/(one - rN)
+      S%sc_w(k) = sc_w
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_w))/(COSH(theta_s)-one)
+      else
+        Csur = -sc_w**2
+      endif
+      if (theta_b.gt.zero) then
+        Cbot      = (EXP(theta_b*Csur)-one)/(one-EXP(-theta_b))
+        S%Cs_w(k) = Cbot
+      else
+        S%Cs_w(k) = Csur
+      endif
+    enddo
+    S%sc_w(0) = -one
+    S%Cs_w(0) = -one
+
+    do k=1,N
+      rk = REAL(k,dp)-half
+      rN = REAL(N,dp)
+      sc_r = -(rk*rk - 2.0_dp*rk*rN + rk + rN*rN - rN)/(rN*rN - rN)-  &
+                 0.01_dp*(rk*rk - rk*rN)/(one - rN)
+      S%sc_r(k) = sc_r
+      if (theta_s.gt.zero) then
+        Csur = (one-COSH(theta_s*sc_r))/(COSH(theta_s)-one)
+      else
+        Csur = -sc_r**2
+      endif
+      if (theta_b.gt.zero) then
+        Cbot = (EXP(theta_b*Csur)-one)/(one-EXP(-theta_b))
+        S%Cs_r(k) = Cbot
+      else
+        S%Cs_r(k) = Csur
+      endif
+    enddo
+
+  endif
+
+  end subroutine set_scoord
   ! ...
   ! =========================================================================
   ! ...
@@ -395,17 +643,17 @@ CONTAINS
     zeta(:,:) = zero
   endif
  
-  if (vgrid%Vtransform.eq.1) then
+  if (vgrid%S%Vtransform.eq.1) then
 
     do j=1,hgrid%eta_rho
       do i=1,hgrid%xi_rho
         vgrid%z_w(i,j,0) = -hgrid%h(i,j)
       enddo
       do k=1,vgrid%N
-        cff_r  = vgrid%hc*(vgrid%s_r(k)-vgrid%Cs_r(k))
-        cff_w  = vgrid%hc*(vgrid%s_w(k)-vgrid%Cs_w(k))
-        cff1_r = vgrid%Cs_r(k)
-        cff1_w = vgrid%Cs_w(k)
+        cff_r  = vgrid%S%hc*(vgrid%S%sc_r(k)-vgrid%S%Cs_r(k))
+        cff_w  = vgrid%S%hc*(vgrid%S%sc_w(k)-vgrid%S%Cs_w(k))
+        cff1_r = vgrid%S%Cs_r(k)
+        cff1_w = vgrid%S%Cs_w(k)
         do i=1,hgrid%xi_rho
           hwater = hgrid%h(i,j)
           hinv   = one / hwater
@@ -418,21 +666,20 @@ CONTAINS
       enddo
     enddo
 
-  else if (vgrid%Vtransform.eq.2) then
+  else if (vgrid%S%Vtransform.eq.2) then
 
-    print*, 'Transform 2'
     do j=1,hgrid%eta_rho
       do i=1,hgrid%xi_rho
         vgrid%z_w(i,j,0) = -hgrid%h(i,j)
       enddo
       do k=1,vgrid%N
-        cff_r  = vgrid%hc*vgrid%s_r(k)
-        cff_w  = vgrid%hc*vgrid%s_w(k)
-        cff1_r = vgrid%Cs_r(k)
-        cff1_w = vgrid%Cs_w(k)
+        cff_r  = vgrid%S%hc*vgrid%S%sc_r(k)
+        cff_w  = vgrid%S%hc*vgrid%S%sc_w(k)
+        cff1_r = vgrid%S%Cs_r(k)
+        cff1_w = vgrid%S%Cs_w(k)
         do i=1,hgrid%xi_rho
           hwater = hgrid%h(i,j)
-          hinv   = one / (vgrid%hc + hwater)
+          hinv   = one / (vgrid%S%hc + hwater)
           cff2_r = (cff_r + cff1_r*hwater)*hinv
           cff2_w = (cff_w + cff1_w*hwater)*hinv
           vgrid%z_r(i,j,k) = zeta(i,j) + (zeta(i,j) + hwater)*cff2_r
@@ -860,6 +1107,69 @@ CONTAINS
 
   return
   end subroutine read_roms_time
+  ! ...
+  ! =========================================================================
+  ! ...
+  subroutine zdepth(S,h,z_r,z_w,dz,eta)
+
+  type(vsc), intent(in)               :: S
+  real(dp), intent(in)                :: h
+  real(dp), intent(out)               :: z_r(S%N),dz(S%N),z_w(0:S%N)
+  real(dp), intent(in), optional      :: eta
+
+  ! ... Local variables
+  ! ...
+  integer k
+  real(dp) cff_r,cff_w,cff1_r,cff1_w,cff2_r,cff2_w
+  real(dp) hwater,hinv,z_w0,z_r0,zeta
+
+  if (present(eta)) then
+    zeta = eta
+  else
+    zeta = zero
+  endif
+
+  if (S%Vtransform.eq.1) then
+
+    z_w(0) = -h
+    do k=1,S%N
+      cff_r  = S%hc*(S%sc_r(k)-S%Cs_r(k))
+      cff_w  = S%hc*(S%sc_w(k)-S%Cs_w(k))
+      cff1_r = S%Cs_r(k)
+      cff1_w = S%Cs_w(k)
+      hwater = h
+      hinv   = one / hwater
+      z_r0   = cff_r + cff1_r*hwater
+      z_w0   = cff_w + cff1_w*hwater
+      z_r(k) = z_r0 + zeta*(one + z_r0*hinv)
+      z_w(k) = z_w0 + zeta*(one + z_w0*hinv)
+      dz(k)  = z_w(k) - z_w(k-1)
+    enddo
+
+  else if (S%Vtransform.eq.2) then
+
+    z_w(0) = -h
+    do k=1,S%N
+      cff_r  = S%hc*S%sc_r(k)
+      cff_w  = S%hc*S%sc_w(k)
+      cff1_r = S%Cs_r(k)
+      cff1_w = S%Cs_w(k)
+      hwater = h
+      hinv   = one / (S%hc + hwater)
+      cff2_r = (cff_r + cff1_r*hwater)*hinv
+      cff2_w = (cff_w + cff1_w*hwater)*hinv
+      z_r(k) = zeta + (zeta + hwater)*cff2_r
+      z_w(k) = zeta + (zeta + hwater)*cff2_w
+      dz(k)  = z_w(k) - z_w(k-1)
+    enddo
+
+  else
+
+    stop 'Why am I here?'
+
+  endif 
+
+  end subroutine zdepth
   ! ...
   ! =========================================================================
   ! ...
