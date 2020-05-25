@@ -15,7 +15,7 @@ public compress,lowercase,line_word,menu,numlines,now,numwords, &
        stop_error,strcat,unitfree,uppercase,say,whitechar, &
        coords2index,index2coords,locate,filetype,mkdir,ls,newfilename, &
        get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr, &
-       rndname
+       rndname,locate2d
 
 type ls_type
   integer                                     :: n
@@ -432,6 +432,7 @@ character(len=180) aa
 ! ... Random filename for temporal storage
 ! ... Send the contents of the selected folder to thar filename
 tmpname = '/tmp/'//rndname()
+call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
 call system('ls '//compress(dirname)//' -1 > '//tmpname)
 
 iu = unitfree()
@@ -919,7 +920,7 @@ a = trim(aa)
 
 end function ff2str
 ! ...
-! =====================================================================
+! =============================================================================
 ! ...
 function rndname(iseed) result(name)
 
@@ -949,6 +950,53 @@ enddo
 
 return
 end function rndname
+! ...
+! =============================================================================
+! ...
+function locate2d(x,y,xo,yo) result(ind)
+! ... Returns the location of the array x(1:n), such that x(j) < xo < x(j+1)
+real(dp), dimension(:,:), intent(in) :: x,y
+real(dp), intent(in)                 :: xo,yo
+integer                              :: ind(2)
+
+! ... Local variables
+! ...
+logical slope1,slope2
+integer n1,n2,il,im,iu,jl,jm,ju
+
+
+n1 = size(x,1)
+n2 = size(x,2)
+if (size(y,1).ne.n1) call stop_error(1,'Incompatibe grids in locate2d')
+if (size(y,2).ne.n2) call stop_error(1,'Incompatibe grids in locate2d')
+
+slope1 = x(n1,n2).gt.x(1,1)
+slope2 = y(n1,n2).gt.y(1,1)
+
+il = 0; iu = n1 + 1
+jl = 0; ju = n2 + 1
+do while ((ju-jl.gt.1).or.(iu-il.gt.1))
+  if (iu-il.gt.1) then
+    im = (iu+il)/2
+    if (slope1.eqv.(xo.gt.x(im,jm))) then
+      il = im
+    else
+      iu = im
+    endif
+  endif
+  if (ju-jl.gt.1) then
+    jm = (ju+jl)/2
+    if (slope2.eqv.(yo.gt.y(im,jm))) then
+      jl = jm
+    else
+      ju = jm
+    endif
+  endif
+enddo
+ind(1) = il
+ind(2) = jl
+
+end function locate2d
 ! ...
 ! =====================================================================
 ! ...
