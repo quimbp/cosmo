@@ -20,7 +20,7 @@ $ git clone https://github.com/quimbp/cosmo.git
 
 Auxiliary isobath contours, useful for cosmo-view can be downloaded from here:
 
-https://nuvol.cmima.csic.es/owncloud/s/x8fGx5cEyHo7KMt
+https://nuvol.cmima.csic.es/owncloud/s/x8fGx5cEyHo7KMt/download
 
 Download this file and save in the cosmo root folder (the folder where the file make.inc is located). Then, install it as
 ...
