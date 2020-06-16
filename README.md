@@ -16,6 +16,17 @@ To install the code, use:
 ```
 $ git clone https://github.com/quimbp/cosmo.git
 ```
+## Downloading isobath data
+
+Auxiliary isobath contours, useful for cosmo-view can be downloaded from here:
+
+https://nuvol.cmima.csic.es/owncloud/s/x8fGx5cEyHo7KMt/download
+
+Download this file and save in the cosmo root folder (the folder where the file make.inc is located). Then, install it as
+```
+$ tar -xvzf isobaths.tar.gz
+```
+This command should extract the isobaths and place them in the folder **data/isobaths**
 
 ## Compilling Fortran code
 
