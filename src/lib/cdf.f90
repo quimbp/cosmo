@@ -256,7 +256,7 @@ err = NF90_GET_ATT(fid,idt,'calendar',att)
 if (err.eq.NF90_NOERR) then
   date%calendar = trim(att)
 else
-  date%calendar = 'unknown'
+  date%calendar = 'gregorian'
 endif
 
 err = 0

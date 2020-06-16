@@ -14,7 +14,8 @@ use netcdf
 use types, only: sp,dp
 use utils, only: uppercase,menu,stop_error
 use lineargs, only: argstr,argflg
-use cdf, only: cdf_copyatts,cdf_error
+use cdf, only: cdf_copyatts,cdf_error,cdf_timeref
+use dates
 
 implicit none
 private
@@ -27,6 +28,7 @@ public gcdf_replicate
 public gcdf_copy_var
 public gcdf_getfield
 public gcdf_replicate_head
+public gcdf_time
 
 type gcdf
   integer                                       :: fid=-1
@@ -804,6 +806,87 @@ err = NF90_ENDDEF (ocdf%fid)
 call cdf_error (err,'Unable to leave def mode')
 
 end subroutine gcdf_replicate_head
+! ...
+! ============================================================================
+! ...
+function gcdf_time(fid,idt,istart,icount) result(tjd)
+
+integer, intent(in)                  :: fid
+integer, intent(in)                  :: idt
+integer, intent(in), optional        :: istart
+integer, intent(in), optional        :: icount
+real(dp), dimension(:), allocatable  :: tjd
+
+! ... Local variables
+! ...
+type(date_type) dref
+logical read_all
+integer err,i,ndims,natts,dimids(1),nt,i1(1),i2(1)
+real(dp) tref,tscale
+character(len=200) units
+
+if (present(istart)) then
+  read_all = .false.
+  i1(1) = istart
+  if (present(icount)) then
+    i2(1) = icount
+  else
+    i2(1) = 1
+  endif
+else
+  read_all = .true.
+endif
+
+err = NF90_INQUIRE_VARIABLE (fid,idt,ndims=ndims,natts=natts)
+call cdf_error(err,'Error inquiring about variable')
+
+if (ndims.ne.1) call stop_error(1,'Time must be a 1-dimensional variable')
+
+! ... Size of time variable:
+! ...
+err = NF90_INQUIRE_VARIABLE (fid,idt,dimids=dimids)
+err = NF90_INQUIRE_DIMENSION(fid,dimids(1),len=nt)
+
+
+! ... Read the variable:
+! ...
+if (read_all) then
+  allocate(tjd(nt))
+  err = NF90_GET_VAR(fid,idt,tjd)
+else
+  allocate(tjd(i2(1)))
+  err = NF90_GET_VAR(fid,idt,tjd,i1,i2)
+endif
+call cdf_error (err,'Error reading time variable')
+
+! ... Inquire about the reference date:
+! ...
+err = cdf_timeref(fid,idt,dref)
+if (err.eq.0) then
+  tref = date2jd(dref)
+else
+  tref = zero
+endif
+
+! ... Inquire about the units:
+! ...
+tscale = one
+err = NF90_GET_ATT(fid,idt,'units',units)
+units = uppercase(units)
+if (index(units,'SECOND').GT.0) THEN
+  tscale = one
+else if (index(units,'MINUT').GT.0) THEN
+  tscale = 60.0_dp
+else if (index(units,'HOUR').GT.0) THEN
+  tscale = 3600.0_dp
+else if (index(units,'DAY').GT.0) THEN
+  tscale = 86400.0_dp
+endif
+
+tjd = tref + tscale*tjd/86400d0
+
+return
+end function gcdf_time
 ! ...
 ! ============================================================================
 ! ...

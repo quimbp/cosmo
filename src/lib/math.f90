@@ -60,6 +60,7 @@ end function interplin
 ! =============================================================================
 ! ...
 function akimas (x,f,xx) result(ff)
+! ... Akima interpolation for a single point: xx
 
 real(dp), dimension(:), intent(in)  :: x,f
 real(dp), intent(in)                :: xx
@@ -77,6 +78,7 @@ end function akimas
 ! =============================================================================
 ! ...
 function akimav (x,f,xx) result(ff)
+! ... Akima interpolation for a vector of points: xx(1:nn)
 
 real(dp), dimension(:), intent(in)  :: x,f
 real(dp), dimension(:), intent(in)  :: xx

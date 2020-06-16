@@ -69,17 +69,54 @@ TYPE Mroms
   type(MVgrid)                        :: vgrid
   integer                             :: time_id
   integer                             :: Nt
+  integer                             :: idtemp
+  integer                             :: idpsal
+  integer                             :: idu
+  integer                             :: idv
+  integer                             :: idzeta
+  integer                             :: idubar
+  integer                             :: idvbar
+  contains
+    procedure                         :: open  => roms_open
+    procedure                         :: close => roms_close
+    procedure                         :: alloc => roms_alloc
 END TYPE Mroms
 
 CONTAINS
   ! ...
   ! =========================================================================
   ! ...
-  subroutine roms_open (ifile,r,err)
+  function roms_alloc (r,grid) result(A)
+
+  class(Mroms), intent(in)                 :: r
+  character(len=1), intent(in), optional   :: grid
+  real(dp), dimension(:,:,:), allocatable  :: A
+
+  if (.NOT.present(grid)) then
+    allocate(A(r%Hgrid%xi_rho,r%Hgrid%eta_rho,r%Vgrid%N))
+  else
+    if (grid.eq.'r'.OR.grid.eq.'R') then
+      allocate(A(r%Hgrid%xi_rho,r%Hgrid%eta_rho,r%Vgrid%N))
+    else if (grid.eq.'u'.OR.grid.eq.'U') then
+      allocate(A(r%Hgrid%xi_u,r%Hgrid%eta_u,r%Vgrid%N))
+    else if (grid.eq.'v'.OR.grid.eq.'V') then
+      allocate(A(r%Hgrid%xi_v,r%Hgrid%eta_v,r%Vgrid%N))
+    else if (grid.eq.'w'.OR.grid.eq.'W') then
+      allocate(A(r%Hgrid%xi_rho,r%Hgrid%eta_rho,r%Vgrid%N_w))
+    else
+      call stop_error(1,'Grid not defined in roms_alloc')
+    endif
+  endif
+
+  end function roms_alloc 
+  ! ...
+  ! =========================================================================
+  ! ...
+  function roms_open (r,ifile) result(err)
 
   character(len=*), intent(in)        :: ifile
-  type(Mroms), intent(inout)          :: r
-  integer, intent(out)                :: err
+  class(Mroms), intent(inout)         :: r
+  integer                             :: err
 
   ! ... Local variables
   ! ...
@@ -204,7 +241,28 @@ CONTAINS
   r%vgrid%z0_r(:,:,:) = r%vgrid%z_r(:,:,:)
   r%vgrid%z0_w(:,:,:) = r%vgrid%z_w(:,:,:)
 
-  end subroutine roms_open
+  ! ... Get the ID of the other variables:
+  ! ...
+  err = NF90_INQ_VARID(r%fid,'temp',r%idtemp)
+  err = NF90_INQ_VARID(r%fid,'salt',r%idpsal)
+  err = NF90_INQ_VARID(r%fid,'u',r%idu)
+  err = NF90_INQ_VARID(r%fid,'v',r%idv)
+  err = NF90_INQ_VARID(r%fid,'zeta',r%idzeta)
+  err = NF90_INQ_VARID(r%fid,'ubar',r%idubar)
+  err = NF90_INQ_VARID(r%fid,'vbar',r%idvbar)
+
+  end function roms_open
+  ! ...
+  ! =========================================================================
+  ! ...
+  function roms_close (r) result(err)
+
+  class(Mroms), intent(inout)         :: r
+  integer                             :: err
+
+  err = NF90_CLOSE(r%fid)
+  
+  end function roms_close
   ! ...
   ! =========================================================================
   ! ...
