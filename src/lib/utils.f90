@@ -15,7 +15,7 @@ public compress,lowercase,line_word,menu,numlines,now,numwords, &
        stop_error,strcat,unitfree,uppercase,say,whitechar, &
        coords2index,index2coords,locate,filetype,mkdir,ls,newfilename, &
        get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr, &
-       rndname,locate2d
+       rndname,locate2d,find
 
 type ls_type
   integer                                     :: n
@@ -967,15 +967,20 @@ integer n1,n2,il,im,iu,jl,jm,ju
 
 n1 = size(x,1)
 n2 = size(x,2)
+!print*, 'n1, n2 = ', n1, n2
+
 if (size(y,1).ne.n1) call stop_error(1,'Incompatibe grids in locate2d')
 if (size(y,2).ne.n2) call stop_error(1,'Incompatibe grids in locate2d')
 
 slope1 = x(n1,n2).gt.x(1,1)
 slope2 = y(n1,n2).gt.y(1,1)
+!print*, slope1, slope2
 
 il = 0; iu = n1 + 1
 jl = 0; ju = n2 + 1
 do while ((ju-jl.gt.1).or.(iu-il.gt.1))
+  im = (iu+il)/2
+  jm = (ju+jl)/2
   if (iu-il.gt.1) then
     im = (iu+il)/2
     if (slope1.eqv.(xo.gt.x(im,jm))) then
@@ -997,6 +1002,27 @@ ind(1) = il
 ind(2) = jl
 
 end function locate2d
+! ...
+! =====================================================================
+! ...
+integer pure function find(a,val)
+
+real(dp), dimension(:), intent(in)    :: a
+real(dp), intent(in)                  :: val
+
+integer i
+
+do i=1,size(a)
+  if (a(i).eq.val) then
+    find = i
+    return
+  endif
+enddo
+
+find = -1
+return
+
+end function find
 ! ...
 ! =====================================================================
 ! ...
