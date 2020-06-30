@@ -1,5 +1,7 @@
 #include make.inc
 
+BINDIR=${PWD}/bin
+
 all: pwd include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
 	@echo "Done"
 
@@ -8,13 +10,13 @@ pwd:
 	echo "COSMO = ${PWD}" > path.inc
 
 include:
-	mkdir $@
+	mkdir -p $@
 
 lib:
-	mkdir $@
+	mkdir -p $@
 
 bin:
-	mkdir $@
+	mkdir -p $@
 
 COSMO:
 	@echo 
@@ -49,6 +51,9 @@ TOOLS:
 	(cd src/tools/; make clean; make all)
 
 COSMO_VIEW:
+	@echo $(COSMO)
+	@echo ${PWD}
+	@echo ${BINDIR}
 	@echo 
 	@echo "=============================================="
 	@echo "COSMO-VIEW"
@@ -62,7 +67,6 @@ COSMO_VIEW:
 	(cd $(BINDIR); chmod +x cosmo-view)
 
 clean:
-	(rm -f path.inc)
 	(cd src/lib; make clean)
 	(cd src/blm; make clean)
 	(cd src/mlm; make clean)
@@ -71,4 +75,5 @@ clean:
 	(cd conf/default/; rm -f *.conf)
 	(cd modules; rm -fr build)
 	(cd modules/cosmo; rm -f __init__.py)
+	(rm -f path.inc)
 

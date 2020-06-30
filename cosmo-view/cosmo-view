@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import tkinter as tk
+
 from PIL import Image, ImageTk
 from cosmo.drawing import CosmoDrawing
 
@@ -20,17 +21,22 @@ with open(COSMO_CONF_DATA) as infile:
 COSMO_CONF_NAME = conf['COSMO_CONF_NAME']
 COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
-
 # =========
 def main():
 # =========
 
-  print("==========================================================")
-  print("Version = ",__version__)
-  print("Author  = ",__author__)
-  print("Date    = ",__date__)
-  print("==========================================================")
-
+  #print("==========================================================")
+  #print("Version = ",__version__)
+  #print("Author  = ",__author__)
+  #print("Date    = ",__date__)
+  #print("==========================================================")
+  #EG if consola uncomment
+  inicio = "=========================================="+ \
+    "\n Version = "+__version__+\
+    "\n Author  = "+__author__+\
+    "\n Date    = "+__date__+\
+    "\n==========================================\n"
+  #EG
   # Check if an input file is used
   try:
     filename = str(sys.argv[1])
@@ -47,14 +53,23 @@ def main():
   root.title('COSMO-VIEW')
 
   print(COSMO_CONF_PATH)
+  
+  #EG Consola
+  inicio += "CONF_PATH: "+COSMO_CONF_PATH
+  #EG Consola
+  
   image = Image.open(COSMO_CONF_PATH+'cosmo-logo.png')
   photo = ImageTk.PhotoImage(image)
   root.tk.call('wm','iconphoto',root._w,photo)
-  root.resizable(False,False)
-
+  root.resizable(False,True)
+  
+  #EG to facilitate the consola design
+  root.grid_rowconfigure(3,weight=1)
   # Launch the main widget:
+  
   if filename is None:
-    CosmoDrawing(root)
+    #EG CosmoDrawing(root,tconsola=inicio)
+    CosmoDrawing(root,tconsola=inicio)
   else:
     A = CosmoDrawing(root)
     A.figure_read(filename)
