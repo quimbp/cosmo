@@ -1,6 +1,10 @@
 include ../../path.inc
 include ../../make.inc
 
+BINDIR = $(COSMO)/bin
+LIBDIR = $(COSMO)/lib
+INCDIR = $(COSMO)/include
+
 TARGET = $(LIBDIR)/libcosmo.a
 INC = $(CDFINC) -I$(INCDIR)
 

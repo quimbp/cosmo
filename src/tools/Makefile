@@ -3,6 +3,10 @@ include ../../make.inc
 
 .SUFFIXES:.f90
 
+BINDIR = $(COSMO)/bin
+LIBDIR = $(COSMO)/lib
+INCDIR = $(COSMO)/include
+
 LIB = -L$(LIBDIR) -lcosmo $(CDFLIB)
 INC = -I$(INCDIR) $(CDFINC)
 

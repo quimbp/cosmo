@@ -2,10 +2,10 @@
 
 BINDIR=${PWD}/bin
 
-all: pwd include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
+all: path include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
 	@echo "Done"
 
-pwd:
+path:
 	rm -f path.inc
 	echo "COSMO = ${PWD}" > path.inc
 

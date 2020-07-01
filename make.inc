@@ -1,5 +1,5 @@
 # COSMO PROJECT
-# Quim Ballabrera, September 2017
+# Quim Ballabrera, July 2020
 #
 # Compiler options and libraries
 # The code has been created and tested using gfortran.
@@ -21,18 +21,8 @@ FFLAGS = -O3 -fno-range-check -pedantic -finit-real=nan -finit-integer=0 -finit-
 INSTALL = install
 AR = ar cq
 
-# CENTOS
-#NF90_INC = /usr/include/
-#NF90_LIB = /usr/lib/i386-linux-gnu/
-# WINDOWS/WSL-Ubuntu or Ubuntu
-NF90_INC = /usr/include
-NF90_LIB = /usr/lib
-
-# Folders where files are going to be installed
-#
-BINDIR = $(COSMO)/bin
-LIBDIR = $(COSMO)/lib
-INCDIR = $(COSMO)/include
+NF90_INC = `nc-config --includedir`
+NF90_LIB = `nc-config --libdir`
 
 CDFLIB = -L$(NF90_LIB) -lnetcdff
 CDFINC = -I$(NF90_INC)
