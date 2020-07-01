@@ -1,16 +1,17 @@
-# Module for plotting lines built for the COSMO project 
+'''Module for plotting lines built for the COSMO project 
 # Quim Ballabrera, January 2018
+	EGL, 06/2020: Changes:
+		No more support to python 2.7 
+		Small adjustments of fonts and widget style properties
+		All color selections are now managed through tools.colsel() function
+		A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkcolorpicker import askcolor
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  from tkColorChooser import askcolor
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkcolorpicker import askcolor
+from tkinter import font as tkfont
 
 import json
 import os
@@ -25,10 +26,11 @@ from cosmo.tools import exists
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
 
+#EG
+from cosmo.tools import colsel
+
 from math import atan2,degrees
 import numpy as np
-
-
 
 # =================
 class parameters():
@@ -42,6 +44,8 @@ class parameters():
   def __init__ (self):
   # ==================
     '''Define and initialize class attributes'''
+
+    self.MESSAGE = ""
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -96,13 +100,16 @@ class parameters():
     #
     if exists(self.FILECONF):
       try:
-        print('Loading LINE configuration')
+        self.MESSAGE += 'Loading LINE configuration'
+        #print('Loading LINE configuration')
         self.load(self.FILECONF)
       except:
-        print('Error: Saving default LINE configuration')
+        self.MESSAGE += 'Error: Saving default LINE configuration'
+        #print('Error: Saving default LINE configuration')
         self.save(self.FILECONF)
     else:
-      print('Saving default LINE configuration')
+      self.MESSAGE += 'Saving default LINE configuration'
+      #print('Saving default LINE configuration')
       self.save(self.FILECONF)
 
   def conf_get(self):
@@ -181,8 +188,6 @@ class parameters():
     conf = self.conf_get()
     self.conf_save(conf,filename)
 
-
-
 # ========================================
 def Configuration(parent,PLOT):
 # ========================================
@@ -192,87 +197,68 @@ def Configuration(parent,PLOT):
   __author__  = "Quim Ballabrerera"
   __date__    = "December 2017"
 
-  def line_color():
-  # ===============
-    backup = PLOT.LINE_COLOR.get()
-    if PLOT.LINE_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.LINE_COLOR.get(),parent=parent)
-    if hx is None:
-      PLOT.LINE_COLOR.set(backup)
-    else:
-      PLOT.LINE_COLOR.set(hx)
-
-  def marker_color():
-  # =================
-    backup = PLOT.MARKER_COLOR.get()
-    if PLOT.MARKER_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.MARKER_COLOR.get(),parent=parent)
-    if hx is None:
-      PLOT.MARKER_COLOR.set(backup)
-    else:
-      PLOT.MARKER_COLOR.set(hx)
-
-  def initial_color():
-  # ==================
-    backup = PLOT.MARKER_COLOR.get()
-    if PLOT.MARKER_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.MARKER_COLOR.get(),parent=parent)
-    if hx is None:
-      PLOT.MARKER_COLOR.set(backup)
-    else:
-      PLOT.MARKER_COLOR.set(hx)
-
   # Main widget
   # ===========
   LINE_STYLE_LIST = ['-','--','-.',':']
   MARKER_STYLE_LIST = ['.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_']
 
-  F0 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F0,text='Line options',
-            font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F0,text='Line show',
-            font='Helvetica 12 bold',
-            variable=PLOT.LINE_SHOW).grid(row=1,column=1)
-  ttk.Label(F0,text='Line Style').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Combobox(F0,textvariable=PLOT.LINE_STYLE,
-            values=LINE_STYLE_LIST,width=7).grid(row=2,column=1,sticky='w')
-  ttk.Label(F0,text='Line Width').grid(row=3,column=0,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.LINE_WIDTH,
-            width=7).grid(row=3,column=1,sticky='w')
-  ttk.Label(F0,text='Line Color').grid(row=7,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.LINE_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
-  ttk.Button(F0,text='Select',command=line_color).grid(row=7,column=2,padx=3,sticky='ew')
-  F0.grid()
+  # Styles
+  font_bold = tkfont.Font(font='TkDefaultFont').copy()
+  font_bold['weight']='bold'
+  sline, smarker, sinicia = ttk.Style(), ttk.Style(), ttk.Style()
+  sline.configure("sline.TLabel",background=PLOT.LINE_COLOR.get(),anchor="center")
+  smarker.configure("smarker.TLabel",background=PLOT.MARKER_COLOR.get(),anchor="center")
+  sinicia.configure("sinicia.TLabel",background=PLOT.INITIAL_COLOR.get(),anchor="center")
+  fcbold=ttk.Style()
+  fcbold.configure("fcbold.TCheckbutton",font=font_bold)
+  
+  F0 = tk.LabelFrame(parent,text='Line options',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F0,text='Line show',variable=PLOT.LINE_SHOW, \
+            style="fcbold.TCheckbutton").grid(row=0,column=0,columnspan=2,pady=10,sticky='e')
+  ttk.Label(F0,text='Line Style').grid(row=1,column=0,padx=10,sticky='w')
+  ttk.Combobox(F0,textvariable=PLOT.LINE_STYLE,values=LINE_STYLE_LIST,\
+            width=8,justify="center").grid(row=1,column=1,sticky='w')
+  ttk.Label(F0,text='Line Width').grid(row=2,column=0,padx=10,sticky='w')
+  ttk.Entry(F0,textvariable=PLOT.LINE_WIDTH,width=8,justify="center").grid(row=2,column=1,sticky='w')
+  ttk.Label(F0,text='Line Color').grid(row=3,column=0,padx=10,sticky='w') 
+  LLabel = ttk.Label(F0,textvariable=PLOT.LINE_COLOR,width=8,style="sline.TLabel")
+  LLabel.grid(row=3,column=1,sticky='w')
+  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.LINE_COLOR, \
+            sline,LLabel,"sline.TLabel",master=parent)). \
+            grid(row=3,column=2,sticky='w')
+  F0.grid(row=0,column=0,padx=20,pady=10,ipadx=20,ipady=10)
 
-  F1 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F1,text='Marker options',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F1,text='Marker show',font='Helvetica 12 bold',variable=PLOT.MARKER_SHOW).grid(row=1,column=1)
-  ttk.Label(F1,text='Marker Style').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Combobox(F1,textvariable=PLOT.MARKER_STYLE,values=MARKER_STYLE_LIST,width=7).grid(row=2,column=1,sticky='w')
-  ttk.Label(F1,text='Marker Size').grid(row=3,column=0,sticky='w')
-  ttk.Entry(F1,textvariable=PLOT.MARKER_SIZE,width=7).grid(row=3,column=1,sticky='w')
-  ttk.Label(F1,text='Marker Color').grid(row=7,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F1,textvariable=PLOT.MARKER_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
-  ttk.Button(F1,text='Select',command=marker_color).grid(row=7,column=2,padx=3,sticky='ew')
-  F1.grid()
+  F1 = tk.LabelFrame(parent,text='Marker options',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F1,text='Marker show',variable=PLOT.MARKER_SHOW, \
+            style="fcbold.TCheckbutton").grid(row=0,column=0,columnspan=2,pady=10,sticky='e')
+  ttk.Label(F1,text='Marker Style').grid(row=1,column=0,padx=10,sticky='w')
+  ttk.Combobox(F1,textvariable=PLOT.MARKER_STYLE,values=MARKER_STYLE_LIST,width=8, \
+            justify="center").grid(row=1,column=1,sticky='w')
+  ttk.Label(F1,text='Marker Size').grid(row=2,column=0,padx=10,sticky='w')
+  ttk.Entry(F1,textvariable=PLOT.MARKER_SIZE,width=8,justify="center").grid(row=2,column=1,sticky='w')
+  ttk.Label(F1,text='Marker Color').grid(row=3,column=0,padx=10,sticky='w')
+  MLabel = ttk.Label(F1,textvariable=PLOT.MARKER_COLOR,width=8,style="smarker.TLabel")
+  MLabel.grid(row=3,column=1,sticky='w')
+  ttk.Button(F1,text='Select',command=lambda:colsel(PLOT.MARKER_COLOR, \
+            smarker,MLabel,"smarker.TLabel",master=parent)). \
+            grid(row=3,column=2,sticky='w')
+  F1.grid(row=1,column=0,padx=20,pady=10,ipadx=20,ipady=10)
 
-  F2 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F2,text='Initial Marker options',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F2,text='Initial show',font='Helvetica 12 bold',variable=PLOT.INITIAL_SHOW).grid(row=1,column=1)
-  ttk.Label(F2,text='Initial Style').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Combobox(F2,textvariable=PLOT.INITIAL_STYLE,values=MARKER_STYLE_LIST,width=7).grid(row=2,column=1,sticky='w')
-  ttk.Label(F2,text='Initial Size').grid(row=3,column=0,sticky='w')
-  ttk.Entry(F2,textvariable=PLOT.INITIAL_SIZE,width=7).grid(row=3,column=1,sticky='w')
-  ttk.Label(F2,text='Initial Color').grid(row=7,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F2,textvariable=PLOT.INITIAL_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
-  ttk.Button(F2,text='Select',command=initial_color).grid(row=7,column=2,padx=3,sticky='ew')
-  F2.grid()
+  F2 = tk.LabelFrame(parent,text='Initial Marker options',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F2,text='Initial show',variable=PLOT.INITIAL_SHOW, \
+            style="fcbold.TCheckbutton").grid(row=0,column=0,columnspan=2,pady=10,sticky='e')
+  ttk.Label(F2,text='Initial Style').grid(row=1,column=0,padx=10,sticky='w')
+  ttk.Combobox(F2,textvariable=PLOT.INITIAL_STYLE,values=MARKER_STYLE_LIST,\
+            width=8,justify="center").grid(row=1,column=1,sticky='w')
+  ttk.Label(F2,text='Initial Size').grid(row=2,column=0,padx=10,sticky='w')
+  ttk.Entry(F2,textvariable=PLOT.INITIAL_SIZE,width=8,justify="center").grid(row=2,column=1,sticky='w')
+  ttk.Label(F2,text='Initial Color').grid(row=3,column=0,padx=10,sticky='w')
+  ILabel = ttk.Label(F2,textvariable=PLOT.INITIAL_COLOR,width=8,style="sinicia.TLabel")
+  ILabel.grid(row=3,column=1,sticky='w')
+  ttk.Button(F2,text='Select',command=lambda:colsel(PLOT.INITIAL_COLOR, \
+            sinicia,ILabel,"sinicia.TLabel",master=parent)). \
+            grid(row=3,column=2,sticky='w')
+  F2.grid(row=2,column=0,padx=20,pady=10,ipadx=20,ipady=10)
 
 # ========================================
 def Configuration_OnMap(parent,PLOT,LL):
@@ -296,7 +282,7 @@ def Configuration_OnMap(parent,PLOT,LL):
     for i in range(LL.nfloats):
       LL.FLOAT_COLOR[i].set(LL.PLOT.LINE_COLOR.get())
 
-  def line_color():
+  '''def line_color():
     if LL.FLOAT_COLOR[LL.I.get()].get() == 'None':
       rgb, hx = askcolor(parent=parent)
     else:
@@ -305,55 +291,78 @@ def Configuration_OnMap(parent,PLOT,LL):
       if hx is None:
         LL.FLOAT_COLOR[LL.I.get()].set(backup)
       else:
-        LL.FLOAT_COLOR[LL.I.get()].set(hx)
+        LL.FLOAT_COLOR[LL.I.get()].set(hx)'''
 
-  def marker_color():
+  '''def marker_color():
     if PLOT.ONMAP_COLOR.get() == 'None':
       rgb, hx = askcolor(parent=parent)
     else:
       rgb, hx = askcolor(color=PLOT.ONMAP_COLOR.get(),parent=parent)
-    PLOT.ONMAP_COLOR.set(hx)
+    PLOT.ONMAP_COLOR.set(hx)'''
 
   # Main widget
   # ===========
   MARKER_STYLE_LIST = ['.',',','o','v','^','<','>','1','2','3','4','s','p','*','h','H','+','x','D','d','|','_']
 
-  F0 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F0,text='Trajectory interpolation',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F0,text='Show interpolated',font='Helvetica 12 bold',variable=PLOT.ONMAP_SHOW).grid(row=1,column=1)
-  ttk.Label(F0,text='Marker Style').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Combobox(F0,textvariable=PLOT.ONMAP_STYLE,values=MARKER_STYLE_LIST,width=7).grid(row=2,column=1,sticky='w')
-  ttk.Label(F0,text='Marker Size').grid(row=3,column=0,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.ONMAP_SIZE,width=7).grid(row=3,column=1,sticky='w')
-  ttk.Label(F0,text='Marker Color').grid(row=7,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.ONMAP_COLOR,justify='left',width=7).grid(row=7,column=1,sticky='w')
-  ttk.Button(F0,text='Select',command=marker_color).grid(row=7,column=2,padx=3,sticky='ew')
-  F0.grid()
+  # Styles
+  font_bold = tkfont.Font(font='TkDefaultFont').copy()
+  font_bold['weight']='bold'
+  sline, ssmarker = ttk.Style(), ttk.Style()
+  ssmarker.configure("ssmarker.TLabel",background=PLOT.ONMAP_COLOR.get(),anchor="center")
+  sline.configure("sline.TLabel",background=LL.FLOAT_COLOR[LL.I.get()].get(),anchor="center")
+  fcbold=ttk.Style()
+  fcbold.configure("fcbold.TCheckbutton",font=font_bold)
+ 
+  F0 = tk.LabelFrame(parent,text='Trajectory interpolation',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F0,text='Show interpolated',variable=PLOT.ONMAP_SHOW, \
+            style="fcbold.TCheckbutton").grid(row=0,column=0,columnspan=2,pady=10,sticky='e')
+  ttk.Label(F0,text='Marker Style').grid(row=1,column=0,sticky='w')
+  ttk.Combobox(F0,textvariable=PLOT.ONMAP_STYLE,values=MARKER_STYLE_LIST,\
+            width=8,justify="center").grid(row=1,column=1,sticky='w')
+  ttk.Label(F0,text='Marker Size').grid(row=2,column=0,sticky='w')
+  ttk.Entry(F0,textvariable=PLOT.ONMAP_SIZE,width=8,justify="center").grid(row=2,column=1,sticky='w')
+  ttk.Label(F0,text='Marker Color').grid(row=3,column=0,sticky='w')
+  MMLabel = ttk.Label(F0,textvariable=PLOT.ONMAP_COLOR,width=8,style="ssmarker.TLabel")
+  MMLabel.grid(row=3,column=1,sticky='w')
+  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.ONMAP_COLOR, \
+            szmarker,MMLabel,"ssmarker.TLabel",master=parent)). \
+            grid(row=3,column=2,sticky='w')
+  F0.grid(row=0,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='w')
 
-  F1 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F1,text='Trajectory limits',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
+  F1 = ttk.Frame(parent,borderwidth=5)
+  ttk.Label(F1,text='Trajectory limits',font=font_bold).\
+            grid(row=0,column=0,columnspan=2,sticky='ew')
   ttk.Label(F1,text='Initial record').grid(row=1,column=0,sticky='w')
-  ttk.Entry(F1,textvariable=LL.L1,width=7).grid(row=1,column=1,sticky='w')
+  ttk.Entry(F1,textvariable=LL.L1,width=8).grid(row=1,column=1,sticky='w')
   ttk.Label(F1,text='Last record').grid(row=2,column=0,columnspan=1,sticky='w')
-  ttk.Entry(F1,textvariable=LL.L2,justify='left',width=7).grid(row=2,column=1,sticky='w')
-  F1.grid()
+  ttk.Entry(F1,textvariable=LL.L2,justify='left',width=8).grid(row=2,column=1,sticky='w')
+  F1.grid(row=1,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='ew')
 
-  F2 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F2,text='Individual Float Color',font='Helvetica 12 bold').grid(row=0,column=0,columnspan=2,sticky='w')
-  tk.Checkbutton(F2,text='Individual colors',font='Helvetica 12 bold',variable=LL.SEPARATED_COLOR).grid(row=1,column=1,columnspan=2)
-  ttk.Label(F2,text='Floater:').grid(row=2,column=0,padx=3)
+  F2 = tk.LabelFrame(parent,text='Individual Float Color',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F2,text='Individual colors',variable=LL.SEPARATED_COLOR, \
+            style="fcbold.TCheckbutton").grid(row=0,column=1,columnspan=2)
+  ttk.Label(F2,text='Floater:').grid(row=1,column=0,padx=3)
   ibox = ttk.Combobox(F2,textvariable=LL.I,width=5)
-  ibox.grid(row=2,column=1)
+  ibox.grid(row=1,column=1,sticky='w')
   ibox.bind('<<ComboboxSelected>>',lambda e: iselection())
   ibox['values'] = list(range(LL.nfloats))
-  ttk.Label(F2,text='Line Color').grid(row=2,column=2,columnspan=1,sticky='w')
+  ttk.Label(F2,text='Line Color').grid(row=1,column=2,padx=10,sticky='w')
+  LLabel = ttk.Label(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],width=8,style="sline.TLabel")
+  LLabel.grid(row=1,column=3,sticky='w')
+  LLabel.bind('<Return>',lambda e: cselection())
+  ttk.Button(F2,text='Select',command=lambda:colsel(LL.FLOAT_COLOR[LL.I.get()], \
+            sline,LLabel,"sline.TLabel",master=parent)). \
+            grid(row=1,column=4,sticky='w')
+            
+  ''' OJO NO SE SI ESCORRECTO
   cbox = ttk.Entry(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],justify='left',width=10)
-  cbox.grid(row=2,column=3,sticky='w')
+  cbox.grid(row=1,column=3,sticky='w')
   cbox.bind('<Return>',lambda e: cselection())
+  '''
   # AAA
-  ttk.Button(F2,text='Select',command=line_color).grid(row=2,column=4,padx=3,sticky='ew')
-  ttk.Button(F2,text='Default',command=default_color).grid(row=2,column=5,padx=3,sticky='ew')
-  F2.grid()
+  #ttk.Button(F2,text='Select',command=line_color).grid(row=1,column=4,padx=3,sticky='ew')
+  ttk.Button(F2,text='Default',command=default_color).grid(row=1,column=5,padx=3,sticky='w')
+  F2.grid(row=2,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='w')
 
 # ======================================================
 def LabelLine(ax,line,x,label=None,align=True,**kwargs):

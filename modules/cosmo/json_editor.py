@@ -1,19 +1,26 @@
-# trajectory.py
-# Visual analysis of Lagrangian trajectories 
-# Input: geojson file
-# Output (optional): A json file with the same structure as the input file
-#
-
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
+''' json_editor.py
+# Visual analysis of Lagrangian trajectories. Allows to a supervised
+  edition of the trajectory.
+  Joaquim Ballabrera, XX/XXXX
+	EGL, 06/2020: Changes:
+		No more support to python 2.7 
+		Support to Basemap deprecated and updated to cartopy system
+		Base layers of topography and relief substituted by GEBCO and
+		EMODNET tile services (requieres internet connection)
+		Limited support to geographical projections. Everything is 
+		plotted in PlateCarree and data are suposed to be in geodetic
+		coordinates (lon,lat), tipycally according to WSG84 datum.
+		Small adjustmenst to manage font and widgets styles
+		All color selections are now managed through tools.colsel() function
+		Cartopy projection can be accessed through tools.map_proj()
+		An additional variable "wid" in the constructor has been added to pass
+		the reference of the master consola to send "print" messages
+'''
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog
+from tkinter import font as tkfont
 
 import numpy as np
 #import matplotlib
@@ -21,10 +28,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from mpl_toolkits.basemap import Basemap
+#EG
+#from mpl_toolkits.basemap import Basemap
+
 import dateutil.parser as dparser
 import json
 
+#EG
+import cartopy
+import cartopy.crs as ccrs
+import cartopy.feature as cfeat
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from cartopy.feature import ShapelyFeature
+
+#EG
+from cosmo.tools import map_proj
 
 PROGNAME = 'COSMO-JSON'
 VERSION = '0.2 (December 2017)'
@@ -33,18 +51,20 @@ AUTHOR = 'Quim Ballabrera (ICM/CSIC)'
 from cosmo.tools import empty
 from cosmo.tools import haversine
 from cosmo.tools import myround
+from cosmo.tools import toconsola
 
 import datetime
 import sys
 from math import radians, cos, sin, asin, sqrt
 
-
-
 class EDITOR:
   ''' Launches the main canvas, widgets and dialogues'''
 
-  def __init__(self,master,filename=None,exit_mode=None):
+  def __init__(self,master,filename=None,exit_mode=None, wid=None):
 
+    if wid is not None:
+      self.cons = wid
+		 
     self.exit_mode = exit_mode
     self.master = master
     self.main   = tk.Frame(self.master)
@@ -198,11 +218,15 @@ class EDITOR:
     F1.grid_rowconfigure(0,weight=0)
     F1.grid_columnconfigure(0,weight=0)
 
-
+    #EG Projection
+    projeccio = map_proj('PlateCarree')
+    self.proj = projeccio['proj']
+    
     self.fig = Figure(dpi=150)
-    self.ax1 = self.fig.add_subplot(111)
+    #EG self.ax1 = self.fig.add_subplot(111)
+    self.ax1 = self.fig.add_subplot(111, projection=self.proj)
     self.canvas = FigureCanvasTkAgg(self.fig,master=self.page1)
-    self.canvas.show()
+    self.canvas.draw()
     self.canvas.get_tk_widget().grid(sticky='nsew')
     self.canvas._tkcanvas.grid()
     self.ax1.get_xaxis().set_visible(False)
@@ -243,7 +267,8 @@ class EDITOR:
     F2.grid(sticky='ew')
 
     # PAGE 2: ATTRIBUTES
-    ttk.Label(self.page2,text='Properties',padding=3,font='Helvetical 12 bold').grid(row=0,column=0)
+    font = tkfont.Font(font='TkDefaultFont').copy()
+    ttk.Label(self.page2,text='Properties',padding=3,font=font).grid(row=0,column=0)
     ttk.Label(self.page2,text='Serial number',padding=3).grid(row=1,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.serial_number,state='disabled').grid(row=1,column=2,columnspan=3)
     ttk.Button(self.page2,text='Restore',command=self.restore,padding=3).grid(row=1,column=6,padx=5)
@@ -256,7 +281,7 @@ class EDITOR:
     ttk.Label(self.page2,text='Contact',padding=3).grid(row=5,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.contact).grid(row=5,column=2,columnspan=3)
 
-    ttk.Label(self.page2,text="Initial point ('event':0)",padding=3,font='Helvetical 12 bold').grid(row=6,column=0)
+    ttk.Label(self.page2,text="Initial point ('event':0)",padding=3,font=font).grid(row=6,column=0)
     ttk.Label(self.page2,text='Longitude',padding=3).grid(row=7,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.event0_lon).grid(row=7,column=2,columnspan=3)
     ttk.Button(self.page2,text='Update',command=self.update_event0,padding=3).grid(row=7,column=5,padx=5)
@@ -269,7 +294,7 @@ class EDITOR:
     ttk.Label(self.page2,text='Date QC',padding=3).grid(row=11,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.event0_qc).grid(row=11,column=2,columnspan=3)
 
-    ttk.Label(self.page2,text="Final point ('event':1)",padding=3,font='Helvetical 12 bold').grid(row=12,column=0)
+    ttk.Label(self.page2,text="Final point ('event':1)",padding=3,font=font).grid(row=12,column=0)
     ttk.Label(self.page2,text='Longitude',padding=3).grid(row=13,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.event1_lon).grid(row=13,column=2,columnspan=3)
     ttk.Button(self.page2,text='Update',command=self.update_event1,padding=3).grid(row=13,column=5,padx=5)
@@ -282,7 +307,6 @@ class EDITOR:
     ttk.Label(self.page2,text='Date QC',padding=3).grid(row=17,column=1,padx=5)
     ttk.Entry(self.page2,textvariable=self.event1_qc).grid(row=17,column=2,columnspan=3)
 
-
     # PACK THE WHOLE THING
     self.nb.grid()
     self.main.grid()
@@ -291,7 +315,6 @@ class EDITOR:
       pass
     else:
       self.open_geojson(ask=False,filename=filename)
-
 
   # ---------------------
   def close(self):
@@ -304,7 +327,6 @@ class EDITOR:
     else:
       self.master.destroy()
       return
-
 
   # ---------------------------------------------
   def open_geojson(self,ask=True,filename=None):
@@ -383,7 +405,8 @@ class EDITOR:
       self.Trajectory_speed = []
       self.Trajectory_speed.append(0)
       # AAA
-      print(self.Trajectory_time)
+      toconsola(str(self.Trajectory_time),wid=self.cons)
+      #print(self.Trajectory_time)
 
       for i in range(1,self.Trajectory_length.get()):
         if self.Trajectory_time[i] < 1E-3:
@@ -482,7 +505,6 @@ class EDITOR:
       self.Trajectory_read = False
       self.Nfeatures = 0
 
-
   # --------------
   def restore(self):
   # --------------
@@ -503,7 +525,6 @@ class EDITOR:
     self.event1_date.set(self.event1_date_orig)
     self.event1_qc.set(self.event1_qc_orig)
 
-
   # --------------
   def update_event0(self):
   # --------------
@@ -512,7 +533,6 @@ class EDITOR:
     self.event0_lat.set(self.Trajectory_lat[0])
     self.event0_date.set(self.Trajectory_date[0])
     self.event0_qc.set(1)
-
 
   # --------------
   def update_event1(self):
@@ -523,7 +543,6 @@ class EDITOR:
     self.event1_lat.set(self.Trajectory_lat[i])
     self.event1_date.set(self.Trajectory_date[i])
     self.event1_qc.set(1)
-
 
   # --------------
   def purge(self):
@@ -589,7 +608,6 @@ class EDITOR:
     self.draw_map()
     self.make_plot()
 
-
   # -------------
   def save(self):
   # -------------
@@ -634,8 +652,8 @@ class EDITOR:
 
       with open(outfile,'w') as fp:
         json.dump(self.DATA,fp)
-      print('File %s written' % outfile)
-
+      toconsola('File %s written' % outfile,wid=self.cons)
+      #print('File %s written' % outfile)
 
   # --------------------
   def reject_this(self):
@@ -643,7 +661,6 @@ class EDITOR:
     '''Rejects a station'''
     if self.Trajectory_read:
       self.Trajectory_reject[self.Station_pointer.get()].set(self.Station_reject.get())
-
 
   # ----------------------
   def reject_before(self):
@@ -654,7 +671,6 @@ class EDITOR:
         self.Trajectory_reject[i].set(1)
       self.make_plot()
 
-
   # ----------------------
   def reject_after(self):
   # ----------------------
@@ -663,7 +679,6 @@ class EDITOR:
       for i in range(self.Station_pointer.get()+1,self.Trajectory_length.get()):
         self.Trajectory_reject[i].set(1)
       self.make_plot()
-
 
   # -----------------------
   def recovertime(self):
@@ -678,7 +693,6 @@ class EDITOR:
           self.Trajectory_reject[i].set(1)
       self.Station_reject.set(self.Trajectory_reject[self.Station_pointer.get()].get())  
       self.make_plot()
-
 
   # -----------------------
   def deploytime(self):
@@ -715,22 +729,25 @@ class EDITOR:
     if self.Station_pointer.get() < self.Trajectory_length.get()-1:
       i = self.Station_pointer.get()
       if self.Trajectory_reject[i].get() == 1:
-        self.m.plot(self.xx[i], \
-                    self.yy[i],'o',ms=4,color='grey')
+        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        #self.m.plot(self.xx[i], \
+        #            self.yy[i],'o',ms=4,color='grey')
       else:
-        self.m.plot(self.xx[i], \
-                    self.yy[i],'o',ms=4,color='white')
+        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        #self.m.plot(self.xx[i], \
+        #            self.yy[i],'o',ms=4,color='white')
 
       self.Station_pointer.set(self.Station_pointer.get()+1)
-      self.m.plot(self.xx[self.Station_pointer.get()], \
-                  self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+      self.ax1.plot(self.xx[self.Station_pointer.get()], \
+                  self.yy[self.Station_pointer.get()],'o',ms=4,color='red')      
+      #self.m.plot(self.xx[self.Station_pointer.get()], \
+      #            self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
       self.Station_date.set(self.Trajectory_date[self.Station_pointer.get()])
       self.Station_lon.set(self.Trajectory_lon[self.Station_pointer.get()])
       self.Station_lat.set(self.Trajectory_lat[self.Station_pointer.get()])
       self.Station_speed.set(self.Trajectory_speed[self.Station_pointer.get()])
       self.Station_reject.set(self.Trajectory_reject[self.Station_pointer.get()].get())
       self.canvas.draw()
-
 
   # --------------------
   def station_down(self):
@@ -739,23 +756,25 @@ class EDITOR:
     if self.Station_pointer.get() > 0:
       i = self.Station_pointer.get()
       if self.Trajectory_reject[i].get() == 1:
-        self.m.plot(self.xx[i], \
-                    self.yy[i],'o',ms=4,color='grey')
+        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        #self.m.plot(self.xx[i], \
+        #            self.yy[i],'o',ms=4,color='grey')
       else:
-        self.m.plot(self.xx[i], \
+        self.ax1.plot(self.xx[i], \
                     self.yy[i],'o',ms=4,color='white')
       #self.m.plot(self.xx[self.Station_pointer.get()], \
       #            self.yy[self.Station_pointer.get()],'o',ms=4,color='white')
       self.Station_pointer.set(self.Station_pointer.get()-1)
-      self.m.plot(self.xx[self.Station_pointer.get()], \
+      self.ax1.plot(self.xx[self.Station_pointer.get()], \
                   self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+      #self.m.plot(self.xx[self.Station_pointer.get()], \
+      #            self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
       self.Station_date.set(self.Trajectory_date[self.Station_pointer.get()])
       self.Station_lon.set(self.Trajectory_lon[self.Station_pointer.get()])
       self.Station_lat.set(self.Trajectory_lat[self.Station_pointer.get()])
       self.Station_speed.set(self.Trajectory_speed[self.Station_pointer.get()])
       self.Station_reject.set(self.Trajectory_reject[self.Station_pointer.get()].get())
       self.canvas.draw()
-
 
   # ---------------
   def reset(self):
@@ -798,7 +817,6 @@ class EDITOR:
     self.draw_map()
     self.make_plot()
 
-
   # ---------------
   def zoom_in(self):
   # ---------------
@@ -810,7 +828,6 @@ class EDITOR:
     self.Mapymax.set(self.data_ymax + self.map_size*self.data_ysize)
     self.draw_map()
     self.make_plot()
-
 
   # ---------------
   def zoom_out(self):
@@ -840,8 +857,23 @@ class EDITOR:
     self.ax1.clear()
     projection = 'cyl'
     projection = 'merc'
+    self.ax1.set_extent(self.Mapxmin.get(),self.Mapxmax.get(),
+                          self.Mapymin.get(),self.Mapxmax.get())
     try:
-      self.m = Basemap(                               \
+      emod_land="emodnet:mean_atlas_land"
+      emod_coast="coastlines"
+      #emod_baty=
+      try:
+        self.ax1.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emod_land,zorder=0)
+        self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emod_coast,zorder=0)
+      except:
+        print("\tWARNING: EMODNET server failed !, it is disabled......")  
+        gebco ="GEBCO_2019_Grid"
+        try:
+          self.ax1.add_wms(wms='https://www.gebco.net/data_and_products/gebco_web_services/2019/mapserv?request=getmap&service=wms&BBOX=-90,-180,90,360&crs=EPSG:4326&format=image/jpeg&layers=gebco_2019_grid&width=1200&height=600&version=1.3.0',layers=gebco,zorder=0)
+        except:
+          print("\tWARNING: GEBCO server failed !, it is disabled......")
+      '''self.m = Basemap(                               \
                 #projection=projection,               \
                 #resolution='i',                      \
                 llcrnrlat=self.Mapymin.get(),         \
@@ -852,9 +884,14 @@ class EDITOR:
                 ax=self.ax1)
       self.m.arcgisimage(service='ESRI_Imagery_World_2D', 
                          xpixels = 700, 
-                         verbose= False)
-    except: 
-      self.m = Basemap(                               \
+                         verbose= False)'''
+    except:
+        self.ax1.coastlines("50m",color='black',linewidth=1,zorder=0)
+        self.ax1.add_feature(cfeat.NaturalEarthFeature('physical','ocean','50m',\
+                              facecolor='aqua'),zorder=0)
+        self.ax.add_feature(cfeat.NaturalEarthFeature('physical','land','50m',\
+                              facecolor='coral'),zorder=0)			
+        '''self.m = Basemap(                               \
                 projection=projection,                \
                 resolution='i',                       \
                 llcrnrlat=self.Mapymin.get(),         \
@@ -862,9 +899,9 @@ class EDITOR:
                 llcrnrlon=self.Mapxmin.get(),         \
                 urcrnrlon=self.Mapxmax.get(),         \
                 ax=self.ax1)
-      self.m.fillcontinents(color='Coral')
-      self.m.drawmapboundary(fill_color='aqua')
-      self.m.drawcoastlines(linewidth=1,color='black')
+        self.m.fillcontinents(color='Coral')
+        self.m.drawmapboundary(fill_color='aqua')
+        self.m.drawcoastlines(linewidth=1,color='black')'''
 
     dx = myround((self.Mapxmax.get()-self.Mapxmin.get())/5,1)
     xw = myround(self.Mapxmin.get()-15,0)
@@ -873,32 +910,42 @@ class EDITOR:
     dy = myround((self.Mapymax.get()-self.Mapymin.get())/5,1)
     ys = myround(self.Mapymin.get()-15,0)
     yn = myround(self.Mapymax.get()+15,0)
-
-    self.m.drawmeridians(np.arange(xw,xe,dx),labels=[1,0,0,1])
-    self.m.drawparallels(np.arange(ys,yn,dy),labels=[0,1,0,1])
-
-    self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
-    self.m.plot(self.xx[self.Station_pointer.get()], \
+    ##self.m.drawmeridians(np.arange(xw,xe,dx),labels=[1,0,0,1])
+    #self.m.drawparallels(np.arange(ys,yn,dy),labels=[0,1,0,1])
+    
+    vmeridians = np.arange(xw,xe,dx)
+    vparallels = np.arange(ys,yn,dy)
+    gl = self.ax1.gridlines(crs=self.proj, draw_labels=True, \
+                            linewidth=1,color='black',alpha=1)
+    gl.xlabels_top = False
+    gl.xlabels_bottom = True
+    gl.ylabels_left = True
+    gl.ylabels_right = True
+    gl.xlocator = mticker.FixedLocator(vmeridians)
+    gl.ylocator = mticker.FixedLocator(vparallels)
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.xformatter = LONGITUDE_FORMATTER
+    
+    #self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
+    self.ax1.plot(self.xx[self.Station_pointer.get()], \
                 self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
-
 
   def make_plot(self):
     '''Draws the trajectory over the map'''
 
-    self.m.plot(self.xx,self.yy,'--',linewidth=0.8,color='grey')
+    self.ax1.plot(self.xx,self.yy,'--',linewidth=0.8,color='grey')
     #self.m.plot(self.xx,self.yy,'o',ms=4,linewidth=1,color='white')
 
     for i in range(self.Trajectory_length.get()):
       if self.Trajectory_reject[i].get() == 1:
-        self.m.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='grey')
+        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='grey')
       else:
-        self.m.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='white')
+        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='white')
 
-    self.m.plot(self.xx[self.Station_pointer.get()], \
+    self.ax1.plot(self.xx[self.Station_pointer.get()], \
                 self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
 
     self.canvas.draw()
-
 
 def main():
   root = tk.Tk()

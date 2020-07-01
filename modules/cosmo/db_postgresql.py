@@ -1,11 +1,7 @@
 # POSTGRESQL DB with Lagrangian trajectories
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-except:
-  import Tkinter as tk
-  import ttk
+import tkinter as tk
+from tkinter import ttk
 
 import postgresql
 import wget

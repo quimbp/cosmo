@@ -1,20 +1,16 @@
 ''' COSMO-VIEW,
     Quim Ballabrera, May 2017
     Script for visualizing model outputs provided by various operational
-      systems'''
+      systems
+    EGL, 06/2020: Changes:
+    A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog as filedialog
-  from PIL import Image, ImageTk
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
-  from PIL import Image, ImageTk
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog as filedialog
+from PIL import Image, ImageTk
 
 import datetime 
 import dateutil.parser as dparser
@@ -61,6 +57,8 @@ class WinTracking():
 
     self.master         = master
 
+    self.MESSAGE        = ""
+
     self.PATH           = tk.StringVar()
     self.FILE           = tk.StringVar()
     self.USER_FILE      = tk.StringVar()
@@ -68,7 +66,8 @@ class WinTracking():
 
     # Connection credentials
     #
-    print('Loading credentials from ',COSMO_CONF+'copernicus-credentials.conf')
+    self.MESSAGE += 'Loading credentials from '+COSMO_CONF+'copernicus-credentials.conf'
+    #print('Loading credentials from ',COSMO_CONF+'copernicus-credentials.conf')
     try:
       with open(COSMO_CONF+'copernicus-credentials.conf','r') as infile:
         conf = json.load(infile)
@@ -78,13 +77,13 @@ class WinTracking():
       self.password = conf['PASSWD']
       self.PATH.set(conf['PATH'])
     except:
-      print('Failed')
+      self.MESSAGE += 'Failed'
+      #print('Failed')
       self.python = '/usr/bin/python'
       self.motu = '/usr/local/src/motu-client-python/motu-client.py'
       self.user = 'USERNAME_REQUIRED'
       self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('.' + os.sep)
-
 
     # Define PRODUCTS: Example: GLOBAL, IBI, etc.
     #
@@ -104,7 +103,8 @@ class WinTracking():
     self.PROD_SERVICE = []
     self.PROD_VARS    = []
 
-    print('Loading product list')
+    self.MESSAGE += 'Loading product list'
+    #print('Loading product list')
     if os.path.isfile(COSMO_CONF+'copernicus-products.conf'):
       with open(COSMO_CONF+'copernicus-products.conf','r') as infile:
         conf = json.load(infile)
@@ -130,7 +130,8 @@ class WinTracking():
         self.PROD_VARS.append(conf[i]['VARIABLES'])
 
     else:
-      print('Products list not found')
+      self.MESSAGE += 'Products list not found'
+      #print('Products list not found')
       self.PROD_NAME     = ['GLOBAL','IBI','MEDSEA']
       self.PROD_SERVICE  = ['GLOBAL_ANALYSIS_FORECAST_PHY_001_024-TDS',  \
                              'IBI_ANALYSIS_FORECAST_PHYS_005_001-TDS', \
@@ -142,7 +143,6 @@ class WinTracking():
       self.PROD_ZMIN     = [ 0.492, None, 1.017]
       self.PROD_ZMAX     = [ 0.494, None, 1.019]
       
-
     self.PROD_NAME.append('In-situ Moorings')
     self.PROD           = tk.StringVar()
     self.MOTU           = tk.StringVar()
@@ -177,7 +177,8 @@ class WinTracking():
     self.Rsouth = [None]
     self.Rnorth = [None]
 
-    print('Loading regions list')
+    self.MESSAGE += 'Loading regions list'
+    #print('Loading regions list')
     if os.path.isfile(COSMO_CONF+'copernicus-regions.conf'):
       with open(COSMO_CONF+'copernicus-regions.conf','r') as infile:
         conf = json.load(infile)
@@ -188,7 +189,8 @@ class WinTracking():
         self.Rsouth.append(float(conf[i]['BBOX'][2]))
         self.Rnorth.append(float(conf[i]['BBOX'][3]))
     else:
-      print('Regions list not found')
+      self.MESSAGE += 'Regions list not found'
+      #print('Regions list not found')
 
     self.Nregions = len(self.Rname)
     self.Rindex   = 0
@@ -216,7 +218,6 @@ class WinTracking():
     self.FINAL.set('"%4d-%02d-%02d 12:00:00"' % (self.NEXT_YEAR,  \
                                                  self.NEXT_MONTH, \
                                                  self.NEXT_DAY))
-
     # File menu:
     self.menubar = tk.Menu(self.master)
     menu = tk.Menu(self.menubar,tearoff=0)
@@ -230,7 +231,6 @@ class WinTracking():
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       self.master.tk.call(master, "config", "-menu", self.menubar)
 
-
     # Window construction:
     frame1 = tk.Frame(self.master,background='#87CEEB')
 
@@ -243,15 +243,12 @@ class WinTracking():
     ttk.Entry(frame1,textvariable=self.PRODUCT,width=60) \
        .grid(row=1,column=1,columnspan=12,sticky='ew',padx=3)
 
-
     ttk.Label(frame1,text='Region',pad=3,background='#87CEEB').grid(row=2,column=0,padx=3,sticky='e')
     wregion = ttk.Combobox(frame1,textvariable=self.REGION,width=20)
     wregion.grid(row=2,column=1,columnspan=4,sticky='ew',padx=3)
     wregion['values'] = self.Rname
     wregion.bind('<<ComboboxSelected>>',lambda e: self.region())
     frame1.grid(row=0,column=0,sticky='w')
-
-
 
     frame3 = tk.Frame(self.master,background='#87CEEB')
     ttk.Label(frame3,text='Longitude from',padding=3,background='#87CEEB').grid(row=0,column=0,sticky='w',padx=3)
@@ -290,7 +287,6 @@ class WinTracking():
     weast.grid(row=3,column=4,sticky='ew',padx=3)
     frame3.grid()
 
-
     frame4 = tk.Frame(self.master)
     ttk.Button(frame4,text='Save script',      \
                           command=self.script,\
@@ -311,8 +307,10 @@ class WinTracking():
   #=============
 
     if empty(self.USER_FILE.get()):
-      print('Here ...')
-      print(self.PROD.get())
+
+      self.MESSAGE += "Here ...\n"+str(self.PROD.get())
+      #print('Here ...')
+      #print(self.PROD.get())
       idate = self.INITIAL.get().replace(" ","").replace("-","") \
                                 .replace('"','').replace(":","")
       fdate = self.FINAL.get().replace(" ","").replace("-","") \
@@ -340,15 +338,17 @@ class WinTracking():
     def select():
       self.pathstation.set(PATH+self.station.get())
     def get():
-      print('Downloading file: ',self.pathstation.get())
+      self.MESSAGE += 'Downloading file: '+str(self.pathstation.get())
+      #print('Downloading file: ',self.pathstation.get())
       filename = self.station.get()
       with open(filename,'wb') as local_file:
         ftp.retrbinary('RETR '+self.station.get(),local_file.write)
-      print('Done !')
+      self.MESSAGE += 'Done !'
+      #print('Done !')
        
-
     if self.PROD.get() == 'In-situ Moorings' :
-      print('Retrieving folder contents ...')
+      self.MESSAGE += 'Retrieving folder contents ...'
+      #print('Retrieving folder contents ...')
       ftp = ftplib.FTP(FTP,self.user,self.password)
       ftp.cwd(PATH)
       mooring_list = ftp.nlst()
@@ -386,7 +386,6 @@ class WinTracking():
       self.Rindex = 0
       self.REGION.set(self.Rname[self.Rindex])
 
-
   def region(self):
   # ===============
     ''' Select a region '''
@@ -402,7 +401,6 @@ class WinTracking():
       self.EAST.set(self.Reast[ind])
       self.SOUTH.set(self.Rsouth[ind])
       self.NORTH.set(self.Rnorth[ind])
-
 
   def save(self):
   # =============
@@ -426,7 +424,6 @@ class WinTracking():
     conf['PASSWD'] = self.password
     conf['PATH'] = self.PATH.get()
     conf_save(conf,COSMO_CONF+'copernicus-credentials.conf')
- 
 
   def output(self):
     '''Change output path and filename'''
@@ -451,7 +448,6 @@ class WinTracking():
 
     ttk.Button(self.Window_out,text='Save',command=self.save).grid(row=2,column=2,padx=3,pady=3)
     ttk.Button(self.Window_out,text='Close',command=close).grid(row=2,column=3,padx=3,pady=3)
-
 
   def credentials(self):
     '''Change user and password'''
@@ -485,7 +481,6 @@ class WinTracking():
     ttk.Button(self.Window_user,text='Save',command=self.save).grid(row=2,column=2,padx=3,pady=3)
     ttk.Button(self.Window_user,text='Done',command=close).grid(row=2,column=3,padx=3,pady=3)
 
-
   def paths(self):
     def close():
       self.Window_pref.destroy()
@@ -495,20 +490,23 @@ class WinTracking():
     def entry_motu():
       self.motu = self.wmc.get()
     def check_python():
-      print('Checking the python command ...')
+      self.MESSAGE += 'Checking the python command ...'
+      #print('Checking the python command ...')
       aa = os.system(self.wpe.get()+' --version')
       if int(aa) == 0:
         pass
       else:
-        print('WARNING: Python interpreter not found')
+        self.MESSAGE += 'WARNING: Python interpreter not found'
+        #print('WARNING: Python interpreter not found')
     def check_motu():
-      print('Checking the motu client ...')
+      self.MESSAGE += 'Checking the motu client ...'
+      #print('Checking the motu client ...')
       aa = os.system(self.wpe.get()+' '+self.wmc.get()+' --version')
       if int(aa) == 0:
         pass
       else:
-        print('WARNING: Motu client not found')
-
+        self.MESSAGE += 'WARNING: Motu client not found'
+        #print('WARNING: Motu client not found')
 
     if self.Window_pref is None:
       self.Window_pref = tk.Toplevel(self.master)
@@ -534,8 +532,7 @@ class WinTracking():
                command=check_motu).grid(row=1,column=3,padx=3)
 
     ttk.Button(self.Window_pref,text='Save',command=self.save).grid(row=2,column=2,padx=3,pady=3)
-    ttk.Button(self.Window_pref,text='Close',command=close).grid(row=2,column=3,padx=3,pady=3)
-    
+    ttk.Button(self.Window_pref,text='Close',command=close).grid(row=2,column=3,padx=3,pady=3)  
 
   def script(self,filename=None):
   # =============================
@@ -543,7 +540,9 @@ class WinTracking():
       nn = filedialog.asksaveasfilename(title='Save',confirmoverwrite=True)
       if nn is not None:
         filename = '%s' % nn
-        print('Saving in ',filename)
+        'WARNING: Motu client not found'
+        self.MESSAGE += 'Saving in '+filename
+        #print('Saving in ',filename)
       else:
         return
 
@@ -582,7 +581,6 @@ class WinTracking():
     f.close()
     os.system('chmod +x '+filename)
 
-
   def get(self):
   # ============
     self.script(filename='.tmp.sh')
@@ -591,7 +589,6 @@ class WinTracking():
     os.system('./.tmp.sh')
     os.system('rm -f .tmp.sh')
     messagebox.showinfo(message='Download finished')
-
 
 def main():
 

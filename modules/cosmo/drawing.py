@@ -1,7 +1,29 @@
-
-__version__ = "1.0"
-__author__  = "Quim Ballabrera"
-__date__    = "December 2017"
+''' COSMO-VIEW
+    Script: drawing.py
+    Changes:
+		J. Ballabrera, December 2017
+		EGL, 06/2020:
+			No more support to python 2.7 
+			Support to Basemap deprecated and updated to cartopy
+			A consola can be added to the main window (it requires 
+			to change all prints and use instead the tools.toconsola() 
+			function. In some cases the wid of the consola is passed to
+			others constructors or a heap variable MESSAGE has been 
+			introduced to collect "print" messages.			
+			Added limited support to loading and drawing shapefiles
+			Base layers of topography and relief substituted by GEBCO and
+			EMODNET tile services (requieres internet connection)
+			Limited support to geographical projections. Everything is 
+			plotted in PlateCarree
+			setmap() is now deprecated
+			Corrected some text font managements
+			All color selections are now managed through tools.colsel() function
+			Cartopy projection can be accessed through tools.map_proj()
+			
+'''
+__version__ = "2.0"
+__author__  = "Quim Ballabrera and Emilio García"
+__date__    = "July 2020"
 
 import sys
 import os
@@ -12,40 +34,42 @@ from scipy import interpolate
 
 import json
 import io
-#import matplotlib
-#matplotlib.use('TkAgg')
+import ast
+import math
+
 import matplotlib.pyplot as plt
 import matplotlib.image as image
 import matplotlib.font_manager
-import ast
-import math
+import matplotlib.ticker as mticker
 from matplotlib.font_manager import FontProperties
 from matplotlib.figure import Figure
-from matplotlib.offsetbox import TextArea, OffsetImage, AnnotationBbox
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.offsetbox import TextArea, OffsetImage, AnnotationBbox, AnchoredText
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib import cm as CM
 from matplotlib import colors
-from mpl_toolkits.basemap import Basemap
+
+#EG Cartopy
+import cartopy
+import cartopy.crs as ccrs
+import cartopy.feature as cfeat
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from cartopy.io.shapereader import Reader
+from cartopy.feature import ShapelyFeature
+
+#EG from mpl_toolkits.basemap import Basemap
+
 from netCDF4 import Dataset,num2date
 from itertools import chain
 
 from PIL import Image, ImageTk
 import matplotlib.animation as manimation
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog as filedialog
-  from tkcolorpicker import askcolor
-  from tkinter import font as tkfont
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
-  from tkColorChooser import askcolor
-  import tkFont as tkfont
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog as filedialog
+from tkcolorpicker import askcolor
+from tkinter import font as tkfont
 
 try:
   to_unicode = unicode
@@ -68,6 +92,9 @@ import cosmo.geomarker as geomarker
 import cosmo.dotplot as dotplot
 import cosmo.json_editor as jeditor
 import cosmo.legend as legend
+#EG
+import cosmo.shape as shape
+import cosmo.geoplot as geoplot
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -83,6 +110,15 @@ from cosmo.tools import haversine
 from cosmo.tools import fontconfig
 from cosmo.tools import setfont
 from cosmo.tools import read_lines
+from cosmo.tools import colsel
+
+#EG
+from cosmo.tools import map_proj
+from cosmo.tools import scale_bar
+
+#EG consola
+from cosmo.tools import toconsola
+
 from cosmo import COSMO_CONF_NAME
 from cosmo import COSMO_CONF
 from cosmo import COSMO_ROOT
@@ -91,9 +127,6 @@ from cosmo import COSMO_CONF_DATA
 from cosmo import VERSION
 
 global COSMO_CONF,COSMO_CONF_PATH,COSMO_CONF_NAME,COSMO_CONF_DATA
-
-print('COSMO_CONF_DATA = ', COSMO_CONF_DATA)
-print('COSMO_CONF = ', COSMO_CONF)
 
 BGC  = 'pale green'    # Background color
 BWC  = 'lime green'    # Buttons (PREV and NEXT) color
@@ -105,15 +138,20 @@ class fld_parameters():
 # =====================
   ''' Class for 2D data fields'''
 
-  __version__ = "1.0"
-  __author__  = "Quim Ballabrera"
-  __date__    = "December 2017"
+  __version__ = "1.0" 
+  __author__ = "Quim Ballabrera" 
+  __date__ = "December 2017"
 
   def __init__ (self):
   # ==================
     ''' Define and initialize the class attributes '''
 
+    self.MESSAGE = "\nFLD_PARA:\n"
+    
     self.PLOT          = contourplot.parameters()
+    
+    self.MESSAGE += self.PLOT.MESSAGE
+    
     self.missing       = tk.DoubleVar()
     self.masked        = tk.BooleanVar()
     self.show          = tk.BooleanVar()
@@ -149,7 +187,6 @@ class fld_parameters():
     self.show.set(conf['SHOW'])
     self.PLOT.conf_set(conf['PLOT'])
 
-
 # =====================
 class vel_parameters():
 # =====================
@@ -163,7 +200,12 @@ class vel_parameters():
   # ==================
     ''' Define and initialize the class attributes '''
 
-    self.PLOT          = vectorplot.parameters()
+    self.MESSAGE = "VEL_PARA:\n"
+
+    self.PLOT         = vectorplot.parameters()
+    
+    self.MESSAGE += self.PLOT.MESSAGE
+    
     self.u             = None
     self.v             = None
     self.speed         = None
@@ -188,8 +230,6 @@ class vel_parameters():
     self.show.set(conf['SHOW'])
     self.PLOT.conf_set(conf['PLOT'])
 
-
-
 # =====================
 class cdf_parameters():
 # =====================
@@ -202,7 +242,7 @@ class cdf_parameters():
   def __init__ (self):
   # ==================
     ''' Define and initialize the class attributes '''
-
+    
     self.FILENAME      = tk.StringVar()
     self.varname       = tk.StringVar()
     self.uname         = tk.StringVar()
@@ -292,16 +332,12 @@ class cdf_parameters():
     else:
       self.VEL.conf_set(conf['VEL'])
 
-
-
-
-
 # ====================
 class DrawingConfig():
 # ====================
 
   def __init__(self):
-  # =================
+  # ========================
 
     #fileconf = '%s' % COSMO_CONF + 'configure.conf'
     #self.CONFLIST = []
@@ -323,7 +359,20 @@ class DrawingConfig():
     self.OUTPUT_FIGURE      = tk.BooleanVar()
     self.OUTPUT_LEAFLET     = tk.BooleanVar()
     self.GEOMAP             = tk.BooleanVar()
+    #EG Cartopy projection and parameters
     self.MAP_PROJECTION     = tk.StringVar()
+    self.MAP_PROJ_LAT_0		= tk.DoubleVar()
+    self.MAP_PROJ_LON_0		= tk.DoubleVar()
+    self.MAP_PROJ_MIN_LAT	= tk.DoubleVar()
+    self.MAP_PROJ_MAX_LAT	= tk.DoubleVar()
+    self.MAP_PROJ_F_NORTH	= tk.DoubleVar()
+    self.MAP_PROJ_F_EAST	= tk.DoubleVar()
+    self.MAP_PROJ_LAT_T_SCA	= tk.DoubleVar()
+    self.MAP_PROJ_T_SCA_LAT	= tk.DoubleVar()
+    self.MAP_PROJ_SCA_FAC	= tk.DoubleVar()
+    self.MAP_PROJ_SATELLITE_HEIGHT	= tk.DoubleVar()
+    self.MAP_PROJ_SWEEP_AXIS = tk.StringVar()
+    
     self.MAP_RESOLUTION     = tk.StringVar()
     self.EPSG               = tk.IntVar()
     self.SOUTH              = tk.DoubleVar()
@@ -332,11 +381,13 @@ class DrawingConfig():
     self.EAST               = tk.DoubleVar()
     self.WIDTH              = tk.DoubleVar()
     self.HEIGHT             = tk.DoubleVar()
-    self.LAT_0              = tk.DoubleVar()
+    self.LAT_0              = tk.DoubleVar() #
     self.LON_0              = tk.DoubleVar()
     self.SATELLITE_HEIGHT   = tk.DoubleVar()
 
     self.COASTLINE_SHOW     = tk.BooleanVar()
+    # EG 1:Natural-Earth 2: EMODNET
+    self.COASTLINE_SOURCE	= tk.IntVar()
     self.COASTLINE_WIDTH    = tk.DoubleVar()
     self.COASTLINE_COLOR    = tk.StringVar()
     self.COUNTRYLINE_SHOW   = tk.BooleanVar()
@@ -399,28 +450,32 @@ class DrawingConfig():
 
     self.X                  = None
     self.Y                  = None
-    self.RELIEF             = tk.BooleanVar()
-    self.BLUEMARBLE         = tk.BooleanVar()
-    self.ETOPO              = tk.BooleanVar()
+    #EG RELIEF=1 GEBCO, RELIEF=2 EMODNET
+    self.RELIEF_SHOW        = tk.BooleanVar()
+    self.RELIEF             = tk.IntVar()
+    #EG self.BLUEMARBLE         = tk.BooleanVar()
+    #EG self.ETOPO              = tk.BooleanVar()
     self.BACKGROUND_SCALE   = tk.DoubleVar()
     self.RIVERS_SHOW        = tk.BooleanVar()
     self.RIVERS_WIDTH       = tk.DoubleVar()
     self.RIVERS_COLOR       = tk.StringVar()
-    self.ARCGISIMAGE        = tk.IntVar()
-    self.ARCGISSERVICE      = tk.StringVar()
-    self.ARCGISSERVICE_LIST = ['ESRI_Imagery_World_2D', \
-                                'ESRI_StreetMap_World_2D', \
-                                'NatGEo_World_Map',  \
-                                'Ocean_Basemap',  \
-                                'World_Imagery',  \
-                                'World_Physical_Map',  \
-                                'World_Shaded_Relief',  \
-                                'World_Street_Map',  \
-                                'World_Terrain_Base',  \
-                                'World_Topo_Map']
-    self.ARCGISPIXELS       = tk.IntVar()
-    self.ARCGISDPI          = tk.IntVar()
-    self.ARCGISVERBOSE      = tk.BooleanVar()
+    #EG ARCGIS changed by EMODNET
+    self.EMODNET_ISO        = tk.BooleanVar()
+    #EG self.ARCGISIMAGE        = tk.IntVar()
+    #EG self.ARCGISSERVICE      = tk.StringVar()
+    #EG self.ARCGISSERVICE_LIST = ['ESRI_Imagery_World_2D', \
+    #EG                                'ESRI_StreetMap_World_2D', \
+    #EG                                'NatGEo_World_Map',  \
+    #EG                                'Ocean_Basemap',  \
+    #EG                                'World_Imagery',  \
+    #EG                                'World_Physical_Map',  \
+    #EG                                'World_Shaded_Relief',  \
+    #EG                                'World_Street_Map',  \
+    #EG                                'World_Terrain_Base',  \
+    #EG                               'World_Topo_Map']
+    #EG self.ARCGISPIXELS       = tk.IntVar()
+    #EG self.ARCGISDPI          = tk.IntVar()
+    #EG self.ARCGISVERBOSE      = tk.BooleanVar()
     self.LOGO_FILE          = tk.StringVar()
     self.LOGO_ZOOM          = tk.DoubleVar()
     self.LOGO_LOCATION      = tk.StringVar()
@@ -452,9 +507,26 @@ class DrawingConfig():
     self.OUTPUT_FIGURE.set(True)
     self.OUTPUT_LEAFLET.set(False)
     self.GEOMAP.set(True)
-    self.MAP_PROJECTION.set('cyl')
-    self.MAP_RESOLUTION.set('l')
+    #EG Default Cartopy PlateCarree and parameters
+    self.MAP_PROJECTION.set('PlateCarree')
+    self.MAP_PROJ_LAT_0.set(0.0)
+    self.MAP_PROJ_LON_0.set(0.0)
+    self.MAP_PROJ_MIN_LAT.set(-80.0)
+    self.MAP_PROJ_MAX_LAT.set(84.0)
+    self.MAP_PROJ_F_NORTH.set(0.0)
+    self.MAP_PROJ_F_EAST.set(0.0)
+    self.MAP_PROJ_LAT_T_SCA.set(0.0)
+    self.MAP_PROJ_T_SCA_LAT.set(-1)
+    self.MAP_PROJ_SCA_FAC.set(-1)
+    self.MAP_PROJ_SATELLITE_HEIGHT.set(35785831)
+    self.MAP_PROJ_SWEEP_AXIS.set('y')
+    
+    self.MAP_RESOLUTION.set('50m')
     self.EPSG.set(4326)
+    
+    #EG self.MAP_PROJECTION.set('cyl')
+    #EG self.MAP_RESOLUTION.set('l')
+    
     self.SOUTH.set(-90)
     self.NORTH.set(90)
     self.WEST.set(-180)
@@ -464,7 +536,8 @@ class DrawingConfig():
     self.LAT_0.set(0)
     self.LON_0.set(0)
     self.SATELLITE_HEIGHT.set(35786000)
-    self.COASTLINE_SHOW.set(True)
+    self.COASTLINE_SHOW.set(False)
+    self.COASTLINE_SOURCE.set(1)
     self.COASTLINE_WIDTH.set(1)
     self.COASTLINE_COLOR.set('black')
     self.COUNTRYLINE_SHOW.set(False)
@@ -498,8 +571,8 @@ class DrawingConfig():
     self.GRID_SIZE.set(12)
     self.GRID_NORTH.set(False)
     self.GRID_SOUTH.set(True)
-    self.GRID_WEST.set(False)
-    self.GRID_EAST.set(True)
+    self.GRID_WEST.set(True)
+    self.GRID_EAST.set(False)
     self.GRID_LINESTYLE.set(':')
     self.GRID_ALPHA.set(1.0)
     self.SCALE_SHOW.set(False)
@@ -519,18 +592,21 @@ class DrawingConfig():
     self.SCALE_FILLCOLOR2.set('k')
     self.SCALE_LINECOLOR.set('k')
     self.SCALE_LINEWIDTH.set(None)
-    self.RELIEF.set(False)
-    self.BLUEMARBLE.set(False)
-    self.ETOPO.set(False)
+    #EG RELIEF refers to GEBCO tile vms
+    self.RELIEF_SHOW.set(False)
+    self.RELIEF.set(1)
     self.BACKGROUND_SCALE.set(1.0)
     self.RIVERS_SHOW.set(False)
     self.RIVERS_WIDTH.set(0.2)
     self.RIVERS_COLOR.set('blue')
-    self.ARCGISIMAGE.set(0)
-    self.ARCGISSERVICE.set('ESRI_Imagery_world_2D')
-    self.ARCGISPIXELS.set(400)
-    self.ARCGISDPI.set(96)
-    self.ARCGISVERBOSE.set(True)
+    #EG EMODNET
+    #self.EMODNET_COAST.set(False)
+    self.EMODNET_ISO.set(False)
+    #EG self.ARCGISIMAGE.set(0)
+    #EG self.ARCGISSERVICE.set('ESRI_Imagery_world_2D')
+    #EG self.ARCGISPIXELS.set(400)
+    #EG self.ARCGISDPI.set(96)
+    #EG self.ARCGISVERBOSE.set(True)
     self.LOGO_FILE.set(COSMO_CONF_PATH+'cosmo-logo.png')
     self.LOGO_IMAGE = image.imread(self.LOGO_FILE.get())
     self.LOGO_ZOOM.set(0.40)
@@ -538,18 +614,18 @@ class DrawingConfig():
     self.LOGO_DISPLAY.set(False)
 
     self.ISOBAT_PATH =  tk.StringVar()
-    self.ISOBAT_PATH.set(COSMO_ROOT+'data/isobaths/')
+    self.ISOBAT_PATH.set(COSMO_ROOT+'/data/isobaths/')
 
-#    self.ISOBAT_Z     = [   0,  100,  200,  400, 
-#                          600,  800, 1000, 1200, 1400,
-#                         1600, 1800, 2000, 2500, 3000,
-#                        ]
-#
-#    self.ISOBAT_LABEL = ['coastline', '100 m', '200 m', '400 m',
-#                             '600 m', '800 m','1000 m','1200 m','1400 m',
-#                            '1600 m','1800 m','2000 m','2500 m','3000 m',
-#                        ]
-#
+    #    self.ISOBAT_Z     = [   0,  100,  200,  400, 
+    #                          600,  800, 1000, 1200, 1400,
+    #                         1600, 1800, 2000, 2500, 3000,
+    #                        ]
+    #
+    #    self.ISOBAT_LABEL = ['coastline', '100 m', '200 m', '400 m',
+    #                             '600 m', '800 m','1000 m','1200 m','1400 m',
+    #                            '1600 m','1800 m','2000 m','2500 m','3000 m',
+    #                        ]
+    #
     self.ISOBAT_Z     = [   0,  50, 100,  200, 250, 400, 500,
                           600,  750, 800, 1000, 1250, 1500, 1750,
                          2000, 2500, 3000, 3500, 4000, 4500, 5000]
@@ -610,21 +686,21 @@ class DrawingConfig():
     font_type = matplotlib.rcParams['font.family'][0]
     self.MAP_FONT_TYPE.set(font_type)
 
+    self.MESSAGE = "\n"+self.LEGEND.MESSAGE+"\n"+self.ISOBAT_LEGEND.MESSAGE
 
     if exists(self.FILECONF):
-      print('Reading configuration file '+self.FILECONF)
+      self.MESSAGE += "\nReading conf. file: "+self.FILECONF
       try:
         conf = self.conf_load(self.FILECONF)
         self.conf_set(conf)
       except:
-        print('Error reading, using default parameters')
+        self.MESSAGE += '\n\tError reading, using default parameters'
         conf = self.conf_get()
         self.conf_save(conf,self.FILECONF)
     else:
-      print('Saving configuration file ...')
+      self.MESSAGE += '\n\tSaving configuration file ...'
       conf = self.conf_get()
       self.conf_save(conf,self.FILECONF)
-
 
   def conf_get(self):
   # ===========================
@@ -639,7 +715,21 @@ class DrawingConfig():
     conf['FIGURE_COLOR'] = self.FIGURE_COLOR.get()
     conf['TEXT_COLOR'] = self.TEXT_COLOR.get()
     conf['GEOMAP'] = self.GEOMAP.get()
+    
+    #EG Default Cartopy PlateCarree and parameters
     conf['MAP_PROJECTION'] = self.MAP_PROJECTION.get()
+    conf['MAP_PROJ_LAT_0'] = self.MAP_PROJ_LAT_0.get()
+    conf['MAP_PROJ_LON_0'] = self.MAP_PROJ_LON_0.get()
+    conf['MAP_PROJ_MIN_LAT'] = self.MAP_PROJ_MIN_LAT.get()
+    conf['MAP_PROJ_MAX_LAT'] = self.MAP_PROJ_MAX_LAT.get()
+    conf['MAP_PROJ_F_NORTH'] = self.MAP_PROJ_F_NORTH.get()
+    conf['MAP_PROJ_F_EAST'] = self.MAP_PROJ_F_EAST.get()
+    conf['MAP_PROJ_LAT_T_SCA'] = self.MAP_PROJ_LAT_T_SCA.get()
+    conf['MAP_PROJ_T_SCA_LAT'] = self.MAP_PROJ_T_SCA_LAT.get()
+    conf['MAP_PROJ_SCA_FAC'] = self.MAP_PROJ_SCA_FAC.get()
+    conf['MAP_PROJ_SATELLITE_HEIGHT'] = self.MAP_PROJ_SATELLITE_HEIGHT.get()
+    conf['MAP_PROJ_SWEEP_AXIS'] = self.MAP_PROJ_SWEEP_AXIS.get()
+    
     conf['MAP_RESOLUTION'] = self.MAP_RESOLUTION.get()
     conf['EPSG'] = self.EPSG.get()
     conf['SOUTH'] = self.SOUTH.get()
@@ -652,6 +742,7 @@ class DrawingConfig():
     conf['LON_0'] = self.LON_0.get()
     conf['SATELLITE_HEIGHT'] = self.SATELLITE_HEIGHT.get()
     conf['COASTLINE_SHOW'] = self.COASTLINE_SHOW.get()
+    conf['COASTLINE_SOURCE'] = self.COASTLINE_SHOW.get()
     conf['COASTLINE_WIDTH'] = self.COASTLINE_WIDTH.get()
     conf['COASTLINE_COLOR'] = self.COASTLINE_COLOR.get()
     conf['COUNTRYLINE_SHOW'] = self.COUNTRYLINE_SHOW.get()
@@ -705,19 +796,23 @@ class DrawingConfig():
       conf['SCALE_LINEWIDTH'] = self.SCALE_LINEWIDTH.get()
     except:
       conf['SCALE_LINEWIDTH'] = None
-
+    #EG RELIEF refers to GEBCO
+    conf['RELIEF_SHOW'] = self.RELIEF_SHOW.get()
     conf['RELIEF'] = self.RELIEF.get()
-    conf['BLUEMARBLE'] = self.BLUEMARBLE.get()
-    conf['ETOPO'] = self.ETOPO.get()
+    #EGconf['BLUEMARBLE'] = self.BLUEMARBLE.get()
+    #EGconf['ETOPO'] = self.ETOPO.get()
     conf['BACKGROUND_SCALE'] = self.BACKGROUND_SCALE.get()
     conf['RIVERS_SHOW'] = self.RIVERS_SHOW.get()
     conf['RIVERS_WIDTH'] = self.RIVERS_WIDTH.get()
     conf['RIVERS_COLOR'] = self.RIVERS_COLOR.get()
-    conf['ARCGISIMAGE'] = self.ARCGISIMAGE.get()
-    conf['ARCGISSERVICE'] = self.ARCGISSERVICE.get()
-    conf['ARCGISPIXELS'] = self.ARCGISPIXELS.get()
-    conf['ARCGISDPI'] = self.ARCGISDPI.get()
-    conf['ARCGISVERBOSE'] = self.ARCGISVERBOSE.get()
+    #EG EMODNET
+    #conf['EMODNET_COAST'] = self.EMODNET_COAST.get()
+    conf['EMODNET_ISO'] = self.EMODNET_ISO.get()
+    #EG conf['ARCGISIMAGE'] = self.ARCGISIMAGE.get()
+    #EG conf['ARCGISSERVICE'] = self.ARCGISSERVICE.get()
+    #EG conf['ARCGISPIXELS'] = self.ARCGISPIXELS.get()
+    #EG conf['ARCGISDPI'] = self.ARCGISDPI.get()
+    #EG conf['ARCGISVERBOSE'] = self.ARCGISVERBOSE.get()
     conf['LOGO_FILE'] = self.LOGO_FILE.get()
     conf['LOGO_ZOOM'] = self.LOGO_ZOOM.get()
     conf['LOGO_LOCATION'] = self.LOGO_LOCATION.get()
@@ -759,12 +854,10 @@ class DrawingConfig():
     conf['VIDEO_FPS'] = self.VIDEO_FPS.get()
     conf['VIDEO_DPI'] = self.VIDEO_DPI.get()
 
-
     conf['WINDOW_FONT_TYPE'] = self.WINDOW_FONT_TYPE.get()
     conf['WINDOW_FONT_SIZE'] = self.WINDOW_FONT_SIZE.get()
     conf['MAP_FONT_TYPE'] = self.MAP_FONT_TYPE.get()
     return conf
-
 
   def conf_set(self,conf):
   # =======================
@@ -778,7 +871,21 @@ class DrawingConfig():
     self.FIGURE_COLOR.set(conf['FIGURE_COLOR'])
     self.TEXT_COLOR.set(conf['TEXT_COLOR'])
     self.GEOMAP.set(conf['GEOMAP'])
+    
+    #EG Default Cartopy PlateCarree and parameters
     self.MAP_PROJECTION.set(conf['MAP_PROJECTION'])
+    self.MAP_PROJ_LAT_0.set(conf['MAP_PROJ_LAT_0'])
+    self.MAP_PROJ_LON_0.set(conf['MAP_PROJ_LON_0'])
+    self.MAP_PROJ_MIN_LAT.set(conf['MAP_PROJ_MIN_LAT'])
+    self.MAP_PROJ_MAX_LAT.set(conf['MAP_PROJ_MAX_LAT'])
+    self.MAP_PROJ_F_NORTH.set(conf['MAP_PROJ_F_NORTH'])
+    self.MAP_PROJ_F_EAST.set(conf['MAP_PROJ_F_EAST'])
+    self.MAP_PROJ_LAT_T_SCA.set(conf['MAP_PROJ_LAT_T_SCA'])
+    self.MAP_PROJ_T_SCA_LAT.set(conf['MAP_PROJ_T_SCA_LAT'])
+    self.MAP_PROJ_SCA_FAC.set(conf['MAP_PROJ_SCA_FAC'])
+    self.MAP_PROJ_SATELLITE_HEIGHT.set(conf['MAP_PROJ_SATELLITE_HEIGHT'])
+    self.MAP_PROJ_SWEEP_AXIS.set(conf['MAP_PROJ_SWEEP_AXIS'])
+    
     self.MAP_RESOLUTION.set(conf['MAP_RESOLUTION'])
     self.EPSG.set(conf['EPSG'])
     self.SOUTH.set(conf['SOUTH'])
@@ -797,6 +904,7 @@ class DrawingConfig():
     self.PARALLEL_FIN.set(conf['PARALLEL_FIN'])
     self.PARALLEL_INT.set(conf['PARALLEL_INT'])
     self.COASTLINE_SHOW.set(conf['COASTLINE_SHOW'])
+    self.COASTLINE_SOURCE.set(conf['COASTLINE_SOURCE'])
     self.COASTLINE_WIDTH.set(conf['COASTLINE_WIDTH'])
     self.COASTLINE_COLOR.set(conf['COASTLINE_COLOR'])
     self.COUNTRYLINE_SHOW.set(conf['COUNTRYLINE_SHOW'])
@@ -839,18 +947,23 @@ class DrawingConfig():
     self.SCALE_LINECOLOR.set(conf['SCALE_LINECOLOR'])
     self.SCALE_LINEWIDTH.set(conf['SCALE_LINEWIDTH'])
 
+    #EG Refers to GEBCO tile vms
+    self.RELIEF_SHOW.set(conf['RELIEF_SHOW'])
     self.RELIEF.set(conf['RELIEF'])
-    self.BLUEMARBLE.set(conf['BLUEMARBLE'])
-    self.ETOPO.set(conf['ETOPO'])
+    #EGself.BLUEMARBLE.set(conf['BLUEMARBLE'])
+    #EGself.ETOPO.set(conf['ETOPO'])
     self.BACKGROUND_SCALE.set(conf['BACKGROUND_SCALE'])
     self.RIVERS_SHOW.set(conf['RIVERS_SHOW'])
     self.RIVERS_WIDTH.set(conf['RIVERS_WIDTH'])
     self.RIVERS_COLOR.set(conf['RIVERS_COLOR'])
-    self.ARCGISIMAGE.set(conf['ARCGISIMAGE'])
-    self.ARCGISSERVICE.set(conf['ARCGISSERVICE'])
-    self.ARCGISPIXELS.set(conf['ARCGISPIXELS'])
-    self.ARCGISDPI.set(conf['ARCGISDPI'])
-    self.ARCGISVERBOSE.set(conf['ARCGISVERBOSE'])
+    #EG EMODNET
+    #self.EMODNET_COAST.set(conf['EMODNET_COAST'])
+    self.EMODNET_ISO.set(conf['EMODNET_ISO'])
+    #EG self.ARCGISIMAGE.set(conf['ARCGISIMAGE'])
+    #EG self.ARCGISSERVICE.set(conf['ARCGISSERVICE'])
+    #EG self.ARCGISPIXELS.set(conf['ARCGISPIXELS'])
+    #EG self.ARCGISDPI.set(conf['ARCGISDPI'])
+    #EG self.ARCGISVERBOSE.set(conf['ARCGISVERBOSE'])
     self.LOGO_FILE.set(conf['LOGO_FILE'])
     self.LOGO_ZOOM.set(conf['LOGO_ZOOM'])
     self.LOGO_LOCATION.set(conf['LOGO_LOCATION'])
@@ -931,7 +1044,6 @@ class DrawingConfig():
   def conf_load(self,filename):
   # ===========================
     '''Open an read the configuration file'''
-
     # Read configuration
     with open(filename) as infile:
       conf = json.load(infile)
@@ -940,7 +1052,6 @@ class DrawingConfig():
   def conf_save(self,conf,filename):
   # ===============================
     '''Save the configuration file'''
-
     with io.open(filename,'w',encoding='utf8') as outfile:
       str_ = json.dumps(conf,ensure_ascii=False, \
                              sort_keys=True,     \
@@ -948,7 +1059,6 @@ class DrawingConfig():
                              separators=(',',': '))
       outfile.write(to_unicode(str_))
       outfile.close()
-
 
 # ===================
 class CosmoDrawing():
@@ -966,17 +1076,27 @@ class CosmoDrawing():
       self.master = None
       quit()
 
-  # ===========================
-  def __init__ (self,master):
-  # ===========================
-
+  # =======================================
+  def __init__ (self,master,tconsola=None):
+  # =======================================
     # Initialization
+
+    global COSMO_CONF,COSMO_CONF_DATA
+
+    versions  = 'Built with:\n'
+    versions += 'Tkinter '+ str(tk.TkVersion) + '\n'
+    versions += 'Matplotlib '+ str(sys.modules[plt.__package__].__version__) + '\n'
+    versions += 'Cartopy '+ str(cartopy.__version__) + '\n'
+
+    mess  = "CONF_PATH: "+COSMO_CONF_PATH
+    mess += '\nCONF_DATA: '+COSMO_CONF_DATA
+    mess += '\nCONF: '+ COSMO_CONF
 
     master.protocol('WM_DELETE_WINDOW',self.close)
 
     self.master = master
     self.master.configure(bg=BGC)
-
+    # EG we pass the console id
     self.PLOT   = DrawingConfig()
     self.first  = True
     self.ftime  = True
@@ -1058,13 +1178,13 @@ class CosmoDrawing():
     self.FEATNAMES     = []
     self.FEATTYPES     = []
     self.FEATORDER     = []
-
-    self.nmarker       = 0
-    self.MARKER        = []
-    self.MARKER_LIST   = ['0']
-    self.MARKER_INDX   = tk.IntVar()
-    self.MARKER_INDX.set(0)
-
+	#EG 
+    self.nmarker       = 0 			# Numero de fixters de marcadors
+    self.MARKER        = []        # llista de estructures de marcadors dim(self.nmarker)
+    self.MARKER_LIST   = ['0']      # Llista marker files en configuracion 
+    self.MARKER_INDX   = tk.IntVar() # contador de files
+    self.MARKER_INDX.set(0)         
+	#EG Shape files
     self.nshape        = 0
     self.SHAPE        = []
     self.SHAPE_LIST   = ['0']
@@ -1104,7 +1224,8 @@ class CosmoDrawing():
 
     self.GET_TIMESTAMP_LOCATION = False
 
-    # Initialize matplotlib
+    # Initialize matplotlib and Cartopy
+    self.params = None
     self.fig = None
     #print('main ', self.PLOT.SIZE)
     #self.fig = plt.figure('COSMO-VIEW canvas',    \
@@ -1124,24 +1245,25 @@ class CosmoDrawing():
     gui_style.configure('My.TLabel',background="green")
 
     #F0 = ttk.Frame(self.master,style='My.TFrame')
-    F0 = tk.Frame(self.master,bg=BGC)
-
-    tk.Label(F0,text='Time',bg=BGC).grid(row=0,column=0,padx=3)
-    self.lbox = ttk.Combobox(F0,textvariable=self.L,width=5)
-    self.lbox.grid(row=0,column=1,sticky='ew')
+    #F0 = tk.Frame(self.master,bg="yellow")
+    #F0 = tk.Frame(self.master,bg="yellow")
+    #EG F0 dropped to facilitate the consola design
+    tk.Label(self.master,text='Time',bg=BGC).grid(row=0,column=0,padx=3)
+    self.lbox = ttk.Combobox(self.master,textvariable=self.L,width=5)
+    self.lbox.grid(row=0,column=1)
     self.lbox.configure(state='disabled')
     self.lbox.bind('<<ComboboxSelected>>',lambda e: self.lselection())
     self.lbox.bind('<Return>',lambda e: self.lselection())
 
-    self.bprev = tk.Button(F0,text='PREV',command=self.tprev,bg=BWC)
+    self.bprev = tk.Button(self.master,text='PREV',command=self.tprev,bg=BWC)
     self.bprev.grid(row=0,column=2,padx=3,sticky='e')
 
-    tk.Entry(F0,textvariable=self.PLOT.TLABEL, \
-              state='readonly',width=20,bg='white').grid(row=0,column=3,\
-              columnspan=3,sticky='w',padx=3)
+    tk.Entry(self.master,textvariable=self.PLOT.TLABEL, \
+              state='readonly',width=20,bg='white').grid(row=0,column=3, padx=3)
 
-    self.bnext = tk.Button(F0,text='NEXT',command=self.tnext,bg=BWC)
-    self.bnext.grid(row=0,column=6,padx=3,stick='w')
+    self.bnext = tk.Button(self.master,text='NEXT',command=self.tnext,bg=BWC)
+    self.bnext.grid(row=0,column=4,padx=3,stick='w')
+    tk.Label(self.master,bg=BGC).grid(row=0,column=5)
 
     if len(self.DATE) <= 0:
       self.bprev.configure(state='disabled')
@@ -1150,15 +1272,39 @@ class CosmoDrawing():
     else:
       self.lbox['values'] = list(range(len(self.L_LIST)))
 
-
-    tk.Button(F0,text='Draw',command=self.make_plot,bg=EBC)  \
-       .grid(row=1,column=5,padx=3,pady=3,sticky='e')
-    tk.Button(F0,text='Quit',command=self.close,bg=EBC)      \
-       .grid(row=1,column=6,padx=3,pady=3)
-    tk.Label(F0,text='COSMO project, July 2018',bg=BGC)  \
-       .grid(row=2,column=5,columnspan=2,padx=3)
-    F0.grid()
+    tk.Button(self.master,text='Draw',command=self.make_plot,bg=EBC)  \
+       .grid(row=1,column=4,padx=3,pady=3,sticky='e')
+    tk.Button(self.master,text='Quit',command=self.close,bg=EBC)      \
+       .grid(row=1,column=5,padx=3,pady=3,sticky='w')
+  
+    tk.Label(self.master,text='COSMO project, July 2018',bg=BGC)  \
+       .grid(row=2,column=4,columnspan=6,sticky='e')
     
+    #F0.grid(row=0, column=0,sticky='ew')
+       
+    #EG Afegim una Consola
+    #EG is the widget referencing the toconsola()
+    if tconsola is not None:
+        if len(tconsola) > 0:
+         wiconsola = tk.Frame(self.master)  # Expandimos la Consola
+         wiconsola.grid_rowconfigure(0, weight=1)
+         cscrollb = tk.Scrollbar(wiconsola)
+         cscrollb.grid(row=0,column=1,sticky='nswe')
+         self.cons = tk.Text(wiconsola, bg="black", fg="white", \
+         							 yscrollcommand=cscrollb.set)
+         # tags to highligth different cathegories of messages by formating the the text
+         self.cons.tag_config("y", foreground="yellow", font="-weight bold")
+         self.cons.tag_config("o", foreground="orange", font="-weight bold")
+         self.cons.tag_config("r", foreground="red", font="-weight bold")
+         self.cons.grid(row=0,column=0,sticky='we')
+         cscrollb.config(command=self.cons.yview)
+         line = tconsola + '\n'+ versions + "\n"+ mess + self.PLOT.MESSAGE+ \
+                 self.SAIDIN.FIELD.MESSAGE+self.BLM.MESSAGE+self.MLM.MESSAGE
+         self.cons.insert("end", line + "\n")
+         self.cons.see(tk.END)
+         wiconsola.grid(row=3, column=0, columnspan=6, pady=5, sticky='nsew')  
+    #EG
+
     # Initialize window widget IDs:
     self.Window_cfile         = None
     self.Window_legendconfig  = None
@@ -1190,20 +1336,34 @@ class CosmoDrawing():
     self.Window_markerconfig  = None
     self.Window_dotconfig     = None
     self.Window_editor        = None
+    #EG SHAPE files
+    self.Window_shapefile     = None
+    self.Window_shapeconfig   = None
+    self.Window_geoconfig     = None
+    
+    self.Window_mapa     = None
 
+  ## CosmoDrawing EVENTS Handlers ##############
 
-  # ================================
-  def on_closing_figure(self,event):
-  # ================================
+  # =============================
+  def canvas_closing(self,event):
+  # =============================
+    ''' Update PLOT.SIZE variable according to the window size'''
     self.PLOT.SIZE = list(self.fig.get_size_inches())
+    # Destruir lo que queda en memoria
     self.fig = None
+    
+  # =============================
+  def canvas_resizing(self,event):
+  # =============================
+    ''' Update PLOT.SIZE variable according to the window size'''
+    self.PLOT.SIZE = list(self.fig.get_size_inches())
 
-
-  # =======================
-  def on_click(self,event):
-  # =======================
-
+  # ===========================
+  def canvas_click(self,event):
+  # ===========================
     if self.GET_TIMESTAMP_LOCATION:
+      toconsola("EG Click_event: self.GET_TIMESTAMP_LOCATION",wid=self.cons)
       try:
         self.time_stamp.remove()
       except:
@@ -1216,21 +1376,15 @@ class CosmoDrawing():
 
       if self.PLOT.TIMESTAMP_SHOW.get():
         font_family = self.PLOT.MAP_FONT_TYPE.get()
-        if self.PLOT.TIMESTAMP_BOLD.get():
-          font_weight = 'bold'
-        else:
-          font_weight = 'normal'
-        font = {'family' : font_family,
-                'weight' : font_weight,
-                'color'  : self.PLOT.TIMESTAMP_COLOR.get(),
-                'size'   : self.PLOT.TIMESTAMP_SIZE.get()}
+        font_weight = 'normal'
+        if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
 
-        self.time_stamp = self.fig.text(self.PLOT.TIMESTAMP_X.get(),
-                                      self.PLOT.TIMESTAMP_Y.get(),
-                                      self.DATE[self.L.get()],
-                                      fontdict=font)
-        self.fig.show()
-
+        self.ax.annotate(self.DATE[self.L.get()],xy=(self.PLOT.TIMESTAMP_X.get(), \
+				self.PLOT.TIMESTAMP_Y.get()), \
+				xycoords='figure fraction', color=self.PLOT.TIMESTAMP_COLOR.get(), \
+				fontsize=self.PLOT.TIMESTAMP_SIZE.get(),fontfamily=font_family, \
+				fontweight=font_weight,annotation_clip=False)
+        self.canvas.draw()
       return
      
     if self.nvec > 0:
@@ -1243,39 +1397,41 @@ class CosmoDrawing():
         self.VEC[ii].VEL.PLOT.KEY_Y.set(np.round(yy,3))
         self.VEC[ii].VEL.PLOT.KEY_OBJ.X = xx
         self.VEC[ii].VEL.PLOT.KEY_OBJ.Y = yy
-        self.fig.show()
+        self.canvas.draw()
         return
 
     if event.inaxes is not None:
-      print(event.xdata, event.ydata)
-      xo,yo = self.m(event.xdata,event.ydata,inverse=True)
-      print(xo,yo)
+      #EG xo,yo = self.m(event.xdata,event.ydata,inverse=True)
+      p_ref = map_proj('PlateCarree')
+      p_local = map_proj(self.PLOT.MAP_PROJECTION.get())
+      latlon = p_ref['proj'].transform_point(event.xdata, event.ydata, \
+                 p_local['proj'])
+
+      toconsola("Selected Point : "+str(latlon[0])+" - "+str(latlon[1]),wid=self.cons)
       #print('Current speed = ', self.CURRENTS.F(event.xdata,event.ydata))
       #if not empty(self.SAIDIN.FILENAME.get()):
       #  print('SAIDIN SST = ', self.SAIDIN.FIELD.F(xo,yo))
-      self.BLM.xo.set(xo)
-      self.BLM.yo.set(yo)
-      self.MLM.xo.set(xo)
-      self.MLM.yo.set(yo)
-
+      
+      self.BLM.xo.set(latlon[0])
+      self.BLM.yo.set(latlon[1])
+      self.MLM.xo.set(latlon[0])
+      self.MLM.yo.set(latlon[1])
 
   # ===========================
-  def on_xlims_change(self,ax):
+  def on_xlims_change(self,event):
   # ===========================
     lims = self.ax.get_xlim()
     self.PLOT.WEST.set(lims[0])
     self.PLOT.EAST.set(lims[1])
     self.drawmap = True
 
-
   # ===========================
-  def on_ylims_change(self,ax):
+  def on_ylims_change(self,event):
   # ===========================
     lims = self.ax.get_ylim()
     self.PLOT.SOUTH.set(lims[0])
     self.PLOT.NORTH.set(lims[1])
     self.drawmap = True
-
 
   # ====================
   def CreateMenu (self):
@@ -1309,6 +1465,9 @@ class CosmoDrawing():
     insmenu.add_command(label='Contour field',command=self.get_contour)
     insmenu.add_command(label='Trajectory',command=self.get_lagrangian)
     insmenu.add_command(label='Marker',command=self.get_marker)
+    #EG Shapefile and WMS server
+    insmenu.add_command(label='Shapefile',command=self.get_shapefile)
+    insmenu.add_command(label='WMS Service',state="disable",command=self.get_wms)
 
     confmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Configure',menu=confmenu)
@@ -1327,6 +1486,8 @@ class CosmoDrawing():
                          command=self.lagrangian_config)
     confmenu.add_command(label='Marker',
                          command=self.marker_config)
+    confmenu.add_command(label='Shape geometry',
+                         command=self.shape_config)
     confmenu.add_separator()
     confmenu.add_command(label='Select configuration',
                          command=self.configuration_file)
@@ -1351,7 +1512,6 @@ class CosmoDrawing():
     except AttributeError:
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       self.master.tk.call(master, "config", "-menu", menubar)
-
 
   # ============================
   def about(self):
@@ -1390,7 +1550,6 @@ class CosmoDrawing():
     else:
       self.Window_about.lift()
 
-
   # ============================
   def get_vector(self):
   # ============================
@@ -1407,6 +1566,13 @@ class CosmoDrawing():
     def _done():
     # ==========
       ii = self.VEC_INDX.get()
+      #EG Corrected exception when the user tries to plot before 
+      #EG importing product
+      try:
+        self.read_UV(self.VEC[ii])
+      except:
+        toconsola("Press Import to select a product",tag="o", wid=self.cons)
+        return
       self.read_UV(self.VEC[ii])
       _close()
       self.make_plot()
@@ -1429,8 +1595,7 @@ class CosmoDrawing():
           del self.FILEORDER[i]
           del self.SEQUENCES[i]
       self.nfiles -= 1
-
-      print('Erasing record ', ii)
+      toconsola('Erasing record '+str(ii),wid=self.cons)
       del self.VEC[ii]
       self.nvec -= 1
       ii = self.nvec-1 if ii>= self.nvec else ii
@@ -1511,7 +1676,6 @@ class CosmoDrawing():
       global Window_select
       global VEC
 
-
       def _cancel():
       # ============
         global Window_select
@@ -1589,7 +1753,7 @@ class CosmoDrawing():
           ntime = len(self.DATE)
           same  = True
           if len(self.VEC[ii].DATE) == ntime:
-            print('Same number of time records')
+            toconsola('Same number of time records',wid=self.cons)
             for i in range(ntime):
               if self.DATE[i] != self.VEC[ii].DATE[i]:
                 same = False
@@ -1598,7 +1762,6 @@ class CosmoDrawing():
         _refill(ii)
         Window_select.destroy()
         Window_select = None
-
 
       #names = ['Operational','CODAR','COPERNICUS','Local']
       ISOURCE = self.CURRENT_OPTIONS.index(SOURCE)
@@ -1631,13 +1794,15 @@ class CosmoDrawing():
       VEC = cdf_parameters()
       VEC.FILENAME.set(filename)
       VEC.VEL = vel_parameters()
+      
+      toconsola(VEC.VEL.MESSAGE,wid=self.cons)
+      
       VEC.ncid = Dataset(filename)
-      VEC.icdf = tools.geocdf(filename)
+      VEC.icdf = tools.geocdf(filename, wid=self.cons)
 
-
-#     self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
-#     self.DepthandDate(VEC)
-#     VEC.VEL.show.set(True)
+      # self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
+      # self.DepthandDate(VEC)
+      # VEC.VEL.show.set(True)
 
       if Window_select is None:
         Window_select = tk.Toplevel(self.master)
@@ -1702,8 +1867,6 @@ class CosmoDrawing():
                                              self.VEC[ii].vname.get())
       except:
         self.VEC[ii].vid = -1
-
-
 
     # Main Window
     # ============
@@ -1810,8 +1973,6 @@ class CosmoDrawing():
     ttk.Button(F1,text='Plot',command=_done).grid(row=1,column=8,padx=3)
     F1.grid(row=1,column=0)
 
-
-
   # =============================
   def get_opendap_filename(self):
   # =============================
@@ -1825,13 +1986,13 @@ class CosmoDrawing():
       self.Window_opendap.title('Load Operational service Opendap file')
       self.Window_opendap.protocol('WM_DELETE_WINDOW',_close)
       a = providers.WinOpendap(self.Window_opendap)
+      toconsola(a.MESSAGE,wid=self.tcons)
       self.Window_opendap.wait_window()
       self.Window_opendap = None
       filename = a.get_filename()
       return filename
     else:
       self.Window_opendap.lift()
-
 
   # =============================
   def get_codar_filename(self):
@@ -1846,13 +2007,13 @@ class CosmoDrawing():
       self.Window_codar.title('HF Radar station selector')
       self.Window_codar.protocol('WM_DELETE_WINDOW',_close)
       a = codar.WinCodar(self.Window_codar)
+      toconsola(a.MESSAGE,wid=self.tcons)
       self.Window_codar.wait_window()
       self.Window_codar = None
       filename = a.get_filename()
       return filename
     else:
       self.Window_codar.lift()
-
 
   # ================================
   def get_copernicus_filename(self):
@@ -1869,13 +2030,13 @@ class CosmoDrawing():
 
       self.Window_copernicus.protocol('WM_DELETE_WINDOW',_close)
       a = copernicus.WinTracking(self.Window_copernicus)
+      toconsola(a.MESSAGE,wid=self.tcons)
       self.Window_copernicus.wait_window()
       self.Window_copernicus = None
       filename = a.out()
       return filename
     else:
       self.Window_copernicus.lift()
-
 
   # ==================
   def layers(self):
@@ -1890,7 +2051,7 @@ class CosmoDrawing():
     #Main Window
     # =========
     if self.nfiles == 0:
-      print('No files opened yet')
+      toconsola('No files opened yet',wid=self.cons)
       return
 
     if self.Window_files is None:
@@ -1946,33 +2107,32 @@ class CosmoDrawing():
                                                  columnspan=8,padx=3)
     F0.grid()
     for i in range(self.nfiles):
-      print('%s as %s' % (self.FILENAMES[i],self.FILETYPES[i]))
-
+      toconsola('%s as %s' % (self.FILENAMES[i],self.FILETYPES[i]),wid=self.cons)
 
   # ===========================
   def configuration_file(self):
   # ===========================
     ''' Launch the Configuration file script '''
 
-#COSMO_CONF_PATH = COSMO_ROOT + 'conf' + os.sep
-#COSMO_CONF_NAME = 'default'
-#COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
+  #COSMO_CONF_PATH = COSMO_ROOT + 'conf' + os.sep
+  #COSMO_CONF_NAME = 'default'
+  #COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
     # -----------
     def _done():
     # -----------
       '''Close the widget'''
       if exists(self.PLOT.FILECONF):
-        print('Reading configuration file '+self.PLOT.FILECONF)
+        toconsola('Reading configuration file '+self.PLOT.FILECONF,wid=self.cons)
         try:
           conf = self.PLOT.conf_load(self.PLOT.FILECONF)
           self.PLOT.conf_set(conf)
         except:
-          print('Error reading, using default parameters')
+          toconsola('Error reading, using default parameters',wid=self.cons)
           conf = self.PLOT.conf_get()
           self.PLOT.conf_save(conf,self.PLOT.FILECONF)
       else:
-        print('Saving configuration file ...')
+        toconsola('Saving configuration file ...',wid=self.cons)
         conf = self.PLOT.conf_get()
         self.PLOT.conf_save(conf,self.PLOT.FILECONF)
 
@@ -1989,7 +2149,6 @@ class CosmoDrawing():
 
       self.Window_cfile.destroy()
       self.Window_cfile = None
-
     # -----------
     def _cancel():
     # -----------
@@ -2004,7 +2163,6 @@ class CosmoDrawing():
       self.Window_cfile.destroy()
       self.Window_cfile = None
 
-
     def _select():
     # ============
       global COSMO_CONF,COSMO_CONF_PATH,COSMO_CONF_NAME
@@ -2014,19 +2172,22 @@ class CosmoDrawing():
         return
 
       if os.path.isdir(nn):
-        print('Configuration folder exists')
+        toconsola('Configuration folder exists',wid=self.cons)
         COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
         COSMO_CONF = nn + os.sep
       else:
-        print('New Configuration folder')
+        toconsola('New Configuration folder',wid=self.cons)
         os.makedirs(nn)
         COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
         COSMO_CONF = nn + os.sep
-      print('COSMO_CONF_PATH = ',COSMO_CONF_PATH)
-      print('COSMO_CONF_NAME = ',COSMO_CONF_NAME)
-      print('COSMO_CONF = ',COSMO_CONF)
+      
+      message ='COSMO_CONF_PATH = '+COSMO_CONF_PATH+"\n"+ \
+               'COSMO_CONF_NAME = '+COSMO_CONF_NAME+"\n"+ \
+               'COSMO_CONF = '+COSMO_CONF
+      toconsola(message,wid=self.cons)
+      
       self.PLOT.FILECONF = COSMO_CONF + 'drawing.conf'
-      print('self.PLOT.FILECONF = ',self.PLOT.FILECONF)
+      toconsola('self.PLOT.FILECONF = '+self.PLOT.FILECONF,wid=self.cons)
 
     # Main window
     # -----------
@@ -2063,13 +2224,12 @@ class CosmoDrawing():
     done.bind("<Return>",lambda e:_done())
     F0.grid()
 
-
   # ==================================
   def figure_save(self):
   # ==================================
     ''' Saving Drawing configuration using json'''
 
-    print('Saving figure ...')
+    toconsola('Saving figure ...',wid=self.cons)
 
     CONF = []
 
@@ -2078,7 +2238,6 @@ class CosmoDrawing():
     conf = self.PLOT.conf_get()
     CONF.append(conf)
  
-
     # Add the FILES (SAIDIN; CONTOURS, VECTORS, TRAJECTORIES):
     # Types: VEC, FLD, SAIDIN, FLOAT
     # ZZZ
@@ -2099,7 +2258,7 @@ class CosmoDrawing():
       elif self.FILETYPES[i] == 'FLOAT':
         conf['FLOAT'] = self.FLOAT[ii].conf_get()
       else:
-        print('Unknown file type')
+        toconsola('Unknown file type',wid=self.cons)
         return
 
       CONF.append(conf)
@@ -2113,7 +2272,9 @@ class CosmoDrawing():
       conf['TYPE']     = self.FEATTYPES[i]
       if self.FEATTYPES[i] == 'MARKER':
         conf['MARKER'] = self.MARKER[ii].conf_get()
-
+      elif self.FEATTYPES[i] == 'SHAPE':
+        conf['SHAPE'] = self.SHAPE[ii].conf_get()
+        
       CONF.append(conf)
 
     # Request output configuration filename:
@@ -2130,7 +2291,6 @@ class CosmoDrawing():
     #
     self.save_conf(CONF,nn)
 
-
   # ==================================
   def figure_read(self,filename=None):
   # ==================================
@@ -2145,7 +2305,7 @@ class CosmoDrawing():
         return
       filename = '%s' % nn
 
-    print('Restoring figure configuration from ',filename)
+    toconsola('Restoring figure configuration from '+filename,wid=self.cons)
 
     CONF = json.load(open(filename))
 
@@ -2164,11 +2324,11 @@ class CosmoDrawing():
     #                      dpi=self.PLOT.DPI.get())
     #except:
     #  print('Failure')
-#
-#    self.fig.canvas.mpl_connect('close_event',self.on_closing_figure)
-#    self.fig.canvas.callbacks.connect('button_press_event',self.on_click)
-#    self.ax = self.fig.add_subplot(111)
-#    self.drawmap = True
+  #
+  # self.fig.canvas.mpl_connect('close_event',self.on_closing_figure)
+  # self.fig.canvas.callbacks.connect('button_press_event',self.on_click)
+  # self.ax = self.fig.add_subplot(111)
+  # self.drawmap = True
 
     for ii in range(1,len(CONF)):
 
@@ -2232,7 +2392,6 @@ class CosmoDrawing():
           #self.TFILE = '%d' % self.nfiles
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
-
 
       if CONF[ii]['TYPE'] == 'VEC':
 
@@ -2413,7 +2572,6 @@ class CosmoDrawing():
         #
         self.SAIDIN.conf_set(CONF[ii]['SAIDIN'])
 
-
         # Read the data:
         self.SAIDIN.lon = self.SAIDIN.ncid.variables['lon'][:]
         self.SAIDIN.lat = self.SAIDIN.ncid.variables['lat'][:]
@@ -2432,7 +2590,6 @@ class CosmoDrawing():
           self.DATE = self.SAIDIN.DATE.copy()
           self.TIME = self.SAIDIN.TIME.copy()
           self.first = False
-
 
       if CONF[ii]['TYPE'] == 'MARKER':
 
@@ -2455,14 +2612,32 @@ class CosmoDrawing():
         self.FEATTYPES.append('MARKER')
         self.FEATORDER.append(self.nfeatures-1)
 
+      if CONF[ii]['TYPE'] == 'SHAPE':
+
+        # Initialize classes:
+        #
+        SHAPE = shape.parameters()
+        SHAPE.Read(filename)
+
+        # Update from CONF attributes:
+        #
+        SHAPE.conf_set(CONF[ii]['SHAPE'])
+
+        self.nshape += 1
+        self.SHAPE.append(SHAPE)
+        self.SHAPE.set(self.nshape-1)
+        self.SHAPE_LIST = list(range(self.nshape))
+
+        self.nfeatures += 1
+        self.FEATNAMES.append(filename)
+        self.FEATTYPES.append('SHAPE')
+        self.FEATORDER.append(self.nfeatures-1)
 
     self.make_plot()
-
 
   # ===========================
   def save_conf(self,conf,filename):
   # ===========================
-
     # Write JSON file:
     with io.open(filename,'w',encoding='utf8') as outfile:
       str_ = json.dumps(conf,ensure_ascii=False, \
@@ -2470,8 +2645,6 @@ class CosmoDrawing():
                              indent=2,           \
                              separators=(',',': '))
       outfile.write(to_unicode(str_))
-
-
 
   # =============
   def save(self):
@@ -2482,11 +2655,10 @@ class CosmoDrawing():
 
     # If output filename exist, we save:
     if self.PLOT.OUT_FILENAME is not None:
-      print('Saving in ',self.PLOT.OUT_FILENAME)
+      toconsola('Saving in '+self.PLOT.OUT_FILENAME,wid=self.cons)
       self.fig.savefig(self.PLOT.OUT_FILENAME,
                        dpi=self.PLOT.DPI.get(),
                        bbox_inches='tight')
-
 
   # ===============
   def saveas(self):
@@ -2501,11 +2673,10 @@ class CosmoDrawing():
         self.PLOT.OUT_FILENAME = None
       else:
         self.PLOT.OUT_FILENAME = '%s' % nn
-        print('Saving in ',self.PLOT.OUT_FILENAME)
+        toconsola('Saving in '+self.PLOT.OUT_FILENAME,wid=self.cons)
         self.fig.savefig(self.PLOT.OUT_FILENAME,
                          dpi=self.PLOT.DPI.get(),
                          bbox_inches='tight')
-
 
   # ======================
   def widget_config(self):
@@ -2517,7 +2688,6 @@ class CosmoDrawing():
 
     def _cancel():
     # ===========
-
       self.PLOT.WINDOW_FONT_TYPE.set(WINDOW_FONT_TYPE_BACKUP)
       self.PLOT.WINDOW_FONT_SIZE.set(WINDOW_FONT_SIZE_BACKUP)
       self.Window_widgetconfig.destroy()
@@ -2541,8 +2711,7 @@ class CosmoDrawing():
       if self.Window_mapconfig is not None:
         self.Window_mapconfig.destroy()
         self.Window_mapconfig = None
-        self.map_config()
-        
+        self.map_config()     
 
     def _loadconf():
     # =============
@@ -2550,7 +2719,6 @@ class CosmoDrawing():
       conf = self.PLOT.conf_load(self.PLOT.FILECONF)
       self.PLOT.WINDOW_FONT_TYPE.set(conf['WINDOW_FONT_TYPE'])
       self.PLOT.WINDOW_FONT_SIZE.set(conf['WINDOW_FONT_SIZE'])
-
 
     def _saveconf():
     # =============
@@ -2562,13 +2730,12 @@ class CosmoDrawing():
         if ans == False:
           return
 
-      print('Updating widget font default values')
+      toconsola('Updating widget font default values',wid=self.cons)
+      
       conf = self.PLOT.conf_load(self.PLOT.FILECONF)
       conf['WINDOW_FONT_TYPE'] = self.PLOT.WINDOW_FONT_TYPE.get()
       conf['WINDOW_FONT_SIZE'] = self.PLOT.WINDOW_FONT_SIZE.get()
       self.save_conf(conf,self.PLOT.FILECONF)
-
-
 
     if self.Window_widgetconfig is not None:
       self.Window_widgetconfig.lift()
@@ -2618,7 +2785,7 @@ class CosmoDrawing():
     south = self.PLOT.SOUTH.get() - 5
     north = self.PLOT.NORTH.get() + 5
 
-    print('Cropping isobaths')
+    toconsola('Cropping isobaths',wid=self.cons)
     for i in range(self.PLOT.nisobat):
       if self.PLOT.ISOBAT_SHOW[i]:
         xo = self.PLOT.ISOBAT_DATA[i]['lon']
@@ -2640,9 +2807,8 @@ class CosmoDrawing():
             pass
         self.PLOT.ISOBAT_DATA[i]['lon'] = xo
         self.PLOT.ISOBAT_DATA[i]['lat'] = yo
-    print('done')
+    toconsola('done',wid=self.cons)
     self.PLOT.ISOBATH_crop = True
-
 
   # ======================
   def legend_config(self):
@@ -2652,7 +2818,7 @@ class CosmoDrawing():
     def _apply():
     # ===========
       self.make_plot()
-
+      
     def _close():
     # ==========
       self.make_plot()
@@ -2668,11 +2834,9 @@ class CosmoDrawing():
     def _saveconf():
     # =============
       '''Save current map configuration as default'''
-
-      print('Updating map default values')
+      toconsola('Updating map default values',wid=self.cons)
       conf = self.PLOT.conf_get()
       self.save_conf(conf,self.PLOT.FILECONF)
-
 
     self.Window_legendconfig = tk.Toplevel(self.master)
     self.Window_legendconfig.title('Legend options')
@@ -2692,7 +2856,6 @@ class CosmoDrawing():
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       self.Window_legendconfig.tk.call(self.Window_legendconfig, "config", "-menu", menubar)
  
-
     # Define tabs
     maptabs = ttk.Notebook(self.Window_legendconfig)
     page1 = ttk.Frame(maptabs)
@@ -2711,37 +2874,21 @@ class CosmoDrawing():
     ttk.Button(frame5,text='Close',command=_close).grid(row=0,column=6,padx=3)
     frame5.grid(row=24,column=0,columnspan=5)
 
- 
-
   # ===================
   def map_config(self):
   # ===================
-    '''Options for Map limits and colors'''
+	# Options for Map limits and colors
+	# EG Now the list of projections is recovered from map_proj in tools
+	# By default 50m (50 miles) is the default
+	# EG pdict = {} substituted by map_proj
 
-    pdict = {'aeqd' : 'Azimuthal Equidistant Projection',
-             'cass' :'Cassini',
-             'cyl'  :'Cylindrical Equidistant',
-             'geos' :'Geostationary Projection',
-             'gnom' :'Gnomonic Projection',
-             'merc' :'Mercator',
-             'moll' :'Mollweide',
-             'cea'  :'Cylindrical Equal Area',
-             'gall' :'Gall Stereographic Cylindrical', 
-             'ortho':'Orthographic Projection',
-             'tmerc':'Transverse Mercator',
-             'epsg' :'European Petroleum Survey Group',
-            }
-
-    rdict = {'c':'Crude',             \
-             'l':'Low',               \
-             'i':'Intermediate',      \
-             'h':'High',              \
-             'f':'Full',              \
-             }
+    pdict = map_proj('defs')
+    
+    rdict = {'110m':'Crude','50m':'Intermediate','10m':'High'}
 
     LEGEND_LOCATION_LIST = ['best','upper right','upper left','lower left', \
-                     'lower right', 'right', 'center left', 'center right', \
-                     'lower center', 'upper center', 'center']
+                      'lower right', 'right', 'center left', 'center right', \
+                      'lower center', 'upper center', 'center']
     LEGEND_MODE_LIST = ['None','expand']
 
     PSIZE = tk.StringVar()
@@ -2758,84 +2905,47 @@ class CosmoDrawing():
       self.Window_mapconfig.destroy()
       self.Window_mapconfig = None
       if self.fig is not None:
-        self.make_plot()
+         self.make_plot()
 
     def _close():
-      self.Window_mapconfig.destroy()
-      self.Window_mapconfig = None
-
+        self.Window_mapconfig.destroy()
+        self.Window_mapconfig = None
+        
+    #EG Projection selection
     def pselection():
-      mpl.config(text=pdict[self.PLOT.MAP_PROJECTION.get()],width=25)
-      self.drawmap = True
+        ''' We set the appropriate enable/disable fields for each projection
+        selection. We recover all the widgets of type Entry and recover
+        the state array of the selected projection. Finally the state
+        of the widgets are updated.'''
+        entries_id = []
+        wids = self.fh.winfo_children()
+        #entries_id = map(lambda x: x if isinstance(x,tk.ttk.Entry), wids)
+        #print(self.fh.winfo_children())
+        for wid in wids:
+          if isinstance(wid,tk.ttk.Entry):
+            entries_id.append(wid)
+        
+        new_proj = self.PLOT.MAP_PROJECTION.get()
+        mpl.config(text=new_proj,width=25)
+        proj_state = map_proj(new_proj)
+        var_state =  list(map(lambda x: "normal" if x==1 else "disabled", proj_state["state"]))
+        toconsola("New PROJECTION selected: "+self.PLOT.MAP_PROJECTION.get(),wid=self.cons)
+        for i in range(len(entries_id)): entries_id[i]["state"]=var_state[i]
+        self.drawmap = True
 
     def rselection():
-      mrl.config(text=rdict[self.PLOT.MAP_RESOLUTION.get()],width=10)
-      self.drawmap = True
-
-    def ccselection():
-      backup = self.PLOT.COASTLINE_COLOR.get()
-      rgb, hx = askcolor(color=self.PLOT.COASTLINE_COLOR.get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.COASTLINE_COLOR.set(backup)
-      else:
-        self.PLOT.COASTLINE_COLOR.set(hx)
-
-    def ycselection():
-      backup = self.PLOT.COUNTRYLINE_COLOR.get()
-      rgb, hx = askcolor(color=self.PLOT.COUNTRYLINE_COLOR.get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.COUNTRYLINE_COLOR.set(backup)
-      else:
-        self.PLOT.COUNTRYLINE_COLOR.set(hx)
-
+        mrl.config(text=rdict[self.PLOT.MAP_RESOLUTION.get()],width=10)
+        self.drawmap = True
+# EG deprecated ?
     def icselection():
-      ii = self.PLOT.ISOBAT_LABEL.index(self.PLOT.ISOBAT_ZPOINTER.get())
-      backup = self.PLOT.ISOBAT_COLOR[ii].get()
-      rgb, hx = askcolor(color=self.PLOT.ISOBAT_COLOR[ii].get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.ISOBAT_COLOR[ii].set(backup)
-      else:
-        self.PLOT.ISOBAT_COLOR[ii].set(hx)
-
-    def lcselection():
-      backup = self.PLOT.LAND_COLOR.get()
-      if self.PLOT.LAND_COLOR.get() == 'None':
-        rgb, hx = askcolor(parent=self.master)
-      else:
-        rgb, hx = askcolor(color=self.PLOT.LAND_COLOR.get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.LAND_COLOR.set(backup)
-      else:
-        self.PLOT.LAND_COLOR.set(hx)
-
-    def wcselection():
-      backup = self.PLOT.WATER_COLOR.get()
-      if self.PLOT.WATER_COLOR.get() == 'None':
-        rgb, hx = askcolor(parent=self.master)
-      else:
-        rgb, hx = askcolor(color=self.PLOT.WATER_COLOR.get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.WATER_COLOR.set(backup)
-      else:
-        self.PLOT.WATER_COLOR.set(hx)
-
-    def rcselection():
-      backup = self.PLOT.RIVERS_COLOR.get()
-      if self.PLOT.RIVERS_COLOR.get() == 'None':
-        rgb, hx = askcolor(parent=self.master)
-      else:
-        rgb, hx = askcolor(color=self.PLOT.RIVERS_COLOR.get(),
-                         parent=self.master)
-      if hx is None:
-        self.PLOT.RIVERS_COLOR.set(backup)
-      else:
-        self.PLOT.RIVERS_COLOR.set(hx)
-
+        ii = self.PLOT.ISOBAT_LABEL.index(self.PLOT.ISOBAT_ZPOINTER.get())
+        backup = self.PLOT.ISOBAT_COLOR[ii].get()
+        rgb, hx = askcolor(color=self.PLOT.ISOBAT_COLOR[ii].get(),
+                          parent=self.master)
+        if hx is None:
+          self.PLOT.ISOBAT_COLOR[ii].set(backup)
+        else:
+          self.PLOT.ISOBAT_COLOR[ii].set(hx)
 
     def lims_reset():
     # ================
@@ -2866,6 +2976,7 @@ class CosmoDrawing():
         if self.PLOT.ISOBAT_SELEC[i].get():
           filename = self.PLOT.ISOBAT_PATH.get() + \
                      '/%04d' % self.PLOT.ISOBAT_Z[i] + '.dat'
+          toconsola("New PROJECTION selected: "+self.PLOT.MAP_PROJECTION.get(),wid=self.cons)          
           try:
             self.PLOT.ISOBAT_DATA[i] = read_lines(filename)
             self.PLOT.ISOBAT_SHOW[i] = True
@@ -2886,13 +2997,13 @@ class CosmoDrawing():
       self.PLOT.ISOBATH_crop = False
      
     def _pselect():
-    # =================
+    # =============
       nn = tk.filedialog.askdirectory(parent=self.Window_mapconfig)
       if not empty(nn):
         self.PLOT.ISOBAT_PATH.set(nn)
 
     def select_isobaths():
-    # =================
+    # ====================
       some_selected = False
       for i in range(self.PLOT.nisobat):
         if self.PLOT.ISOBAT_SELEC[i].get():
@@ -2909,6 +3020,7 @@ class CosmoDrawing():
         wwr.configure(font=font_norm)
         wwr.configure(foreground='black')
         self.PLOT.ISOBAT_selected = False
+        
       if self.PLOT.ISOBAT_selected:
         wli.configure(state='enabled')
       else:
@@ -2918,9 +3030,8 @@ class CosmoDrawing():
         self.PLOT.ISOBAT_DATA[i] = None
         self.PLOT.ISOBAT_SHOW[i] = False
         self.PLOT.ISOBAT_NPLOT = 0
-
-
-
+    
+    #EG We need to set a new projection object
     def _updated():
     # =============
       self.drawmap = True
@@ -2928,11 +3039,15 @@ class CosmoDrawing():
 
     def _apply():
     # ===========
+      toconsola("(Apply) Drawing...wait",wid=self.cons)
       self.make_plot()
-
+      toconsola("Done !",wid=self.cons)
+      
     def _done():
     # ==========
+      toconsola("(Done) Drawing...wait",wid=self.cons)
       self.make_plot()
+      toconsola("Done !",wid=self.cons)
       self.Window_mapconfig.destroy()
       self.Window_mapconfig = None
 
@@ -2945,19 +3060,18 @@ class CosmoDrawing():
     def _saveconf():
     # =============
       '''Save current map configuration as default'''
-
-      print('Updating map default values')
+      toconsola("Saving map default values",wid=self.cons)
       conf = self.PLOT.conf_get()
       self.save_conf(conf,self.PLOT.FILECONF)
 
     def legend_location():
-    # =============
+    # ====================
       ''' Process the location combobox'''
       location_name = loc.get()
       self.PLOT.LEGEND.LOC.set(LEGEND_LOCATION_LIST.index(location_name))
       
     def legend_mode():
-    # =============
+    # ================
       ''' Process the location combobox'''
       mode_name = mod.get()
       self.PLOT.LEGEND.MODE.set(LEGEND_MODE_LIST.index(mode_name))
@@ -2968,7 +3082,7 @@ class CosmoDrawing():
       plt.close(self.fig)
       self.fig = None
       self.make_plot()
-       
+      
     def _calculator():
     # ================
       SOUTH = float(self.PLOT.SOUTH.get())
@@ -2982,11 +3096,11 @@ class CosmoDrawing():
       self.PLOT.LON_0.set(LON_0)
       self.PLOT.LAT_0.set(LAT_0)
       self.PLOT.WIDTH.set(width)
-      self.PLOT.HEIGHT.set(height)
-
+      self.PLOT.HEIGHT.set(height)   
+     
     if self.Window_mapconfig is not None:
-      self.Window_mapconfig.lift()
-      return
+        self.Window_mapconfig.lift()
+        return
 
     self.Window_mapconfig = tk.Toplevel(self.master)
     self.Window_mapconfig.title('Map options')
@@ -3006,7 +3120,6 @@ class CosmoDrawing():
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       self.Window_mapconfig.tk.call(self.Window_mapconfig, "config", "-menu", menubar)
  
-
     # Define tabs
     maptabs = ttk.Notebook(self.Window_mapconfig)
     page1 = ttk.Frame(maptabs)
@@ -3017,363 +3130,350 @@ class CosmoDrawing():
     page7 = ttk.Frame(maptabs)
     page8 = ttk.Frame(maptabs)
 
-    maptabs.add(page1,text='Domain')
-    maptabs.add(page2,text='Background')
-    maptabs.add(page3,text='Isobaths')
-    maptabs.add(page4,text='Grid')
-    maptabs.add(page5,text='Labels')
-    maptabs.add(page7,text='Scale')
-    maptabs.add(page8,text='Other')
+    maptabs.add(page1,text=' Domain ')
+    maptabs.add(page2,text=' Background ')
+    maptabs.add(page3,text=' Isobaths ')
+    maptabs.add(page4,text=' Grid ')
+    maptabs.add(page5,text=' Labels ')
+    maptabs.add(page7,text=' Scale ')
+    maptabs.add(page8,text=' Other ')
+    
+    #EG We get the projection from tools.map_proj instead of a list
+    PROJECTION_LIST = map_proj('lista')
 
-    PROJECTION_LIST = ['aeqd',
-                       'cass',
-                       'cea',
-                       'cyl',
-                       'gall',
-                       'geos',
-                       'gnom',
-                       'merc',
-                       'moll',
-                       'ortho',
-                       'tmerc',
-                       'epsg']
-
+    #EG PAGE 1
     f1 = ttk.Frame(page1,borderwidth=5,padding=5)
-    ttk.Label(f1,
-              text='Map Projection').grid(row=0,
-                                          column=0,
-                                          padx=3,
-                                          sticky='w')
+    ttk.Label(f1,text='Map Projection').grid(row=0,column=0,padx=3,sticky='w')
     mp = ttk.Combobox(f1,
-                      textvariable=self.PLOT.MAP_PROJECTION,
-                      values=PROJECTION_LIST,width=7)
+          textvariable=self.PLOT.MAP_PROJECTION,
+          values=PROJECTION_LIST,width=14)
     mp.grid(row=0,column=1,padx=3)
     mp.bind('<<ComboboxSelected>>',lambda e: pselection())
     mpl = ttk.Label(f1,
-                    text=pdict[self.PLOT.MAP_PROJECTION.get()],
-                    width=40)
+          text=pdict[self.PLOT.MAP_PROJECTION.get()],width=40)
     mpl.grid(row=0,column=2,columnspan=3,padx=3)
 
-    ttk.Label(f1,text='Map Resolution').grid(row=1,
-                                             column=0,
-                                             padx=3,
-                                             sticky='w')
+    ttk.Label(f1,text='Map Resolution').grid(row=1,column=0,padx=3,sticky='w')
+    #EG values=('c','l','i','h','f') changed by ('110m','50m','10m')
     mr = ttk.Combobox(f1,
-                      textvariable=self.PLOT.MAP_RESOLUTION,
-                      values=('c','l','i','h','f'),width=7)
-    mr.grid(row=1,column=1,padx=3)
+          textvariable=self.PLOT.MAP_RESOLUTION,
+          values=('110m','50m','10m'),width=7,justify="center")
+    mr.grid(row=1,column=1,padx=3,sticky='w')
     mr.bind('<<ComboboxSelected>>',lambda e: rselection())
-    mrl = ttk.Label(f1,
-                    text=rdict[self.PLOT.MAP_RESOLUTION.get()],
-                    width=10)
-    mrl.grid(row=1,column=2,columnspan=2,padx=3,sticky='w')
 
+    mrl = ttk.Label(f1,text=rdict[self.PLOT.MAP_RESOLUTION.get()],width=10)
+    mrl.grid(row=1,column=2,columnspan=2,padx=3,sticky='w')
+      
     ttk.Label(f1,text='EPSG').grid(row=2,column=0,padx=3,sticky='w')
-    ttk.Entry(f1,textvariable=self.PLOT.EPSG,
-                 width=7).grid(row=2,column=1,padx=3,sticky='w')
+    ttk.Entry(f1,textvariable=self.PLOT.EPSG,width=7,justify="center").grid(row=2,column=1,padx=3,sticky='w')
     f1.grid(row=0,column=0)
 
     f2 = ttk.Frame(page1,borderwidth=5,padding=5,relief='sunken')
-    ttk.Label(f2,
-              text='Plot limits',
-              font='Helvetica 12 bold').grid(row=0,
-                                             column=0,
-                                             padx=3,
-                                             sticky='w')
+    ttk.Label(f2,text='Plot limits',font=font_bold).grid(row=0,column=0,padx=3,sticky='w')
+    
     ttk.Label(f2,text='North').grid(row=1,column=3,pady=5,padx=3)
-    eno = ttk.Entry(f2,textvariable=self.PLOT.NORTH,width=10)
+    eno = ttk.Entry(f2,textvariable=self.PLOT.NORTH,width=10,justify="center")
     eno.grid(row=2,column=3,pady=5,padx=3)
     eno.bind('<Return>',lambda e:_updated())
 
     ttk.Label(f2,text='West').grid(row=3,column=1,pady=5,padx=3)
-    ewe = ttk.Entry(f2,textvariable=self.PLOT.WEST,width=10)
+    ewe = ttk.Entry(f2,textvariable=self.PLOT.WEST,width=10,justify="center")
     ewe.grid(row=3,column=2,pady=5,padx=3)
     ewe.bind('<Return>',lambda e:_updated())
 
-    eea = ttk.Entry(f2,textvariable=self.PLOT.EAST,width=10)
-    eea.grid(row=3,column=4,pady=5,padx=3)
+    eea = ttk.Entry(f2,textvariable=self.PLOT.EAST,width=10,justify="center")
+    eea.grid(row=3,column=4,pady=5,padx=3,sticky='w')
     eea.bind('<Return>',lambda e:_updated())
     ttk.Label(f2,text='East').grid(row=3,column=5,pady=5,padx=3)
-    eso = ttk.Entry(f2,textvariable=self.PLOT.SOUTH,width=10)
+    eso = ttk.Entry(f2,textvariable=self.PLOT.SOUTH,width=10,justify="center")
     eso.grid(row=4,column=3,pady=5,padx=3)
     eso.bind('<Return>',lambda e:_updated())
     ttk.Label(f2,text='South').grid(row=5,column=3,pady=5,padx=3)
     ttk.Button(f2,text='Reset',command=lims_reset).grid(row=6,column=5)
-    f2.grid()
+    f2.grid(row=1,column=0,padx=30,sticky='w')
+    
+    #EG We recover the full properties of each projection
+    proj_state = map_proj(self.PLOT.MAP_PROJECTION.get())
+    var_state =  list(map(lambda x: "normal" if x==1 else "disabled", proj_state["state"]))
 
-    fh = ttk.Frame(page1,borderwidth=5,padding=5)
+    self.params = {"central_longitude":self.PLOT.MAP_PROJ_LAT_0.get(), 
+              "central_latitude":self.PLOT.MAP_PROJ_LON_0.get(), 
+              "min_latitude":self.PLOT.MAP_PROJ_MIN_LAT.get(), 
+              "max_latitude":self.PLOT.MAP_PROJ_MAX_LAT.get(),
+              "false_easting":self.PLOT.MAP_PROJ_F_EAST.get(), 
+              "false_northing":self.PLOT.MAP_PROJ_F_NORTH.get(),
+              "latitude_true_scale":self.PLOT.MAP_PROJ_LAT_T_SCA.get(),
+              "true_scale_latitude":self.PLOT.MAP_PROJ_T_SCA_LAT.get(),
+              "scale_factor":self.PLOT.MAP_PROJ_SCA_FAC.get(),
+              "satellite_height":self.PLOT.MAP_PROJ_SATELLITE_HEIGHT.get(),
+              "sweep_axis":self.PLOT.MAP_PROJ_SWEEP_AXIS.get()}
+    
+    var_proj = [self.PLOT.MAP_PROJ_LAT_0, self.PLOT.MAP_PROJ_LON_0, 
+              self.PLOT.MAP_PROJ_MIN_LAT, self.PLOT.MAP_PROJ_MAX_LAT,
+              self.PLOT.MAP_PROJ_F_EAST, self.PLOT.MAP_PROJ_F_NORTH,
+              self.PLOT.MAP_PROJ_LAT_T_SCA, self.PLOT.MAP_PROJ_T_SCA_LAT,  
+              self.PLOT.MAP_PROJ_SCA_FAC, self.PLOT.MAP_PROJ_SWEEP_AXIS,
+              self.PLOT.MAP_PROJ_SATELLITE_HEIGHT]
+                
+    var_txt = ['Central Longitude','Central Latitude',
+               'False Easting','False Northing',
+               'Min. Latitude','Max. Latitude',
+               'Latitude true scale','True scale Latitude',
+               'Scale Factor','Sweep Axis',
+               'Satellite Height']
+ 
+    self.fh = ttk.Frame(page1,borderwidth=5,padding=5)
+    ivar = 0
+    for i in range(5):
+      ivar = 2*i
+      ttk.Label(self.fh,text=var_txt[ivar]).grid(row=i,column=0,padx=3,sticky='e')
+      ttk.Entry(self.fh,textvariable=var_proj[ivar],state=var_state[ivar], width=10). \
+         grid(row=i,column=1,padx=3,sticky='w')
+      ttk.Label(self.fh,text=var_txt[ivar+1]).grid(row=i,column=2,padx=3,sticky='e')
+      ttk.Entry(self.fh,textvariable=var_proj[ivar+1],state=var_state[ivar+1], width=10). \
+         grid(row=i,column=3,padx=3,sticky='w')
+    
+    ttk.Label(self.fh,text=var_txt[10]).grid(row=5,column=0,padx=3,sticky='e')
+    ttk.Entry(self.fh,textvariable=var_proj[10], state=var_state[10], width=10). \
+         grid(row=5,column=1,padx=3,sticky='w')
+         
+    ttk.Button(self.fh,text='Update projection',command=_updated). \
+               grid(row=6,column=0,pady=10,columnspan=4, sticky='ew')
+    '''
     ttk.Label(fh,text='Width').grid(row=0,column=0,padx=3,sticky='e')
-    ttk.Entry(fh,textvariable=self.PLOT.WIDTH,
-                 width=10).grid(row=0,column=1,padx=3,sticky='w')
-    ttk.Label(fh,text='Optional map keywords').grid(row=0,column=2,
-                                                   padx=3,sticky='e')
-    ttk.Button(fh,text='Estimate',
-                  command=_calculator).grid(row=0,
-                  column=3,padx=3,sticky='ew')
+    ttk.Entry(fh,textvariable=self.PLOT.WIDTH, width=10).grid(row=0,column=1,padx=3,sticky='w')
+    ttk.Label(fh,text='Optional map keywords').grid(row=0,column=2,padx=3,sticky='e')
+    ttk.Button(fh,text='Estimate', command=_calculator).grid(row=0,column=3,padx=3,sticky='ew')
     ttk.Label(fh,text='Height').grid(row=1,column=0,padx=3,sticky='e')
-    ttk.Entry(fh,textvariable=self.PLOT.HEIGHT,
-                 width=10).grid(row=1,column=1,padx=3,sticky='w')
+    ttk.Entry(fh,textvariable=self.PLOT.HEIGHT, width=10).grid(row=1,column=1,padx=3,sticky='w')
     ttk.Label(fh,text='Lon_0').grid(row=2,column=0,padx=3,sticky='e')
-    ttk.Entry(fh,textvariable=self.PLOT.LON_0,
-                 width=10).grid(row=2,column=1,padx=3,sticky='w')
+    ttk.Entry(fh,textvariable=self.PLOT.LON_0, width=10).grid(row=2,column=1,padx=3,sticky='w')
     ttk.Label(fh,text='Lat_0').grid(row=3,column=0,padx=3,sticky='e')
-    ttk.Entry(fh,textvariable=self.PLOT.LAT_0,
-                 width=10).grid(row=3,column=1,padx=3,sticky='w')
+    ttk.Entry(fh,textvariable=self.PLOT.LAT_0, width=10).grid(row=3,column=1,padx=3,sticky='w')
     ttk.Label(fh,text='Satellite height').grid(row=4,column=0,padx=3,sticky='e')
-    ttk.Entry(fh,textvariable=self.PLOT.SATELLITE_HEIGHT,
-                 width=10).grid(row=4,column=1,padx=3,sticky='w')
-    ttk.Button(fh,text='Update projection',
-                  command=_updated).grid(row=4,
-                  column=3,padx=3,sticky='ew')
-    fh.grid()
-
+    ttk.Entry(fh,textvariable=self.PLOT.SATELLITE_HEIGHT, width=10).grid(row=4,column=1,padx=3,sticky='w')
+    '''
+    self.fh.grid(row=2,column=0,padx=15,sticky='ew')
+    
+    #EG PAGE 2, Background and Features
     f3 = ttk.Frame(page2,borderwidth=5,padding=5)
+    # Styles
+    self.sland, self.swater = ttk.Style(), ttk.Style()
+    self.scoast, self.scount = ttk.Style(), ttk.Style()
+    self.sriv, scenter = ttk.Style(), ttk.Style()
+    self.sland.configure("sland.TLabel",background=self.PLOT.LAND_COLOR.get(),anchor="center")
+    self.swater.configure("swater.TLabel",background=self.PLOT.WATER_COLOR.get(),anchor="center")
+    self.scoast.configure("scoast.TLabel",background=self.PLOT.COASTLINE_COLOR.get(),anchor="center")
+    self.scount.configure("scount.TLabel",background=self.PLOT.COUNTRYLINE_COLOR.get(),anchor="center")
+    self.sriv.configure("sriv.TLabel",background=self.PLOT.RIVERS_COLOR.get(),anchor="center")
+    scenter.configure("scenter.TEntry",anchor="center")
+    tpad = ttk.Style()
+    tpad.configure("tpad.TLabelframe",padding=[20,5,5,10])
+    
+    #Land & Sea
+    f3_b=ttk.LabelFrame(f3,text='Basic',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Label(f3_b,text='Continents').grid(row=0,column=0,padx=5)
+    self.LLabel = ttk.Label(f3_b,textvariable=self.PLOT.LAND_COLOR,width=7,style="sland.TLabel")
+    self.LLabel.grid(row=0,column=1,padx=5)
+    ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.LAND_COLOR, \
+				self.sland,self.LLabel,"sland.TLabel",master=self.Window_mapconfig)). \
+				grid(row=0,column=2,padx=5,sticky='w')
+    ttk.Label(f3_b,text='Sea').grid(row=1,column=0,padx=5)
+    self.WLabel = ttk.Label(f3_b,textvariable=self.PLOT.WATER_COLOR,width=7,style="swater.TLabel")
+    self.WLabel.grid(row=1,column=1,padx=5)
+    ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.WATER_COLOR, \
+				self.swater,self.WLabel,"swater.TLabel",master=self.Window_mapconfig)). \
+				grid(row=1,column=2,padx=5,sticky='w')
+    f3_b.grid(row=0,column=0,padx=5,pady=10,sticky='ewsn')
+    
+    # Features: Coastlines
+    f3_c=ttk.LabelFrame(f3,text='Coastlines',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Label(f3_c,text='').grid(row=0,column=0)
+    ttk.Checkbutton(f3_c,text=' Show',variable=self.PLOT.COASTLINE_SHOW). \
+            grid(row=0,column=1,columnspan=2,padx=3,sticky='w')
+    ttk.Label(f3_c,text='Width').grid(row=0,column=3)
+    ttk.Label(f3_c,text='Color').grid(row=0,column=4,columnspan=2)
+    ttk.Label(f3_c,text='').grid(row=1,column=0)
+    ttk.Label(f3_c,text='Natural-Earth').grid(row=1,column=1,padx=3,sticky='w')
+    ttk.Radiobutton(f3_c,text=' Show',variable=self.PLOT.COASTLINE_SOURCE,value=1).\
+            grid(row=1,column=2,padx=7)
+    ttk.Entry(f3_c,textvariable=self.PLOT.COASTLINE_WIDTH,width=7,justify="center"). \
+            grid(row=1,column=3,padx=3,sticky='we')
+    self.CoLabel = ttk.Label(f3_c,textvariable=self.PLOT.COASTLINE_COLOR,width=7,style="scoast.TLabel")
+    self.CoLabel.grid(row=1,column=4,padx=3)
+    ttk.Button(f3_c,text='Select',command=lambda:colsel(self.PLOT.COASTLINE_COLOR, \
+            self.scoast,self.CoLabel,"scoast.TLabel",master=self.Window_mapconfig)). 	\
+            grid(row=1,column=5,padx=3,sticky='ew')
+    ttk.Label(f3_c,text='EMODNET').grid(row=2,column=1,padx=5,sticky='w')    
+    ttk.Radiobutton(f3_c,text=' Show',variable=self.PLOT.COASTLINE_SOURCE,value=2). \
+                grid(row=2,column=2,padx=5)
+    f3_c.grid(row=1,column=0,padx=5,pady=10,sticky='ewsn')
+    
+    # Miscelanea
+    f3_m=ttk.LabelFrame(f3,text='Miscelanea',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Label(f3_m,text='Countryline').grid(row=0,column=0,sticky='w')
+    ttk.Checkbutton(f3_m,text=' Show',variable=self.PLOT.COUNTRYLINE_SHOW). \
+            grid(row=0,column=1,padx=3)
+    ttk.Entry(f3_m,textvariable=self.PLOT.COUNTRYLINE_WIDTH,width=7,justify="center"). \
+            grid(row=0,column=2,padx=3,sticky='we')
+    self.CouLabel = ttk.Label(f3_m,textvariable=self.PLOT.COUNTRYLINE_COLOR,width=7,style="scount.TLabel") 
+    self.CouLabel.grid(row=0,column=3,padx=3)
+    ttk.Button(f3_m,text='Select',command=lambda:colsel(self.PLOT.COUNTRYLINE_COLOR, \
+            self.scount,self.CouLabel,"scount.TLabel",master=self.Window_mapconfig)).\
+            grid(row=0,column=4,padx=3,sticky='ew')
+    ttk.Label(f3_m,text='Rivers').grid(row=1,column=0,padx=3,sticky='w')
+    ttk.Checkbutton(f3_m,text=' Show',variable=self.PLOT.RIVERS_SHOW). \
+            grid(row=1,column=1,padx=3)
+    ttk.Entry(f3_m,textvariable=self.PLOT.RIVERS_WIDTH,width=7,justify="center"). \
+            grid(row=1,column=2,padx=3,sticky='we')
+    self.RLabel = ttk.Label(f3_m,textvariable=self.PLOT.RIVERS_COLOR,width=7,style="sriv.TLabel")
+    self.RLabel.grid(row=1,column=3,padx=3)         
+    ttk.Button(f3_m,text='Select',command=lambda:colsel(self.PLOT.RIVERS_COLOR, \
+            self.sriv,self.RLabel,"sriv.TLabel",master=self.Window_mapconfig)). \
+            grid(row=1,column=4,padx=3,sticky='ew')
+    f3_m.grid(row=2,column=0,padx=5,pady=10,sticky='ewsn')
 
-    ttk.Label(f3,text='Continent color').grid(row=0,column=0,padx=3,sticky='w')
-    ttk.Entry(f3,textvariable=self.PLOT.LAND_COLOR,justify='left',width=7). \
-              grid(row=0,column=1,padx=3,sticky='we')
-    ttk.Button(f3,text='Select',command=lcselection).grid(row=0,column=2,padx=3,sticky='ew')
-
-    ttk.Label(f3,text='Sea color').grid(row=1,column=0,padx=3,sticky='w')
-    ttk.Entry(f3,textvariable=self.PLOT.WATER_COLOR,justify='left',width=7). \
-             grid(row=1,column=1,padx=3,sticky='we')
-    mwp = ttk.Button(f3,text='Select',command=wcselection).grid(row=1,column=2,padx=3,sticky='ew')
-
-    ttk.Label(f3,text='Bluemarble').grid(row=2,column=0,padx=3,pady=[15,1],
-                                         sticky='w')
-    ttk.Checkbutton(f3,text='Show',
-                       variable=self.PLOT.BLUEMARBLE,
-                       command=self.make_plot).grid(row=2,
-                                                    column=1,
-                                                    pady=[15,1],
-                                                    padx=3)
-    ttk.Label(f3,
-              text='Bluemarble background',
-              width=25).grid(row=2,
-                             column=2,
-                             columnspan=3,
-                             pady=[15,1],
-                             padx=3)
-    ttk.Label(f3,text='Etopo').grid(row=3,column=0,padx=3,sticky='w')
-    ttk.Checkbutton(f3,text='Show',
-                       variable=self.PLOT.ETOPO,
-                       command=self.make_plot).grid(row=3,column=1,padx=3)
-    ttk.Label(f3,text='Etopo background',width=25).grid(row=3,column=2,columnspan=3,padx=3)
-
-    ttk.Label(f3,text='Shaded Relief').grid(row=4,column=0,padx=3,sticky='w')
-    ttk.Checkbutton(f3,text='Show',
-                       variable=self.PLOT.RELIEF,
-                       command=self.make_plot).grid(row=4,column=1,padx=3)
-    ttk.Label(f3,text='Land relief background',width=25).grid(row=4,column=2,columnspan=3,padx=3)
-    ttk.Label(f3,text='Scale factor').grid(row=5,column=6,padx=3,sticky='w')
-    ttk.Entry(f3,textvariable=self.PLOT.BACKGROUND_SCALE,width=7). \
-             grid(row=5,column=7,padx=3,sticky='we')
-
-    ttk.Label(f3,text='Arcgisimage').grid(row=6,column=0,padx=3,pady=[15,1],
-                                         sticky='w')
-    ttk.Checkbutton(f3,text='Show',
-                       variable=self.PLOT.ARCGISIMAGE,
-                       command=self.make_plot).grid(row=6,
-                                                    column=1,
-                                                    pady=[15,1],
-                                                    padx=3)
-    ttk.Label(f3,
-              text='ArcGis Image background',
-              width=25).grid(row=6,
-                             column=2,
-                             columnspan=3,
-                             pady=[15,1],
-                             padx=3)
-    ttk.Label(f3,text='Service').grid(row=7,column=1,padx=3,sticky='w')
-    ttk.Combobox(f3,textvariable=self.PLOT.ARCGISSERVICE,width=30, \
-                 values=self.PLOT.ARCGISSERVICE_LIST).grid(row=7,column=2,columnspan=3)
-    ttk.Label(f3,text='DPI').grid(row=8,column=1,padx=3,sticky='w')
-    ttk.Entry(f3,textvariable=self.PLOT.ARCGISDPI,justify='left',width=7). \
-              grid(row=8,column=2,padx=3,sticky='we')
-    ttk.Label(f3,text='Pixels').grid(row=9,column=1,padx=3,sticky='w')
-    ttk.Entry(f3,textvariable=self.PLOT.ARCGISPIXELS,justify='left',width=7). \
-              grid(row=9,column=2,padx=3,sticky='we')
-    ttk.Checkbutton(f3,text='Verbose',variable=self.PLOT.ARCGISVERBOSE).grid(row=10,column=1,padx=3)
+    #EG RELIEF AND ISOBATHS
+    f3_r = ttk.LabelFrame(f3,text='Earth Relief (WMS Tiles)',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Checkbutton(f3_r,text='  Show',variable=self.PLOT.RELIEF_SHOW). \
+                grid(row=0,column=0,columnspan=3,padx=3,sticky='w')
+    ttk.Label(f3_r,text='GEBCO service').grid(row=1,column=0,padx=5,sticky='w')
+    ttk.Radiobutton(f3_r,text=' Show', variable=self.PLOT.RELIEF, value=1).\
+                grid(row=1,column=1,padx=3)
+    ttk.Label(f3_r,text='Land & Ocean relief',width=25). \
+                grid(row=1,column=2,padx=3)
+    ttk.Label(f3_r,text='EMODNET service').grid(row=2,column=0,padx=5,pady=10,sticky='w')
+    ttk.Radiobutton(f3_r ,text=' Show',variable=self.PLOT.RELIEF, value=2). \
+                grid(row=2,column=1,padx=5,pady=10)
+    ttk.Label(f3_r,text='Land & Ocean relief',width=25). \
+                grid(row=2,column=2,padx=3,pady=10)  
+    f3_r.grid(row=3,column=0,padx=5,pady=10,sticky='ewsn')
+ 
     f3.grid()
-
-    fc = ttk.Frame(page3,borderwidth=5,padding=5)
-    ttk.Label(fc,text='Coastline').grid(row=0,column=0,padx=3,sticky='w')
-    ttk.Checkbutton(fc,text='Show',
-                    variable=self.PLOT.COASTLINE_SHOW).grid(row=0,column=1,padx=3)
     
-    ttk.Label(fc,text='Coastline width').grid(row=1,column=0,padx=3,sticky='w')
-    ttk.Entry(fc,textvariable=self.PLOT.COASTLINE_WIDTH,
-          justify='left',width=7).grid(row=1,column=1,padx=3,sticky='we')
-
-    ttk.Label(fc,text='Coastline color').grid(row=2,column=0,padx=3,sticky='w')
-    mcc = ttk.Entry(fc,textvariable=self.PLOT.COASTLINE_COLOR,justify='left',width=7). \
-                   grid(row=2,column=1,padx=3,sticky='we')
-    ttk.Button(fc,text='Select',command=ccselection).grid(row=2,column=2,padx=3,sticky='ew')
-
-
-    ttk.Label(fc,text='Countryline').grid(row=3,column=0,padx=3,pady=[9,1],
-                                          sticky='w')
-    ttk.Checkbutton(fc,text='Show',
-                    variable=self.PLOT.COUNTRYLINE_SHOW).grid(row=3,column=1,padx=3)
+    #EG PAGE 3, ISOBATHS
+    f4a=ttk.Frame(page3,borderwidth=5,padding=5)
+    ttk.Label(f4a,text='EMODNET Depth contours').grid(row=0,column=0,padx=5,pady=10,sticky='w')
+    ttk.Checkbutton(f4a,text=' Show',variable=self.PLOT.EMODNET_ISO). \
+        grid(row=0,column=1,padx=5,pady=10,columnspan=2)
+    f4a.grid(row=0,column=0,pady=10,padx=5,ipadx=5,sticky='w')
     
-    ttk.Label(fc,text='Countryline width').grid(row=4,column=0,padx=3,sticky='w')
-    ttk.Entry(fc,textvariable=self.PLOT.COUNTRYLINE_WIDTH,
-                 justify='left',width=7).grid(row=4,column=1,
-                 padx=3,sticky='we')
-
-    ttk.Label(fc,text='Countryline color').grid(row=5,column=0,padx=3,sticky='w')
-    ttk.Entry(fc,textvariable=self.PLOT.COUNTRYLINE_COLOR,
-                 justify='left',width=7).grid(row=5,column=1,padx=3,sticky='we')
-    ttk.Button(fc,text='Select',command=ycselection).grid(row=5,column=2,padx=3,sticky='ew')
-
-
-    ttk.Label(fc,text='Rivers').grid(row=6,column=0,padx=3,pady=[9,1],
-                                          sticky='w')
-    ttk.Checkbutton(fc,text='Show',
-                    variable=self.PLOT.RIVERS_SHOW).grid(row=6,column=1,padx=3)
-    ttk.Label(fc,text='Rivers width').grid(row=7,column=0,padx=3,sticky='w')
-    ttk.Entry(fc,textvariable=self.PLOT.RIVERS_WIDTH,justify='left',width=7). \
-              grid(row=7,column=1,padx=3,sticky='we')
-    ttk.Label(fc,text='Rivers color').grid(row=8,column=0,padx=3,sticky='w')
-    ttk.Entry(fc,textvariable=self.PLOT.RIVERS_COLOR,justify='left',width=7). \
-              grid(row=8,column=1,padx=3,sticky='we')
-    ttk.Button(fc,text='Select',command=rcselection).grid(row=8,column=2,padx=3,sticky='ew')
-    fc.grid()
-
-
-
-    f4 = ttk.Frame(page3,borderwidth=5,padding=5,relief='sunken')
-    ttk.Label(f4,text='Isobaths (meters)', \
-              font='Helvetica 12 bold').grid(row=0,column=0,\
-                                             columnspan=7,padx=3,sticky='we')
+    f4aa=ttk.LabelFrame(page3,text='Custom Isobaths (meters)',borderwidth=5,padding=5)
+    ttk.Label(f4aa,text='Path:',justify='right').grid(row=0,column=0)
+    ttk.Entry(f4aa,textvariable=self.PLOT.ISOBAT_PATH, \
+              justify='left',width=50).grid(row=0,column=1,padx=3,pady=10)
+    ttk.Button(f4aa,text='Select',command=_pselect).grid(row=0,column=2)
+    
+    f4b = tk.LabelFrame(f4aa,text='Isobaths (meters)',borderwidth=5,relief='sunken')
     self.w = []
     for i in range(self.PLOT.nisobat):
-      self.w.append(tk.Checkbutton(f4,text=str(self.PLOT.ISOBAT_Z[i]), \
-                    variable=self.PLOT.ISOBAT_SELEC[i], \
-                    command=select_isobaths,justify='right'))
-    ii = 0
-    jj = 1
+        self.w.append(tk.Checkbutton(f4b,text=str(self.PLOT.ISOBAT_Z[i]), \
+                      variable=self.PLOT.ISOBAT_SELEC[i], \
+                      command=select_isobaths,justify='right'))
+    ii, jj = 0, 1
     for i in range(self.PLOT.nisobat):
-      self.w[i].grid(row=jj,column=ii,sticky='w')
-      ii += 1
-      if ii > 6:
-        ii = 0
-        jj += 1
+        self.w[i].grid(row=jj,column=ii,sticky='w')
+        ii += 1
+        if ii > 7:
+          ii = 0
+          jj += 1
 
-    #ttk.Label(f4,text='Width',justify='right').grid(row=4,column=0,padx=3,sticky='e')
-    #ttk.Entry(f4,textvariable=self.PLOT.ISOBAT_WIDTH, \
-    #                justify='left',width=7)  
-    #ttk.Entry(f4,textvariable=self.PLOT.ISOBAT_WIDTH, \
-    #          justify='left',width=7).grid(row=4,column=1,\
-    #          padx=3,sticky='we')
-    #ttk.Label(f4,text='Color').grid(row=4,column=2,padx=3,sticky='e')
-    #ttk.Entry(f4,textvariable=self.PLOT.ISOBAT_COLOR,justify='left', \
-    #          width=7).grid(row=4,column=3,padx=3,sticky='we')
-    #ttk.Button(f4,text='Select',command=icselection). \
-    #    grid(row=4,column=4,padx=3,sticky='ew')
-    ttk.Label(f4,text='Path',justify='right').grid(row=5,column=0)
-    ttk.Entry(f4,textvariable=self.PLOT.ISOBAT_PATH, \
-            justify='left',width=50).grid(row=5,column=1,columnspan=5,padx=3,pady=5)
-    ttk.Button(f4,text='Select',command=_pselect).grid(row=5,column=6)
-
-    wwr = ttk.Label(f4,width=26,justify='left')
-    wwr.grid(row=6,column=0,columnspan=3,sticky='w',padx=5)
+    wwr = ttk.Label(f4b,width=26,justify='left')
+    wwr.grid(row=4,column=0,columnspan=3,sticky='w',padx=5)
     if self.PLOT.ISOBAT_selected:
-      if self.PLOT.ISOBAT_loaded:
+        if self.PLOT.ISOBAT_loaded:
+          wwr.configure(font=font_norm)
+          wwr.configure(foreground='#125704')
+          wwr['text'] = 'Isobaths have been loaded'
+        else:
+          wwr.configure(font=font_bold)
+          wwr.configure(foreground='red')
+          wwr['text'] = 'Isobaths need to be loaded'
+    else:
+        wwr['text'] = 'No isobaths have been selected'
         wwr.configure(font=font_norm)
-        wwr.configure(foreground='#125704')
-        wwr['text'] = 'Isobaths have been loaded'
-      else:
-        wwr.configure(font=font_bold)
-        wwr.configure(foreground='red')
-        wwr['text'] = 'Isobaths need to be loaded'
-    else:
-      wwr['text'] = 'No isobaths have been selected'
-      wwr.configure(font=font_norm)
-      wwr.configure(foreground='black')
+        wwr.configure(foreground='black')
 
-    wli = ttk.Button(f4,text='Load isobaths',command=iload)
-    wli.grid(row=6,column=3,columnspan=2,padx=3,sticky='ew')
-    wlr = ttk.Button(f4,text='Crop isobaths',command=self.isobath_crop)
-    wlr.grid(row=6,column=5,columnspan=2,padx=3,sticky='ew')
+    wli = ttk.Button(f4b,text='Load isobaths',command=iload)
+    wli.grid(row=4,column=3,columnspan=2,padx=3,sticky='ew')
+    wlr = ttk.Button(f4b,text='Crop isobaths',command=self.isobath_crop)
+    wlr.grid(row=4,column=5,columnspan=2,padx=3,sticky='ew')
     if self.PLOT.ISOBAT_selected:
-      wli.configure(state='enabled')
+        wli.configure(state='enabled')
     else:
-      wli.configure(state='disabled')
+        wli.configure(state='disabled')
     if self.PLOT.ISOBAT_loaded:
-      wlr.configure(state='enabled')
+        wlr.configure(state='enabled')
     else:
-      wlr.configure(state='disabled')
-    f4.grid()
+        wlr.configure(state='disabled')
+    f4b.grid(row=1,column=0,columnspan=3,sticky='we',padx=10)
 
     # ....................
     def update_name():
-      ii = self.PLOT.ISOBAT_LABEL.index(self.PLOT.ISOBAT_ZPOINTER.get())
-      wly['textvariable'] = self.PLOT.ISOBAT_STYLE[ii]
-      wlw['textvariable'] = self.PLOT.ISOBAT_WIDTH[ii]
-      wlc['textvariable'] = self.PLOT.ISOBAT_COLOR[ii]
+        ii = self.PLOT.ISOBAT_LABEL.index(self.PLOT.ISOBAT_ZPOINTER.get())
+        wly['textvariable'] = self.PLOT.ISOBAT_STYLE[ii]
+        wlw['textvariable'] = self.PLOT.ISOBAT_WIDTH[ii]
+        wlc['textvariable'] = self.PLOT.ISOBAT_COLOR[ii]
     # ....................
 
     # Select the style, width and color of isobaths
-    f4b = ttk.Frame(page3,borderwidth=5,padding=5)
+    f4c = tk.Frame(f4aa,borderwidth=5)
     ii = self.PLOT.ISOBAT_LABEL.index(self.PLOT.ISOBAT_ZPOINTER.get())
-    wln = ttk.Combobox(f4b,
-                       width=10,
-                       textvariable=self.PLOT.ISOBAT_ZPOINTER,
-                       values=self.PLOT.ISOBAT_LABEL)
-    wln.grid(row=1,column=0)
+    wln = ttk.Combobox(f4c,width=10,justify="center",
+                        textvariable=self.PLOT.ISOBAT_ZPOINTER,
+                        values=self.PLOT.ISOBAT_LABEL)
+    wln.grid(row=0,column=0, padx=10)
     wln.bind('<<ComboboxSelected>>',lambda e: update_name())
 
-    ttk.Label(f4b,text='Line style').grid(row=1,column=1,padx=3)
-    wly = ttk.Combobox(f4b,
-                       textvariable=self.PLOT.ISOBAT_STYLE[ii],
-                       width=4,
-                       values=['-',':','--','-.',' '])
-    wly.grid(row=1,column=2)
+    ttk.Label(f4c,text='Line style').grid(row=0,column=1,padx=5)
+    wly = ttk.Combobox(f4c,textvariable=self.PLOT.ISOBAT_STYLE[ii],
+                        width=4,justify="center",
+                        values=['-',':','--','-.',' '])
+    wly.grid(row=0,column=2,padx=5)
 
-    ttk.Label(f4b,text='Line width').grid(row=1,column=3,padx=3)
-    wlw = ttk.Entry(f4b,
-                    textvariable=self.PLOT.ISOBAT_WIDTH[ii],
-                    width=4)
-    wlw.grid(row=1,column=4)
+    ttk.Label(f4c,text='Line width').grid(row=0,column=3,padx=5)
+    wlw = ttk.Entry(f4c,textvariable=self.PLOT.ISOBAT_WIDTH[ii],
+                      width=4)
+    wlw.grid(row=0,column=4)
 
-    ttk.Label(f4b,text='Line color').grid(row=1,column=5,padx=3)
-    wlc = ttk.Entry(f4b,
-                    textvariable=self.PLOT.ISOBAT_COLOR[ii],
-                    width=10)
-    wlc.grid(row=1,column=6)
+    ttk.Label(f4c,text='Line color').grid(row=0,column=5,padx=3)
+    wlc = ttk.Entry(f4c, textvariable=self.PLOT.ISOBAT_COLOR[ii],width=10)
+    wlc.grid(row=0,column=6)
 
-    ttk.Button(f4b,text='Select',command=icselection).grid(row=1,column=7)
+    ttk.Button(f4c,text='Select',command=icselection).grid(row=0,column=7)
 
-    wls = ttk.Checkbutton(f4b,
-                          variable=self.PLOT.ISOBAT_LABEL_SHOW)
-    wls.grid(row=2,
-             column=6,
-             sticky='e')
-    ttk.Label(f4b,text='Label isobaths').grid(row=2,
-                                              column=7,
-                                              sticky='w')
+    wls = ttk.Checkbutton(f4c,variable=self.PLOT.ISOBAT_LABEL_SHOW)
+    wls.grid(row=1, column=5, sticky='e')
+    
     # ....................
     def cgrad():
-      R0 = CM.Blues(80)
-      R1 = CM.Blues(255)
-      N = self.PLOT.nisobat
-      Ra = [(R1[0]-R0[0])/(N-1),(R1[1]-R0[1])/(N-1),(R1[2]-R0[2])/(N-1),1]
-      for i in range(N):
-        self.PLOT.ISOBAT_COLOR[i].set([R0[0]+Ra[0]*i,
-                                     R0[1]+Ra[1]*i,
-                                     R0[2]+Ra[2]*i,
-                                     1])
+        R0 = CM.Blues(80)
+        R1 = CM.Blues(255)
+        N = self.PLOT.nisobat
+        Ra = [(R1[0]-R0[0])/(N-1),(R1[1]-R0[1])/(N-1),(R1[2]-R0[2])/(N-1),1]
+        for i in range(N):
+          self.PLOT.ISOBAT_COLOR[i].set([R0[0]+Ra[0]*i,
+                                      R0[1]+Ra[1]*i,
+                                      R0[2]+Ra[2]*i,
+                                      1])
     # ....................
-    ttk.Button(f4b,
-               text='Color grad',command=cgrad).grid(row=2,column=5,padx=3)
-    f4b.grid()
+    ttk.Button(f4c,text='Color grad',command=cgrad).grid(row=1,column=5,padx=3)
+    ttk.Label(f4c,text='Label isobaths').grid(row=1,column=7,sticky='w')
+    
+    f4c.grid(row=2,column=0,columnspan=3,padx=10)
+    f4aa.grid(row=1,column=0,pady=10,padx=5,ipadx=5)
 
+    #EG PAGE 4
+    font_bold = tkfont.Font(font='TkDefaultFont').copy()
+    font_bold['weight']='bold'
+    self.sgrid, self.sfgrid = ttk.Style(), ttk.Style()
+    self.sgrid.configure("sgrid.TLabel",background=self.PLOT.GRID_COLOR.get(),anchor="center")
+    self.sfgrid.configure("sfgrid.TLabel",background=self.PLOT.GRID_FONTCOLOR.get(),anchor="center")
     f5 = ttk.Frame(page4,padding=5)
     ttk.Label(f5,text='Show grid').grid(row=0,column=1,padx=3,sticky='e')
     ttk.Checkbutton(f5,variable=self.PLOT.GRID_SHOW,command=self.make_plot) \
-       .grid(row=0,column=2,padx=3,sticky='w')
-    ttk.Label(f5,text='Meridians',font='Helvetica 12 bold').grid(row=1,column=0,sticky='w')
+        .grid(row=0,column=2,padx=3,sticky='w')
+    ttk.Label(f5,text='Meridians',font=font_bold).grid(row=1,column=0,sticky='w')
     ttk.Label(f5,text='Initial').grid(row=2,column=1,sticky='w')
     wxo = ttk.Entry(f5,textvariable=self.PLOT.MERIDIAN_INI,justify='left',width=8)
     wxo.grid(row=2,column=2)
@@ -3384,13 +3484,13 @@ class CosmoDrawing():
     wdx = ttk.Entry(f5,textvariable=self.PLOT.MERIDIAN_INT,justify='left',width=8)
     wdx.grid(row=4,column=2)
     ttk.Checkbutton(f5,text='North',
-                       variable=self.PLOT.GRID_NORTH).grid(row=2,
-                                                           column=3,padx=6)
+                        variable=self.PLOT.GRID_NORTH).grid(row=2,
+                                                            column=3,padx=6)
     ttk.Checkbutton(f5,text='South',
-                       variable=self.PLOT.GRID_SOUTH).grid(row=3,
-                                                           column=3,padx=6)
+                        variable=self.PLOT.GRID_SOUTH).grid(row=3,
+                                                            column=3,padx=6)
 
-    ttk.Label(f5,text='Parallels',font='Helvetica 12 bold').grid(row=5,column=0,sticky='w')
+    ttk.Label(f5,text='Parallels',font=font_bold).grid(row=5,column=0,sticky='w')
     ttk.Label(f5,text='Initial').grid(row=6,column=1,sticky='w')
     wxo = ttk.Entry(f5,textvariable=self.PLOT.PARALLEL_INI,justify='left',width=8)
     wxo.grid(row=6,column=2)
@@ -3401,119 +3501,127 @@ class CosmoDrawing():
     wdx = ttk.Entry(f5,textvariable=self.PLOT.PARALLEL_INT,justify='left',width=8)
     wdx.grid(row=8,column=2)
     ttk.Checkbutton(f5,text='West',
-                       variable=self.PLOT.GRID_WEST).grid(row=6,
-                                                           column=3,padx=6)
+                        variable=self.PLOT.GRID_WEST).grid(row=6,
+                                                            column=3,padx=6)
     ttk.Checkbutton(f5,text='East',
-                       variable=self.PLOT.GRID_EAST).grid(row=7,
-                                                           column=3,padx=6)
-    ttk.Label(f5,text='Configuration',font='Helvetica 12 bold') \
-       .grid(row=10,column=0,sticky='w')
+                        variable=self.PLOT.GRID_EAST).grid(row=7,
+                                                            column=3,padx=6)
+    ttk.Label(f5,text='Configuration',font=font_bold) \
+        .grid(row=10,column=0,sticky='w')
     ttk.Label(f5,text='Character Size').grid(row=11,column=1,sticky='w')
     ttk.Entry(f5,textvariable=self.PLOT.GRID_SIZE,justify='left',width=8) \
-       .grid(row=11,column=2)
+        .grid(row=11,column=2)
     ttk.Label(f5,text='Line Color').grid(row=12,column=1,sticky='w')
-    ttk.Entry(f5,textvariable=self.PLOT.GRID_COLOR,justify='left',width=8) \
-       .grid(row=12,column=2)
+    self.Glabel = ttk.Label(f5,textvariable=self.PLOT.GRID_COLOR,style="sgrid.TLabel",width=8)
+    self.Glabel.grid(row=12,column=2,padx=3)
+    ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_COLOR, \
+            self.sgrid,self.Glabel,"sgrid.TLabel",master=self.Window_mapconfig)). \
+            grid(row=12,column=3,padx=3)    
     ttk.Label(f5,text='Line Width').grid(row=13,column=1,sticky='w')
     ttk.Entry(f5,textvariable=self.PLOT.GRID_LINEWIDTH,justify='left',width=8) \
-       .grid(row=13,column=2)
+        .grid(row=13,column=2)
     ttk.Label(f5,text='Line Style').grid(row=14,column=1,sticky='w')
     ttk.Combobox(f5,textvariable=self.PLOT.GRID_LINESTYLE,
-                    justify='left',
-                    values=['',' ','None','--','-.','-',':'],width=8) \
-       .grid(row=14,column=2)
+                      justify='left',
+                      #EG values=['',' ','None','--','-.','-',':'],width=8) \
+                      values=['None','--','-.','-',':'],width=8) \
+        .grid(row=14,column=2)
     ttk.Label(f5,text='Line alpha').grid(row=15,column=1,sticky='w')
     ttk.Entry(f5,textvariable=self.PLOT.GRID_ALPHA,justify='left',width=8) \
-       .grid(row=15,column=2)
+        .grid(row=15,column=2)
     ttk.Label(f5,text='Font color').grid(row=16,column=1,sticky='w')
-    ttk.Entry(f5,textvariable=self.PLOT.GRID_FONTCOLOR,justify='left',width=8) \
-       .grid(row=16,column=2)
+    self.GFlabel = ttk.Label(f5,textvariable=self.PLOT.GRID_FONTCOLOR,style="sfgrid.TLabel",width=8)
+    self.GFlabel.grid(row=16,column=2,padx=3)
+    ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_COLOR, \
+            self.sgrid,self.GFlabel,"sfgrid.TLabel",master=self.Window_mapconfig)). \
+            grid(row=16,column=3,padx=3)   
     f5.grid()
 
-
     f6 = ttk.Frame(page5,borderwidth=5,padding=5)
+    self.stsgrid= ttk.Style()
+    self.stsgrid.configure("stsgrid.TLabel",background=self.PLOT.TIMESTAMP_COLOR.get(),anchor="center")
+    
     ttk.Label(f6,text='Title').grid(row=1,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.TITLE,width=40). \
-        grid(row=1,column=1,columnspan=4,sticky='w')
+          grid(row=1,column=1,columnspan=4,sticky='w')
     def titleprop0():
-      self.PLOT.TITLEFONT = fontconfig(font=self.PLOT.TITLEFONT,
-                                  sample=self.PLOT.TITLE.get())
+        self.PLOT.TITLEFONT = fontconfig(font=self.PLOT.TITLEFONT,
+                                    sample=self.PLOT.TITLE.get())
     #ttk.Label(f6,text='Title font').grid(row=2,
     #                                     column=0,
     #                                     columnspan=1,
     #                                     sticky='w')
-    ttk.Button(f6,text='Set font',command=titleprop0).grid(row=1,
-                                                       column=5,
-                                                       padx=5,
-                                                       sticky='ew')
-    #ttk.Checkbutton(f6,text='Bold',variable=self.PLOT.TITLE_BOLD). \
-    #    grid(row=1,column=5)
-    #ttk.Label(f6,text='Size').grid(row=2,column=0,columnspan=1,sticky='w')
-    #ttk.Entry(f6,textvariable=self.PLOT.TITLE_SIZE,width=7). \
-    #    grid(row=2,column=1,sticky='w')
+    ttk.Button(f6,text='Set font',command=titleprop0).grid(row=1,column=5,padx=5,sticky='ew')
+      #ttk.Checkbutton(f6,text='Bold',variable=self.PLOT.TITLE_BOLD). \
+      #    grid(row=1,column=5)
+      #ttk.Label(f6,text='Size').grid(row=2,column=0,columnspan=1,sticky='w')
+      #ttk.Entry(f6,textvariable=self.PLOT.TITLE_SIZE,width=7). \
+      #    grid(row=2,column=1,sticky='w')
     ttk.Label(f6,text='Title Pad').grid(row=2,column=0,columnspan=1,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.TITLE_PAD,width=7). \
-        grid(row=2,column=1,sticky='w')
+          grid(row=2,column=1,sticky='w')
 
     ttk.Label(f6,text='X label').grid(row=4,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.XLABEL,width=40). \
-        grid(row=4,column=1,columnspan=4,sticky='w')
+          grid(row=4,column=1,columnspan=4,sticky='w')
     ttk.Label(f6,text='Y label').grid(row=5,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.YLABEL,width=40). \
-        grid(row=5,column=1,columnspan=4,sticky='w')
+          grid(row=5,column=1,columnspan=4,sticky='w')
     ttk.Label(f6,text='Size').grid(row=6,column=0,columnspan=1,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.LABEL_SIZE,width=5). \
-        grid(row=6,column=1,columnspan=1,sticky='w')
+          grid(row=6,column=1,columnspan=1,sticky='w')
     ttk.Label(f6,text='Label Pad'). \
-        grid(row=7,column=0,columnspan=1,sticky='w')
+          grid(row=7,column=0,columnspan=1,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.LABEL_PAD,width=5). \
-        grid(row=7,column=1,columnspan=1,sticky='w')
-    #ttk.Label(f6,text='Plot logo'). \
-    #    grid(row=8,column=0,sticky='w')
-    #ttk.Checkbutton(f6,variable=self.PLOT.LOGO_DISPLAY). \
-    #    grid(row=8,column=1,sticky='w',padx=3)
+          grid(row=7,column=1,columnspan=1,sticky='w')
+
+      #ttk.Label(f6,text='Plot logo'). \
+      #    grid(row=8,column=0,sticky='w')
+      #ttk.Checkbutton(f6,variable=self.PLOT.LOGO_DISPLAY). \
+      #    grid(row=8,column=1,sticky='w',padx=3)
     ttk.Label(f6,text='Timestamp'). \
-        grid(row=9,column=0,sticky='w',pady=[15,1])
+          grid(row=9,column=0,sticky='w',pady=[15,1])
 
     ttk.Checkbutton(f6,text='Show',variable=self.PLOT.TIMESTAMP_SHOW). \
-        grid(row=10,column=1,sticky='w')
+          grid(row=10,column=1,sticky='w')
     ttk.Checkbutton(f6,text='Bold',variable=self.PLOT.TIMESTAMP_BOLD). \
-        grid(row=11,column=1,sticky='w')
+          grid(row=11,column=1,sticky='w')
 
     def getlabelpos():
     # ================
       self.GET_TIMESTAMP_LOCATION = True
       
     ttk.Label(f6,text='X pos'). \
-        grid(row=12,column=0,columnspan=1,sticky='w')
+          grid(row=12,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.TIMESTAMP_X,width=12). \
-        grid(row=12,column=1,columnspan=1,sticky='w')
+          grid(row=12,column=1,sticky='w')
     ttk.Button(f6,text='Select',command=getlabelpos).grid(row=12,column=2)
 
     ttk.Label(f6,text='Y pos'). \
-        grid(row=13,column=0,columnspan=1,sticky='w')
+          grid(row=13,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.TIMESTAMP_Y,width=12). \
-        grid(row=13,column=1,columnspan=1,sticky='w')
+          grid(row=13,column=1,columnspan=1,sticky='w')
     ttk.Label(f6,text='Size'). \
-        grid(row=14,column=0,columnspan=1,sticky='w')
+          grid(row=14,column=0,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.TIMESTAMP_SIZE,width=5). \
-        grid(row=14,column=1,columnspan=1,sticky='w')
-    ttk.Label(f6,text='Color'). \
-        grid(row=15,column=0,columnspan=1,sticky='w')
-    ttk.Entry(f6,textvariable=self.PLOT.TIMESTAMP_COLOR,width=20). \
-        grid(row=15,column=1,columnspan=2,sticky='w')
+          grid(row=14,column=1,sticky='w')
+    ttk.Label(f6,text='Color').grid(row=15,column=0,sticky='w') 
+    self.GTSlabel = ttk.Label(f6,textvariable=self.PLOT.TIMESTAMP_COLOR,style="stsgrid.TLabel",width=8)
+    self.GTSlabel.grid(row=15,column=1,sticky='w')
+    ttk.Button(f6,text='Select',command=lambda:colsel(self.PLOT.TIMESTAMP_COLOR, \
+            self.stsgrid,self.GTSlabel,"stsgrid.TLabel",master=self.Window_mapconfig)). \
+            grid(row=15,column=2,sticky='w')
 
     f6.grid()
 
-
     # ---------------------------------------------
     def center():
-      SOUTH = float(self.PLOT.SOUTH.get())
-      NORTH = float(self.PLOT.NORTH.get())
-      WEST  = float(self.PLOT.WEST.get())
-      EAST  = float(self.PLOT.EAST.get())
-      self.PLOT.SCALE_XO.set(0.5*(WEST+EAST))
-      self.PLOT.SCALE_YO.set(0.5*(SOUTH+NORTH))
+        SOUTH = float(self.PLOT.SOUTH.get())
+        NORTH = float(self.PLOT.NORTH.get())
+        WEST  = float(self.PLOT.WEST.get())
+        EAST  = float(self.PLOT.EAST.get())
+        self.PLOT.SCALE_XO.set(0.5*(WEST+EAST))
+        self.PLOT.SCALE_YO.set(0.5*(SOUTH+NORTH))
     # ---------------------------------------------
 
     fs = ttk.Frame(page7,borderwidth=5,padding=5)
@@ -3521,83 +3629,87 @@ class CosmoDrawing():
     ttk.Checkbutton(fs,variable=self.PLOT.SCALE_SHOW).grid(row=0,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='LON = ').grid(row=1,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_X,
-                 width=10).grid(row=1,column=1,padx=3,sticky='w')
+                  width=10).grid(row=1,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='LAT = ').grid(row=2,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_Y,
-                 width=10).grid(row=2,column=1,padx=3,sticky='w')
+                  width=10).grid(row=2,column=1,padx=3,sticky='w')
     ttk.Label(fs,
-              text='Map position where Scale will be drawn').grid(row=1,
-              column=2,rowspan=2,columnspan=2,padx=3,pady=5)
+                text='Map position where Scale will be drawn').grid(row=1,
+                column=2,rowspan=2,columnspan=2,padx=3,pady=5)
 
     ttk.Label(fs,text='LON0 = ').grid(row=3,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_XO,
-                 width=10).grid(row=3,column=1,padx=3,sticky='w')
+                  width=10).grid(row=3,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='LAT0 = ').grid(row=4,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_YO,
-                 width=10).grid(row=4,column=1,padx=3,sticky='w')
+                  width=10).grid(row=4,column=1,padx=3,sticky='w')
     ttk.Label(fs,
-              text='Coordinate to which the Scale distance apply').grid(row=3,
-              column=2,rowspan=2,columnspan=2,padx=3,pady=5)
+                text='Coordinate to which the Scale distance apply').grid(row=3,
+                column=2,rowspan=2,columnspan=2,padx=3,pady=5)
     ttk.Button(fs,text='Map center',command=center).grid(row=3,column=4,
-                                                         rowspan=2,padx=3)
+                                                          rowspan=2,padx=3)
     ttk.Label(fs,text='Length = ').grid(row=5,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LENGTH,
-                 width=10).grid(row=5,column=1,padx=3,sticky='w')
-    
+                  width=10).grid(row=5,column=1,padx=3,sticky='w')
+      
     ttk.Label(fs,text='Units = ').grid(row=6,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Combobox(fs,textvariable=self.PLOT.SCALE_UNITS,
-                 values=['km','mi','nmi','ft','m'],
-                 width=10).grid(row=6,column=1,padx=3,sticky='w')
+                  values=['km','mi','nmi','ft','m'],
+                  width=10).grid(row=6,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Bar style = ').grid(row=7,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Combobox(fs,textvariable=self.PLOT.SCALE_STYLE,
-                 values=['simple','fancy'],
-                 width=10).grid(row=7,column=1,padx=3,sticky='w')
+                  values=['simple','fancy'],
+                  width=10).grid(row=7,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Yoffset = ').grid(row=8,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_YOFFSET,
-                 width=10).grid(row=8,column=1,padx=3,sticky='w')
+                  width=10).grid(row=8,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Default: 0.02*(MAXLAT-MINLAT)').grid(row=8,
-                                 column=2,columnspan=2,padx=3,sticky='w')
+                                  column=2,columnspan=2,padx=3,sticky='w')
     ttk.Label(fs,text='Label style = ').grid(row=9,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Combobox(fs,textvariable=self.PLOT.SCALE_LABELSTYLE,
-                 values=['simple','fancy'],
-                 width=10).grid(row=9,column=1,padx=3,sticky='w')
+                  values=['simple','fancy'],
+                  width=10).grid(row=9,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Font size = ').grid(row=10,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FONTSIZE,
-                 width=10).grid(row=10,column=1,padx=3,sticky='w')
+                  width=10).grid(row=10,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Font color = ').grid(row=11,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FONTCOLOR,
-                 width=10).grid(row=11,column=1,padx=3,sticky='w')
+                  width=10).grid(row=11,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Format = ').grid(row=12,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FORMAT,
-                 width=10).grid(row=12,column=1,padx=3,sticky='w')
+                  width=10).grid(row=12,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Line width = ').grid(row=13,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LINEWIDTH,
-                 width=10).grid(row=13,column=1,padx=3,sticky='w')
+                  width=10).grid(row=13,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Line color = ').grid(row=14,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LINECOLOR,
-                 width=10).grid(row=14,column=1,padx=3,sticky='w')
+                  width=10).grid(row=14,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Fill color 1 = ').grid(row=15,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR1,
-                 width=10).grid(row=15,column=1,padx=3,sticky='w')
+                  width=10).grid(row=15,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Fill color 2 = ').grid(row=16,column=0,padx=3,
-                                        pady=[5,1],sticky='e')
+                                          pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR2,
-                 width=10).grid(row=16,column=1,padx=3,sticky='w')
-    
+                  width=10).grid(row=16,column=1,padx=3,sticky='w')
+      
     fs.grid()
 
     f8 = ttk.Frame(page8,borderwidth=5,padding=5)
+    self.obgrid, self.otgrid = ttk.Style(),ttk.Style()
+    self.obgrid.configure("obgrid.TLabel",background=self.PLOT.FIGURE_COLOR.get(),anchor="center")
+    self.otgrid.configure("otgrid.TLabel",background=self.PLOT.TEXT_COLOR.get(),anchor="center")
+    
     ttk.Label(f8,text='Map dots per inch (DPI): ').grid(row=0,column=0,sticky='w')
     ttk.Entry(f8,textvariable=self.PLOT.DPI,width=10).grid(row=0,column=1,sticky='w')
     ttk.Label(f8,text='Map window size: ').grid(row=1,column=0,sticky='w')
@@ -3607,15 +3719,21 @@ class CosmoDrawing():
     ttk.Label(f8,text='(It will close current map) ').grid(row=1,column=4,sticky='w')
     ttk.Label(f8,text='Font style').grid(row=2,column=0,sticky='w')
     ttk.Combobox(f8,textvariable=self.PLOT.MAP_FONT_TYPE, \
-                 values=self.FONT_TYPES,width=30).grid(row=2,column=1, \
-                                                       columnspan=3,   \
-                                                       padx=3,sticky='w')
+                  values=self.FONT_TYPES,width=30).grid(row=2,column=1, \
+                                                        columnspan=3,   \
+                                                        padx=3,sticky='w')                                                                                                    
     ttk.Label(f8,text='Background color').grid(row=3,column=0,sticky='w')
-    ttk.Entry(f8,textvariable=self.PLOT.FIGURE_COLOR,
-             width=30).grid(row=3,column=1,columnspan=3,sticky='w')
+    self.OBlabel = ttk.Label(f8,textvariable=self.PLOT.FIGURE_COLOR,style="obgrid.TLabel",width=8)
+    self.OBlabel.grid(row=3,column=1,padx=3)
+    ttk.Button(f8,text='Select',command=lambda:colsel(self.PLOT.FIGURE_COLOR, \
+            self.obgrid,self.OBlabel,"obgrid.TLabel",master=self.Window_mapconfig)). \
+            grid(row=3,column=2,padx=3)            
     ttk.Label(f8,text='Text color').grid(row=4,column=0,sticky='w')
-    ttk.Entry(f8,textvariable=self.PLOT.TEXT_COLOR,
-             width=30).grid(row=4,column=1,columnspan=3,sticky='w')
+    self.OTlabel = ttk.Label(f8,textvariable=self.PLOT.TEXT_COLOR,style="otgrid.TLabel",width=8)
+    self.OTlabel.grid(row=4,column=1,padx=3)
+    ttk.Button(f8,text='Select',command=lambda:colsel(self.PLOT.TEXT_COLOR, \
+            self.otgrid,self.OTlabel,"otgrid.TLabel",master=self.Window_mapconfig)). \
+            grid(row=4,column=2,padx=3)
     f8.grid()
 
     maptabs.grid()
@@ -3625,7 +3743,6 @@ class CosmoDrawing():
     ttk.Button(frame5,text='Apply',command=_apply).grid(row=0,column=5,padx=3)
     ttk.Button(frame5,text='Close',command=_done).grid(row=0,column=6,padx=3)
     frame5.grid(row=24,column=0,columnspan=5)
-
 
   # ====================
   def logo_config(self):
@@ -3660,7 +3777,7 @@ class CosmoDrawing():
         self.PLOT.LOGO_Y.set(conf['LOGO_Y'])
         self.PLOT.LOGO_IMAGE = image.imread(self.PLOT.LOGO_FILE.get())
       except:
-        print('Cannot read default configuration file ',cfilename)
+        toconsola('Cannot read default configuration file '+cfilename,wid=self.cons)
       self.make_plot()
 
     def _saveconf():
@@ -3683,9 +3800,9 @@ class CosmoDrawing():
                                    indent=2,           \
                                    separators=(',',': '))
           outfile.write(to_unicode(str_))
-        print('New default values saved in file ',cfilename)
+        toconsola("New default values saved in file "+cfilename,wid=self.cons)
       except:
-        print('Cannot open default configuration file ',cfilename)
+        toconsola('Cannot open default configuration file '+cfilename,wid=self.cons)
 
     # Main Window
     # ============
@@ -3750,7 +3867,6 @@ class CosmoDrawing():
     ttk.Button(F0,text='Apply',command=_close,padding=5).grid(row=9,column=6)
     F0.grid()
 
-
   # ==================
   def plot_logo(self):
   # ==================
@@ -3780,16 +3896,12 @@ class CosmoDrawing():
       ba = (0,0)
 
     self.ab = AnnotationBbox(im,[xx,yy], xycoords='data', \
-                             box_alignment=ba,pad=0.0,frameon=True)
-    if self.PLOT.GEOMAP.get():
-      self.with_logo = self.m._check_ax().add_artist(self.ab)
-    else:
-      self.with_logo = self.ax.add_artist(self.ab)
+                             box_alignment=ba,pad=0.0,frameon=True,zorder=100)
+    self.with_logo = self.ax.add_artist(self.ab)
 
-
-  # =====================
+  # ============
   def mlm(self):
-  # =====================
+  # ============
     '''Options to launch the COSMO M - Lagrangian Model'''
 
     def _close():
@@ -3804,11 +3916,13 @@ class CosmoDrawing():
                 self.MLM.BIN.get()
 
       command += options
-      print(command)
+      toconsola(command,wid=self.cons)
+      #print(command)
       os.system(command)
 
       if os.path.isfile(self.MLM.TRAJECTORY.get()):
         FLT = lagrangian.parameters()
+        toconsola(FLT.MESSAGE,wid=self.cons)
         FLT.Read(self.MLM.TRAJECTORY.get())
         if FLT is None:
           return
@@ -3846,7 +3960,6 @@ class CosmoDrawing():
         self.make_plot()
       else:
         messagebox.showinfo(message='COSMO M Lagrangian Model failed')
-
 
     def _help():
     # ==========
@@ -3889,7 +4002,6 @@ class CosmoDrawing():
         options += aa
       except:
         pass
-
 
       _run(options)
 
@@ -3989,13 +4101,6 @@ class CosmoDrawing():
     ttk.Button(F0,text='Run Help',command=_help).grid(row=0,column=4,padx=5)
     F0.grid()
 
-
-
-
-
-
-
-
   # =====================
   def blm(self):
   # =====================
@@ -4013,11 +4118,13 @@ class CosmoDrawing():
                 self.BLM.BIN.get()
 
       command += options
-      print(command)
+      toconsola(command,wid=self.cons)
+      #print(command)
       os.system(command)
 
       if os.path.isfile(self.BLM.TRAJECTORY.get()):
         FLT = lagrangian.parameters()
+        toconsola(FLT.MESSAGE,wid=self.cons)
         FLT.Read(self.BLM.TRAJECTORY.get())
         if FLT is None:
           return
@@ -4055,7 +4162,6 @@ class CosmoDrawing():
         self.make_plot()
       else:
         messagebox.showinfo(message='COSMO B Lagrangian Model failed')
-
 
     def _help():
     # ==========
@@ -4184,11 +4290,8 @@ class CosmoDrawing():
       except:
         pass
 
-
       _run(options)
 
-
-  
     # Main BLM Window
     if self.nvec == 0:
       messagebox.showinfo(message='No file with ocean currents has ben opened yet')
@@ -4225,7 +4328,6 @@ class CosmoDrawing():
     ttk.Button(F0,text='Run Help',command=_help).grid(row=0,column=4,padx=5)
     F0.grid()
 
-
   # ==================
   def make_anim(self):
   # ==================
@@ -4260,7 +4362,8 @@ class CosmoDrawing():
                 self.CDF[self.FILEORDER[i]].L.set(L)
                 self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
               else:
-                print('Somethin wrong')
+                toconsola("Something wrong",wid=self.cons)
+                #print('Something wrong')
                 quit()
           self.make_Mplot()
           writer.grab_frame()
@@ -4270,7 +4373,8 @@ class CosmoDrawing():
     def _loadconf():
     # -------------
       '''Load ANIM configuration'''
-      print('Retrieving VIDEO defaults.')
+      toconsola('Retrieving VIDEO defaults.',wid=self.cons)
+      #print('Retrieving VIDEO defaults.')
       with open(self.PLOT.FILECONF) as infile:
         conf = json.load(infile)
       self.PLOT.VIDEO_NAME.set(conf['VIDEO_NAME'])
@@ -4285,7 +4389,8 @@ class CosmoDrawing():
       '''Save ANIM configuration'''
       with open(self.PLOT.FILECONF) as infile:
         conf = json.load(infile)
-      print('Updating VIDEO defaults.')
+      toconsola('Updating VIDEO defaults.',wid=self.cons)
+      #print('Updating VIDEO defaults.')
       conf['VIDEO_NAME'] = self.PLOT.VIDEO_NAME.get()
       conf['VIDEO_TITLE'] = self.PLOT.VIDEO_TITLE.get()
       conf['VIDEO_AUTHOR'] = self.PLOT.VIDEO_AUTHOR.get()
@@ -4299,7 +4404,6 @@ class CosmoDrawing():
                                separators=(',',': '))
         outfile.write(to_unicode(str_))
 
-
     # Main
     # ----
     if self.nfiles == 0:
@@ -4310,12 +4414,10 @@ class CosmoDrawing():
       self.Window_anim.lift()
       return
 
-   
     self.Window_anim = tk.Toplevel(self.master)
     self.Window_anim.title('Animation creation')
     self.Window_anim.resizable(width=True,height=True)
     self.Window_anim.protocol('WM_DELETE_WINDOW',_close)
-
 
     # Menu:
     # AAA
@@ -4357,25 +4459,22 @@ class CosmoDrawing():
     close.bind("<Return>",lambda e:_close())
     F0.grid()
     F1 = ttk.Frame(self.Window_anim,borderwidth=5,padding=5)
+
     self.Mfig = Figure(figsize=self.PLOT.SIZE,dpi=self.PLOT.DPI.get())
-    self.Max = self.Mfig.add_subplot(111)
-    self.Mcanvas = FigureCanvasTkAgg(self.Mfig,master=F1)
-    self.Mcanvas.show()
+    #EG Projection
+    projection = self.PLOT.MAP_PROJECTION.get()
+    proj = map_proj(projection)
+    self.Max = self.Mfig.add_subplot(111, projection=proj['proj'])
+    self.Mcanvas = FigureCanvasTkAgg(self.Mfig, master=F1)
+    self.Mcanvas.draw()
     self.Mcanvas.get_tk_widget().grid(row=0,column=0,columnspan=11,sticky='wn')
     self.Mdrawmap = True
     F1.grid()
-    self.make_Mplot()
+    self.make_Mplot(proj=proj['proj'])
 
-
-
-
-
-
-
-
-  # ===========================================
+  # =========================
   def DepthandDate(self,CDF):
-  # ===========================================
+  # =========================
     '''Fill the lists: K_LIST, L_LIST, Z_LIST, T_LIST and DATE'''
 
     CDF.K.set(0)             # Default layer
@@ -4389,7 +4488,8 @@ class CosmoDrawing():
       if self.PLOT.GEOMAP.get():
         wrk = CDF.ncid.variables[CDF.icdf.zname][:]
         CDF.Z_LIST = list(wrk)
-        print(CDF.Z_LIST)
+        toconsola(str(CDF.Z_LIST),wid=self.cons)
+        #print(CDF.Z_LIST)
       else:
         CDF.Z_LIST = np.arange(CDF.icdf.nz)
     else:
@@ -4420,22 +4520,22 @@ class CosmoDrawing():
       CDF.T_LIST = []
       CDF.DATE = [' ']
       CDF.TIME = np.array([0])
-
-
-
   
-  # ===========================================
+  # ====================================
   def read_lonlat(self,CDF,xname,yname):
-  # ===========================================
+  # ====================================
     '''Read 1D/2D lon lat grid '''
 
     if CDF.icdf.georef:
       vlon = CDF.ncid.variables[xname]
       vlat = CDF.ncid.variables[yname]
-      print(vlon)
-      print(vlat)
+      toconsola(str(vlon),wid=self.cons)
+      toconsola(str(vlat),wid=self.cons)
+      #print(vlon)
+      #print(vlat)
     else:
-      print('Georef is False')
+      toconsola('Georef is False',wid=self.cons)
+      #print('Georef is False')
       self.PLOT.GEOMAP.set(False)
       vlon = np.arange(CDF.icdf.nx)
       vlat = np.arange(CDF.icdf.ny)
@@ -4448,9 +4548,9 @@ class CosmoDrawing():
       CDF.xx = vlon[:].copy()
       CDF.yy = vlat[:].copy()
 
-  # ===========================================
+  # ====================
   def read_UV(self,VEC):
-  # ===========================================
+  # ====================
     '''Read 2D velocity data according to user selections'''
     #K     = self.K.get()
     #L     = self.L.get()
@@ -4474,13 +4574,15 @@ class CosmoDrawing():
         VEC.VEL.u = VEC.ncid.variables[uname][K,:,:].squeeze()
         VEC.VEL.v = VEC.ncid.variables[vname][K,:,:].squeeze()
       else:
+        toconsola('Invalid file!',wid=self.cons)
         print('Invalid file!')
         return
     elif ndim == 4:
       VEC.VEL.u = VEC.ncid.variables[uname][L,K,:,:].squeeze()
       VEC.VEL.v = VEC.ncid.variables[vname][L,K,:,:].squeeze()
     else:
-      print('Invalid number of dimensions, ',ndim)
+      toconsola("Invalid number of dimensions, "+str(ndim),wid=self.cons)
+      #print('Invalid number of dimensions, '+str(ndim))
 
     _u   = VEC.VEL.u.copy()
     _v   = VEC.VEL.v.copy()
@@ -4493,8 +4595,6 @@ class CosmoDrawing():
     #VEC.VEL.F = interpolate.interp2d(VEC.lon, \
     #                                 VEC.lat, \
     #                                 VEC.VEL.speed)
-
-
 
   # ===========================================
   #def read_Field(self,FIELD,ncid,icdf,sid,K,L):
@@ -4518,9 +4618,12 @@ class CosmoDrawing():
     L = CDF.L.get()
 
     vname = '%s' % CDF.varname.get()
-    print('READ_FIELD Reading Var, Level and Time:', CDF.varid,   \
-                                                     CDF.K.get(), \
-                                                     CDF.L.get())
+    toconsola('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
+                                                     ", "+str(CDF.K.get())+
+                                                     ", "+str(CDF.L.get()),wid=self.cons)
+    #print('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
+     #                                                ", "+str(CDF.K.get())+
+     #                                                ", "+str(CDF.L.get()))
 
     ndim = CDF.icdf.ndims[CDF.varid]
     if ndim == 2:
@@ -4560,8 +4663,10 @@ class CosmoDrawing():
       # Contour intervals
       CDF.FIELD.minval = float(CDF.FIELD.data.min())
       CDF.FIELD.maxval = float(CDF.FIELD.data.max())
-      print('Min val = ',CDF.FIELD.minval)
-      print('Max val = ',CDF.FIELD.maxval)
+      toconsola('Min val = '+str(CDF.FIELD.minval),wid=self.cons)
+      toconsola('Max val = '+str(CDF.FIELD.maxval),wid=self.cons)
+      #print('Min val = '+str(CDF.FIELD.minval))
+      #print('Max val = '+str(CDF.FIELD.maxval))
 
       if update_lims:
         try:
@@ -4580,8 +4685,7 @@ class CosmoDrawing():
         except:
           CDF.FIELD.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
-
-  # ==================
+  # ===================
   def get_contour(self):
   # ==================
     '''Widget to read Netcdf files'''
@@ -4638,14 +4742,14 @@ class CosmoDrawing():
         self.Window_contourconfig = None
         self.contour_config()
 
-
     def _clear():
     # ===========
       if self.ncdf == 0:
         return
 
       ii = self.CDF_INDX.get()
-      print('Erasing record ', ii)
+      toconsola('Erasing record '+str(ii),wid=self.cons)
+      #print('Erasing record '+str(ii))
 
       for i in range(self.nfiles):
         if self.FILETYPES[i] == 'FLD' and self.FILEORDER[i] == ii:
@@ -4800,7 +4904,8 @@ class CosmoDrawing():
           ntime = len(self.DATE)
           same  = True
           if len(self.CDF[ii].DATE) == ntime:
-            print('Same number of time records')
+            toconsola('Same number of time records',wid=self.cons)
+            #print('Same number of time records')
             for i in range(ntime):
               if self.DATE[i] != self.CDF[ii].DATE[i]:
                 same = False
@@ -4810,8 +4915,6 @@ class CosmoDrawing():
         Window_select.destroy()
         Window_select = None
         self.DATETIME = ''
-
-
 
       ISOURCE = self.CONTOUR_OPTIONS.index(SOURCE)
       if ISOURCE == 0:
@@ -4855,7 +4958,6 @@ class CosmoDrawing():
       #if empty(CDF.DATE[0].__str__()):
       #  _dsel.configure(state='enabled')
 
-
       if Window_select is None:
         Window_select = tk.Toplevel(self.master)
         Window_select.title('SELECT VARIABLES')
@@ -4865,9 +4967,12 @@ class CosmoDrawing():
         return
 
       axesid = tools.WinGeoaxes(CDF.icdf,CDF.ncid,Window_select)
+      
+      font_bold = tkfont.Font(font='TkDefaultFont').copy()
+      font_bold['weight']='bold'
 
       F0 = ttk.Frame(Window_select,padding=5,borderwidth=5)
-      ttk.Label(F0,text='Select variable',borderwidth=3,font='bold') \
+      ttk.Label(F0,text='Select variable',borderwidth=3,font=font_bold) \
          .grid(row=0,column=0)
       dvar = ttk.Combobox(F0,textvariable=CDF.varname, \
                    values=CDF.icdf.VAR_MENU,    \
@@ -5024,7 +5129,6 @@ class CosmoDrawing():
     ttk.Button(F1,text='Plot',command=_done).grid(row=1,column=8,padx=3)
     F1.grid(row=1,column=0)
 
-
   #====================
   def get_saidin(self):
   #====================
@@ -5035,7 +5139,7 @@ class CosmoDrawing():
       self.Window_saidin = None
 
     def _selector():
-      name = saidin.saidin_selector(parent=self.master)
+      name = saidin.saidin_selector(parent=self.master, wid=self.cons)
       if not empty(name):
         self.SAIDIN.FILENAME.set(name)
 
@@ -5044,7 +5148,7 @@ class CosmoDrawing():
         messagebox.showinfo(message='No image selected')
         return
 
-      self.SAIDIN.ncid = Dataset(self.SAIDIN.FILENAME.get(),'r')
+      self.SAIDIN.ncid = Dataset('[FillMismatch]'+self.SAIDIN.FILENAME.get(),'r')
       self.SAIDIN.icdf = tools.geocdf(self.SAIDIN.FILENAME.get())
       self.SAIDIN.FIELD.varname = 'mcsst'
       self.SAIDIN.lon = self.SAIDIN.ncid.variables['lon'][:]
@@ -5097,10 +5201,13 @@ class CosmoDrawing():
         except:
           self.SAIDIN.FIELD.missing_value = None
 
-      print(self.SAIDIN.FIELD.data.min())
-      print(self.SAIDIN.FIELD.data.max())
+      toconsola(str(self.SAIDIN.FIELD.data.min()),wid=self.cons)
+      toconsola(str(self.SAIDIN.FIELD.data.max()),wid=self.cons)
+      #print(str(self.SAIDIN.FIELD.data.min()))
+      #print(str(self.SAIDIN.FIELD.data.max()))
       if self.SAIDIN.FIELD.masked.get():
-        print('Applying land/sea mask ...')
+        toconsola('Applying land/sea mask ...',wid=self.cons)
+        #print('Applying land/sea mask ...')
         _a  = self.SAIDIN.FIELD.data.copy()
         tmp  = self.SAIDIN.ncid.variables['lsmask'][0,:,:].squeeze()
         msk = ma.masked_where(tmp==1,tmp)
@@ -5159,10 +5266,9 @@ class CosmoDrawing():
     ttk.Button(F0,text='Plot',command=_done).grid(row=1,column=8,padx=3)
     F0.grid()
 
-
-  # =======================
+  # ===================
   def get_marker(self):
-  # =======================
+  # ===================
     '''Widget to read Markers'''
 
     def _close():
@@ -5197,26 +5303,26 @@ class CosmoDrawing():
           del self.FEATNAMES[i]
           del self.FEATTYPES[i]
           del self.FEATORDER[i]
-      self.neatures -= 1
+      self.nfeatures -= 1
 
-      print('Erasing marker ',ii)
+      toconsola('Erasing marker '+str(ii),wid=self.cons)
+      #print('Erasing marker '+str(ii))
       del self.MARKER[ii]
       self.nmarker -= 1
 
       ii = self.nmarker-1 if ii >= self.nmarker else ii
-      print('New marker = ',self.nmarker)
+      toconsola('New marker = '+str(self.nmarker),wid=self.cons)
+      #print('New marker = '+str(self.nmarker))
       self.MARKER_INDX.set(ii)
       _refill(ii)
       self.make_plot()
       _close()
-
 
     def _reget():
     # ===========
       self.MARKER_INDX.set(_wsel.get())
       ii = self.MARKER_INDX.get()
       _refill(ii)
-
 
     def _refill(ii):
     # ==============
@@ -5254,6 +5360,9 @@ class CosmoDrawing():
 
       # Not empty filename:
       MARKER = geomarker.parameters()
+
+      toconsola(MARKER.MESSAGE,wid=self.cons)      
+
       MARKER.Read(filename)
       if MARKER.n == 0:
         return
@@ -5329,8 +5438,176 @@ class CosmoDrawing():
     ttk.Button(F1,text='Done',command=_done).grid(row=1,column=7,padx=3)
     F1.grid(row=1,column=0)
 
+  # ======================
+  def get_shapefile(self):
+  # ==========================
+    def _close():
+      self.Window_shapefile.destroy()
+      self.Window_shapefile = None
 
-  # =======================
+    def _done():
+      ii = self.SHAPE_INDX.get()
+      if ii >= 0:
+        self.SHAPE[ii].LABEL.set(_wlab.get())
+        self.make_plot()
+
+      self.Window_shapefile.destroy()
+      self.Window_shapefile = None
+      if self.Window_geoconfig is not None:
+        self.Window_geoconfig.destroy()
+        self.Window_geoconfig = None
+        self.Window_geoconfig()
+
+    def _clear():
+    # ===========
+      '''Note that shape geometries have no time axis in principle'''
+      if self.nshape == 0:
+        return
+
+      ii = self.SHAPE_INDX.get()
+
+      for i in range(self.nfeatures):
+        if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
+          del self.FEATNAMES[i]
+          del self.FEATTYPES[i]
+          del self.FEATORDER[i]
+      self.nfeatures -= 1
+
+      toconsola('Erasing marker '+str(ii),wid=self.cons)
+      #print('Erasing marker '+str(ii))
+      del self.SHAPE[ii]
+      self.nmarker -= 1
+
+      ii = self.nmarker-1 if ii >= self.nmarker else ii
+      toconsola('New marker = '+str(self.nmarker),wid=self.cons)
+      #print('New marker = '+str(self.nmarker))
+      self.SHAPE.set(ii)
+      _refill(ii)
+      self.make_plot()
+      _close()
+
+    def _reget():
+    # ===========
+      self.SHAPE_INDX.set(_wsel.get())
+      ii = self.SHAPE_INDX.get()
+      _refill(ii)
+    
+    def _refill(ii):
+    # ==============
+      if ii >= 0:
+        self.SHAPE_LIST = list(range(self.nshape))
+        _wsel['values'] = self.SHAPE_LIST
+        _went['textvariable'] = self.SHAPE[ii].FILENAME
+        _wstat['text'] = ' N = '+str(self.SHAPE[ii].n)+' geometries'
+        _wsel.configure(state='!disabled')
+        _wlab['state'] = '!disabled'
+        _wlab['textvariable'] = self.SHAPE[ii].LABEL
+      else:
+        self.SHAPE         = []
+        self.SHAPE_LIST    = ['0']
+        self.SHAPE_INDX    = tk.IntVar()
+        self.SHAPE_INDX.set(0)
+        _wsel['values'] = self.SHAPE_LIST
+        _went['textvariable'] = ''
+        _wstat['text'] = ''
+        _wsel.configure(state='disabled')
+        _wlab['textvariable'] = ''
+        _wlab.configure(state='disabled')
+
+    def _add():
+    # ========
+      nn = filedialog.askopenfilename(filetypes=[('shp','*.shp')],
+                                       initialdir='./',
+                                       parent=self.Window_shapefile)
+      if len(nn) == 0:
+        return
+      else:
+        filename = '%s' % nn
+
+      # Not empty filename:
+      SHAPE = shape.parameters()
+      toconsola(SHAPE.MESSAGE,wid=self.cons)      
+      SHAPE.Read(filename)
+      
+      if SHAPE.n == 0:
+        return
+      
+      self.nshape += 1
+      self.SHAPE.append(SHAPE)
+      self.SHAPE_INDX.set(self.nshape-1)
+      self.SHAPE_LIST = list(range(self.nshape))
+
+      self.nfeatures += 1
+      self.FEATNAMES.append(SHAPE.FILENAME.get())
+      self.FEATTYPES.append('SHAPE')
+      self.FEATORDER.append(self.nfeatures-1)
+
+      ii = self.SHAPE_INDX.get()
+      
+      _refill(ii)
+
+    # Main window:
+    # ============
+
+    if self.Window_shapefile is not None:
+      self.Window_shapefile.lift()
+      return
+
+    self.Window_shapefile = tk.Toplevel(self.master)
+    self.Window_shapefile.title('Shape file')
+    self.Window_shapefile.protocol('WM_DELETE_WINDOW',_close)
+
+    if self.nshape > 0:
+      ii = self.SHAPE_INDX.get()
+    else:
+      ii = -1
+
+    F0 = ttk.Frame(self.Window_shapefile,padding=5)
+
+    # Add
+    ttk.Button(F0,text='Add',command=_add).grid(row=0,column=0,padx=3)
+
+    # Filename:
+    ttk.Label(F0,text='Shape file').grid(row=0,column=1,padx=3)
+
+    _wsel = ttk.Combobox(F0,textvariable=self.SHAPE_INDX, \
+                                  values=self.SHAPE_LIST,width=5)
+    _wsel.grid(row=0,column=2)
+    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+
+    # AAA
+    if ii == -1:
+      _wstat = ttk.Label(F0,text='',width=50,justify='left')
+      _wsel.configure(state='disabled')
+    else:
+      _wstat = ttk.Label(F0,text=' N = '+str(self.SHAPE[ii].n),width=50,justify='left')
+      _went['textvariable'] = self.SHAPE[ii].FILENAME
+
+    _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
+
+    ttk.Label(F0,text='Shape Label').grid(row=2,column=1,padx=3)
+    _wlab = ttk.Entry(F0,justify='left',width=18)
+    _wlab.grid(row=2,column=2,columnspan=2,padx=3,sticky='w')
+    if ii == -1:
+      _wlab['state'] = 'disabled'
+    else:
+      _wlab['textvariable'] = self.SHAPE[ii].LABEL
+
+    F0.grid(row=0,column=0)
+
+    F1 = ttk.Frame(self.Window_shapefile,padding=5)
+    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=6,padx=3)
+    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=7,padx=3)
+    F1.grid(row=1,column=0)
+
+  # ================
+  def get_wms(self):
+  # ==========================
+    pass
+
+  # ======================
   def marker_config(self):
   # =======================
     '''Widget to configure Markers'''
@@ -5397,9 +5674,7 @@ class CosmoDrawing():
               textvariable=self.MARKER[ii].LABEL).grid(row=1,
                                                        column=1,
                                                        padx=3,
-                                                       sticky='w')
-
-      
+                                                       sticky='w')  
       # Page 1
       dotplot.Configuration(page1,self.MARKER[ii].PLOT)
   
@@ -5423,22 +5698,26 @@ class CosmoDrawing():
     # =============
       '''Load dot configuration'''
       ii = self.MARKER_INDX.get()
-      print('Restoring dot configuration')
+      toconsola('Restoring dot configuration',wid=self.cons)
+      #print('Restoring dot configuration')
       try:
         self.MARKER[ii].PLOT.load(self.MARKER[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to load file ',self.MARKER[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveconf():
     # =============
       '''Load dot configuration'''
       ii = self.MARKER_INDX.get()
-      print('Saving dot configuration')
+      toconsola('Saving dot configuration',wid=self.cons)
+      #print('Saving dot configuration')
       try:
         self.MARKER[ii].PLOT.save(self.MARKER[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',self.MARKER[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -5451,12 +5730,15 @@ class CosmoDrawing():
         return
 
       self.MARKER[ii].PLOT.FILECONF = '%s' % nn
-      print('Restoring dot configuration from ',
-            self.MARKER[ii].PLOT.FILECONF)
+      toconsola('Restoring dot configuration from '+
+            self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Restoring dot configuration from '+
+      #      self.MARKER[ii].PLOT.FILECONF)
       try:
         self.MARKER[ii].PLOT.load(self.MARKER[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to load file ',self.MARKER[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveasconf():
@@ -5471,15 +5753,13 @@ class CosmoDrawing():
         return
 
       self.MARKER[ii].PLOT.FILECONF = '%s' % nn
-      print('Saving dot configuration to ',self.MARKER[ii].PLOT.FILECONF)
+      toconsola('Saving dot configuration to '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Saving dot configuration to '+self.MARKER[ii].PLOT.FILECONF)
       try:
         self.MARKER[ii].PLOT.save(self.MARKER[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',self.MARKER[ii].PLOT.FILECONF)
-
-
-
-
+        toconsola('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF)
 
     if self.Window_dotconfig is not None:
       self.Window_dotconfig.lift()
@@ -5502,7 +5782,6 @@ class CosmoDrawing():
     except AttributeError:
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       master.tk.call(Window_dotconfig, "config", "-menu", menubar)
-
 
     fsel = ttk.Frame(self.Window_dotconfig,padding=10)
     ttk.Label(fsel,text="File: ").grid(row=0,column=0,sticky='e',padx=3)
@@ -5569,8 +5848,233 @@ class CosmoDrawing():
     f0.grid(sticky='ew')
     ishow.grid()
 
+  # ======================
+  def shape_config(self):
+  # =======================
+    '''Widget to configure Markers'''
+    #self.dot_config(self.MARKER[self.MARKER_INDX.get()])
 
+    global ishow
 
+    if self.nshape == 0:
+      messagebox.showinfo(message='No Shape file opened yet')
+      return
+
+    def _cancel():
+    # ============
+      self.Window_geoconfig.destroy()
+      self.Window_geoconfig = None
+
+    def _apply():
+    # ============
+      self.make_plot()
+
+    def _done():
+    # ============
+      self.make_plot()
+      self.Window_geoconfig.destroy()
+      self.Window_geoconfig = None
+
+    def _selected():
+    # ==============
+      global ishow
+      # ?????
+      itab = self.Mnb.index('current')
+      ishow.destroy()
+      # The usual configuration:
+      ii = self.SHAPE_INDX.get()
+      _went['textvariable'] = self.SHAPE[ii].FILENAME
+
+      ishow = ttk.Frame(self.Window_geoconfig,padding=10)
+
+      # Define tabs:
+      self.Mnb = ttk.Notebook(ishow)
+      page0 = ttk.Frame(self.Mnb)
+      page1 = ttk.Frame(self.Mnb)
+      page2 = ttk.Frame(self.Mnb)
+      page3 = ttk.Frame(self.Mnb)
+      self.Mnb.add(page0,text='Label Aspect')
+      self.Mnb.add(page1,text='Geometry Aspect')
+      self.Mnb.add(page2,text='Geometry Text',state="disabled")
+      self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+      self.Mnb.grid()
+      self.Mnb.select(itab)
+
+      # Page0
+      ttk.Label(page0, text='Show as text',padding=3). \
+              grid(row=0,column=0,padx=3,sticky='e')
+      ttk.Checkbutton(page0,variable=self.SHAPE[ii].textmode). \
+              grid(row=0,column=1,padx=3,sticky='w')
+      ttk.Label(page0, text='Generic label',padding=3). \
+              grid(row=1,column=0,padx=3,sticky='e')
+      ttk.Entry(page0,textvariable=self.SHAPE[ii].LABEL). \
+              grid(row=1,column=1,padx=3,sticky='w')
+               
+      # Page 1
+      geoplot.Configuration(page1,self.SHAPE[ii].PLOT)
+  
+      # Page 2
+      shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
+
+      # Page 3
+      #shape.ShowData(page3,self.SHAPE[ii])
+
+      f0 = ttk.Frame(ishow,padding=5)
+      ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
+          grid(row=0,column=0,padx=3)
+      ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+          grid(row=0,column=1,padx=3)
+      ttk.Button(f0,text='Done',command=_done,padding=5).     \
+          grid(row=0,column=2,padx=3)
+      f0.grid(sticky='ew',columnspan=3)
+      ishow.grid()
+
+    def _loadconf():
+    # =============
+      '''Load dot configuration'''
+      ii = self.SHAPE_INDX.get()
+      toconsola('Restoring dot configuration',wid=self.cons)
+      #print('Restoring dot configuration')
+      try:
+        self.SHAPE[ii].PLOT.load(self.SHAPE[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF)
+      self.make_plot()
+
+    def _saveconf():
+    # =============
+      '''Load dot configuration'''
+      ii = self.SHAPE_INDX.get()
+      toconsola('Saving dot configuration',wid=self.cons)
+      #print('Saving dot configuration')
+      try:
+        self.SHAPE[ii].PLOT.save(self.SHAPE[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF)
+
+    def _loadfromconf():
+    # ==================
+      '''Load dot configuration from a file'''
+      ii = self.SHAPE_INDX.get()
+      nn = filedialog.askopenfilename(title='Load geometry configuration',
+                                      parent=self.Window_dotconfig,
+                                      initialdir=COSMO_CONF)
+      if len(nn) == 0:
+        return
+
+      self.SHAPE[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Restoring dot configuration from '+
+            self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Restoring dot configuration from '+
+      #      self.SHAPE[ii].PLOT.FILECONF)
+      try:
+        self.SHAPE[ii].PLOT.load(self.SHAPE[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF)
+      self.make_plot()
+
+    def _saveasconf():
+    # ================
+      '''Save dot configuration to a file'''
+      ii = self.SHAPE_INDX.get()
+      nn = filedialog.asksaveasfilename(title='Save geometry configuration',
+                                        parent=self.Window_dotconfig,
+                                        initialdir=COSMO_CONF,
+                                        confirmoverwrite=True)
+      if nn is None or len(nn) == 0:
+        return
+
+      self.SHAPE[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Saving dot configuration to '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Saving dot configuration to '+self.SHAPE[ii].PLOT.FILECONF)
+      try:
+        self.SHAPE[ii].PLOT.save(self.SHAPE[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF)
+
+    if self.Window_geoconfig is not None:
+      self.Window_geoconfig.lift()
+      return
+
+    self.Window_geoconfig = tk.Toplevel(self.master)
+    self.Window_geoconfig.title('Shape geometry plot configuration')
+    self.Window_geoconfig.resizable(width=True,height=True)
+    self.Window_geoconfig.protocol('WM_DELETE_WINDOW',_cancel)
+
+    menubar = tk.Menu(self.Window_geoconfig)
+    menu = tk.Menu(menubar,tearoff=0)
+    menubar.add_cascade(label='Configuration',menu=menu)
+    menu.add_command(label='Restore',command=_loadconf)
+    menu.add_command(label='Restore from',command=_loadfromconf)
+    menu.add_command(label='Save',command=_saveconf)
+    menu.add_command(label='Save as',command=_saveasconf)
+    try:
+      self.Window_geoconfig.config(menu=menubar)
+    except AttributeError:
+      # master is a toplevel window (Python 2.4/Tkinter 1.63)
+      master.tk.call(Window_geoconfig, "config", "-menu", menubar)
+
+    fsel = ttk.Frame(self.Window_geoconfig,padding=10)
+    ttk.Label(fsel,text="File: ").grid(row=0,column=0,sticky='e',padx=3)
+    _wsel = ttk.Combobox(fsel,textvariable=self.SHAPE_INDX,
+                              values=self.SHAPE_LIST,width=5)
+    _wsel.grid(row=0,column=1,sticky='w',padx=3)
+    _wsel.bind('<<ComboboxSelected>>',lambda e:_selected())
+    _went = ttk.Entry(fsel,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=2,columnspan=5,padx=3,sticky='w')
+    _went = ttk.Entry(fsel,justify='left',width=80,state='readonly')
+    _went.grid(row=0,column=2,columnspan=8,padx=3,sticky='w')
+    fsel.grid()
+
+    # The usual configuration:
+    ii = self.SHAPE_INDX.get()
+    _went['textvariable'] = self.SHAPE[ii].FILENAME
+
+    ishow = ttk.Frame(self.Window_geoconfig,padding=10)
+    # Define tabs:
+    self.Mnb = ttk.Notebook(ishow)
+    page0 = ttk.Frame(self.Mnb)
+    page1 = ttk.Frame(self.Mnb)
+    page2 = ttk.Frame(self.Mnb)
+    page3 = ttk.Frame(self.Mnb)
+    self.Mnb.add(page0,text='Label Aspect')
+    self.Mnb.add(page1,text='Geometry Aspect')
+    self.Mnb.add(page2,text='Label Text',state="disabled")
+    self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+    self.Mnb.grid()
+
+    # Page0
+    ttk.Label(page0,text='Show as text',padding=3). \
+              grid(row=0,column=0,padx=3,sticky='e')
+    ttk.Checkbutton(page0,variable=self.SHAPE[ii].textmode). \
+              grid(row=0, column=1,padx=3, sticky='w')
+    ttk.Label(page0,text='Generic label',padding=3). \
+              grid(row=1,column=0,padx=3,sticky='e')
+    ttk.Entry(page0,textvariable=self.SHAPE[ii].LABEL).\
+              grid(row=1, column=1,padx=3, sticky='w')
+              
+    # Page 1
+    geoplot.Configuration(page1,self.SHAPE[ii].PLOT)
+
+    # Page 2
+    shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
+
+    # Page 3 Si hay Muchas geometrias inmanejable
+    #shape.ShowData(page3,self.SHAPE[ii])
+
+    f0 = ttk.Frame(ishow,padding=5)
+    ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
+        grid(row=0,column=0,padx=3)
+    ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+        grid(row=0,column=1,padx=3)
+    ttk.Button(f0,text='Done',command=_done,padding=5).     \
+        grid(row=0,column=2,padx=3)
+    f0.grid(sticky='ew')
+    ishow.grid()
 
   # =======================
   def get_lagrangian(self):
@@ -5623,12 +6127,14 @@ class CosmoDrawing():
         self.lbox.configure(state='disabled')
         self.first = True
 
-      print('Erasing record ', ii)
+      toconsola('Erasing record '+str(ii),wid=self.cons)
+      #print('Erasing record '+str(ii))
       del self.FLOAT[ii]
       self.nfloat -= 1
 
       ii = self.nfloat-1 if ii >= self.nfloat else ii
-      print('new nfloat = ',self.nfloat)
+      toconsola('new nfloat = '+str(self.nfloat),wid=self.cons)
+      #print('new nfloat = '+str(self.nfloat))
       self.FLOAT_INDX.set(ii)
       _refill(ii)
       #_close()
@@ -5685,7 +6191,8 @@ class CosmoDrawing():
         if len(filelist) > 0:
           for f in filelist:
             filename = join(path,f)
-            print('Loading file: ',filename)
+            toconsola('Loading file: '+filename,wid=self.cons)
+            #print('Loading file: '+filename)
             _load_trajectory(filename)
 
       elif ISOURCE == 2:
@@ -5696,7 +6203,8 @@ class CosmoDrawing():
         filelist = urlList(url,'geojson')
         if len(filelist) > 0:
           for filename in filelist:
-            print('Loading file: ',filename)
+            toconsola('Loading file: '+filename,wid=self.cons)
+            #print('Loading file: '+filename)
             _load_trajectory(filename)
 
       elif ISOURCE == 3:
@@ -5705,11 +6213,11 @@ class CosmoDrawing():
           for filename in filelist:
             _load_trajectory(filename)
 
-
     def _load_trajectory(filename):
     # ==================================
 
       FLT = lagrangian.parameters()
+      toconsola(FLT.MESSAGE, wid=self.cons)     
       FLT.Read(filename)
 
       if FLT.nfloats is None or FLT.nfloats==0 or FLT.nrecords==0:
@@ -5872,7 +6380,6 @@ class CosmoDrawing():
     ttk.Button(F1,text='Plot',command=_close).grid(row=1,column=8,padx=3)
     F1.grid(row=1,column=0)
 
-
   # ========================
   def currents_config(self):
   # ========================
@@ -5925,26 +6432,34 @@ class CosmoDrawing():
     def _loadconf():
     # =============
       '''Load vector configuration'''
-      print('Restoring vector configuration from ',
-            self.VEC[ii].VEL.PLOT.FILECONF)
+      toconsola('Restoring vector configuration from '+
+            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring vector configuration from '+
+      #      self.VEC[ii].VEL.PLOT.FILECONF)
       try:
         self.VEC[ii].VEL.PLOT.load(self.VEC[ii].VEL.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-            self.VEC[ii].VEL.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #    self.VEC[ii].VEL.PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load vector configuration'''
-      print('Saving vector configuration to ',
-            self.VEC[ii].VEL.PLOT.FILECONF)
+      toconsola('Saving vector configuration to '+
+            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+      #print('Saving vector configuration to '+
+      #      self.VEC[ii].VEL.PLOT.FILECONF)
       try:
         self.VEC[ii].VEL.PLOT.save(self.VEC[ii].VEL.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to write file ',
-            self.VEC[ii].VEL.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #    self.VEC[ii].VEL.PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -5956,14 +6471,18 @@ class CosmoDrawing():
         return
 
       self.VEC[ii].VEL.PLOT.FILECONF = '%s' % nn
-      print('Restoring vector configuration from ',
-            self.VEC[ii].VEL.PLOT.FILECONF)
+      toconsola('Restoring vector configuration from '+
+            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring vector configuration from '+
+      #      self.VEC[ii].VEL.PLOT.FILECONF)
       try:
         self.VEC[ii].VEL.PLOT.load(self.VEC[ii].VEL.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-             self.VEC[ii].VEL.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+             self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #     self.VEC[ii].VEL.PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -5976,12 +6495,15 @@ class CosmoDrawing():
         return
 
       self.VEC[ii].VEL.PLOT.FILECONF = '%s' % nn
-      print('Saving vector configuration to ',self.VEC[ii].VEL.PLOT.FILECONF)
+      toconsola('Saving vector configuration to '+self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+      #print('Saving vector configuration to '+self.VEC[ii].VEL.PLOT.FILECONF)
       try:
         self.VEC[ii].VEL.PLOT.save(self.VEC[ii].VEL.PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',
-             self.VEC[ii].VEL.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+             self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #     self.VEC[ii].VEL.PLOT.FILECONF)
 
     if self.Window_vectorconfig is not None:
       self.Window_vectorconfig.lift()
@@ -6035,10 +6557,9 @@ class CosmoDrawing():
     f0.grid(sticky='ew',columnspan=3)
     fshow.grid()
 
-
-  # ========================
+  # ======================
   def saidin_config(self):
-  # ========================
+  # ======================
 
     if empty(self.SAIDIN.FILENAME.get()):
       messagebox.showinfo(message='No SST image opened yet')
@@ -6057,25 +6578,33 @@ class CosmoDrawing():
     def _loadconf():
     # =============
       '''Load contour configuration'''
-      print('Restoring contour configuration from ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+      toconsola('Restoring contour configuration from '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring contour configuration from '+
+      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.FIELD.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-              self.SAIDIN.FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+              self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load contour configuration'''
-      print('Saving contour configuration to ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+      toconsola('Saving contour configuration to '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Saving contour configuration to '+
+      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.FIELD.PLOT.save(FF.PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -6087,14 +6616,18 @@ class CosmoDrawing():
         return
 
       self.SAIDIN.FIELD.PLOT.FILECONF = '%s' % nn
-      print('Restoring contour configuration from ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+      toconsola('Restoring contour configuration from '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring contour configuration from '+
+      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.FIELD.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-              self.SAIDIN.FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+              self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -6107,13 +6640,17 @@ class CosmoDrawing():
         return
 
       self.SAIDIN.FIELD.PLOT.FILECONF = '%s' % nn
-      print('Saving contour configuration to ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+      toconsola('Saving contour configuration to '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Saving contour configuration to '+
+      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.FIELD.PLOT.save(self.SAIDIN.FIELD.PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',
-            self.SAIDIN.FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
     if self.Window_saidinconfig is not None:
       self.Window_saidinconfig.lift()
@@ -6137,7 +6674,6 @@ class CosmoDrawing():
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       master.tk.call(Window_saidinconfig, "config", "-menu", menubar)
 
-
     gshow = ttk.Frame(self.Window_saidinconfig,padding=10)
 
     contourplot.Configuration(parent=gshow,
@@ -6156,13 +6692,9 @@ class CosmoDrawing():
     f0.grid(sticky='ew',columnspan=3)
     gshow.grid()
 
-
-
-
-
-  # ========================
+  # =======================
   def contour_config(self):
-  # ========================
+  # =======================
 
     global gshow
 
@@ -6212,29 +6744,36 @@ class CosmoDrawing():
       f0.grid(sticky='ew',columnspan=3)
       gshow.grid()
 
-
     def _loadconf():
     # =============
       '''Load contour configuration'''
-      print('Restoring contour configuration from ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+      toconsola('Restoring contour configuration from '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring contour configuration from '+
+      #      self.CDF[ii].FIELD.PLOT.FILECONF)
       try:
         self.CDF[ii].FIELD.PLOT.load(self.CDF[ii].FIELD.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-              self.CDF[ii].FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+              self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #      self.CDF[ii].FIELD.PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load contour configuration'''
-      print('Saving contour configuration to ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+      toconsola('Saving contour configuration to '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Saving contour configuration to '+
+      #      self.CDF[ii].FIELD.PLOT.FILECONF)
       try:
         self.CDF[ii].FIELD.PLOT.save(FF.PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #    self.CDF[ii].FIELD.PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -6246,14 +6785,18 @@ class CosmoDrawing():
         return
 
       self.CDF[ii].FIELD.PLOT.FILECONF = '%s' % nn
-      print('Restoring contour configuration from ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+      toconsola('Restoring contour configuration from '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Restoring contour configuration from '+
+      #      self.CDF[ii].FIELD.PLOT.FILECONF)
       try:
         self.CDF[ii].FIELD.PLOT.load(self.CDF[ii].FIELD.PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-              self.CDF[ii].FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+              self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #      self.CDF[ii].FIELD.PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -6267,13 +6810,17 @@ class CosmoDrawing():
 
       
       self.CDF[ii].FIELD.PLOT.FILECONF = '%s' % nn
-      print('Saving contour configuration to ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+      toconsola('Saving contour configuration to '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+      #print('Saving contour configuration to '+
+      #      self.CDF[ii].FIELD.PLOT.FILECONF)
       try:
         self.CDF[ii].FIELD.PLOT.save(self.CDF[ii].FIELD.PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',
-            self.CDF[ii].FIELD.PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+
+            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+
+        #    self.CDF[ii].FIELD.PLOT.FILECONF)
 
     if self.Window_contourconfig is not None:
       self.Window_contourconfig.lift()
@@ -6296,7 +6843,6 @@ class CosmoDrawing():
     except AttributeError:
       # master is a toplevel window (Python 2.4/Tkinter 1.63)
       master.tk.call(Window_contourconfig, "config", "-menu", menubar)
-
 
     fsel = ttk.Frame(self.Window_contourconfig,padding=10)
     ttk.Label(fsel,text="File: ").grid(row=0,column=0,sticky='e',padx=3)
@@ -6397,27 +6943,32 @@ class CosmoDrawing():
       f0.grid(sticky='ew',columnspan=3)
       hshow.grid()
 
-
     def _loadconf():
     # =============
       '''Load line configuration'''
-      print('Restoring line configuration from ',
-            self.FLOAT[ii].PLOT.FILECONF)
+      toconsola('Restoring line configuration from '+
+            self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Restoring line configuration from '+
+      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.load(self.FLOAT[ii].PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',self.FLOAT[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to load file ',self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file ',self.FLOAT[ii].PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load line configuration'''
-      print('Saving line configuration to ',
-            self.FLOAT[ii].PLOT.FILECONF)
+      toconsola('Saving line configuration to '+
+            self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Saving line configuration to '+
+      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.save(self.FLOAT[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',self.FLOAT[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -6429,14 +6980,18 @@ class CosmoDrawing():
         return
 
       self.FLOAT[ii].PLOT.FILECONF = '%s' % nn
-      print('Restoring line configuration from ',
-            self.FLOAT[ii].PLOT.FILECONF)
+      toconsola('Restoring line configuration from '+
+            self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Restoring line configuration from '+
+      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.load(self.FLOAT[ii].PLOT.FILECONF)
         self.make_plot()
       except:
-        print('Error: Unable to load file ',
-              self.FLOAT[ii].PLOT.FILECONF)
+        toconsola('Error: Unable to load file '+
+              self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to load file '+
+        #      self.FLOAT[ii].PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -6449,12 +7004,13 @@ class CosmoDrawing():
         return
 
       self.FLOAT[ii].PLOT.FILECONF = '%s' % nn
-      print('Saving line configuration to ',self.FLOAT[ii].PLOT.FILECONF)
+      toconsola('Saving line configuration to '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+      #print('Saving line configuration to '+self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.save(self.FLOAT[ii].PLOT.FILECONF)
       except:
-        print('Error: Unable to write file ',self.FLOAT[ii].PLOT.FILECONF)
-
+        toconsola('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
+        #print('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF)
 
     if self.Window_lineconfig is not None:
       self.Window_lineconfig.lift()
@@ -6526,8 +7082,6 @@ class CosmoDrawing():
     f0.grid(sticky='ew',columnspan=3)
     hshow.grid()
 
-
-
   # ===================
   def lselection(self):
   # ===================
@@ -6555,10 +7109,9 @@ class CosmoDrawing():
           self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
     self.make_plot()
 
-
-  # ===================================
+  # ==============
   def tprev(self):
-  # ===================================
+  # ==============
     '''Points to the previous time step'''
     if self.L.get() > 0:
       self.L.set(self.L.get() - 1)
@@ -6583,10 +7136,9 @@ class CosmoDrawing():
     else:
       return
 
-
-  # ================================
+  # ==============
   def tnext(self):
-  # ================================
+  # ==============
     '''Points to the next time step'''
     
     if self.L.get() < self.NL - 1:
@@ -6610,23 +7162,25 @@ class CosmoDrawing():
             Lp = self.CDF[self.FILEORDER[i]].L.get() + 1
             self.CDF[self.FILEORDER[i]].L.set(Lp)
             self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+      toconsola("EG Drawing next.................",wid=self.cons)
+      #print("EG Drawing next.................")
       self.make_plot()
+      toconsola("EG next DOne",wid=self.cons)
+      #print("EG next DOne")
     else:
       return
 
-
-  # ======================================
+  # ====================
   def data_update(self):
-  # ======================================
+  # ====================
     '''Makes the new plot according to the user selections. It call self.read to get the new data'''
     self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
     self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
     self.make_plot()
 
-
-  # ============================
+  # ===========================
   def get_date(self,ncid,icdf):
-  # ============================
+  # ===========================
  
     self.T_LIST = []
     if icdf.idl > -1:
@@ -6641,10 +7195,9 @@ class CosmoDrawing():
                        units=icdf.time_units, \
                        calendar=icdf.time_calendar))
 
-
-  # ==================================
+  # ========================
   def plot_initialize(self):
-  # ==================================
+  # ========================
 
     # Meridian and parallel range and intervalls:
     tmp1 = np.trunc(100*(self.PLOT.EAST.get()-self.PLOT.WEST.get())/4)/100
@@ -6660,506 +7213,384 @@ class CosmoDrawing():
     if tmp2 > 1:
       tmp2 = np.rint(tmp2)
     self.PLOT.PARALLEL_INT.set(tmp2)
-    self.PLOT.PARALLEL_INI.set(np.trunc(self.PLOT.SOUTH.get()/tmp2 -
-1)*tmp2)
+    self.PLOT.PARALLEL_INI.set(np.trunc(self.PLOT.SOUTH.get()/tmp2 - 1)*tmp2)
     self.PLOT.PARALLEL_FIN.set(np.trunc(self.PLOT.NORTH.get()/tmp2 + 1)*tmp2)
     tmp2 = None
-
-
-  def on_resizing_event(self,canvas):
-    ''' Update PLOT.SIZE variable according to the window size'''
-    self.PLOT.SIZE = list(self.fig.get_size_inches())
 
   # ==================
   def make_plot(self):
   # ==================
-
+    toconsola("EG make_plot:\n    PLOT.OUTPUT_FIGURE: "+str(self.PLOT.OUTPUT_FIGURE.get()),
+              wid=self.cons)
+      
     if self.PLOT.OUTPUT_FIGURE.get():
       if self.fig is None:
-        self.fig = plt.figure('COSMO-VIEW canvas',    
-                              figsize=self.PLOT.SIZE, 
-                              facecolor=self.PLOT.FIGURE_COLOR.get(),
-                              dpi=self.PLOT.DPI.get())
-        self.fig.canvas.mpl_connect('close_event',self.on_closing_figure)
-        self.fig.canvas.mpl_connect('resize_event',self.on_resizing_event)
-        self.fig.canvas.callbacks.connect('button_press_event',self.on_click)
-        self.ax = self.fig.add_subplot(111)
-        #self.ax.set_Frame_on(False)
-        self.ax.axis('off')
+        toconsola("\n    EGL creation", wid=self.cons)
+        self.Window_mapa = tk.Toplevel(self.master)
+        self.Window_mapa.title("COSMO-VIEW plotting tool")
+        self.Window_mapa.resizable(width=True,height=True)
+        self.Window_mapa.grid_columnconfigure(0, weight=1)
+        self.Window_mapa.grid_rowconfigure(0, weight=1)
+        self.Window_mapa.wm_geometry("1900x1200")
+        
+        #self.canvas = None # canvas
+        # Frame container
+        topframe = tk.Frame(self.Window_mapa)
+        topframe.grid_rowconfigure(0, weight=1)
+        topframe.grid(sticky='swen')
+        topframe.grid_columnconfigure(0, weight=1)	
+        # Two panels Utilizamos pack en canvas y grid en consola
+        # Afegim el canvas
+        top_panel = tk.Frame(topframe, pady = 20)
+        # Initialize figure,canvas an Plot panel
+        #self.ax=None
+        
+        self.fig = Figure(figsize=self.PLOT.SIZE, \
+           facecolor=self.PLOT.FIGURE_COLOR.get(),dpi=self.PLOT.DPI.get())
+        toconsola("    MAP_PLOT: Set projection parameters",wid=self.cons)
+        proj = map_proj(self.PLOT.MAP_PROJECTION.get(), params=self.params)
+        self.ax = self.fig.add_subplot(111, projection=proj['proj'])
+        self.canvas = FigureCanvasTkAgg(self.fig, master=top_panel)
+        #EG Dibujamos con self.draw_figure
+        #EG self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        toolbar = NavigationToolbar2Tk(self.canvas, top_panel)
+        toolbar.update()
+        self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=1)
+        
+        #EG event controllers
+        self.canvas.mpl_connect('button_press_event',self.canvas_click)
+        self.canvas.mpl_connect('close_event',self.canvas_closing)
+        self.canvas.mpl_connect('resize_event',self.canvas_resizing)
+        top_panel.grid(row=0, column=0, sticky='swen')
+        
         self.drawmap = True
+      else: toconsola("    EG ojo fig existe",wid=self.cons)
       self.draw_figure()
 
-  # ====================
-  def setmap(self,ax,target=0):
-  # ====================
-    '''Routine focused to set the Basemap projection'''
+  # ========================
+  def setmap(self,target=0):
+  # ========================
+    #'''EG OJOJ new setmap Routine focused to set the projection
+    # We implement a function to manage projection with Cartopy 
+    # map_proj(name,list). See tools module
+    #'''
+    #projection = self.PLOT.MAP_PROJECTION.get()
 
-    def cyl():
-      if target == 0:
-        self.m = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-
-    def epsg():
-      if target == 0:
-        self.m = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       epsg=self.PLOT.EPSG.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       epsg=self.PLOT.EPSG.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-
-    def geos():
-      if target == 0:
-        self.m = Basemap(llcrnrlat=SOUTH,
-                       urcrnrlat=NORTH,
-                       llcrnrlon=WEST,
-                       urcrnrlon=EAST,
-                       lon_0=self.PLOT.LON_0.get(),
-                       satellite_height=self.PLOT.SATELLITE_HEIGHT.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(), \
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       satellite_height=self.PLOT.SATELLITE_HEIGHT.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(), \
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-
-    def gnom():
-      if target == 0:
-        self.m = Basemap(width=self.PLOT.WIDTH.get(),
-                       height=self.PLOT.HEIGHT.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(), \
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(width=self.PLOT.WIDTH.get(),
-                       height=self.PLOT.HEIGHT.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(), \
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       ax=ax)
-
-    def merc():
-      lat_ts = 0.5*(self.PLOT.SOUTH.get()+self.PLOT.NORTH.get())
-      if target == 0:
-        self.m = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_ts=lat_ts,
-                       ax=ax)
-      else:
-        self.Mm = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_ts=lat_ts,
-                       ax=ax)
-
-    def moll():
-      if target == 0:
-        self.m = Basemap(projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-
-    def ortho():
-      if target == 0:
-        self.m = Basemap(projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-
-    def tmerc():
-      if target == 0:
-        self.m = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-      else:
-        self.Mm = Basemap(llcrnrlat=self.PLOT.SOUTH.get(),
-                       urcrnrlat=self.PLOT.NORTH.get(),
-                       llcrnrlon=self.PLOT.WEST.get(),
-                       urcrnrlon=self.PLOT.EAST.get(),
-                       projection=self.PLOT.MAP_PROJECTION.get(),
-                       resolution=self.PLOT.MAP_RESOLUTION.get(),
-                       lat_0=self.PLOT.LAT_0.get(),
-                       lon_0=self.PLOT.LON_0.get(),
-                       ax=ax)
-
-    try:
-      SOUTH = float(self.PLOT.SOUTH.get())
-    except:
-      SOUTH = None
-
-    try:
-      NORTH = float(self.PLOT.NORTH.get())
-    except:
-      NORTH = None
-
-    try:
-      WEST  = float(self.PLOT.WEST.get())
-    except:
-      WEST = None
-
-    try:
-      EAST  = float(self.PLOT.EAST.get())
-    except:
-      EAST  = None
-
-    options = {'aeqd' : gnom,
-               'cass' : tmerc,
-               'cea'  : cyl,
-               'cyl'  : cyl,
-               'gall' : cyl,
-               'epsg' : epsg,
-               'geos' : geos,
-               'gnom' : gnom,
-               'merc' : merc,
-               'moll' : moll,
-               'ortho': ortho,
-               'tmerc': tmerc,
-               }
-
-    projection = self.PLOT.MAP_PROJECTION.get()
-    options[projection]()
-
-
+    #EG self.toconsola("EG Set map Projection")
+    #proj = map_proj(projection)
+    #self.ax = self.fig.add_subplot(111, projection=proj['proj'])
+    #self.ax.set_extent([ float(self.PLOT.WEST.get()), \
+    #float(self.PLOT.EAST.get()), float(self.PLOT.SOUTH.get()),  \
+    #float(self.PLOT.NORTH.get())],proj['proj'])
+    #EG self.ax.coastlines()
+    #EG Projection
+    '''
+    if proj is None:
+		proj = map_proj(self.PLOT.MAP_PROJECTION.get())
+		
+    self.ax = self.fig.add_subplot(111, projection=proj['proj'])
+    '''
+    return
 
   # ====================
   def draw_figure(self):
   # ====================
-
-
+    global CONSOLA
+    
+    toconsola("EG draw_figure:",wid=self.cons)
+    toconsola(("    EG Configuration:\n"+ \
+			"\t Projection: "+str(self.PLOT.MAP_PROJECTION.get())+ \
+			"\n\t Domain:\t \t West - East: "+str(float(self.PLOT.WEST.get()))+  \
+			" - "+str(float(self.PLOT.EAST.get()))+  \
+			"\n\t \t South - North: "+str(float(self.PLOT.SOUTH.get()))+  \
+			" - "+str(float(self.PLOT.NORTH.get()))),wid=self.cons) 
     try:
       self.scbar.remove()
-    except:
-      pass
+    except:  pass
 
     for bar in self.cdfbar:
       try:
          bar.remove()
-      except:
-        pass
+      except: pass
+      
     self.cdfbar = []
-
+      
+    proj = map_proj(self.PLOT.MAP_PROJECTION.get())
     self.ax.clear()
 
-
-
     # EPSG
-    epsg = int(self.PLOT.EPSG.get())
+    # EG Not necessary
+    # epsg = int(self.PLOT.EPSG.get())
+	
+    # Este bloque podría rehacerse ahora
+    # Temporally deprecated self.PLOT.GEOMAP.get()
+    
+    self.ax.set_extent([float(self.PLOT.WEST.get()) ,float(self.PLOT.EAST.get()),\
+         float(self.PLOT.SOUTH.get()),float(self.PLOT.NORTH.get())],\
+         crs=proj['proj'])
+    #Eg pruebas con projeccions self.ax.coastlines()
+    
+    toconsola("    EG self.PLOT.GEOMAP: "+str(self.PLOT.GEOMAP.get()),wid=self.cons)
+    if self.drawmap:
+      toconsola("    EG draw_figure: call setmap no more needed !",wid=self.cons)
+      self.drawmap = False
 
-    try:
-      SOUTH = float(self.PLOT.SOUTH.get())
-    except:
-      SOUTH = None
+    #EG We implement GEBCO+EMODNET Tiles services
+    toconsola("   EG: RELIEF tiles"+str(self.PLOT.RELIEF_SHOW.get()),wid=self.cons)
+    if self.PLOT.RELIEF_SHOW.get():
+      if self.PLOT.RELIEF.get() == 1:
+        gebco ="GEBCO_2019_Grid"
+        try:
+          toconsola("\t EG: GEBCO tiles",wid=self.cons)
+          self.ax.add_wms(wms='https://www.gebco.net/data_and_products/gebco_web_services/2019/mapserv?request=getmap&service=wms&BBOX=-90,-180,90,360&crs=EPSG:4326&format=image/jpeg&layers=gebco_2019_grid&width=1200&height=600&version=1.3.0',layers=gebco,zorder=0)
+        except:
+          toconsola("\t WARNING: GEBCO server failed !, it is disabled......",wid=self.cons)  
+      elif self.PLOT.RELIEF.get() == 2: 
+        emod_land="emodnet:mean_atlas_land"
+        toconsola("\t EG: EMODNET tiles",wid=self.cons)  
+        try:
+          self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emod_land,zorder=0)
+        except:
+          toconsola("\t WARNING: EMODNET server failed !, it is disabled......",wid=self.cons)
+      else:
+        #EG Sometimes this situation is possible (i.e. manual edition of conf files)
+        self.PLOT.RELIEF_SHOW.set(False)
 
-    try:
-      NORTH = float(self.PLOT.NORTH.get())
-    except:
-      NORTH = None
-
-    try:
-      WEST  = float(self.PLOT.WEST.get())
-    except:
-      WEST = None
-
-    try:
-      EAST  = float(self.PLOT.EAST.get())
-    except:
-      EAST  = None
-
-    if self.PLOT.GEOMAP.get() == False:
-      '''Plotting maps without MATPLOTLIB'''
-
-      self.m = None
-    else:
-      '''Plotting the maps using MATPLOTLIB utilities'''
-
-      if self.drawmap:
-        self.setmap(self.ax,0)
-        self.drawmap = False
-
-      if self.PLOT.RELIEF.get():
-        self.m.shadedrelief(scale=self.PLOT.BACKGROUND_SCALE.get())
-
-      if self.PLOT.BLUEMARBLE.get():
-        self.m.bluemarble(scale=self.PLOT.BACKGROUND_SCALE.get())
-
-      if self.PLOT.ETOPO.get():
-        self.m.etopo(scale=self.PLOT.BACKGROUND_SCALE.get())
-
-      if self.PLOT.ARCGISIMAGE.get() == 1:
-        self.m.arcgisimage(service=self.PLOT.ARCGISSERVICE.get(), \
-                         xpixels=self.PLOT.ARCGISPIXELS.get(),  \
-                         dpi=self.PLOT.ARCGISDPI.get(),         \
-                         epsg=epsg,                             \
-                         verbose=self.PLOT.ARCGISVERBOSE.get())
-
- 
+    if self.PLOT.EMODNET_ISO.get():
+      emodnet="emodnet:contours"
+      toconsola("\t EG: EMODNET contours",wid=self.cons)
+      try:
+        self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+      except:
+        toconsola("\t WARNING: EMODNET contours failed !, it is disabled......",wid=self.cons)
+        
     # Draw SAIDIN:
     # 
     if not empty(self.SAIDIN.FILENAME.get()):
       if self.SAIDIN.FIELD.show.get():
-        self.scbar = contourplot.drawing(self.fig,self.ax,self.m,
-                       self.SAIDIN.xx,self.SAIDIN.yy,self.SAIDIN.FIELD.data,
+        toconsola("EG plot SAIDIN",wid=self.cons)
+        #EG Added projection argument, map reference dropped
+        self.scbar = contourplot.drawing(self.fig,self.ax,proj['proj'],
+                       self.SAIDIN.xx, self.SAIDIN.yy,
+                       self.SAIDIN.FIELD.data,
                        self.SAIDIN.FIELD.mask,
                        self.SAIDIN.FIELD.PLOT)
-
     # Draw fields:
     # 
     if self.ncdf > 0:
+      #EG Added projection argument, map reference dropped	
+      toconsola("EG: plot netcdf",wid=self.cons)
       for ii in range(self.ncdf):
         if self.CDF[ii].FIELD.show.get():
-          self.cdfbar.append (contourplot.drawing(self.fig,self.ax,self.m,
-                                  self.CDF[ii].xx,
-                                  self.CDF[ii].yy,
-                                  self.CDF[ii].FIELD.data,
-                                  self.CDF[ii].FIELD.mask,
-                                  self.CDF[ii].FIELD.PLOT))
-
+          self.cdfbar.append(contourplot.drawing(self.fig, 
+							self.ax, proj['proj'],
+							self.CDF[ii].xx, self.CDF[ii].yy,
+							self.CDF[ii].FIELD.data,
+							self.CDF[ii].FIELD.mask,
+							self.CDF[ii].FIELD.PLOT))
     # Draw currents:
     #
     if self.nvec > 0:
+      toconsola("EG plot currents",wid=self.cons)
       for ii in range(self.nvec):
         if self.VEC[ii].VEL.show.get():
-          vectorplot.drawing (self.fig,self.ax,self.m,self.VEC[ii])
-
+          vectorplot.drawing(self.ax, proj['proj'], self.VEC[ii])
+          
     # Draw floats:
     #
     if self.nfloat > 0:
+      toconsola("EG plot floats",wid=self.cons)
       for ii in range(self.nfloat):
         self.FLOAT[ii].L.set(self.L.get())
-        lagrangian.drawing(self.fig,self.ax,self.m,self.FLOAT[ii])
+        lagrangian.drawing(self.ax, proj['proj'], self.FLOAT[ii])
 
     # Draw markers:
     #
     if self.nmarker > 0:
-      for ii in range(self.nmarker):
-        geomarker.drawing(self.fig,self.ax,self.m,self.MARKER[ii])
+      toconsola("EG plot markers",wid=self.cons)
+      for ii in range(self.nmarker): 
+        #EG Added projection argument, reference map and fig dropped
+        geomarker.drawing(self.ax, proj['proj'], self.MARKER[ii])
+        
+    # Draw SHAPES:
+    #
+    if self.nshape > 0:
+      toconsola("EG plot shapes",wid=self.cons)
+      for ii in range(self.nshape):	
+        toconsola("\tSHAPE"+str(ii),wid=self.cons)
+        #EG Added projection argument, reference map and fig 
+        shape.drawing(self.ax, proj['proj'], self.SHAPE[ii])
 
+    #EG Coastlines
+    toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
+    if self.PLOT.COASTLINE_SHOW.get():
+      if self.PLOT.COASTLINE_SOURCE.get() == 1:
+        emodnet="coastlines"
+        try:
+          self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+        except:
+          toconsola("\t WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
+      else:
+        toconsola("\t EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        self.ax.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
 
-    if self.PLOT.GEOMAP.get():
-      '''Plotting maps without MATPLOTLIB'''
-      if self.PLOT.COASTLINE_SHOW.get():
-        self.m.drawcoastlines(linewidth=self.PLOT.COASTLINE_WIDTH.get(), \
-                             color=self.PLOT.COASTLINE_COLOR.get())
- 
-
-      if self.PLOT.COUNTRYLINE_SHOW.get():
-        self.m.drawcountries(linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(), \
-                            color=self.PLOT.COUNTRYLINE_COLOR.get())
-
-      if self.PLOT.ISOBAT_NPLOT > 0:
-        # Plot isobaths and its legend:
-        lines = []
-        labels = []
-        for ii in range(self.PLOT.nisobat):
-          if self.PLOT.ISOBAT_LABEL_SHOW.get():
-            label = self.PLOT.ISOBAT_LABEL[ii]
-          else:
-            label = None
-          try:
-            color = eval(self.PLOT.ISOBAT_COLOR[ii].get())
-          except:
-            color = self.PLOT.ISOBAT_COLOR[ii].get()
-          if self.PLOT.ISOBAT_SHOW[ii]:
-            z = self.PLOT.ISOBAT_DATA[ii]
-            ilon = z['lon']
-            ilat = z['lat']
-            isox,isoy = self.m(ilon,ilat)
-            for i in range(len(isox)):
-              if isox[i] > 1e29:
-                isox[i] = np.nan
-                isoy[i] = np.nan
-            isbt, = self.m.plot(isox,isoy,
-                                marker=None, 
+    if self.PLOT.ISOBAT_NPLOT > 0:
+      toconsola("EG plot Custom ISOBATHS",wid=self.cons)
+      # Plot isobaths and its legend:
+      lines, labels = [], []
+      toconsola("\t lABEL_SHOW"+str(self.PLOT.ISOBAT_LABEL_SHOW.get()),wid=self.cons)
+      for ii in range(self.PLOT.nisobat):
+        label = None
+        if self.PLOT.ISOBAT_LABEL_SHOW.get():
+          label = self.PLOT.ISOBAT_LABEL[ii]
+        try:
+          color = eval(self.PLOT.ISOBAT_COLOR[ii].get())
+        except:
+          color = self.PLOT.ISOBAT_COLOR[ii].get()
+          
+        if self.PLOT.ISOBAT_SHOW[ii]:
+          toconsola("\t EG ISOBATA:"+str(self.PLOT.ISOBAT_LABEL[ii]),wid=self.cons)
+          z = self.PLOT.ISOBAT_DATA[ii]
+          isox,isoy = z['lon'],z['lat']
+          for i in range(len(isox)):
+            if isox[i] > 1e29:
+              isox[i], isoy[i] = np.nan, np.nan
+            
+          isbt, = self.ax.plot(isox,isoy,marker=None, 
                                 linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
                                 linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
                                 color=color)
-            lines.append(isbt)
-            labels.append(label)
-
-            if self.PLOT.ISOBAT_LEGEND.SHOW.get():
-              if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
+          lines.append(isbt)
+          labels.append(label)
+            
+          if self.PLOT.ISOBAT_LEGEND.SHOW.get():
+            toconsola("\t self.PLOT.ISOBAT_LEGEND.SHOW"+str(self.PLOT.ISOBAT_LEGEND.SHOW.get()),wid=self.cons)
+            fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
+            mode = None
+            if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
                 fontsize = None
-              else:
-                fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
-              if self.PLOT.ISOBAT_LEGEND.MODE.get() == 1:
+            if self.PLOT.ISOBAT_LEGEND.MODE.get() == 1:
                 mode = 'expand'
-              else:
-                mode = None
-  
-              self.Ilegend = plt.legend([lines[i] for i in range(len(lines))],
-                          [labels[i] for i in range(len(lines))],
-                          loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
-                          ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
-                          fontsize=fontsize,
-                          frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
-                          fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
-                          shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
-                          framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
-                          mode=mode,
-                          facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
-                          edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
-                          markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
-                          borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
-                          handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
-                          borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
-                          labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get(),
-                               )
+            if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
+              try: pass
+              except: pass
+      self.ax.legend(lines,labels, \
+                     title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                     title_fontsize=24,
+                     loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
+                     ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
+                     fontsize=fontsize,
+                     frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
+                     fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
+                     shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
+                     framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
+                     mode=mode,
+                     facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
+                     edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
+                     markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
+                     borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
+                     handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
+                     borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
+                     labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
 
-              if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
-                try:
-                  self.Ilegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
-                                   prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
-                except:
-                  pass
-
-            #self.ax.add_artist(self.Ilegend)
-
-
-
-      if self.PLOT.WATER_COLOR.get() is not 'None':
-        self.m.drawmapboundary(fill_color=self.PLOT.WATER_COLOR.get())
-
-      if self.PLOT.LAND_COLOR.get() is not 'None':
-        self.m.fillcontinents(color=self.PLOT.LAND_COLOR.get())
-
-      if self.PLOT.RIVERS_SHOW.get():
-        self.m.drawrivers(linewidth=self.PLOT.RIVERS_WIDTH.get(), \
-                          color=self.PLOT.RIVERS_COLOR.get())
-
-
+    if self.PLOT.WATER_COLOR.get() is not 'None':
+      toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
+      self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
+					self.PLOT.MAP_RESOLUTION.get(), \
+					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
+    if self.PLOT.LAND_COLOR.get() is not 'None': 
+      toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
+      self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
+					self.PLOT.MAP_RESOLUTION.get(), \
+					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
+    if self.PLOT.COUNTRYLINE_SHOW.get():
+      toconsola("PLOT.COUNTRYLINE",wid=self.cons)
+      self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+    if self.PLOT.RIVERS_SHOW.get(): 
+      toconsola("PLOT.RIVERS",wid=self.cons)
+      self.ax.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
+			self.PLOT.MAP_RESOLUTION.get(), \
+			linewidth=self.PLOT.RIVERS_WIDTH.get(),
+			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
 
     if self.PLOT.GRID_SHOW.get():
-
-      def setcolor(x,color):
-        for m in x:
-          for t in x[m][1]:
-            t.set_color(color)
-
+      toconsola("EG PLOT.GRID"+self.PLOT.GRID_LINESTYLE.get(),wid=self.cons)
+      #EG adaptar falat comprobar
+      #def setcolor(x,color):
+      #  for m in x:
+      #    for t in x[m][1]:
+      #      t.set_color(color)
       vmeridians = np.arange(self.PLOT.MERIDIAN_INI.get(), \
                              self.PLOT.MERIDIAN_FIN.get(), \
                              self.PLOT.MERIDIAN_INT.get())
       vparallels = np.arange(self.PLOT.PARALLEL_INI.get(), \
                              self.PLOT.PARALLEL_FIN.get(), \
                              self.PLOT.PARALLEL_INT.get())
+      lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
+      lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
+      gl = self.ax.gridlines(crs=proj['proj'],draw_labels=True,
+						linewidth=self.PLOT.GRID_LINEWIDTH.get(),
+						color=self.PLOT.GRID_FONTCOLOR.get(),
+						alpha=self.PLOT.GRID_ALPHA.get(),
+						linestyle=self.PLOT.GRID_LINESTYLE.get())
+      # Lines visibility
+      gl.xlines, gl.ylines = True, True
+      if self.PLOT.GRID_LINESTYLE.get() == "None":
+        gl.xlines, gl.ylines = False, False
+        
+      # xy labels visibility
+      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
+      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
+      gl.ylabels_left = self.PLOT.GRID_WEST.get()
+      gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      
+      gl.xlocator = mticker.FixedLocator(vmeridians)
+      gl.ylocator = mticker.FixedLocator(vparallels)
+      gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
+      gl.xformatter = LONGITUDE_FORMATTER
+      gl.xformatter = LONGITUDE_FORMATTER
+      gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
+      #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
+    else:
+      # Default: no labels, no grid just Latitude and Longitude
+      toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+" - "+self.PLOT.YLABEL.get(),wid=self.cons)
+      font_family = self.PLOT.MAP_FONT_TYPE.get()
+      font_size   = self.PLOT.LABEL_SIZE.get()
+      font_weight = 'normal'
+      font = {'family' : font_family, 'weight' : font_weight,
+              'color'  : self.PLOT.TEXT_COLOR.get(),
+              'size'   : font_size}
+      
+      self.ax.text(-0.07, 0.55, self.PLOT.YLABEL.get(), va="bottom", \
+					ha="center", rotation="vertical", rotation_mode="anchor",
+					transform=self.ax.transAxes,fontdict=font)
+      self.ax.text(0.5, -0.2, self.PLOT.XLABEL.get(), va="bottom", \
+					ha="center", rotation="horizontal", rotation_mode="anchor",
+					transform=self.ax.transAxes,fontdict=font)
+    # Title
+    toconsola("Plot Title: "+self.PLOT.TITLE.get(),wid=self.cons)
+    self.ax.set_title(self.PLOT.TITLE.get(),fontproperties=self.PLOT.TITLEFONT)                  
+    px,py = self.ax.title.get_position()
+    dy = self.PLOT.TITLE_PAD.get()/self.fig.get_dpi()
+    self.ax.title.set_position((px,py+dy))
 
-      if self.PLOT.GEOMAP.get():
-        par = self.m.drawmeridians(vmeridians,                            \
-                        labels=[self.PLOT.GRID_WEST.get(),        \
-                                self.PLOT.GRID_EAST.get(),        \
-                                self.PLOT.GRID_NORTH.get(),       \
-                                self.PLOT.GRID_SOUTH.get()],      \
-                        fontsize=self.PLOT.GRID_SIZE.get(),       \
-                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
-                        color=self.PLOT.GRID_COLOR.get())
-        setcolor(par,self.PLOT.GRID_FONTCOLOR.get())
-
-        mer = self.m.drawparallels(vparallels,                            \
-                        labels=[self.PLOT.GRID_WEST.get(),        \
-                                self.PLOT.GRID_EAST.get(),        \
-                                self.PLOT.GRID_NORTH.get(),       \
-                                self.PLOT.GRID_SOUTH.get()],      \
-                        fontsize=self.PLOT.GRID_SIZE.get(),       \
-                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
-                        color=self.PLOT.GRID_COLOR.get())
-        setcolor(mer,self.PLOT.GRID_FONTCOLOR.get())
-
-        # Modify the line characteristics:
-        lat_lines = chain(*(tup[1][0] for tup in mer.items()))
-        lon_lines = chain(*(tup[1][0] for tup in par.items()))
-        all_lines = chain(lat_lines,lon_lines)
-
-        # cylce through these lines and set the desired style
-        for line in all_lines:
-          line.set(linestyle=self.PLOT.GRID_LINESTYLE.get(),
-                   alpha=self.PLOT.GRID_ALPHA.get())
-
-      else:
-
-        self.ax.grid(True)
-
-        self.ax.set_xticks(vmeridians)
-        self.ax.set_yticks(vparallels)
-        plt.rc('grid',alpha=self.PLOT.GRID_ALPHA.get())
-        plt.rc('grid',color=colors.to_rgba(self.PLOT.GRID_COLOR.get()))
-        plt.rc('grid',linewidth= self.PLOT.GRID_LINEWIDTH.get())
-        plt.rc('grid',linestyle=self.PLOT.GRID_LINESTYLE.get())
-        plt.rc('xtick',color=self.PLOT.GRID_FONTCOLOR.get())
-        plt.rc('xtick',labelsize=self.PLOT.GRID_SIZE.get())
-        plt.rc('ytick',color=self.PLOT.GRID_FONTCOLOR.get())
-        plt.rc('ytick',labelsize=self.PLOT.GRID_SIZE.get())
-
-
-
-
-    if self.PLOT.GEOMAP.get():
+    if self.PLOT.GEOMAP.get():	
+      toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
       if self.PLOT.SCALE_SHOW.get():
           try:
             YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
-          except:
-            YOFFSET = None
-              
+          except: YOFFSET = None
           try:
             LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
-          except:
-            LINEWIDTH = None
-
+          except:  LINEWIDTH = None
+          #EG no parecefuncionarojo scale_bar from tools
+          toconsola("EG bar scale", wid=self.cons)
+          scale_bar(self.ax, 1)
+          '''EG To be implemented with Cartopy
+          print("EG PLOT.GEOMAP 2 drawmapscale")
           self.m.drawmapscale(self.PLOT.SCALE_X.get(),
                               self.PLOT.SCALE_Y.get(),
                               self.PLOT.SCALE_XO.get(),
@@ -7176,69 +7607,43 @@ class CosmoDrawing():
                               format=self.PLOT.SCALE_FORMAT.get(),
                               linecolor=self.PLOT.SCALE_LINECOLOR.get(),
                               linewidth=LINEWIDTH)
-
-
-    # Lables and titles:
-    font_family = self.PLOT.MAP_FONT_TYPE.get()
-
-    font_size   = self.PLOT.LABEL_SIZE.get()
-    font_weight = 'normal'
-
-    font = {'family' : font_family,
-            'weight' : font_weight,
-            'color'  : self.PLOT.TEXT_COLOR.get(),
-            'size'   : font_size}
-
-    self.ax.xaxis.labelpad = self.PLOT.LABEL_PAD.get()
-    self.ax.yaxis.labelpad = self.PLOT.LABEL_PAD.get()
-    self.ax.set_xlabel(self.PLOT.XLABEL.get(),fontdict=font)
-    self.ax.set_ylabel(self.PLOT.YLABEL.get(),fontdict=font)
-
-    self.ax.set_title(self.PLOT.TITLE.get(),
-                      fontproperties=self.PLOT.TITLEFONT)
-    px,py = self.ax.title.get_position()
-    dy = self.PLOT.TITLE_PAD.get()/self.fig.get_dpi()
-    self.ax.title.set_position((px,py+dy))
-
+          ''' 
     # Time stamp
     try:
       self.time_stamp.remove()
-    except:
-      pass
-
+    except: pass
+    
     if len(self.DATE) > 0:
+      toconsola("EG Time stamp: len(self.DATE) > 0", wid=self.cons)
       if self.PLOT.TIMESTAMP_SHOW.get():
-        if self.PLOT.TIMESTAMP_BOLD.get():
-          font_weight = 'bold'
-        else:
-          font_weight = 'normal'
-        font = {'family' : font_family,
-                'weight' : font_weight,
-                'color'  : self.PLOT.TIMESTAMP_COLOR.get(),
-                'size'   : self.PLOT.TIMESTAMP_SIZE.get()}
-
-        self.time_stamp = self.fig.text(self.PLOT.TIMESTAMP_X.get(),     \
-                                      self.PLOT.TIMESTAMP_Y.get(),     \
-                                      self.DATE[self.L.get()], \
-                                      fontdict=font)
-
-    if self.PLOT.LOGO_DISPLAY.get() == 1:
-      self.plot_logo()
-
+        toconsola("EG Time stamp: "+self.DATE[self.L.get()], wid=self.cons)
+        font_weight = 'normal'
+        if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
+   
+        self.ax.annotate(self.DATE[self.L.get()], \
+					xy=(self.PLOT.TIMESTAMP_X.get(), \
+					   self.PLOT.TIMESTAMP_Y.get()), \
+					xycoords='figure fraction', \
+					color=self.PLOT.TIMESTAMP_COLOR.get(), \
+					fontsize=self.PLOT.TIMESTAMP_SIZE.get(), \
+					fontfamily=font_family, fontweight=font_weight, \
+					annotation_clip=False)
+    
+    if self.PLOT.LOGO_DISPLAY.get() == 1: self.plot_logo()
+     
     self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
     self.ax.callbacks.connect('ylim_changed', self.on_ylims_change)
 
     if self.nmarker > 0 and self.PLOT.LEGEND.SHOW.get():
-      if self.PLOT.LEGEND.FONTSIZE.get() < 1:
-        fontsize = None
-      else:
-        fontsize = self.PLOT.LEGEND.FONTSIZE.get()
-      if self.PLOT.LEGEND.MODE.get() == 1:
-        mode = 'expand'
-      else:
-        mode = None
+      toconsola("EG self.nmarker ?",wid=self.cons)
+      fontsize = self.PLOT.LEGEND.FONTSIZE.get()
+      mode = None
+      
+      if self.PLOT.LEGEND.FONTSIZE.get() < 1: fontsize = None
+      if self.PLOT.LEGEND.MODE.get() == 1: mode = 'expand'
 
       try:
+        toconsola("EG ax.legend",wid=self.cons)
         legend = self.ax.legend(loc=self.PLOT.LEGEND.LOC.get(), 
                         ncol=self.PLOT.LEGEND.NCOL.get(),
                         fontsize=fontsize,
@@ -7253,50 +7658,47 @@ class CosmoDrawing():
                         borderpad=self.PLOT.LEGEND.BORDERPAD.get(),
                         handletextpad=self.PLOT.LEGEND.HANDLETEXTPAD.get(),
                         borderaxespad=self.PLOT.LEGEND.BORDERAXESPAD.get(),
-                        labelspacing=self.PLOT.LEGEND.LABELSPACING.get(),
-                               )
-
-      except:
-        pass
+                        labelspacing=self.PLOT.LEGEND.LABELSPACING.get())
+      except: pass
 
       if not empty(self.PLOT.LEGEND.TITLE.get()):
         try:
           legend.set_title(self.PLOT.LEGEND.TITLE.get(),
                            prop=self.PLOT.LEGEND.TITLEFONT)
-        except:
-          pass
+        except: pass
+    
+    self.canvas.draw()
+    toconsola("End draw_figure:",wid=self.cons)
+    return
 
-
-    self.fig.show()
-
-
-  # ====================
-  def make_Mplot(self):
-  # ====================
-    '''Plotting the maps using MATPLOTLIB utilities, 
+  # ============================
+  def make_Mplot(self,proj=None):
+  # ============================
+    '''Plotting the maps using CARTOPY, 
        output directed to Movie window'''
-
     try:
       self.SAIDIN.Mcbar.remove()
-    except:
-      pass
+    except:  pass
 
     try:
       self.Mscbar.remove()
-    except:
-      pass
+    except:  pass
 
     for bar in self.Mcdfbar:
       try:
          bar.remove()
-      except:
-        pass
+      except:  pass
+      
+    #EG recover the cartopy projection
+    if proj is None:
+      rproj = map_proj(self.PLOT.MAP_PROJECTION.get())
+      proj = rproj['proj']
+      
     self.Mcdfbar = []
-
     self.Max.clear()
 
-    # EPSG
-    epsg = int(self.PLOT.EPSG.get())
+    # Deshabilitado temporalmente EPSG
+    # epsg = int(self.PLOT.EPSG.get())
 
     SOUTH = float(self.PLOT.SOUTH.get())
     NORTH = float(self.PLOT.NORTH.get())
@@ -7304,284 +7706,289 @@ class CosmoDrawing():
     EAST  = float(self.PLOT.EAST.get())
 
     if self.Mdrawmap:
-      self.setmap(self.Max,1)
+      #EG no se necesita mas self.setmap(self.Max,1)
       self.Mdrawmap = False
 
-    if self.PLOT.RELIEF.get():
-      self.Mm.shadedrelief(scale=self.PLOT.BACKGROUND_SCALE.get())
+    toconsola("EG: RELIEF tiles",wid=self.cons)
+    #print("EG: RELIEF tiles")
+    if self.PLOT.RELIEF_SHOW.get():
+      if self.PLOT.RELIEF.get() == 1:
+        gebco ="GEBCO_2019_Grid"
+        try:
+          toconsola("\tEG: GEBCO tiles",wid=self.cons)
+          #print("\tEG: GEBCO tiles")
+          self.Max.add_wms(wms='https://www.gebco.net/data_and_products/gebco_web_services/2019/mapserv?request=getmap&service=wms&BBOX=-90,-180,90,360&crs=EPSG:4326&format=image/jpeg&layers=gebco_2019_grid&width=1200&height=600&version=1.3.0',layers=gebco,zorder=0)
+        except:
+          toconsola("\tWARNING: GEBCO server failed !, it is disabled......",wid=self.cons)
+          #print("\tWARNING: GEBCO server failed !, it is disabled......")      
+      elif self.PLOT.RELIEF.get() == 2: 
+        emod_land="emodnet:mean_atlas_land"
+        toconsola("\tEG: EMODNET tiles",wid=self.cons)
+        #print("\tEG: EMODNET tiles")
+        try:
+          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emod_land,zorder=0)
+        except:
+          toconsola("\tWARNING: EMODNET server failed !, it is disabled......",wid=self.cons)
+          #print("\tWARNING: EMODNET server failed !, it is disabled......")
+      else:
+        #EG Sometimes this situation is possible (i.e. manual edition of conf files)
+        self.PLOT.RELIEF_SHOW.set(False)
 
-    if self.PLOT.BLUEMARBLE.get():
-      self.Mm.bluemarble(scale=self.PLOT.BACKGROUND_SCALE.get())
-
-    if self.PLOT.ETOPO.get():
-      self.Mm.etopo(scale=self.PLOT.BACKGROUND_SCALE.get())
-
-    if self.PLOT.ARCGISIMAGE.get() == 1:
-      self.Mm.arcgisimage(service=self.PLOT.ARCGISSERVICE.get(), \
-                         xpixels=self.PLOT.ARCGISPIXELS.get(),   \
-                         dpi=self.PLOT.ARCGISDPI.get(),          \
-                         epsg=epsg,                              \
-                         verbose=self.PLOT.ARCGISVERBOSE.get())
-
-
+    if self.PLOT.EMODNET_ISO.get():
+      emodnet="emodnet:contours"
+      toconsola("EG: EMODNET contours",wid=self.cons)
+      #print("EG: EMODNET contours")
+      try:
+        self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+      except:
+        toconsola("\t WARNING: EMODNET contours failed !, it is disabled......",wid=self.cons)
+        #print("\t WARNING: EMODNET contours failed !, it is disabled......") 
+    
     # Draw SAIDIN:
-    #
     if not empty(self.SAIDIN.FILENAME.get()):
-      self.Mscbar = contourplot.drawing(self.Mfig,self.Max,self.Mm, \
+      self.Mscbar = contourplot.drawing(self.Mfig,self.Max, proj,\
                           self.SAIDIN.xx,self.SAIDIN.yy, \
                           self.SAIDIN.FIELD.data, \
                           self.SAIDIN.FIELD.mask, \
                           self.SAIDIN.FIELD.PLOT)
-
     # Draw fields:
-    #
     if self.ncdf > 0:
       for ii in range(self.ncdf):
         if self.CDF[ii].FIELD.show.get():
-          self.Mcdfbar.append (contourplot.drawing(self.Mfig,self.Max, \
-                                    self.Mm, \
+          self.Mcdfbar.append(contourplot.drawing(self.Mfig,self.Max, proj,\
                                     self.CDF[ii].xx,   \
                                     self.CDF[ii].yy,   \
                                     self.CDF[ii].FIELD.data, \
                                     self.CDF[ii].FIELD.mask, \
                                     self.CDF[ii].FIELD.PLOT))
-
     # Draw currents:
-    #
     if self.nvec > 0:
       for ii in range(self.nvec):
         if self.VEC[ii].VEL.show.get():
-          vectorplot.drawing (self.Mfig,self.Max,self.Mm,self.VEC[ii])
-
+          vectorplot.drawing(self.Max,proj,self.VEC[ii])
     # Draw floats:
-    #
     if self.nfloat > 0:
       for ii in range(self.nfloat):
         self.FLOAT[ii].L.set(self.L.get())
-        lagrangian.drawing(self.Mfig,self.Max,self.Mm,self.FLOAT[ii])
-
-
+        lagrangian.drawing(self.Max,proj,self.FLOAT[ii])
     # Draw markers:
-    #
     if self.nmarker > 0:
       for ii in range(self.nmarker):
-        geomarker.drawing(self.Mfig,self.Max,self.Mm,self.MARKER[ii])
+        geomarker.drawing(self.Max,proj,self.MARKER[ii])
 
-
+    #EG Coastlines
+    toconsola("EG: COASTLINES",wid=self.cons)
+    #print("EG: COASTLINES")
     if self.PLOT.COASTLINE_SHOW.get():
-      self.Mm.drawcoastlines(linewidth=self.PLOT.COASTLINE_WIDTH.get(), \
-                       color=self.PLOT.COASTLINE_COLOR.get())
-
-    if self.PLOT.COUNTRYLINE_SHOW.get():
-      self.Mm.drawcountries(linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(), \
-                        color=self.PLOT.COUNTRYLINE_COLOR.get())
-
+      if self.PLOT.COASTLINE_SOURCE.get() == 1:
+        emodnet="coastlines"
+        try:
+          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+        except:
+          toconsola("WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
+          #print("WARNING: EMODNET coastlines !, it is disabled......")
+      else:
+        toconsola("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        #print("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms")
+        self.Max.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
 
     if self.PLOT.ISOBAT_NPLOT > 0:
+      toconsola("EG Custom ISOBATHS",wid=self.cons)
+      #print("EG Custom ISOBATHS")
       # Plot isobaths and its legend:
-      lines = []
-      labels = []
+      lines, labels = [], []
+      toconsola("\t lABEL_SHOW",self.PLOT.ISOBAT_LABEL_SHOW.get(),wid=self.cons)
+      #print("\t lABEL_SHOW",self.PLOT.ISOBAT_LABEL_SHOW.get())
       for ii in range(self.PLOT.nisobat):
+        label = None
         if self.PLOT.ISOBAT_LABEL_SHOW.get():
           label = self.PLOT.ISOBAT_LABEL[ii]
-        else:
-          label = None
         try:
           color = eval(self.PLOT.ISOBAT_COLOR[ii].get())
         except:
           color = self.PLOT.ISOBAT_COLOR[ii].get()
+          
         if self.PLOT.ISOBAT_SHOW[ii]:
+          toconsola("\t EG ISOBATA:",self.PLOT.ISOBAT_LABEL[ii],wid=self.cons)			
+          #print("\t EG ISOBATA:",self.PLOT.ISOBAT_LABEL[ii])
           z = self.PLOT.ISOBAT_DATA[ii]
-          ilon = z['lon']
-          ilat = z['lat']
-          isox,isoy = self.Mm(ilon,ilat)
-          isbt, = self.Mm.plot(isox,isoy,
-                              marker=None,
-                              linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
-                              linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
-                              color=color)
+          isox,isoy = z['lon'],z['lat']
+          for i in range(len(isox)):
+            if isox[i] > 1e29:
+              isox[i], isoy[i] = np.nan, np.nan
+            
+          isbt, = self.Max.plot(isox,isoy,marker=None, 
+                                linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
+                                linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
+                                color=color)
           lines.append(isbt)
           labels.append(label)
-
+            
           if self.PLOT.ISOBAT_LEGEND.SHOW.get():
+            toconsola("\t EG self.PLOT.ISOBAT_LEGEND.SHOW",wid=self.cons)
+            #print("\t EG self.PLOT.ISOBAT_LEGEND.SHOW")
+            fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
+            mode = None
             if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
-              fontsize = None
-            else:
-              fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
+                fontsize = None
             if self.PLOT.ISOBAT_LEGEND.MODE.get() == 1:
-              mode = 'expand'
-            else:
-              mode = None
-
-            self.MIlegend = plt.legend([lines[i] for i in range(len(lines))],
-                        [labels[i] for i in range(len(lines))],
-                        loc=self.PLOT.ISOBAT_LEGEND.LOC.get(),
-                        ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
-                        fontsize=fontsize,
-                        frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
-                        fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
-                        shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
-                        framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
-                        mode=mode,
-                        facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
-                        edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
-                        markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
-                        borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
-                        handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
-                        borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
-                        labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get(),
-                               )
-
+                mode = 'expand'
             if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
-              try:
-                self.MIlegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
-                                 prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
-              except:
-                pass
-
-
-
+              try: pass
+              except: pass
+      self.Max.legend(lines,labels, \
+                     title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                     title_fontsize=24,
+                     loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
+                     ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
+                     fontsize=fontsize,
+                     frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
+                     fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
+                     shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
+                     framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
+                     mode=mode,
+                     facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
+                     edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
+                     markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
+                     borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
+                     handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
+                     borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
+                     labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
 
     if self.PLOT.WATER_COLOR.get() is not 'None':
-      self.Mm.drawmapboundary(fill_color=self.PLOT.WATER_COLOR.get())
-
-    if self.PLOT.LAND_COLOR.get() is not 'None':
-      self.Mm.fillcontinents(color=self.PLOT.LAND_COLOR.get())
-
-    if self.PLOT.RIVERS_SHOW.get():
-      self.Mm.drawrivers(linewidth=self.PLOT.RIVERS_WIDTH.get(), \
-                        color=self.PLOT.RIVERS_COLOR.get())
-
+      toconsola("EG PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
+      #print("EG PLOT.WATER_COLOR por defecto 50m")
+      self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
+					self.PLOT.MAP_RESOLUTION.get(), \
+					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
+    if self.PLOT.LAND_COLOR.get() is not 'None': 
+      toconsola("EG PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
+      #print("EG PLOT.LAND_COLOR por defecto 50m")
+      self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
+					self.PLOT.MAP_RESOLUTION.get(), \
+					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
+    if self.PLOT.COUNTRYLINE_SHOW.get():
+      toconsola("EG PLOT.COUNTRYLINE",wid=self.cons)
+      #print("EG PLOT.COUNTRYLINE")
+      self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+    if self.PLOT.RIVERS_SHOW.get(): 
+      toconsola("EG PLOT.RIVERS",wid=self.cons)
+      #print("EG PLOT.RIVERS")
+      self.Max.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
+			self.PLOT.MAP_RESOLUTION.get(), \
+			linewidth=self.PLOT.RIVERS_WIDTH.get(),
+			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
 
     if self.PLOT.GRID_SHOW.get():
-
-      def setcolor(x,color):
-        for m in x:
-          for t in x[m][1]:
-            t.set_color(color)
-
+      toconsola("EG PLOT.GRID"+str(self.PLOT.GRID_LINESTYLE.get()),wid=self.cons)
+      #print("EG PLOT.GRID",self.PLOT.GRID_LINESTYLE.get())
+      #EG adaptar falat comprobar
+      #def setcolor(x,color):
+      #  for m in x:
+      #    for t in x[m][1]:
+      #      t.set_color(color)
       vmeridians = np.arange(self.PLOT.MERIDIAN_INI.get(), \
                              self.PLOT.MERIDIAN_FIN.get(), \
                              self.PLOT.MERIDIAN_INT.get())
-      par = self.Mm.drawmeridians(vmeridians,                     \
-                        labels=[self.PLOT.GRID_WEST.get(),        \
-                                self.PLOT.GRID_EAST.get(),        \
-                                self.PLOT.GRID_NORTH.get(),       \
-                                self.PLOT.GRID_SOUTH.get()],      \
-                        fontsize=self.PLOT.GRID_SIZE.get(),       \
-                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
-                        color=self.PLOT.GRID_COLOR.get())
-      setcolor(par,self.PLOT.GRID_FONTCOLOR.get())
-
-
       vparallels = np.arange(self.PLOT.PARALLEL_INI.get(), \
                              self.PLOT.PARALLEL_FIN.get(), \
                              self.PLOT.PARALLEL_INT.get())
-      mer = self.Mm.drawparallels(vparallels,
-                        labels=[self.PLOT.GRID_WEST.get(),        \
-                                self.PLOT.GRID_EAST.get(),        \
-                                self.PLOT.GRID_NORTH.get(),       \
-                                self.PLOT.GRID_SOUTH.get()],      \
-                        fontsize=self.PLOT.GRID_SIZE.get(),       \
-                        linewidth=self.PLOT.GRID_LINEWIDTH.get(), \
-                        color=self.PLOT.GRID_COLOR.get())
-      setcolor(mer,self.PLOT.GRID_FONTCOLOR.get())
+      lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
+      lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
+      gl = self.Max.gridlines(crs=proj,draw_labels=True,
+						linewidth=self.PLOT.GRID_LINEWIDTH.get(),
+						color=self.PLOT.GRID_FONTCOLOR.get(),
+						alpha=self.PLOT.GRID_ALPHA.get(),
+						linestyle=self.PLOT.GRID_LINESTYLE.get())
+      # Lines visibility
+      gl.xlines, gl.ylines = True, True
+      if self.PLOT.GRID_LINESTYLE.get() == "None":
+        gl.xlines, gl.ylines = False, False
+        
+      # xy labels visibility
+      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
+      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
+      gl.ylabels_left = self.PLOT.GRID_WEST.get()
+      gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      
+      gl.xlocator = mticker.FixedLocator(vmeridians)
+      gl.ylocator = mticker.FixedLocator(vparallels)
+      gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
+      gl.xformatter = LONGITUDE_FORMATTER
+      gl.xformatter = LONGITUDE_FORMATTER
+      gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
+      #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
+    else:
+      # Default: no labels, no grid just Latitude and Longitude
+      toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+self.PLOT.YLABEL.get(),wid=self.cons)
+      #print("EG XYLabels ..\n\t",self.PLOT.XLABEL.get(),self.PLOT.YLABEL.get())
+      font_family = self.PLOT.MAP_FONT_TYPE.get()
+      font_size   = self.PLOT.LABEL_SIZE.get()
+      font_weight = 'normal'
 
-      # Modify the line characteristics:
-      lat_lines = chain(*(tup[1][0] for tup in mer.items()))
-      lon_lines = chain(*(tup[1][0] for tup in par.items()))
-      all_lines = chain(lat_lines,lon_lines)
-
-      # cylce through these lines and set the desired style
-      for line in all_lines:
-        line.set(linestyle=self.PLOT.GRID_LINESTYLE.get(),
-                 alpha=self.PLOT.GRID_ALPHA.get())
-
-    if self.PLOT.SCALE_SHOW.get():
-        try:
-          YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
-        except:
-          YOFFSET = None
-
-        try:
-          LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
-        except:
-          LINEWIDTH = None
-
-        self.Mm.drawmapscale(self.PLOT.SCALE_X.get(),
-                             self.PLOT.SCALE_Y.get(),
-                             self.PLOT.SCALE_XO.get(),
-                             self.PLOT.SCALE_YO.get(),
-                             length=self.PLOT.SCALE_LENGTH.get(),
-                             units=self.PLOT.SCALE_UNITS.get(),
-                             barstyle=self.PLOT.SCALE_STYLE.get(),
-                             fontsize=self.PLOT.SCALE_FONTSIZE.get(),
-                             yoffset=YOFFSET,
-                             labelstyle=self.PLOT.SCALE_LABELSTYLE.get(),
-                             fontcolor=self.PLOT.SCALE_FONTCOLOR.get(),
-                             fillcolor1=self.PLOT.SCALE_FILLCOLOR1.get(),
-                             fillcolor2=self.PLOT.SCALE_FILLCOLOR2.get(),
-                             format=self.PLOT.SCALE_FORMAT.get(),
-                             linecolor=self.PLOT.SCALE_LINECOLOR.get(),
-                             linewidth=LINEWIDTH)
-
-
-
-    # Lables and titles:
-    font_family = self.PLOT.MAP_FONT_TYPE.get()
-    font_size   = self.PLOT.LABEL_SIZE.get()
-    font_weight = 'normal'
-
-    font = {'family' : font_family,
-            'weight' : font_weight,
-            'size'   : font_size}
-
-    self.Max.xaxis.labelpad = self.PLOT.LABEL_PAD.get()
-    self.Max.yaxis.labelpad = self.PLOT.LABEL_PAD.get()
-    self.Max.set_xlabel(self.PLOT.XLABEL.get(),fontdict=font)
-    self.Max.set_ylabel(self.PLOT.YLABEL.get(),fontdict=font)
-
-    self.Max.set_title(self.PLOT.TITLE.get(), \
-                        fontproperties=self.PLOT.TITLEFONT)
+      font = {'family' : font_family, 'weight' : font_weight,
+              'color'  : self.PLOT.TEXT_COLOR.get(),
+              'size'   : font_size}
+      
+      self.Max.text(-0.07, 0.55, self.PLOT.YLABEL.get(), va="bottom", \
+					ha="center", rotation="vertical", rotation_mode="anchor",
+					transform=self.ax.transAxes,fontdict=font)
+      self.Max.text(0.5, -0.2, self.PLOT.XLABEL.get(), va="bottom", \
+					ha="center", rotation="horizontal", rotation_mode="anchor",
+					transform=self.ax.transAxes,fontdict=font)
+    # Title
+    toconsola("Title:\n"+self.PLOT.TITLE.get(),wid=self.cons)
+    #print("Title:\n",self.PLOT.TITLE.get(),self.PLOT.TITLE_PAD.get())
+    self.Max.set_title(self.PLOT.TITLE.get(),fontproperties=self.PLOT.TITLEFONT)                  
     px,py = self.Max.title.get_position()
-    dy = self.PLOT.TITLE_PAD.get()/self.Mfig.get_dpi()
+    dy = self.PLOT.TITLE_PAD.get()/self.fig.get_dpi()
     self.Max.title.set_position((px,py+dy))
 
+    if self.PLOT.GEOMAP.get():	
+      toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
+      #print("EG PLOT.GEOMAP 2 scale: Not yet implemented")
+      if self.PLOT.SCALE_SHOW.get():
+          try:
+            YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
+          except: YOFFSET = None
+          try:
+            LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
+          except:  LINEWIDTH = None
+          #EG no parecefuncionarojo scale_bar from tools
+          toconsola("EG bar scale",wid=self.cons)
+          #print("EG bar scale")
+          scale_bar(self.Max, 1)
 
     # Time stamp
     try:
       self.Mtime_stamp.remove()
-    except:
-      pass
-
+    except: pass
+    
     if len(self.DATE) > 0:
+      print("EG Time stamp: len(self.DATE) > 0")
       if self.PLOT.TIMESTAMP_SHOW.get():
-        if self.PLOT.TIMESTAMP_BOLD.get():
-          font_weight = 'bold'
-        else:
-          font_weight = 'normal'
-
-        font = {'family' : font_family,
-                'weight' : font_weight,
-                'color'  : self.PLOT.TIMESTAMP_COLOR.get(),
-                'size'   : self.PLOT.TIMESTAMP_SIZE.get()}
-
-        self.Mtime_stamp = self.Mfig.text(self.PLOT.TIMESTAMP_X.get(),     \
-                                      self.PLOT.TIMESTAMP_Y.get(),     \
-                                      self.DATE[self.L.get()], \
-                                      fontdict=font)
-
-
+        toconsola("EG Time stamp: "+str(self.DATE[self.L.get()]),wid=self.cons)
+        #print("EG Time stamp: ", self.DATE[self.L.get()])
+        font_weight = 'normal'
+        if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
+   
+        self.Max.annotate(self.DATE[self.L.get()], \
+					xy=(self.PLOT.TIMESTAMP_X.get(), \
+					   self.PLOT.TIMESTAMP_Y.get()), \
+					xycoords='figure fraction', \
+					color=self.PLOT.TIMESTAMP_COLOR.get(), \
+					fontsize=self.PLOT.TIMESTAMP_SIZE.get(), \
+					fontfamily=font_family, fontweight=font_weight, \
+					annotation_clip=False)
+    
     if self.nmarker > 0 and self.PLOT.LEGEND.SHOW.get():
-      if self.PLOT.LEGEND.FONTSIZE.get() < 1:
-        fontsize = None
-      else:
-        fontsize = self.PLOT.LEGEND.FONTSIZE.get()
-      if self.PLOT.LEGEND.MODE.get() == 1:
-        mode = 'expand'
-      else:
-        mode = None
-
+      fontsize = self.PLOT.LEGEND.FONTSIZE.get()
+      mode = None
+      if self.PLOT.LEGEND.FONTSIZE.get() < 1: fontsize = None
+      if self.PLOT.LEGEND.MODE.get() == 1: mode = 'expand'
+      # HASTA AQUI
       try:
         legend = self.Max.legend(loc=self.PLOT.LEGEND.LOC.get(),
                         ncol=self.PLOT.LEGEND.NCOL.get(),
@@ -7597,11 +8004,8 @@ class CosmoDrawing():
                         borderpad=self.PLOT.LEGEND.BORDERPAD.get(),
                         handletextpad=self.PLOT.LEGEND.HANDLETEXTPAD.get(),
                         borderaxespad=self.PLOT.LEGEND.BORDERAXESPAD.get(),
-                        labelspacing=self.PLOT.LEGEND.LABELSPACING.get(),
-                               )
-
-      except:
-        pass
+                        labelspacing=self.PLOT.LEGEND.LABELSPACING.get())
+      except:  pass
 
       if not empty(self.PLOT.LEGEND.TITLE.get()):
         try:
@@ -7610,34 +8014,12 @@ class CosmoDrawing():
         except:
           pass
 
-
     if self.PLOT.LOGO_DISPLAY.get() == 1:
-      if self.PLOT.LOGO_LOCATION.get() == 'SW':
-        xx = self.PLOT.WEST.get()
-        yy = self.PLOT.SOUTH.get()
-        ba = (0,0)
-      elif self.PLOT.LOGO_LOCATION.get() == 'NW':
-        xx = self.PLOT.WEST.get()
-        yy = self.PLOT.NORTH.get()
-        ba = (0,1)
-      elif self.PLOT.LOGO_LOCATION.get() == 'NE':
-        xx = self.PLOT.EAST.get()
-        yy = self.PLOT.NORTH.get()
-        ba = (1,1)
-      elif self.PLOT.LOGO_LOCATION.get() == 'SE':
-        xx = self.PLOT.EAST.get()
-        yy = self.PLOT.SOUTH.get()
-        ba = (1,0)
-      else:
-        xx = self.PLOT.LOGO_X.get()
-        yy = self.PLOT.LOGO_Y.get()
-        ba = (0,0)
+      self.plot_logo()  
 
-      im = OffsetImage(self.PLOT.LOGO_IMAGE,zoom=self.PLOT.LOGO_ZOOM.get())
-      self.ab = AnnotationBbox(im,(xx,yy), xycoords='data', \
-                               box_alignment=ba,pad=0.0,frameon=True)
-      self.with_logo = self.Mm._check_ax().add_artist(self.ab)
-
+    self.Max.set_extent([float(self.PLOT.WEST.get()) ,float(self.PLOT.EAST.get()),\
+						float(self.PLOT.SOUTH.get()),float(self.PLOT.NORTH.get())],\
+						crs=proj)
 
     self.Mcanvas.draw()
 
@@ -7659,7 +8041,6 @@ class CosmoDrawing():
       except: 
         self.Window_editor = None
 
-   
     if self.Window_editor is None:
       self.Window_editor = tk.Toplevel(self.master)
       self.Window_editor.title('GEOJSON EDITOR')
@@ -7669,9 +8050,10 @@ class CosmoDrawing():
       self.Window_editor.lift()
       return
 
-
     if self.nfloat == 0: 
-      jeditor.EDITOR(self.Window_editor)
+      jeditor.EDITOR(self.Window_editor,wid=self.cons)
     else:
       jeditor.EDITOR(self.Window_editor, \
-                     self.FLOAT[self.FLOAT_INDX.get()].FILENAME.get())
+                     self.FLOAT[self.FLOAT_INDX.get()].FILENAME.get(),\
+                     wid=self.cons)
+

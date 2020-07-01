@@ -1,16 +1,15 @@
-# Module for the applications built for the COSMO project 
-# Quim Ballabrera, May 2017
+''' Module for the applications built for the COSMO project 
+    Quim Ballabrera, May 2017
+    EGL, 06/2020:
+     small adjustments of text fonts
+     A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog
+from tkinter import font as tkfont
 
 import json
 import os
@@ -25,7 +24,6 @@ from cosmo.tools import exists
 from cosmo import COSMO_ROOT
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
-
 
 # ===================
 class parameters:
@@ -126,13 +124,14 @@ class parameters:
     self.Ry.set(0.10)
     self.Rt.set(0)
 
+    self.MESSAGE = "\n"
+   
     if exists(self.FILECONF):
-      print('Reading BLM configuration')
+      self.MESSAGE += 'Reading BLM configuration'
       self.load(self.FILECONF)
     else:
-      print('Saving BLM configuration')
+      self.MESSAGE += 'Saving BLM configuration'
       self.save(self.FILECONF)
-  
 
   def load(self,filename):
   # ======================
@@ -186,7 +185,6 @@ class parameters:
                              separators=(',',': '))
       outfile.write(to_unicode(str_))
 
-   
 # =============
 def inout(CLM):
 # =============
@@ -408,10 +406,13 @@ class WinConfig:
        # master is a toplevel window (Python 2.4/Tkinter 1.63)
        master.tk.call(master, "config", "-menu", menubar)
 
+     font_bold = tkfont.Font(font='TkDefaultFont').copy()
+     font_bold['weight']='bold'
+
      F0 = ttk.Frame(master,padding=5)
-     ttk.Label(F0,text='PATH',font='bold').grid(row=0,column=0,padx=3,pady=3)
+     ttk.Label(F0,text='PATH',font=font_bold).grid(row=0,column=0,padx=3,pady=3)
      ttk.Entry(F0,textvariable=CLM.PATH,width=80).grid(row=0,column=1,columnspan=8)
-     ttk.Label(F0,text='BIN',font='bold').grid(row=1,column=0,padx=3,pady=3)
+     ttk.Label(F0,text='BIN',font=font_bold).grid(row=1,column=0,padx=3,pady=3)
      ttk.Entry(F0,textvariable=CLM.BIN,width=80).grid(row=1,column=1,columnspan=8)
      F0.grid()
 
@@ -454,7 +455,7 @@ class WinConfig:
      #
      F1 = ttk.Frame(self.page1,padding=5)
      ttk.Label(F1,text='Zonal velocity file -U',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F1,text='file =')    \
         .grid(row=1,column=0,padx=3,sticky='e')
      ubox = ttk.Combobox(F1,textvariable=CLM.UFILE,width=80, \
@@ -482,7 +483,7 @@ class WinConfig:
 
      F2 = ttk.Frame(self.page2,padding=5)
      ttk.Label(F2,text='Meridional velocity file -V',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F2,text='file =') \
         .grid(row=1,column=0,padx=3,sticky='e')
      vbox = ttk.Combobox(F2,textvariable=CLM.VFILE,width=80, \
@@ -508,7 +509,7 @@ class WinConfig:
 
      F3 = ttk.Frame(self.page3,padding=5)
      ttk.Label(F3,text='Advected parameter file -T',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F3,text='file =') \
         .grid(row=1,column=0,padx=3,sticky='e')
      tbox = ttk.Combobox(F3,textvariable=CLM.TFILE,width=80, \
@@ -535,7 +536,7 @@ class WinConfig:
 
      F4 = ttk.Frame(master,padding=5)
      ttk.Label(F4,text='Initial float position',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Checkbutton(F4,text='Use INIT file (See Input/Output files tab)', \
                      variable=CLM.INI_USE,command=switch_mode).grid(row=1,column=1,padx=3)
      ttk.Label(F4,text='xo =').grid(row=2,column=0,padx=3)
@@ -562,7 +563,7 @@ class WinConfig:
 
      F5 = ttk.Frame(self.page4,padding=5)
      ttk.Label(F5,text='Input/Output files',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F5,text='Trajectory =').grid(row=1,column=0,padx=3)
      ttk.Entry(F5,textvariable=CLM.TRAJECTORY,width=50).grid(row=1,column=1,columnspan=5)
      ttk.Button(F5,text='Select',padding=3,command=open_traj).grid(row=1,column=6,padx=[5,1])
@@ -575,7 +576,7 @@ class WinConfig:
 
      F6 = ttk.Frame(self.page5,padding=5)
      ttk.Label(F6,text='Time Management',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F6,text='Stationary =').grid(row=1,column=0,padx=3)
      ttk.Entry(F6,textvariable=CLM.stationary,width=50).grid(row=1,column=1,columnspan=5)
      ttk.Label(F6,text='Record =').grid(row=2,column=0,padx=3)
@@ -595,7 +596,7 @@ class WinConfig:
 
      F7 = ttk.Frame(self.page6,padding=5)
      ttk.Label(F7,text='Time Management',width=25, \
-               font="Helvetica 12 bold").grid(row=0,column=0,columnspan=4)
+               font=font_bold).grid(row=0,column=0,columnspan=4)
      ttk.Label(F7,text='Random Seed =').grid(row=1,column=0,padx=3)
      ttk.Entry(F7,textvariable=CLM.seed,width=50).grid(row=1,column=1,columnspan=5)
      ttk.Label(F7,text='Num. Floats =').grid(row=2,column=0,padx=3)

@@ -1,16 +1,14 @@
-# Module for configuring legends for the COSMO project 
+''' Module for configuring legends for the COSMO project 
 # Quim Ballabrera, September 2018
-
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkcolorpicker import askcolor
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  from tkColorChooser import askcolor
+	EGL, 06/2020: Changes:
+		No more support to python 2.7
+		All color selections are now managed through tools.colsel() function
+		A heap variable MESSAGE has been introduce to store "print" messages
+'''
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkcolorpicker import askcolor
 
 import json
 import os
@@ -32,9 +30,9 @@ from cosmo.tools import empty
 from cosmo.tools import exists
 from cosmo.tools import fontconfig
 from cosmo.tools import setfont
+from cosmo.tools import colsel
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
-
 
 # ====================
 class LegendConfig():
@@ -48,6 +46,8 @@ class LegendConfig():
   def __init__(self):
   # =================
     '''Define and initialize class attributes'''
+
+    self.MESSAGE  = ""
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -103,15 +103,14 @@ class LegendConfig():
     #
     if exists(self.FILECONF):
       try:
-        print('Loading LEGEND configuration')
+        self.MESSAGE += "Loading LEGEND configuration"
         self.load(self.FILECONF)
       except:
-        print('Error: Saving default LEGEND configuration')
+        self.MESSAGE += "Error: Saving default LEGEND configuration"
         self.save(self.FILECONF)
     else:
-      print('Saving default LEGEND configuration')
+      self.MESSAGE  += "Saving default LEGEND configuration"
       self.save(self.FILECONF)
-
 
   def conf_get(self):
   # ======================
@@ -217,12 +216,9 @@ class LegendConfig():
       mode_name = mod.get()
       self.MODE.set(LEGEND_MODE_LIST.index(mode_name))
 
-
-
     f5 = ttk.Frame(parent,borderwidth=5,padding=5)
     ttk.Label(f5,text='Show').grid(row=0,column=0,padx=3)
-    ttk.Checkbutton(f5,
-                    variable=self.SHOW).grid(row=0,
+    ttk.Checkbutton(f5,variable=self.SHOW).grid(row=0,
                                              column=1,
                                              padx=3,
                                              sticky='w')
@@ -239,10 +235,8 @@ class LegendConfig():
       self.TITLEFONT = fontconfig(font=self.TITLEFONT,
                                           sample=self.TITLE.get())
 
-    ttk.Label(f6,
-              text='Title font').grid(row=11,column=0,padx=3)
-    ttk.Button(f6,
-               text='View',
+    ttk.Label(f6,text='Title font').grid(row=11,column=0,padx=3)
+    ttk.Button(f6,text='View',
                command=titleprop).grid(row=11,column=1,padx=3)
     f6.grid()
 
@@ -263,52 +257,40 @@ class LegendConfig():
     mod.bind('<<ComboboxSelected>>',lambda e: legend_mode())
     f7.grid()
 
-
     f8 = ttk.Frame(parent,borderwidth=5,padding=5)
-    ttk.Label(f8,
-              text='Font size').grid(row=0,
+    ttk.Label(f8,text='Font size').grid(row=0,
                                      column=0,
                                      padx=3)
-    ttk.Entry(f8,
-              textvariable=self.FONTSIZE,
+    ttk.Entry(f8,textvariable=self.FONTSIZE,
               width=10).grid(row=0,
                              column=1,
                              padx=3,
                              sticky='w')
-    ttk.Label(f8,
-              text='Default: < 1').grid(row=0,
+    ttk.Label(f8,text='Default: < 1').grid(row=0,
                                         column=2,
                                         padx=3,
                                         sticky='w')
 
-
-    ttk.Label(f8,
-              text='Marker scale').grid(row=1,
+    ttk.Label(f8,text='Marker scale').grid(row=1,
                                      column=0,
                                      padx=3)
-    ttk.Entry(f8,
-              textvariable=self.MARKERSCALE,
+    ttk.Entry(f8,textvariable=self.MARKERSCALE,
               width=10).grid(row=1,
                              column=1,
                              padx=3,
                              sticky='w')
-
-    ttk.Label(f8,
-              text='Label spacing').grid(row=2,
+    ttk.Label(f8,text='Label spacing').grid(row=2,
                                      column=0,
                                      padx=3)
-    ttk.Entry(f8,
-              textvariable=self.LABELSPACING,
+    ttk.Entry(f8,textvariable=self.LABELSPACING,
               width=10).grid(row=2,
                              column=1,
                              padx=3,
                              sticky='w')
-    ttk.Label(f8,
-              text='Handle text pad').grid(row=3,
+    ttk.Label(f8,text='Handle text pad').grid(row=3,
                                      column=0,
                                      padx=3)
-    ttk.Entry(f8,
-              textvariable=self.HANDLETEXTPAD,
+    ttk.Entry(f8,textvariable=self.HANDLETEXTPAD,
               width=10).grid(row=3,
                              column=1,
                              padx=3,
@@ -335,30 +317,31 @@ class LegendConfig():
                              sticky='w')
     f8.grid()
 
-    
-
     f9 = ttk.Frame(parent,borderwidth=5,padding=5)
+    self.slflabel, self.slelabel = ttk.Style(), ttk.Style()
+    self.slflabel.configure("slflabel.TLabel",background=self.COLOR.get(),anchor="center")
+    self.slelabel.configure("slelabel.TLabel",background=self.EDGECOLOR.get(),anchor="center")
     ttk.Label(f9,text='Show frame').grid(row=5,column=0,padx=3)
     ttk.Checkbutton(f9,variable=self.FRAMEON).grid(row=5,column=1,padx=3,sticky='w')
     ttk.Label(f9,text='Fancy box').grid(row=6,column=0,padx=3)
     ttk.Checkbutton(f9,variable=self.FANCYBOX).grid(row=6,column=1,padx=3,sticky='w')
     ttk.Label(f9,text='Frame shadow').grid(row=7,column=0,padx=3)
     ttk.Checkbutton(f9,variable=self.SHADOW).grid(row=7,column=1,padx=3,sticky='w')
+    
     ttk.Label(f9,text='Frame color').grid(row=8,column=0,padx=3)
-    ttk.Entry(f9,textvariable=self.COLOR,width=10).grid(row=8,column=1,padx=3,sticky='w')
-    ttk.Label(f9,
-              text='Edge color').grid(row=9,
-                                     column=0,
-                                     padx=3)
-    ttk.Entry(f9,
-              textvariable=self.EDGECOLOR,
-              width=10).grid(row=9,
-                             column=1,
-                             padx=3,
-                             sticky='w')
+    self.LFLabel = ttk.Label(f9,textvariable=self.COLOR,width=7,style="slflabel.TLabel")
+    self.LFLabel.grid(row=8,column=1,padx=3)
+    ttk.Button(f9,text='Select',command=lambda:colsel(self.COLOR, \
+            self.slflabel,self.LFLabel,"slflabel.TLabel",master=parent)). \
+            grid(row=8,column=2,padx=3)
+    ttk.Label(f9,text='Edge color').grid(row=9,column=0,padx=3)
+    self.LELabel = ttk.Label(f9,textvariable=self.EDGECOLOR,width=7,style="slelabel.TLabel")
+    self.LELabel.grid(row=9,column=1,padx=3)
+    ttk.Button(f9,text='Select',command=lambda:colsel(self.EDGECOLOR, \
+            self.slelabel,self.LELabel,"slelabel.TLabel",master=parent)).   \
+            grid(row=9,column=2,padx=3)
+            
     ttk.Label(f9,text='Frame alpha').grid(row=10,column=0,padx=3)
     ttk.Entry(f9,textvariable=self.ALPHA,width=10).grid(row=10,column=1,padx=3,sticky='w')
     f9.grid()
-
-
 

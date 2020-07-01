@@ -1,18 +1,32 @@
-# Module for plotting vectors, built for the COSMO project 
+''' Module for plotting vectors, built for the COSMO project 
 # Quim Ballabrera, May 2017
-
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkcolorpicker import askcolor
-  from tkinter import font as tkfont
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  from tkColorChooser import askcolor
-  import tkFont as tkfont
+	EGL, 06/2020: Changes:
+		No more support to python 2.X 
+		Basemap drawing system deprecated and substituted by Cartopy
+		Limited support to geographical projections. Everything is 
+		plotted in PlateCarree.
+		NaN values are explicitely set to np.nan. Some tested datasets 
+		do not set this constant appropriately when loading. This is
+		particularly cumbersome for the streamfucntion.
+		Streamfunction with Cartopy 0.17 is implemented by calling previously
+		the quiver function with negative zorder. This deserves further
+		analysis.
+		When regridding option is set the procedure is implemented by
+		first making a linear interpolation of the max-min coordinates
+		and then values are interpolated with scipy interpolation. This
+		only works correctly by fixing the method keyword in the 
+		interpol.griddata() function to "linear".
+		A reordering of the if elif structure has been done. 
+		Adjustments in text fonts
+		All color selections are now managed through tools.colsel() function
+		Cartopy projections can be accessed through tools.map_proj()
+		A heap variable MESSAGE has been introduce to store "print" messages
+'''
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkcolorpicker import askcolor
+from tkinter import font as tkfont
 
 import json
 import os
@@ -23,10 +37,16 @@ except:
   to_unicode = str
 
 from matplotlib.font_manager import FontProperties
+#EG
+import scipy.interpolate as interpol
+
 from cosmo.tools import exists
+from cosmo.tools import colsel
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
 
+#EG To manage cartopy projections
+#EG from cosmo.tools import map_proj
 
 # ============================
 class parameters():
@@ -40,6 +60,8 @@ class parameters():
   def __init__ (self):
   # ==================
     ''' Define and initialize class attributes'''
+
+    self.MESSAGE = ""
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -150,15 +172,14 @@ class parameters():
     #
     if exists(self.FILECONF):
       try:
-        print('Loading VECTOR configuration file '+self.FILECONF)
+        self.MESSAGE += '\nVECTORPLOT: Loading VECTOR configuration file '+self.FILECONF
         self.load(self.FILECONF)
       except:
-        print('Error: Saving default DOT configuration '+self.FILECONF)
+        self.MESSAGE += '\nVECTORPLOT: Error: Saving default DOT configuration '+self.FILECONF
         self.save(self.FILECONF)
     else:
-      print('Saving default DOT configuration '+self.FILECONF)
+      self.MESSAGE += '\nVECTORPLOT: Saving default DOT configuration '+self.FILECONF
       self.save(self.FILECONF)
-
 
   def conf_get(self):
   # =================
@@ -293,8 +314,7 @@ class parameters():
     conf = self.conf_get()
     self.conf_save(conf,filename)
 
-
-# ========================================
+# =============================
 def Configuration(parent,PLOT):
 # ========================================
   ''' Interactive widget to modify the options of 2D vector plots'''
@@ -302,21 +322,6 @@ def Configuration(parent,PLOT):
   __version__ = "1.1"
   __author__  = "Quim Ballabrerera"
   __date__    = "December 2017"
-
-  def cselection():
-    if PLOT.CURRENT_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.CURRENT_COLOR.get(),parent=parent)
-    PLOT.CURRENT_COLOR.set(hx)
-
-
-  def tselection():
-    if PLOT.STREAM_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.STREAM_COLOR.get(),parent=parent)
-    PLOT.STREAM_COLOR.set(hx)
 
   def switchframes():
   # =================
@@ -331,18 +336,15 @@ def Configuration(parent,PLOT):
   font_bold['weight']='bold'
 
   frame0 = ttk.Frame(parent,borderwidth=10,padding=2,relief='raised')
-  ttk.Radiobutton(frame0,
-                  text='Quiver plot',
+  ttk.Radiobutton(frame0,text='Quiver plot',
                   variable=PLOT.DRAWING_MODE,
                   command=switchframes,
                   value=0).grid(row=0,column=0,columnspan=2,padx=5)
-  ttk.Radiobutton(frame0,
-                  text='Barbs plot',
+  ttk.Radiobutton(frame0,text='Barbs plot',
                   variable=PLOT.DRAWING_MODE,
                   command=switchframes,
                   value=1).grid(row=0,column=2,columnspan=2,padx=5)
-  ttk.Radiobutton(frame0,
-                  text='Streamlines plot',
+  ttk.Radiobutton(frame0,text='Streamlines plot',
                   variable=PLOT.DRAWING_MODE,
                   command=switchframes,
                   value=2).grid(row=0,column=4,columnspan=2,padx=5)
@@ -363,27 +365,23 @@ def Configuration(parent,PLOT):
                   value=0).grid(row=0,column=1,sticky='w')
   ttk.Label(fleft,
             text='X stride',
-            width=10).grid(row=1,
-                                  column=0,
+            width=10).grid(row=1,column=0,
                                   padx=3,
                                   sticky='w')
   ttk.Entry(fleft,
             textvariable=PLOT.CURRENT_DX,
-            width=7).grid(row=1,
-                          column=1,
+            width=7).grid(row=1,column=1,
                           padx=3,
                           sticky='e')
   ttk.Label(fleft,
             text='Y stride',
-            width=10).grid(row=2,
-                           column=0,
+            width=10).grid(row=2,column=0,
                            columnspan=1,
                            padx=3,
                            sticky='w')
   ttk.Entry(fleft,
             textvariable=PLOT.CURRENT_DY,
-            width=7).grid(row=2,
-                          column=1,
+            width=7).grid(row=2,column=1,
                           padx=3,
                           sticky='e')
   fleft.grid(row=1,rowspan=3,column=0,columnspan=2,padx=3)
@@ -419,8 +417,10 @@ def Configuration(parent,PLOT):
   nb.add(page3,text='Streamlines options')
   nb.grid()
 
-
   frame1 = ttk.Frame(page1,borderwidth=5,padding=5)
+  salabel = ttk.Style()
+  salabel.configure("salabel.TLabel",background=PLOT.CURRENT_COLOR.get(),anchor="center")
+
   ttk.Label(frame1,
             text='Arrow options',
             font=font_bold).grid(row=0,column=0,sticky='w')
@@ -428,31 +428,27 @@ def Configuration(parent,PLOT):
             text='Scale').grid(row=1,column=0,sticky='w')
   ttk.Entry(frame1,
             textvariable=PLOT.CURRENT_SCALE,
-            width=7).grid(row=1,column=1,sticky='w')
+            width=8).grid(row=1,column=1,sticky='w')
   ttk.Label(frame1,
             text='Width').grid(row=2,column=0,sticky='w')
   ttk.Entry(frame1,
             textvariable=PLOT.CURRENT_WIDTH,
-            width=7).grid(row=2,column=1,sticky='w')
+            width=8).grid(row=2,column=1,sticky='w')
   ttk.Label(frame1,
             text='Head length').grid(row=3,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_HEADLENGTH,
-            width=7).grid(row=3,column=1,sticky='w')
+            textvariable=PLOT.CURRENT_HEADLENGTH,width=8). \
+            grid(row=3,column=1,sticky='w')
   ttk.Label(frame1,
             text='Head width').grid(row=4,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
             textvariable=PLOT.CURRENT_HEADWIDTH,
-            width=7).grid(row=4,column=1,sticky='w')
-  ttk.Label(frame1,
-            text='Color').grid(row=5,column=0,columnspan=1,sticky='w')
-  ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_COLOR,
-            justify='left',
-            width=7).grid(row=5,column=1,sticky='w')
-  ttk.Button(frame1,
-            text='Select',
-            command=cselection).grid(row=5,column=2,padx=3,sticky='ew')
+            width=8).grid(row=4,column=1,sticky='w')
+  ttk.Label(frame1,text='Color').grid(row=5,column=0,columnspan=1,sticky='w')
+  ALabel = ttk.Label(frame1,textvariable=PLOT.CURRENT_COLOR,width=8,style="salabel.TLabel")
+  ALabel.grid(row=5,column=1)
+  ttk.Button(frame1,text='Select',command=lambda:colsel(PLOT.CURRENT_COLOR, \
+            salabel,ALabel,"salabel.TLabel",master=parent)).grid(row=5,column=2)
   ttk.Label(frame1,
             text='Additional arguments',
             font=font_bold).grid(row=6,column=0,sticky='w',pady=[10,1])
@@ -461,18 +457,19 @@ def Configuration(parent,PLOT):
   ttk.Entry(frame1,
             textvariable=PLOT.CURRENT_ALPHA,
             justify='left',
-            width=7).grid(row=7,column=1,sticky='w')
+            width=8).grid(row=7,column=1,sticky='w')
   ttk.Label(frame1,
             text='Zorder').grid(row=8,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
             textvariable=PLOT.CURRENT_ZORDER,
-            justify='left',
-            width=7).grid(row=8,column=1,sticky='w')
+            justify='left',width=8). \
+            grid(row=8,column=1,sticky='w')
   frame1.grid()
 
   frame2 = ttk.Frame(page1,borderwidth=5,padding=5)
-  ttk.Label(frame2,
-            text='Current Key',
+  sklabel = ttk.Style()
+  sklabel.configure("sklabel.TLabel",background=PLOT.KEY_COLOR.get(),anchor="center")
+  ttk.Label(frame2,text='Current Key',
             font=font_bold).grid(row=0,column=0,sticky='w')
   tk.Checkbutton(frame2,text='Show',variable=PLOT.KEY_SHOW,\
                         font=font_bold).grid(row=0,column=2)
@@ -481,7 +478,7 @@ def Configuration(parent,PLOT):
                    width=20).grid(row=1,column=1,columnspan=2,sticky='w')
   ttk.Label(frame2,text='Value').grid(row=2,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.KEY_VALUE, \
-                   width=7).grid(row=2,column=1,sticky='w')
+                   width=8).grid(row=2,column=1,sticky='w')
 
   def getpos():
   # ===========
@@ -489,23 +486,30 @@ def Configuration(parent,PLOT):
 
   ttk.Label(frame2,text='X').grid(row=3,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.KEY_X, \
-                   width=7).grid(row=3,column=1,sticky='w')
+                   width=8).grid(row=3,column=1,sticky='w')
   ttk.Button(frame2,text='Select',command=getpos).grid(row=3,column=2)
   ttk.Label(frame2,text='Y').grid(row=4,column=0,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.KEY_Y, \
-                   width=7).grid(row=4,column=1,sticky='w')
+                   width=8).grid(row=4,column=1,sticky='w')
   ttk.Label(frame2,text='Label side').grid(row=5,column=0,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.KEY_POS, \
-                   width=7).grid(row=5,column=1,sticky='w')
-  ttk.Label(frame2,text='Label color').grid(row=6,column=0,sticky='w')
-  ttk.Entry(frame2,textvariable=PLOT.KEY_COLOR, \
-                   width=7).grid(row=6,column=1,sticky='w')
+                   width=8).grid(row=5,column=1,sticky='w')                  
+  ttk.Label(frame2,text='Label color').grid(row=6,column=0,sticky='w')               
+  KLabel = ttk.Label(frame2,textvariable=PLOT.KEY_COLOR,width=8,style="sklabel.TLabel")
+  KLabel.grid(row=6,column=1,sticky='w')
+  ttk.Button(frame2,text='Select',command=lambda:colsel(PLOT.KEY_COLOR, \
+            salabel,KLabel,"sklabel.TLabel",master=parent)). \
+            grid(row=6,column=2,sticky='w')               
   ttk.Label(frame2,text='Label size').grid(row=7,column=0,sticky='w')
-  ttk.Entry(frame2,textvariable=PLOT.KEY_SIZE, \
-                   width=7).grid(row=7,column=1,sticky='w')
+  ttk.Entry(frame2,textvariable=PLOT.KEY_SIZE,width=8). \
+            grid(row=7,column=1,sticky='w')
   frame2.grid(row=9,column=0)
 
   frame5 = ttk.Frame(page2,borderwidth=5,padding=5)
+  
+  sbalabel, sfllabel = ttk.Style(),ttk.Style()
+  sbalabel.configure("sbalabel.TLabel",background=PLOT.BARB_BARBCOLOR.get(),anchor="center")
+  sfllabel.configure("sfllabel.TLabel",background=PLOT.BARB_FLAGCOLOR.get(),anchor="center")
   ttk.Label(frame5,
             text='Barb options',
             font=font_bold).grid(row=0,column=0,sticky='w')
@@ -513,23 +517,28 @@ def Configuration(parent,PLOT):
             text='Length').grid(row=1,column=0,sticky='w')
   ttk.Entry(frame5,
             textvariable=PLOT.BARB_LENGTH,
-            width=7).grid(row=1,column=1,sticky='w')
+            width=8).grid(row=1,column=1,sticky='w')
   ttk.Label(frame5,
             text='Pivot').grid(row=2,column=0,sticky='w')
   ttk.Combobox(frame5,
             textvariable=PLOT.BARB_PIVOT,
-            width=7,
+            width=8,
             values=['tip','middle']).grid(row=2,column=1,sticky='w')
-  ttk.Label(frame5,
+  ttk.Label(frame5,\
             text='Barbcolor').grid(row=3,column=0,sticky='w')
-  ttk.Entry(frame5,
-            textvariable=PLOT.BARB_BARBCOLOR,
-            width=7).grid(row=3,column=1,sticky='w')
+  BLabel = ttk.Label(frame5,textvariable=PLOT.BARB_BARBCOLOR,width=8,style="sbalabel.TLabel")
+  BLabel.grid(row=3,column=1,sticky='w')
+  ttk.Button(frame5,text='Select',command=lambda:colsel(PLOT.BARB_BARBCOLOR, \
+            sbalabel,BLabel,"sbalabel.TLabel",master=parent)). \
+            grid(row=3,column=2,sticky='w')   
   ttk.Label(frame5,
             text='Flagcolor').grid(row=4,column=0,sticky='w')
-  ttk.Entry(frame5,
-            textvariable=PLOT.BARB_FLAGCOLOR,
-            width=7).grid(row=4,column=1,sticky='w')
+  FLabel = ttk.Label(frame5,textvariable=PLOT.BARB_FLAGCOLOR,width=8,style="sfllabel.TLabel")
+  FLabel.grid(row=4,column=1,sticky='w')
+  ttk.Button(frame5,text='Select',command=lambda:colsel(PLOT.BARB_FLAGCOLOR, \
+            sfllabel,FLabel,"sfllabel.TLabel",master=parent)). \
+            grid(row=4,column=2,sticky='w') 
+
   ttk.Label(frame5,
             text='Linewidth').grid(row=5,column=0,sticky='w')
   ttk.Entry(frame5,
@@ -603,18 +612,24 @@ def Configuration(parent,PLOT):
   frame5.grid()
 
   frame3 = ttk.Frame(page3,borderwidth=5,padding=5)
+  sstlabel = ttk.Style()
+  sstlabel.configure("sstlabel.TLabel",background=PLOT.STREAM_COLOR.get(),anchor="center")
   ttk.Label(frame3,text='Stream line options', \
                    font=font_bold).grid(row=0,column=0,sticky='w')
   ttk.Label(frame3,text='Density').grid(row=1,column=0,sticky='w')
   ttk.Entry(frame3,textvariable=PLOT.STREAM_DENSITY, \
-                   width=7).grid(row=1,column=1,sticky='w')
+                   width=8).grid(row=1,column=1,sticky='w')
   ttk.Label(frame3,text='Width').grid(row=2,column=0,sticky='w')
   ttk.Entry(frame3,textvariable=PLOT.STREAM_WIDTH, \
-                   width=7).grid(row=2,column=1,sticky='w')
+                   width=8).grid(row=2,column=1,sticky='w')
+                   
   ttk.Label(frame3,text='Color').grid(row=3,column=0,columnspan=1,sticky='w')
-  ttk.Entry(frame3,textvariable=PLOT.STREAM_COLOR, \
-                   justify='left',width=7).grid(row=3,column=1,sticky='w')
-  ttk.Button(frame3,text='Select',command=tselection).grid(row=3,column=2,padx=3,sticky='ew')
+  STLabel = ttk.Label(frame3,textvariable=PLOT.STREAM_COLOR,width=8,style="sstlabel.TLabel")
+  STLabel.grid(row=3,column=1,padx=3,sticky='w')
+  ttk.Button(frame3,
+            text='Select',command=lambda:colsel(PLOT.STREAM_COLOR, \
+            sstlabel,STLabel,"sstlabel.TLabel",master=parent)). \
+            grid(row=3,column=2,padx=3) 
   ttk.Label(frame3,
             text='Additional arguments',
             font=font_bold).grid(row=4,column=0,sticky='w',pady=[10,1])
@@ -633,9 +648,10 @@ def Configuration(parent,PLOT):
 
   switchframes()  
 
-# ======================================
-def drawing(fig,ax,m,CFIELD):
-# ======================================
+# ===============================
+#EG def drawing(fig,ax,m,CFIELD):
+def drawing(ax,proj,CFIELD):
+# ==========================
   ''' Draw a 2D vector plot. Option of vectors or stream function'''
 
   __version__ = "1.0"
@@ -643,133 +659,134 @@ def drawing(fig,ax,m,CFIELD):
   __date__    = "June 2017"
 
   import numpy as np
+  import cartopy
+
+  #EG Remember that CFIELD.VEL.PLOT.MESSAGE may serve to collect
+  # messages
+
   fnt0 = FontProperties()
   font = fnt0.copy()
   font.set_size('x-large')
+  
+  #EG For some fields the fillvalue needs to be changed by NaNs
+  UU, VV = CFIELD.VEL.u.filled(np.nan), CFIELD.VEL.v.filled(np.nan)
 
-  if CFIELD.VEL.PLOT.DRAWING_MODE.get() == 0:
-  # -------------------------------------------- VECTORS
-
-    if CFIELD.VEL.PLOT.GRID_MODE.get() == 0:
-      dx = CFIELD.VEL.PLOT.CURRENT_DX.get()
-      dy = CFIELD.VEL.PLOT.CURRENT_DY.get()
-      uplt,vplt,xplt,yplt = m.rotate_vector(CFIELD.VEL.u[::dy,::dx], \
-                                            CFIELD.VEL.v[::dy,::dx], \
-                                            CFIELD.lon[::dx],   \
-                                            CFIELD.lat[::dy],   \
-                                            returnxy=True)
-    else:
-      uplt,vplt,xplt,yplt = m.transform_vector(CFIELD.VEL.u, \
-                                           CFIELD.VEL.v, \
-                                           CFIELD.lon,   \
-                                           CFIELD.lat,   \
-                                           CFIELD.VEL.PLOT.CURRENT_NX.get(), \
-                                           CFIELD.VEL.PLOT.CURRENT_NY.get(), \
-                                           returnxy=True,                \
-                                           masked=True)
-
-    if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
-      speed = np.sqrt(uplt**2+vplt**2)
-      quiver = m.quiver(xplt,yplt,uplt,vplt,speed,                       \
-                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get(),
-                      )
-
-    else:
-      quiver = m.quiver(xplt,yplt,uplt,vplt,                             \
-                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get(),
-                      )
-
-    if CFIELD.VEL.PLOT.KEY_SHOW.get():
-      CFIELD.VEL.PLOT.KEY_OBJ = ax.quiverkey(quiver,
-                          CFIELD.VEL.PLOT.KEY_X.get(),
-                          CFIELD.VEL.PLOT.KEY_Y.get(),
-                          CFIELD.VEL.PLOT.KEY_VALUE.get(),
-                          CFIELD.VEL.PLOT.KEY_LABEL.get(),
-                          labelpos=CFIELD.VEL.PLOT.KEY_POS.get(),
-                          coordinates='figure',
-                          labelcolor=CFIELD.VEL.PLOT.KEY_COLOR.get(),
-                          fontproperties={'size':
-                                           CFIELD.VEL.PLOT.KEY_SIZE.get()},
-                  )
-
-
-  elif CFIELD.VEL.PLOT.DRAWING_MODE.get() == 1:
-  # -------------------------------------------- BARBS
-
-    # Barb plot assumes knots
-    knots = CFIELD.VEL.PLOT.BARB_SCALE.get()
-    barb_increments = {'half': CFIELD.VEL.PLOT.BARB_HALF.get(),
-                       'full': CFIELD.VEL.PLOT.BARB_FULL.get(),
-                       'flag': CFIELD.VEL.PLOT.BARB_FLAG.get()}
-    sizes = {'spacing': CFIELD.VEL.PLOT.BARB_SPACING.get(),
-             'height': CFIELD.VEL.PLOT.BARB_HEIGHT.get(),
-             'width': CFIELD.VEL.PLOT.BARB_WIDTH.get(),
-             'emptybarb': CFIELD.VEL.PLOT.BARB_EMPTYBARB.get()}
-
-
-    if CFIELD.VEL.PLOT.GRID_MODE.get() == 0:
-      dx = CFIELD.VEL.PLOT.CURRENT_DX.get()
-      dy = CFIELD.VEL.PLOT.CURRENT_DY.get()
-      uplt,vplt,xplt,yplt = m.rotate_vector(CFIELD.VEL.u[::dy,::dx], \
-                                            CFIELD.VEL.v[::dy,::dx], \
-                                            CFIELD.lon[::dx],   \
-                                            CFIELD.lat[::dy],   \
-                                            returnxy=True)
-    else:
-      uplt,vplt,xplt,yplt = m.transform_vector(CFIELD.VEL.u, \
-                                           CFIELD.VEL.v, \
-                                           CFIELD.lon,   \
-                                           CFIELD.lat,   \
-                                           CFIELD.VEL.PLOT.CURRENT_NX.get(), \
-                                           CFIELD.VEL.PLOT.CURRENT_NY.get(), \
-                                           returnxy=True,                \
-                                           masked=True)
-
-      if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
-        speed = knots*np.sqrt(uplt**2+vplt**2)
-        barbs = m.barbs(xplt,yplt,knots*uplt,knots*vplt,speed,
-                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
-                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
-                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
-                        barb_increments=barb_increments,
-                        sizes=sizes,
-                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get(),
-                       )
-      else:
-        barbs = m.barbs(xplt,yplt,knots*uplt,knots*vplt,
-                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
-                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
-                        barbcolor=CFIELD.VEL.PLOT.BARB_BARBCOLOR.get(),
-                        flagcolor=CFIELD.VEL.PLOT.BARB_FLAGCOLOR.get(),
-                        barb_increments=barb_increments,
-                        sizes=sizes,
-                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
-                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get(),
-                       )
-
-
-  elif CFIELD.VEL.PLOT.DRAWING_MODE.get() == 2:
-  # -------------------------------------------- STREAMFUNCTION 
-    if m.projparams['proj'] == 'cyl':
-      # -------------------
-      ax.streamplot(CFIELD.xx, CFIELD.yy, CFIELD.VEL.u, CFIELD.VEL.v,      \
-                   color=CFIELD.VEL.PLOT.STREAM_COLOR.get(),           \
+  if CFIELD.VEL.PLOT.DRAWING_MODE.get() == 2:
+  # -------------------------------------------- STREAMFUNCTION
+    CFIELD.VEL.PLOT.MESSAGE += "Plot STREAMFUNCTION"+str(CFIELD.VEL.PLOT.MESSAGE)
+    #print("PLOT: STREAMFUNCTION", CFIELD.VEL.PLOT.MESSAGE)
+    if isinstance(proj,cartopy.crs.PlateCarree):
+     #EG this call to quiver with zorder negative is needed to proceed
+     #EG with the streamplot. Need further analysis. Cartopy 0.17
+     #EG Matplotlib 3.1.1
+     ax.quiver(CFIELD.lon, CFIELD.lat, UU, VV,  \
+                   transform=proj,zorder=-1)
+     ax.streamplot(CFIELD.lon, CFIELD.lat, UU, VV,  \
+                   transform=proj, \
+                   color=CFIELD.VEL.PLOT.STREAM_COLOR.get(),        \
                    linewidth=CFIELD.VEL.PLOT.STREAM_WIDTH.get(),       \
                    zorder=CFIELD.VEL.PLOT.STREAM_ZORDER.get(),       \
                    density=CFIELD.VEL.PLOT.STREAM_DENSITY.get())
     else:
-      print('WARNING: Streamplot only works with Cylindircal Projection') 
+     CFIELD.VEL.PLOT.MESSAGE += 'VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection'
+     #print('VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection')   
+  
+  else:
+    if CFIELD.VEL.PLOT.GRID_MODE.get() == 0:
+      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORS: original or decimated grid"	
+      #print("EG VECTORS: original or decimated grid")
+      dx = CFIELD.VEL.PLOT.CURRENT_DX.get()
+      dy = CFIELD.VEL.PLOT.CURRENT_DY.get()
+      xplt, yplt = CFIELD.lon[::dx], CFIELD.lat[::dy]
+      uplt, vplt = UU[::dy,::dx], VV[::dy,::dx]
+    else:
+      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORS: fixed grid"
+      #print("EG VECTORS: fixed grid")
+      #EG The method "linear" in interpol.griddata is mandatory. Other
+      #EG choices provides strange behaviour
+      lonmin, lonmax, latmin, latmax = ax.get_extent()
+      xplt = np.linspace(lonmin,lonmax,CFIELD.VEL.PLOT.CURRENT_NX.get())
+      yplt = np.linspace(latmin,latmax,CFIELD.VEL.PLOT.CURRENT_NY.get())
+      n_lon, n_lat = np.meshgrid(xplt,yplt)
+      o_lon, o_lat = np.meshgrid(CFIELD.lon,CFIELD.lat)
+      uplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
+                UU.flatten(),(n_lon,n_lat), method='linear')
+      vplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
+                VV.flatten(),(n_lon,n_lat), method='linear')
+      
+    speed = np.sqrt(uplt**2+vplt**2)
+    
+    if CFIELD.VEL.PLOT.DRAWING_MODE.get() == 0:
+    # -------------------------------------------- VECTORS
+      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORPLOT: Arrows"
+      #print("EG VECTORPLOT: Arrows")
+      if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
+        quiver = ax.quiver(xplt,yplt,uplt,vplt,speed,                       \
+                      transform=proj, \
+                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
+                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
+                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
+                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
+                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
+                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
+                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get())
+      else:
+        quiver = ax.quiver(xplt,yplt,uplt,vplt,  \
+                      transform=proj, \
+                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
+                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
+                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
+                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
+                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
+                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
+                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get())
+                      
+      if CFIELD.VEL.PLOT.KEY_SHOW.get():
+        CFIELD.VEL.PLOT.KEY_OBJ = ax.quiverkey(quiver,
+                        CFIELD.VEL.PLOT.KEY_X.get(),
+                        CFIELD.VEL.PLOT.KEY_Y.get(),
+                        CFIELD.VEL.PLOT.KEY_VALUE.get(),
+                        CFIELD.VEL.PLOT.KEY_LABEL.get(),
+                        labelpos=CFIELD.VEL.PLOT.KEY_POS.get(),
+                        coordinates='figure',
+                        transform=proj,
+                        labelcolor=CFIELD.VEL.PLOT.KEY_COLOR.get(),
+                        fontproperties={'size':CFIELD.VEL.PLOT.KEY_SIZE.get()})
+
+    elif CFIELD.VEL.PLOT.DRAWING_MODE.get() == 1:
+    # -------------------------------------------- BARBS
+      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORPLOT: BARBS"
+      #print("EG VECTORPLOT: BARBS")
+      # Barb plot assumes knots
+      knots = CFIELD.VEL.PLOT.BARB_SCALE.get()
+      barb_increments = {'half': CFIELD.VEL.PLOT.BARB_HALF.get(),
+                       'full': CFIELD.VEL.PLOT.BARB_FULL.get(),
+                       'flag': CFIELD.VEL.PLOT.BARB_FLAG.get()}
+      sizes = {'spacing': CFIELD.VEL.PLOT.BARB_SPACING.get(),
+             'height': CFIELD.VEL.PLOT.BARB_HEIGHT.get(),
+             'width': CFIELD.VEL.PLOT.BARB_WIDTH.get(),
+             'emptybarb': CFIELD.VEL.PLOT.BARB_EMPTYBARB.get()}
+             
+      if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
+        speedk = knots*speed
+        barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,speedk,
+                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
+                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
+                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
+                        barb_increments=barb_increments,
+                        sizes=sizes,
+                        transform=proj, 
+                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
+                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get())  
+      else:
+        barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,
+                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
+                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
+                        barbcolor=CFIELD.VEL.PLOT.BARB_BARBCOLOR.get(),
+                        flagcolor=CFIELD.VEL.PLOT.BARB_FLAGCOLOR.get(),
+                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
+                        barb_increments=barb_increments,
+                        sizes=sizes,
+                        transform=proj, 
+                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
+                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get())

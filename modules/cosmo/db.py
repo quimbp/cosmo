@@ -1,14 +1,10 @@
 # POSTGRESQL DB with Lagrangian trajectories
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-except:
-  import Tkinter as tk
-  import ttk
+import tkinter as tk
+from tkinter import ttk
 
-#import postgresql
 import psycopg2
+
 import wget
 from os.path import isfile, join
 from cosmo.tools import simple_form

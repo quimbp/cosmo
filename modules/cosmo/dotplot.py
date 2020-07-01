@@ -1,16 +1,29 @@
-# Module for plotting dots, built for the COSMO project 
-# Quim Ballabrera, May 2018
+''' Module for plotting dots, built for the COSMO project 
+ Quim Ballabrera, May 2018
+	EGL, 06/2020: Changes:
+	No more support to python 2.7 
+	All color selection functions are now managed through tools.colsel() function
+	As an example: 
+	i) we define an style (sdlabel)
+	  sdlabel = ttk.Style()
+      sdlabel.configure("sdlabel.TLabel",background=PLOT.COLOR.get(),anchor="center")
+    ii) we build Label widget (here DLabel) instead of Entry widget  
+      ttk.Label(F0,text='Color').grid(row=4,column=0,columnspan=1,sticky='w')
+      DLabel = ttk.Label(F0,textvariable=PLOT.COLOR,width=8,style="sdlabel.TLabel")
+      DLabel.grid(row=4,column=1)
+    iii) we call colsel() function passing the variable, the style, the Label, 
+    the attached style and the parent widget
+	  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.COLOR, \
+            sdlabel,DLabel,"sdlabel.TLabel",master=parent)).\
+            grid(row=4,column=2,padx=3,sticky='ew')
+    A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkcolorpicker import askcolor
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  from tkColorChooser import askcolor
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkcolorpicker import askcolor
+from tkinter import font as tkfont
 
 import json
 import os
@@ -22,10 +35,11 @@ except:
 
 from cosmo.tools import empty
 from cosmo.tools import exists
+#EG
+from cosmo.tools import colsel
+
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
-
-
 
 # ============================
 class parameters():
@@ -39,6 +53,9 @@ class parameters():
   def __init__ (self):
   # ==================
     '''Define and initialize class attributes'''
+    
+    #EG To collect message
+    self.MESSAGE =''
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -85,15 +102,17 @@ class parameters():
     #
     if exists(self.FILECONF):
       try:
-        print('Loading DOT configuration')
+        self.MESSAGE += 'Loading DOT configuration'
+        #print('Loading DOT configuration')
         self.load(self.FILECONF)
       except:
-        print('Error: Saving default DOT configuration')
+        self.MESSAGE += 'Error: Saving default DOT configuration'
+        #print('Error: Saving default DOT configuration')
         self.save(self.FILECONF)
     else:
-      print('Saving default DOT configuration')
+      self.MESSAGE += 'Saving default DOT configuration'
+      #print('Saving default DOT configuration')
       self.save(self.FILECONF)
-
 
   def conf_get(self):
   # =================
@@ -165,8 +184,6 @@ class parameters():
     conf = self.conf_get()
     self.conf_save(conf,filename)
 
-
-
 # ========================================
 def Configuration(parent,PLOT):
 # ========================================
@@ -175,21 +192,6 @@ def Configuration(parent,PLOT):
   __version__ = "1.0"
   __author__  = "Quim Ballabrerera"
   __date__    = "May 2018"
-
-  def color():
-  # ==========
-    ''' Color picker with backup'''
-
-    backup = PLOT.COLOR.get()
-    if PLOT.COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.COLOR.get(),parent=parent)
-
-    if hx is None:
-      PLOT.COLOR.set(backup)
-    else:
-      PLOT.COLOR.set(hx)
 
   # Main widget
   # ===========
@@ -202,28 +204,30 @@ def Configuration(parent,PLOT):
   for n in range(ord('\u2600'),ord('\u26B8')+1):
     SYMBOL_LIST.append(chr(n))
 
-
+  font = tkfont.Font(font='TkDefaultFont').copy()
   F0 = ttk.Frame(parent,borderwidth=5,padding=5)
-  ttk.Label(F0,text='Dot options', \
-            font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
-  tk.Checkbutton(F0,text='Show',font='Helvetica 12 bold', \
+  ttk.Label(F0,text='Dot options',font=font).grid(row=0,column=0,sticky='w')
+  tk.Checkbutton(F0,text='Show',font=font, \
                  variable=PLOT.SHOW).grid(row=1,column=1)
   ttk.Label(F0,text='Symbol').grid(row=2,column=0,columnspan=1,sticky='w')
   ttk.Combobox(F0,textvariable=PLOT.SYMBOL, \
-               values=SYMBOL_LIST,width=7).grid(row=2,column=1,sticky='w')
+               values=SYMBOL_LIST,width=8).grid(row=2,column=1,sticky='w')
   ttk.Label(F0,text='Size').grid(row=3,column=0,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.SIZE, \
-            width=7).grid(row=3,column=1,sticky='w')
-  ttk.Label(F0,text='Color').grid(row=4,column=0, \
-            columnspan=1,sticky='w')
-  ttk.Entry(F0,textvariable=PLOT.COLOR, \
-            justify='left',width=7).grid(row=4,column=1,sticky='w')
-  ttk.Button(F0,text='Select', \
-             command=color).grid(row=4,column=2,padx=3,sticky='ew')
+  ttk.Entry(F0,textvariable=PLOT.SIZE,width=8).grid(row=3,column=1,sticky='w')
+            
+  sdlabel = ttk.Style()
+  sdlabel.configure("sdlabel.TLabel",background=PLOT.COLOR.get(),anchor="center")
+  ttk.Label(F0,text='Color').grid(row=4,column=0,columnspan=1,sticky='w')
+  DLabel = ttk.Label(F0,textvariable=PLOT.COLOR,width=8,style="sdlabel.TLabel")
+  DLabel.grid(row=4,column=1)
+  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.COLOR, \
+            sdlabel,DLabel,"sdlabel.TLabel",master=parent)).\
+            grid(row=4,column=2,padx=3,sticky='ew')
+   
   ttk.Label(F0,text='Alpha').grid(row=5,column=0, \
                                   columnspan=1,sticky='w')
   ttk.Entry(F0,textvariable=PLOT.ALPHA, \
-            justify='left',width=7).grid(row=5,column=1,sticky='w')
+            justify='left',width=8).grid(row=5,column=1,sticky='w')
   #ttk.Label(F0,text='Label').grid(row=6,column=0,columnspan=1,sticky='w')
   #ttk.Entry(F0,textvariable=PLOT.LABEL, \
   #          justify='left',width=20).grid(row=6,column=1, \

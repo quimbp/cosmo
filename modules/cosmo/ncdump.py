@@ -3,19 +3,13 @@
     Script for visualizing model outputs provided by various operational
       systems'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import filedialog as filedialog
-except:
-  import Tkinter as tk
-  import ttk
-  import tkFileDialog as filedialog
-
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog as filedialog
+  
 from netCDF4 import Dataset
 from cosmo import *
 import sys
-
 
 class WinNcdump:
 
@@ -31,7 +25,6 @@ class WinNcdump:
     scrollb = tk.Scrollbar(self.master,command=log.yview)
     scrollb.grid(row=0,column=1,sticky='nsew',padx=2,pady=2)
     log['yscrollcommand'] = scrollb.set
-
 
     # Dimensions
     log.insert('end','Dimensions:\n')
@@ -66,7 +59,6 @@ class WinNcdump:
     log.configure(state='disabled')
     #self.frame.grid(sticky='nsew')
   
-
 def main():
 
   # Open filename:

@@ -1,12 +1,18 @@
-# Module for plotting contours, built for the COSMO project 
-# Quim Ballabrera, May 2017
+'''
+ Module for plotting contours, built for the COSMO project 
+ Quim Ballabrera, May 2017
+ Changes: 
+  - 06/2020: EGL:
+		No more support to python 2.7 
+		Support to Basemap deprecated and updated to cartopy
+		Limited support to geographical projections. Everything is 
+		plotted in PlateCarree. Cartopy projection can be accessed 
+		through tools.map_proj()
+		A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-except:
-  import Tkinter as tk
-  import ttk
+import tkinter as tk
+from tkinter import ttk
 
 try:
   from tkcolorpicker import askcolor
@@ -21,9 +27,9 @@ import matplotlib.cm as cm
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from  matplotlib import rcParams
+from matplotlib import rcParams
+from mpl_toolkits.axes_grid1 import AxesGrid
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 
 import numpy as np
 import numpy.ma as ma
@@ -34,15 +40,17 @@ from cosmo.tools import colormap_selector
 from cosmo.tools import exists
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
+from cosmo.tools import colsel
+
+#EG To manage cartopy projections
+#from cosmo.tools import map_proj
 
 try:
   to_unicode = unicode
 except:
   to_unicode = str
 
-                                                           
-
-# =============================
+# =================
 class parameters():
 # =============================
   '''Class for contour plots: 
@@ -55,6 +63,8 @@ class parameters():
   def __init__ (self):
   # ==================
     '''Define and initialize the class attributes'''
+
+    self.MESSAGE = ''
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -116,23 +126,20 @@ class parameters():
     self.LABEL_SIZE.set(12)              # Default: Label character size
     self.LABEL_VALUES.set('')            # Default: Label character size
 
-
-
     # If configuration file exists, it is read and 
     # the default values are overrided. If the configuration
     # file does not exist, it is created using the default values.
 
     if exists(self.FILECONF):
-      print('Reading CONTOUR configuration from ',self.FILECONF)
+      self.MESSAGE += 'Reading CONTOUR configuration from '+self.FILECONF
       try:
         self.load(self.FILECONF)
       except:
-        print('Error: Saving default CONTOUR configuration')
+        self.MESSAGE += '\nError: Saving default CONTOUR configuration'
         self.save(self.FILECONF)
     else:
-      print('Saving CONTOUR configuration')
+      self.MESSAGE += '\nSaving CONTOUR configuration'
       self.save(self.FILECONF)
-
 
   def conf_get(self):
   # =================
@@ -228,8 +235,7 @@ class parameters():
     conf = self.conf_get()
     self.conf_save(conf,filename)
 
-
-# ======================================================================
+# =================================================================
 def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
 # ======================================================================
   ''' Interactive widget to modify the options of 2D contour plots'''
@@ -237,23 +243,6 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
   __version__ = "1.0"
   __author__  = "Quim Ballabrerera"
   __date__    = "June 2017"
-
-
-  def cselection():
-  # ===============
-    ''' Color picker with backup'''
-
-    backup = PLOT.CONTOUR_COLOR.get()
-    if PLOT.CONTOUR_COLOR.get() == 'None':
-      rgb, hx = askcolor(parent=parent)
-    else:
-      rgb, hx = askcolor(color=PLOT.CONTOUR_COLOR.get(),parent=parent)
-
-    if hx is None:
-      PLOT.CONTOUR_COLOR.set(backup)
-    else:
-      PLOT.CONTOUR_COLOR.set(hx)
-
 
   def mselection():
   # ===============
@@ -263,7 +252,6 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
     else:
       name = colormap_selector(cmap=PLOT.CONTOUR_COLORMAP.get(),parent=parent)
     PLOT.CONTOUR_COLORMAP.set(name)
-
 
   frame1 = ttk.Frame(parent,borderwidth=5,padding=5,relief='sunken')
   ttk.Label(frame1,text='Contour field',font='Helvetica 12 bold').grid(row=0,column=0,sticky='w')
@@ -301,9 +289,15 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
   cmap = ttk.Radiobutton(frame2,text='Colormap',variable=PLOT.CONTOUR_LINEMODE,value='M')
   ccol.grid(row=4,column=0,sticky='w')
   cmap.grid(row=5,column=0,sticky='w')
-  ecol = ttk.Entry(frame2,textvariable=PLOT.CONTOUR_COLOR,justify='left',width=7)  # Map Contour Color
+  
+  sclabel = ttk.Style()
+  sclabel.configure("sclabel.TLabel",background=PLOT.CONTOUR_COLOR.get(),anchor="center")
+  ecol = ttk.Label(frame2,textvariable=PLOT.CONTOUR_COLOR,width=8,style="sclabel.TLabel") # Map Contour Color
   ecol.grid(row=4,column=1,padx=3,sticky='we')
-  ttk.Button(frame2,text='Select',command=cselection).grid(row=4,column=2,padx=3,sticky='ew')
+  ttk.Button(frame2,text='Select',command=lambda:colsel(PLOT.CONTOUR_COLOR, \
+            sclabel,ecol,"sclabel.TLabel",master=parent)).\
+            grid(row=4,column=2,padx=3,sticky='ew')    
+  
   emap = ttk.Entry(frame2,textvariable=PLOT.CONTOUR_COLORMAP,justify='left',width=7)  # Map Contour Color
   emap.grid(row=5,column=1,padx=3,sticky='we')
   ttk.Button(frame2,text='Select',command=mselection).grid(row=5,column=2,padx=3,sticky='ew')
@@ -342,16 +336,14 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
   tk.Entry(frame3,textvariable=PLOT.COLORBAR_TICKSIZE,width=7).grid(row=12,column=2,sticky='w')
   frame3.grid()
 
-
-# =================================================
-def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
+# ============================================
+def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
 # =================================================
   ''' Draw a 2D contour plot. Option of lines or filled contours'''
 
   __version__ = "2.0"
   __author__  = "Quim Ballabrerera"
   __date__    = "June 2019"
-
 
   _levels = np.arange(PLOT.CONTOUR_MIN.get(),                            \
                       PLOT.CONTOUR_MAX.get()+PLOT.CONTOUR_INTERVAL.get(), \
@@ -367,7 +359,6 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
   if PLOT.CONTOUR_LOG.get():
     FIELD = np.log10(FIELD)
   
-
   FIELD = ma.array(FIELD,mask=MASK)  
 
   # Colormap: Direct or Reversed
@@ -380,41 +371,28 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
   if PLOT.CONTOUR_MODE.get() == 0:
     # ----------------------------- CONTOURS
     if PLOT.CONTOUR_LINEMODE.get() == 'M':    # colormapped contours
-
-      if map is None:
-        _cl = ax.contour(X,Y,FIELD,
-                         linewidths=PLOT.CONTOUR_WIDTH.get(),
-                         levels=_levels,
-                         cmap=cmap,
+      IFIELD.MESSAGE += "EG Contouring CONTOURS M"
+      #print("EG Contouring CONTOURS M")
+      _cl = ax.contour(X,Y,FIELD, \
+                         linewidths=PLOT.CONTOUR_WIDTH.get(), \
+                         levels=_levels, \
+                         cmap=cmap, \
+                         zorder=4, \
+                         transform=proj, \
                          alpha=PLOT.ALPHA.get())
-      else:
-        _cl = map.contour(X,Y,FIELD,
-                          linewidths=PLOT.CONTOUR_WIDTH.get(),
-                          levels=_levels,
-                          cmap=cmap,
-                          latlon = True,
-                          alpha=PLOT.ALPHA.get())
-
     else:
       if PLOT.CONTOUR_DASHEDNEG.get():
         rcParams['contour.negative_linestyle'] = 'dashed'
       else:
         rcParams['contour.negative_linestyle'] = 'solid'
 
-      if map is None:
-        _cl = ax.contour(X,Y,FIELD,                                   \
-                         linewidths=PLOT.CONTOUR_WIDTH.get(),         \
-                         levels=_levels,                              \
-                         colors=PLOT.CONTOUR_COLOR.get(),             \
-                         alpha=PLOT.ALPHA.get())
-      else:
-        _cl = map.contour(X,Y,FIELD,                                   \
-                          linewidths=PLOT.CONTOUR_WIDTH.get(),         \
-                          levels=_levels,                              \
-                          colors=PLOT.CONTOUR_COLOR.get(),             \
-                          latlon = True,                               \
-                          alpha=PLOT.ALPHA.get())
-
+      _cl = ax.contour(X,Y,FIELD,                                   \
+                       linewidths=PLOT.CONTOUR_WIDTH.get(),         \
+                       levels=_levels,                              \
+                       zorder=4, \
+                       transform=proj, \
+                       colors=PLOT.CONTOUR_COLOR.get(),             \
+                       alpha=PLOT.ALPHA.get())
 
     # About contour labels
     if PLOT.LABEL_SHOW.get():
@@ -427,106 +405,79 @@ def drawing(fig,ax,map,X,Y,IFIELD,MASK,PLOT):
 
   elif PLOT.CONTOUR_MODE.get() == 1:
     # ----------------------------- SHADED
-
-    if map is None:
-      divider = make_axes_locatable(ax)
-      _cf = ax.contourf(X,Y,FIELD,
-                        levels=_levels,
-                        cmap=cmap,
-                        alpha=PLOT.ALPHA.get())
-
-    else:
-      _cf = map.contourf(X,Y,FIELD,
-                         levels=_levels,
-                         cmap=cmap,
-                         latlon = True,
-                         alpha=PLOT.ALPHA.get())
-
+    IFIELD.MESSAGE += "EG Contouring CONTOUR_DASHEDNE G"
+    #print("EG Contouring CONTOUR_DASHEDNE G")
+    #EG divider give errors, divider is for colorbar
+    divider = make_axes_locatable(ax)
+    _cf = ax.contourf(X,Y,FIELD,
+        levels=_levels,
+        cmap=cmap,
+        zorder=4, 
+        transform=proj, 
+        alpha=PLOT.ALPHA.get())
+      
     cbar = None
     if PLOT.COLORBAR_SHOW.get():
-      if map is None:
-        padding = PLOT.COLORBAR_PAD.get()/100
-        if PLOT.COLORBAR_LOCATION.get() == 'right':
-          location = 'right'
-          orientation = 'vertical'
-        elif PLOT.COLORBAR_LOCATION.get() == 'left':
-          location = 'left'
-          orientation = 'vertical'
-        elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
-          location = 'bottom'
-          orientation = 'horizontal'
-        else:
-          location = 'top'
-          orientation = 'horizontal'
-        
-        cax = divider.append_axes(location, \
-                                  size=PLOT.COLORBAR_SIZE.get(),
-                                  pad=padding)
-        cbar = fig.colorbar(_cf,                      \
-                            cax=cax,                  \
-                            orientation=orientation)
+      padding = PLOT.COLORBAR_PAD.get()/100
+      if PLOT.COLORBAR_LOCATION.get() == 'right':
+            location = 'right'
+            orientation = 'vertical'
+      elif PLOT.COLORBAR_LOCATION.get() == 'left':
+            location = 'left'
+            orientation = 'vertical'
+      elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
+            location = 'bottom'
+            orientation = 'horizontal'
       else:
-        padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
-        cbar = map.colorbar(_cf,location=PLOT.COLORBAR_LOCATION.get(), \
-                            pad=padding,
-                            size=PLOT.COLORBAR_SIZE.get(),
-                            fig=fig)
+            location = 'top'
+            orientation = 'horizontal'
+            
+      # EG divider gives cartopy errors
+      cax = divider.append_axes(location,size="5%",pad=0.1,axes_class=plt.Axes)
+      fig.add_axes(cax)
+      
+      cbar = fig.colorbar(_cf, cax=cax, orientation=orientation)
       cbar.ax.tick_params(labelsize=PLOT.COLORBAR_TICKSIZE.get())
       cbar.set_label(PLOT.COLORBAR_LABEL.get(),
-                     labelpad=PLOT.COLORBAR_LABELPAD.get(),
-                     size=PLOT.COLORBAR_LABELSIZE.get())
+			labelpad=PLOT.COLORBAR_LABELPAD.get(),
+			size=PLOT.COLORBAR_LABELSIZE.get())
     return cbar
 
   else:
     # ----------------------------- COLORMESH
-    if map is None:
-      divider = make_axes_locatable(ax)
-      _cp = ax.pcolormesh(X,Y,FIELD,                        \
+    IFIELD.MESSAGE += "EG Contouring COLORMESH"
+    #print("EG Contouring COLORMESH")
+	# EG divider gives cartopy errors
+    divider = make_axes_locatable(ax)
+    _cp = ax.pcolormesh(X,Y,FIELD,                        \
                          cmap=cmap,                         \
+                         zorder=4, \
+                         transform=proj, \
                          vmin=PLOT.CONTOUR_MIN.get(),       \
                          vmax=PLOT.CONTOUR_MAX.get(),       \
                          alpha=PLOT.ALPHA.get())
-
-    else:
-      _cp = map.pcolormesh(X,Y,FIELD,                       \
-                           cmap=cmap,                       \
-                           vmin=PLOT.CONTOUR_MIN.get(),     \
-                           vmax=PLOT.CONTOUR_MAX.get(),     \
-                           latlon = True,                   \
-                           alpha=PLOT.ALPHA.get())
-
     cbar = None
     if PLOT.COLORBAR_SHOW.get():
-      if map is None:
-        padding = PLOT.COLORBAR_PAD.get()/100
-        if PLOT.COLORBAR_LOCATION.get() == 'right':
+      padding = PLOT.COLORBAR_PAD.get()/100
+      if PLOT.COLORBAR_LOCATION.get() == 'right':
           location = 'right'
           orientation = 'vertical'
-        elif PLOT.COLORBAR_LOCATION.get() == 'left':
+      elif PLOT.COLORBAR_LOCATION.get() == 'left':
           location = 'left'
           orientation = 'vertical'
-        elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
+      elif PLOT.COLORBAR_LOCATION.get() == 'bottom':
           location = 'bottom'
           orientation = 'horizontal'
-        else:
+      else:
           location = 'top'
           orientation = 'horizontal'
-        
-        cax = divider.append_axes(location, \
-                                  size=PLOT.COLORBAR_SIZE.get(),
-                                  pad=padding)
-        cbar = fig.colorbar(_cp,                      \
-                            cax=cax,                  \
-                            orientation=orientation)
-      else:
-        padding = '%4.1f' % PLOT.COLORBAR_PAD.get() + '%'
-        cbar = map.colorbar(_cp,location=PLOT.COLORBAR_LOCATION.get(), \
-                            pad=padding,
-                            size=PLOT.COLORBAR_SIZE.get(),
-                            fig=fig)
+      # EG 
+      cax = divider.append_axes(location,size=PLOT.COLORBAR_SIZE.get(),pad=padding,axes_class=plt.Axes)
+      fig.add_axes(cax)   
+
+      cbar = fig.colorbar(_cp, cax=cax, orientation=orientation)
       cbar.ax.tick_params(labelsize=PLOT.COLORBAR_TICKSIZE.get())
       cbar.set_label(PLOT.COLORBAR_LABEL.get(),
                      labelpad=PLOT.COLORBAR_LABELPAD.get(),
-                     size=PLOT.COLORBAR_LABELSIZE.get())
+                     size=PLOT.COLORBAR_LABELSIZE.get())      
     return cbar
-

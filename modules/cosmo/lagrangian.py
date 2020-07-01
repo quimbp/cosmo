@@ -1,18 +1,19 @@
 ''' COSMO-VIEW,
     Quim Ballabrera, May 2017
     Script for visualizing model outputs provided by various operational
-      systems'''
-
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
+      systems
+    EGL, 06/2020: Changes:
+		No more support to python 2.7 
+		Support to Basemap deprecated and updated to Cartopy system
+		Limited support to geographical projections. Everything is 
+		plotted in PlateCarree and data are supposed to be provided
+		in geodetic (lon,lat) values.
+		A heap variable MESSAGE has been introduce to store "print" messages
+ '''
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog
 
 import dateutil.parser as dparser
 import numpy as np
@@ -26,13 +27,11 @@ try:
 except:
   to_unicode = str
 
-
 #import matplotlib
 #matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from mpl_toolkits.basemap import Basemap
 
 import cosmo.lineplot as lineplot
 from cosmo.tools import exists
@@ -40,6 +39,9 @@ from cosmo.tools import caldat
 from cosmo.tools import Select_Columns
 from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
+
+#EG To manage cartopy projections
+#EG from cosmo.tools import map_proj
 
 __version__ = "1.0"
 __author__  = "Quim Ballabrera"
@@ -57,6 +59,8 @@ class parameters():
   def __init__ (self):
   # ==================
     ''' Define ans initialize class attrobutes'''
+
+    self.MESSAGE = ""
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
@@ -78,6 +82,9 @@ class parameters():
     self.FLOAT_SHOW      = []
 
     self.PLOT            = lineplot.parameters()
+    
+    self.MESSAGE +=  self.PLOT.MESSAGE
+    
     self.nfloats         = 0
     self.nrecords        = 0
     self.lon             = []
@@ -215,8 +222,6 @@ class parameters():
       except:
         self.lat  = ncid.variables['latitude'][:,:]
 
-
-
       # If some longitudes have missing values, we set them
       # equal to nan:
       #
@@ -253,7 +258,6 @@ class parameters():
             else:
               tmpdate.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
           self.date.append(tmpdate)
-
 
     # --------------------------------------
     def read_trajectory_json(filename):
@@ -426,9 +430,8 @@ class parameters():
       self.FLOAT_COLOR.append(a)
       self.FLOAT_SHOW.append(b)
 
-
-# ======================================
-def drawing(fig,ax,m,FLT):
+# =======================
+def drawing(ax,proj,FLT):
 # ======================================
   ''' Draw a 2D vector plot. Option of vectors or stream function'''
 
@@ -438,6 +441,9 @@ def drawing(fig,ax,m,FLT):
 
   if not FLT.SHOW.get():
     return
+
+  #EG recover the cartopy projection
+  #EG projection = map_proj(proj)
 
   r1 = FLT.L1.get()
   r2 = FLT.L2.get() + 1
@@ -449,57 +455,70 @@ def drawing(fig,ax,m,FLT):
       else:
         color = FLT.PLOT.LINE_COLOR.get()
 
-      xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
+      #EG xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
+      xx, yy =  FLT.lon[r1:r2,i],FLT.lat[r1:r2,i]
       if FLT.PLOT.LINE_SHOW.get():
-        m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
+        ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
                linewidth=FLT.PLOT.LINE_WIDTH.get(), \
+               transform=proj, \
                color=color)
+               
       if FLT.PLOT.MARKER_SHOW.get():
-        m.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
+        ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
+               transform=proj, \
                color=FLT.PLOT.MARKER_COLOR.get())
+               
       if FLT.PLOT.INITIAL_SHOW.get():
-        m.plot(xx[r1],yy[r1],                    \
+        ax.plot(xx[r1],yy[r1],                    \
                FLT.PLOT.INITIAL_STYLE.get(),  \
                ms=FLT.PLOT.INITIAL_SIZE.get(), \
+               transform=proj, \
                color=FLT.PLOT.INITIAL_COLOR.get())
+               
       if FLT.PLOT.ONMAP_SHOW.get():
         L = FLT.L.get()
-        xx,yy = m(FLT.MAPX[L][i],FLT.MAPY[L][i])
-        m.plot(xx,yy,  \
+        #EG xx,yy = m(FLT.MAPX[L][i],FLT.MAPY[L][i])
+        xx,yy = FLT.MAPX[L][i], FLT.MAPY[L][i]
+        ax.plot(xx,yy,  \
                FLT.PLOT.ONMAP_STYLE.get(),     \
                ms=FLT.PLOT.ONMAP_SIZE.get(),    \
+               transform=proj, \
                color=FLT.PLOT.ONMAP_COLOR.get())
   else:
-    xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
+    #EG xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
+    xx,yy = FLT.lon[r1:r2], FLT.lat[r1:r2]
     if FLT.SEPARATED_COLOR.get():
       color = FLT.FLOAT_COLOR[0].get()
     else:
       color = FLT.PLOT.LINE_COLOR.get()
     if FLT.PLOT.LINE_SHOW.get():
-      m.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
+      ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
              linewidth=FLT.PLOT.LINE_WIDTH.get(), \
+             transform=proj, \
              color=color)
     if FLT.PLOT.MARKER_SHOW.get():
-      m.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
+      ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
+             transform=proj, \
              color=FLT.PLOT.LINE_COLOR.get())
     if FLT.PLOT.INITIAL_SHOW.get():
-      m.plot(xx[r1],yy[r1],                    \
+      ax.plot(xx[r1],yy[r1],                    \
              FLT.PLOT.INITIAL_STYLE.get(),  \
              ms=FLT.PLOT.INITIAL_SIZE.get(), \
+             transform=proj, \
              color=FLT.PLOT.INITIAL_COLOR.get())
     if FLT.PLOT.ONMAP_SHOW.get():
       L = FLT.L.get()
-      xx,yy = m(FLT.MAPX[L],FLT.MAPY[L])
-      m.plot(xx,yy,  \
+      #EG xx,yy = m(FLT.MAPX[L],FLT.MAPY[L])
+      xx,yy = FLT.MAPX[L], FLT.MAPY[L]
+      ax.plot(xx,yy,  \
              FLT.PLOT.ONMAP_STYLE.get(),     \
              ms=FLT.PLOT.ONMAP_SIZE.get(),    \
+             transform=proj, \
              color=FLT.PLOT.ONMAP_COLOR.get())
 
-
-
-# ======================================
+# =======================
 def ShowData(master,LL):
 # ======================================
   ''' Shows data from a Lagrangian Trajectory'''
@@ -560,6 +579,7 @@ def ShowData(master,LL):
     ibox.configure(state='!disabled')
   F0.grid()
 
+# =============
 def editor(LL):
 # =============
 
@@ -606,7 +626,6 @@ def editor(LL):
     for i in range(LL.nrecords):
       if LL.date[i] < t0:
         REJECT[i].set(True)
-
 
   def _recovertime():
   # =================
@@ -694,8 +713,6 @@ def editor(LL):
   ax1.get_xaxis().set_visible(False)
   ax1.get_yaxis().set_visible(False)
 
-
-
   # Bottom menu
   F2 = ttk.Frame(page1,padding=5)
   ttk.Button(F2,text='+',command=_station_up,padding=3).  \
@@ -734,10 +751,6 @@ def editor(LL):
 
   nb.grid()
   #win.wait_window(win)
-
-
-
-
 
 def main():
 # =========

@@ -1,17 +1,15 @@
 ''' COSMO-VIEW,
     Quim Ballabrera, May 2017
-    Geomarker class and functions'''
+    Geomarker class and functions
+    
+    EGL, 06/2020:
+    A heap variable MESSAGE has been introduce to store "print" messages
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import filedialog
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFileDialog as filedialog
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import filedialog
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +25,9 @@ except:
 import cosmo.dotplot as dotplot
 from cosmo.tools import marker_string
 from cosmo.tools import empty
+
+#EG
+from cosmo.tools import colsel
 
 __version__ = "1.0"
 __author__  = "Quim Ballabrera"
@@ -44,6 +45,9 @@ class parameters():
 
   def __init__ (self):
   # ==================
+
+    self.MESSAGE = ''
+    
     self.FILENAME        = tk.StringVar()
 
     self.PLOT            = dotplot.parameters()
@@ -53,6 +57,9 @@ class parameters():
     self.lon             = []
     self.lat             = []
     self.label           = []
+
+    #EG We collect message ftom dotplot.parameters
+    self.MESSAGE += self.PLOT.MESSAGE
 
   def conf_get(self):
   # =================
@@ -160,7 +167,6 @@ class parameters():
       self = None
       return
 
-
   def Draw(self,fig=None,ax=None,m=None):
   # ================================
 
@@ -196,9 +202,8 @@ class parameters():
     ax.legend()
     plt.show()
 
-
 # ======================================
-def drawing(fig,ax,m,MARKER):
+def drawing(ax,proj,MARKER):
 # ======================================
   ''' Draw a 2D vector plot. Option of vectors or stream function'''
 
@@ -206,21 +211,16 @@ def drawing(fig,ax,m,MARKER):
   __author__  = "Quim Ballabrerera"
   __date__    = "May 2018"
 
-  west  = m.__dict__['xmin']
-  east  = m.__dict__['xmax']
-  south = m.__dict__['ymin']
-  north = m.__dict__['ymax']
-  #west,east = ax.get_xlim()
-  #south,north = ax.get_ylim()
+  west, east, south, north = ax.get_extent()
+  
   xv = []
   yv = []
   lv = []
   for i in range(MARKER.n):
-    xx,yy = m(MARKER.lon[i],MARKER.lat[i])
-    if xx > west and xx < east and \
-       yy > south and yy < north:
-      xv.append(xx)
-      yv.append(yy)
+    if MARKER.lon[i] > west and MARKER.lon[i] < east and \
+       MARKER.lat[i] > south and MARKER.lat[i] < north:
+      xv.append(MARKER.lon[i])
+      yv.append(MARKER.lat[i])
       lv.append(MARKER.label[i])
   nn = len(xv)
   
@@ -237,17 +237,18 @@ def drawing(fig,ax,m,MARKER):
                  color=MARKER.PLOT.TCOLOR.get(),
                  size=MARKER.PLOT.TSIZE.get(),
                  zorder=MARKER.PLOT.ZORDER.get(),
-                )
-        m.plot(xv[i],yv[i],linestyle='',
+                 transform=proj)
+ 
+        ax.plot(xv[i],yv[i],linestyle='',
                marker=marker_string(MARKER.PLOT.SYMBOL.get()),
                ms=MARKER.PLOT.SIZE.get(),
                alpha=MARKER.PLOT.ALPHA.get(),
                color=MARKER.PLOT.COLOR.get(),
                zorder=MARKER.PLOT.ZORDER.get(),
-              )
+               transform=proj)
                 
     else:
-      m.plot(xv,yv,linestyle='',
+      ax.plot(xv,yv,linestyle='',
              marker=marker_string(MARKER.PLOT.SYMBOL.get()),
              ms=MARKER.PLOT.SIZE.get(),
              visible=MARKER.PLOT.SHOW.get(),
@@ -255,9 +256,8 @@ def drawing(fig,ax,m,MARKER):
              alpha=MARKER.PLOT.ALPHA.get(),
              color=MARKER.PLOT.COLOR.get(),
              zorder=MARKER.PLOT.ZORDER.get(),
-            )
+             transform=proj)
                 
-
 # ======================================
 def TextConfigure(parent,MPLOT):
 # ======================================
@@ -294,6 +294,8 @@ def TextConfigure(parent,MPLOT):
                  'bottom',
                  'baseline']
   
+  sfclabel = ttk.Style()
+  sfclabel.configure("sfclabel.TLabel",background=MPLOT.TCOLOR.get(),anchor="center")
 
   f0 = ttk.Frame(parent,borderwidth=5,padding=5)
   ttk.Label(f0,
@@ -317,16 +319,13 @@ def TextConfigure(parent,MPLOT):
                            column=1,
                            padx=3,
                            sticky='w')
-  ttk.Label(f0,
-            text='Font color').grid(row=2,
-                                   column=0,
-                                   padx=3)
-  ttk.Entry(f0,
-            textvariable=MPLOT.TCOLOR,
-            width=10).grid(row=2,
-                           column=1,
-                           padx=3,
-                           sticky='w')
+                           
+  ttk.Label(f0,text='Font color').grid(row=2,column=0,padx=3)
+  FCLabel = ttk.Label(f0,textvariable=MPLOT.TCOLOR,width=10,style="sfclabel.TLabel")
+  FCLabel.grid(row=2,column=1)
+  ttk.Button(f0,text='Select',command=lambda:colsel(MPLOT.TCOLOR, \
+            sfclabel,FCLabel,"sfclabel.TLabel",master=parent)).grid(row=2,column=2)
+                                  
   ttk.Label(f0,
             text='Font weight').grid(row=3,
                                    column=0,
@@ -382,7 +381,6 @@ def TextConfigure(parent,MPLOT):
                            padx=3,
                            sticky='w')
   f0.grid()
-
 
 # ======================================
 def ShowData(master,LL):

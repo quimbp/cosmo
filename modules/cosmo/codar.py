@@ -1,16 +1,14 @@
 ''' COSMO-VIEW,
     Quim Ballabrera, May 2017
     Script for visualizing model outputs provided by various operational
-      systems'''
+      systems
+    EGL, 06/2020:
+		A heap variable MESSAGE has been introduce to store "print" messages 
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
 
 import datetime 
 from calendar import monthrange
@@ -53,6 +51,8 @@ class WinCodar:
 # =============
 
   def __init__ (self,master):
+
+    self.MESSAGE = ""
 
     self.master = master
     self.PARAMS = parameters()
@@ -208,11 +208,11 @@ class WinCodar:
 
     return theurl
     
-
   def download(self):
     theurl = self.filename(self.FPATH[self.pp])
-    print('Fetching ',theurl)
-    print('')
+    self.MESSAGE += 'Fetching '+theurl
+    #print('Fetching ',theurl)
+    #print('')
     try:
       filename = wget.download(theurl)
       messagebox.showinfo(message='Download complete')
@@ -223,10 +223,10 @@ class WinCodar:
     theurl = self.filename(self.OPATH[self.pp])
     return theurl
 
-
   def done(self):
     theurl = self.filename(self.OPATH[self.pp])
-    print('Filename ',theurl)
+    self.MESSAGE += 'Filename '+ theurl
+    #print('Filename ',theurl)
     self.PARAMS.FILENAME.set(theurl)
     self.master.destroy()
     self.master = None
@@ -283,7 +283,6 @@ class WinCodar:
       self.daybox['state']  = '!disabled'
       self.hourbox['state'] = '!disabled'
         
-   
   def station_year(self):
 
     year = int(self.yearbox.get())
@@ -326,8 +325,7 @@ class WinCodar:
     self.PARAMS.MONTH.set(month)
     self.PARAMS.DAY.set(day)
     self.daybox['values'] = self.DAY_LIST
-        
-        
+               
   def station_day(self):
 
     self.PARAMS.DAY.set(int(self.daybox.get()))

@@ -1,17 +1,16 @@
 ''' COSMO project python module.
     It contains the functions required for the utilitites created
-    for the COSMO project to work'''
+    for the COSMO project to work
+	EGL, 06/2020: Changes:
+		No more support to python 2.X 
+		Added: toconsola(), colsel(), map_proj()
+		Modified: scale_bar()
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-  from tkinter import font as tkfont
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-  import tkFont as tkfont
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from tkinter import font as tkfont
 
 #import matplotlib
 #matplotlib.use('TkAgg')
@@ -37,7 +36,6 @@ try:
   to_unicode = unicode
 except:
   to_unicode = str
-
 
 __version__ = '1.0'
 __author__  = 'Quim Ballabrera'
@@ -206,8 +204,6 @@ def placeontop(a,ind):
       a[1+i] = aa[ii]
   return a
 
-
-
 # ================================
 class ColormapPicker(tk.Toplevel):
 # ================================
@@ -244,7 +240,7 @@ class ColormapPicker(tk.Toplevel):
     self.ax1 = self.fig.add_subplot(111)
     self.ax1.axis("off")
     self.canvas = FigureCanvasTkAgg(self.fig,master=frame)
-    self.canvas.show()
+    self.canvas.draw()
     self.canvas.get_tk_widget().grid(row=0,column=2,rowspan=1,columnspan=5)
     self.canvas._tkcanvas.grid()
     self.ax1.imshow(self.a,aspect='auto',cmap=cm.get_cmap(self.CM_NAME.get()))
@@ -268,7 +264,6 @@ class ColormapPicker(tk.Toplevel):
 
   def done(self):
     self.destroy()
-
 
 # ============================================
 def colormap_selector(cmap='jet',parent=None):
@@ -295,16 +290,18 @@ class geocdf():
   __author__  = "Quim Ballabrerera"
   __date__    = "June 2017"
 
-  def __init__(self,filename):
-  # ===========================
+  def __init__(self,filename,**args):
+  # ================================
     from netCDF4 import Dataset
     import math
 
-    print('Opening file ',filename)
+    toconsola('Opening file '+filename,wid=args["wid"])
+    #print('Opening file ',filename)
     try:
       ncid = Dataset(filename)
     except:
-      print('Unable to open file')
+      toconsola('Unable to open file '+filename,wid=args["wid"])
+      #print('Unable to open file')
       return None
 
     # Save the name of the input file:
@@ -546,7 +543,6 @@ class geocdf():
     self.vname = conf['vname']
     self.VAR_MENU = conf['VAR_MENU']
 
-
   def geocdf_varnames(self,ncid):
 
     for dim,dname in enumerate(self.DIM_LIST):
@@ -606,8 +602,6 @@ class geocdf():
              variable.dimensions[0] == self.lname:
             self.idt = self.VAR_LIST.index(name)
             self.tname = name
-
-
 
 # =================
 class WinGeoaxes():
@@ -680,9 +674,11 @@ class WinGeoaxes():
       # parent is a toplevel window (Python 2.4/Tkinter 1.63)
       self.parent.tk.call(self.parent, "config", "-menu", menubar)
 
-
+    font_italic = tkfont.Font(font='TkDefaultFont').copy()
+    font_italic['slant'] = tkfont.ITALIC
+    
     Fr0 = ttk.Frame(self.parent,padding=5,width=700)
-    ttk.Label(Fr0,text='Filename = '+icdf.filename,padding=5,font='italic')  \
+    ttk.Label(Fr0,text='Filename = '+icdf.filename,padding=5,font=font_italic)  \
        .grid(row=0,column=0)
     Fr0.grid(row=0,column=0,sticky='E'+'W'+'N'+'S')
 
@@ -691,13 +687,13 @@ class WinGeoaxes():
 
     Fr1 = ttk.Frame(self.parent,padding=5,width=700,borderwidth=5,relief='sunken')
     ttk.Label(Fr1,text='Axis',width=12,font=font_bold).grid(row=0,column=0)
-    ttk.Label(Fr1,text='X',width=17,justify='center',font=font_bold) \
+    ttk.Label(Fr1,text='X',width=17,anchor='center',font=font_bold) \
        .grid(row=0,column=1)
-    ttk.Label(Fr1,text='Y',width=17,justify='center',font=font_bold) \
+    ttk.Label(Fr1,text='Y',width=17,anchor='center',font=font_bold) \
        .grid(row=0,column=2)
-    ttk.Label(Fr1,text='Z',width=17,justify='center',font=font_bold) \
+    ttk.Label(Fr1,text='Z',width=17,anchor='center',font=font_bold) \
        .grid(row=0,column=3)
-    ttk.Label(Fr1,text='T',width=17,justify='center',font=font_bold) \
+    ttk.Label(Fr1,text='T',width=17,anchor='center',font=font_bold) \
        .grid(row=0,column=4)
 
     ttk.Label(Fr1,text='Dimension',width=10,font=font_bold) \
@@ -786,7 +782,6 @@ class WinGeoaxes():
     else:
       self.Window_ncdump.lift()
 
-
   def iselection(self,icdf):
   # ========================
     value_selected = self.Ibox.get()
@@ -801,7 +796,6 @@ class WinGeoaxes():
     self.Ibox.selection_clear()
     self.strnx.set(str(icdf.nx))
 
-
   def jselection(self,icdf):
   # ========================
     value_selected = self.Jbox.get()
@@ -815,7 +809,6 @@ class WinGeoaxes():
       icdf.ny = 1
     self.Jbox.selection_clear()
     self.strny.set(str(icdf.ny))
-
 
   def kselection(self,icdf):
   # ========================
@@ -844,7 +837,6 @@ class WinGeoaxes():
       icdf.nt = 1
     self.Lbox.selection_clear()
     self.strnt.set(str(icdf.nt))
-
 
   def xselection(self,icdf):
     value_selected = self.Xbox.get()
@@ -903,7 +895,6 @@ class WinGeoaxes():
       self.strnx.set(str(icdf.nx))
       self.georef.set(icdf.georef)
     self.Xbox.selection_clear()
-
 
   def yselection(self,icdf):
     value_selected = self.Ybox.get()
@@ -970,7 +961,6 @@ class WinGeoaxes():
       self.Xname.set(icdf.VAR_MENU[icdf.idx])
       self.Yname.set(icdf.VAR_MENU[icdf.idy])
 
-
   def zselection(self,icdf):
   # ========================
     value_selected = self.Zbox.get()
@@ -999,7 +989,6 @@ class WinGeoaxes():
       self.Kname.set(icdf.DIM_MENU[icdf.idk])
       self.strnz.set(str(icdf.nz))
     self.Zbox.selection_clear()
-
 
   def tselection(self,icdf):
   # ========================
@@ -1051,35 +1040,37 @@ class WinGeoaxes():
       nd = len(dlist) - dlist.count(-1)
       dlist[nd:] = []
       idim = 0
+      print(list(dlist))
       for kk in reversed(dlist):
         idim += 1
         if idim == 1:
+          print("SELECTED_VAR idim=1")
           icdf.idi   = kk
           icdf.nx    = icdf.dlen[kk]
           icdf.iname = icdf.DIM_LIST[kk]
           self.Iname.set(icdf.iname)
           self.strnx.set(str(icdf.nx))
         elif idim == 2:
+          print("SELECTED_VAR idim=2")
           icdf.idj   = kk
           icdf.ny    = icdf.dlen[kk]
           icdf.jname = icdf.DIM_LIST[kk]
           self.Jname.set(icdf.jname)
           self.strny.set(str(icdf.ny))
         elif idim == 3:
+          print("SELECTED_VAR idim=3")
           icdf.idk   = kk
           icdf.nz    = icdf.dlen[kk]
           icdf.kname = icdf.DIM_LIST[kk]
           self.Kname.set(icdf.kname)
           self.strnz.set(str(icdf.nz))
         elif idim == 4:
+          print("SELECTED_VAR idim=4")
           icdf.idl   = kk
           icdf.nt    = icdf.dlen[kk]
           icdf.lname = icdf.DIM_LIST[kk]
           self.Lname.set(icdf.lname)
           self.strnt.set(str(icdf.nt))
-
-        
-
 
 
 def marker_string(s):
@@ -1124,7 +1115,6 @@ def caldat(nn):
 
     return (int(year),int(month),int(day),int(hour),int(minute),int(second))
 
-
 def julday(date):
 # ===============
   """
@@ -1155,7 +1145,6 @@ def julday(date):
     jd = jd + 2 - ja + math.floor(0.25*ja)
 
   return jd
-
 
 # =====================
 class Select_Columns():
@@ -1588,9 +1577,6 @@ class Select_Columns():
     self.wdat2['text'] = self.columns[self.DATE.get()]
     self.wtim2['text'] = self.columns[self.TIME.get()]
 
-
-
-
 # ================================
 #class Win_permission(tk.Toplevel):
 # ================================
@@ -1866,7 +1852,6 @@ def json_save(conf,FILENAME):
     outfile.write(to_unicode(_str))
     outfile.close()
 
- 
 def fontconfig(font=None,sample=None):
 # ====================================
   '''Widget dialogue to config a Matplotlib FontPorperty object'''
@@ -1946,7 +1931,6 @@ def fontconfig(font=None,sample=None):
     except:
       myfont.set_size(size.get())
 
-
     values=['xx-small',
             'x-small',
             'small',
@@ -2009,9 +1993,7 @@ def fontconfig(font=None,sample=None):
   ttk.Label(frame1,text='Style').grid(row=1,column=0,sticky='w',padx=3)
   wsty = ttk.Combobox(frame1,
                       textvariable=style,
-                      values=['normal',
-                              'italic',
-                              'oblique'],
+                      values=['normal','italic','oblique'],
                       width=10)
   wsty.grid(row=1,column=1,sticky='w',padx=3)
   wsty.bind('<<ComboboxSelected>>',lambda e: _update())
@@ -2019,8 +2001,7 @@ def fontconfig(font=None,sample=None):
   ttk.Label(frame1,text='Variant').grid(row=2,column=0,sticky='w',padx=3)
   wvar = ttk.Combobox(frame1,
                       textvariable=variant,
-                      values=['normal',
-                              'small-caps'],
+                      values=['normal','small-caps'],
                       width=10)
   wvar.grid(row=2,column=1,sticky='w',padx=3)
   wvar.bind('<<ComboboxSelected>>',lambda e: _update())
@@ -2077,7 +2058,6 @@ def fontconfig(font=None,sample=None):
   wsiz.bind('<Return>',lambda e: _update())
   wsiz.bind('<<ComboboxSelected>>',lambda e: _update())
 
-
   frame1.grid()
 
   frame2 = ttk.Frame(window,padding=15)
@@ -2125,7 +2105,6 @@ def setfont(fontdict):
                           size=size).copy()
   return myfont
 
-
 def read_lines(ifile):
 # ====================
   print('Loading file ' + ifile)
@@ -2149,5 +2128,211 @@ def read_lines(ifile):
   d['lat']=yo
   return d
 
+# ==============================
+def map_proj(name, params=None):
+# ==============================
+  '''
+    Function: map_proj()
+    Purpose: Implement a color selector by calling 	askcolor().
+    Input:
+       name: string. In the basic usage, name correspond to the Cartopy
+             projections. Other values are:
+        name = "lista": returns a list of all projections names
+        name = "defs" provides the definition of each projection
+        name = "state" provides the state vector of parameters
+       params: structure with all the possible options for the Cartopy
+               projections.
+    EGL, 06/2020
+  '''
+  import cartopy.crs as ccrs
+  
+  params_def = {"central_longitude":0.0, "central_latitude":0.0, 
+        "min_latitude":-80.0, "max_latitude":84.0,
+        "false_easting":0.0, "false_northing":0.0,
+        "latitude_true_scale":0.0,
+        "true_scale_latitude":None, "scale_factor":None,
+        "satellite_height":35785831, "sweep_axis":'y'}    
+  if params is None:
+    params = params_def
+        
+  options = {'PlateCarree':{'text':'Equidistant cylindrical',
+              'proj':ccrs.PlateCarree(central_longitude=params['central_longitude']),
+              'state':[1,0,0,0,0,0,0,0,0,0,0]}, 
+             'LambertCylindrical':{'text':'LambertCylindrical',
+              'proj':ccrs.LambertCylindrical(central_longitude=params['central_longitude']),
+              'state':[1,0,0,0,0,0,0,0,0,0,0]},
+             'Mercator':{'text':'Mercator',
+              'proj':ccrs.Mercator(central_longitude=params['central_longitude'], 
+                 min_latitude=params['min_latitude'], max_latitude=params['max_latitude'], 
+                 latitude_true_scale=params['latitude_true_scale'], 
+                 false_easting=params['false_easting'], false_northing=params['false_northing']),
+              'state':[1,0,1,1,1,1,1,0,0,0,0]},
+             'Miller':{'text':'Miller',
+              'proj':ccrs.Miller(central_longitude=params['central_longitude']),
+              'state':[1,0,0,0,0,0,0,0,0,0,0]},
+             'Mollweide':{'text':'Pseudocylindrical and equal area',
+              'proj':ccrs.Mollweide(central_longitude=params['central_longitude'], 
+                    false_easting=params['false_easting'], 
+                    false_northing=params['false_northing']),
+              'state':[1,0,0,0,1,1,0,0,0,0,0]},
+             'Orthographic':{'text':'Orthographic',
+              'proj':ccrs.Orthographic(central_longitude=params['central_longitude'],
+                                       central_latitude=params['central_latitude']),
+              'state':[1,1,0,0,0,0,0,0,0,0,0]},
+             'Robinson':{'text':'Robinson pseudocylindrical',
+             'proj':ccrs.Robinson(central_longitude=params['central_longitude'],
+                    false_easting=params['false_easting'],false_northing=params['false_northing']),
+              'state':[1,0,0,0,1,1,0,0,0,0,0]},
+               #'UTM':{'text':'UTM','proj':ccrs.UTM()},
+             'EuroPP':{'text':'UTM Zone 32 projection for EuroPP domain','proj':ccrs.EuroPP(),
+              'state':[0,0,0,0,0,0,0,0,0,0,0]},
+             'Geostationary':{'text':'Appropriate view for satellites in Geostationary Earth orbit',
+              'proj':ccrs.Geostationary(central_longitude=params['central_longitude'], 
+                false_easting=params['false_easting'],false_northing=params['false_northing'],
+                satellite_height=params['satellite_height'],sweep_axis=params['sweep_axis']),
+              'state':[1,0,0,0,1,1,0,0,0,1,1]},
+             'EqualEarth':{'text':'Pseudocylindrical and equal area DOI: 10.1080/13658816.2018.1504949',
+              'proj':ccrs.EqualEarth(central_longitude=params['central_longitude'], 
+                    false_easting=params['false_easting'], 
+                    false_northing=params['false_northing']),
+              'state':[1,0,0,0,1,1,0,0,0,0,0]},
+             'LambertAzimuthalEqualArea':{'text':'A Lambert Azimuthal Equal-Area projection',
+              'proj':ccrs.LambertAzimuthalEqualArea(
+                     central_longitude=params['central_longitude'], 
+                     central_latitude=params['central_latitude'],
+                     false_easting=params['false_easting'], 
+                     false_northing=params['false_northing']),
+              'state':[1,1,0,0,1,1,0,0,0,0,0]},
+             'NorthPolarStereo':{'text':'NorthPolarStereo',
+              'proj':ccrs.NorthPolarStereo(central_longitude=params['central_longitude'],
+              true_scale_latitude=params['true_scale_latitude']),
+              'state':[1,0,0,0,0,0,0,1,0,0,0]},
+             'SouthPolarStereo':{'text':'SouthPolarStereo',
+              'proj':ccrs.SouthPolarStereo(central_longitude=params['central_longitude'],
+              true_scale_latitude=params['true_scale_latitude']),
+              'state':[1,0,0,0,0,0,0,1,0,0,0]}
+            }     
+  ids = options.keys()
+  if name == 'lista': 
+   return list(ids)
+  elif name  == 'all':
+   return options
+  elif name  == 'defs':
+   key = list(ids)
+   value = [options[i]['text'] for i in key]
+   text = {key: value for (key, value) in zip(key,value)}
+   return text
+  elif name in ids:
+    return options[name]
+  else:
+   return False
 
+# ===============================================================
+def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
+# ================================================================
+    """
+    ax is the axes to draw the scalebar on.
+    length is the length of the scalebar in km.
+    location is center of the scalebar in axis coordinates.
+    (ie. 0.5 is the middle of the plot)
+    linewidth is the thickness of the scalebar.
+    EGL, 06/2020, Adapted to cartopy.
+    """
+    import cartopy.crs as ccrs
+    import numpy as np
+    
+    #Get the limits of the axis in lat long
+    llx0, llx1, lly0, lly1 = ax.get_extent(ccrs.PlateCarree())
+    #Make tmc horizontally centred on the middle of the map,
+    #vertically at scale bar location
+    sbllx = (llx1 + llx0) / 2
+    sblly = lly0 + (lly1 - lly0) * location[1]
+    tmc = ccrs.TransverseMercator(sbllx, sblly)
+    #Get the extent of the plotted area in coordinates in metres
+    x0, x1, y0, y1 = ax.get_extent(tmc)
+    #Turn the specified scalebar location into coordinates in metres
+    sbx = x0 + (x1 - x0) * location[0]
+    sby = y0 + (y1 - y0) * location[1]
 
+    #Calculate a scale bar length if none has been given
+    #(Theres probably a more pythonic way of rounding the number but this works)
+    if not length: 
+        length = (x1 - x0) / 5000 #in km
+        ndim = int(np.floor(np.log10(length))) #number of digits in number
+        length = round(length, -ndim) #round to 1sf
+        #Returns numbers starting with the list
+        def scale_number(x):
+            if str(x)[0] in ['1', '2', '5']: return int(x)        
+            else: return scale_number(x - 10 ** ndim)
+        length = scale_number(length) 
+
+    #Generate the x coordinate for the ends of the scalebar
+    bar_xs = [sbx - length * 500, sbx + length * 500]
+    #Plot the scalebar
+    ax.plot(bar_xs, [sby, sby], transform=tmc, color='k', linewidth=linewidth)
+    #Plot the scalebar label
+    ax.text(sbx, sby, str(length) + ' km', transform=tmc,
+            horizontalalignment='center', verticalalignment='bottom')
+
+# =================================================
+def colsel(tkvar,tkstyle,widget,style,master=None):
+# =================================================
+  ''' Function: colsel()
+  	Purpose: Implement a color selector by calling 	askcolor().
+  	Input: 
+		tkvar: String tkinter var with the color name
+		tkstyle: a ttk.Style() that updates when changing tkvar
+		style: string denoting the style name
+		widget: a reference to the id widget (tk:Label)
+		master: Optionally the widget id of the parent widget.
+
+	Example of its use: tipically you need two Labels widgets and a 
+	button and a ttk.Styke().
+	
+	bline = ttk.Style()
+    bline.configure("bline.TLabel",background=PLOT.FIGURE_COLOR.get())
+	ttk.Label(wid,text='Line color').grid()
+    OB = ttk.Label(wid,textvariable=PLOT.FIGURE_COLOR,style="obgrid.TLabel",width=8)
+    OB.grid()
+    ttk.Button(wid,text='Select',\
+       command=lambda:colsel(PLOT.FIGURE_COLOR, bline, OB,"bline.TLabel",master=parent)).grid()
+	EGL, 06/2020
+'''
+  from tkcolorpicker import askcolor
+  if master is not None:
+    backup = tkvar.get()
+    if tkvar.get() == 'None':
+      rgb, hx = askcolor(parent=master)
+    else:
+      rgb, hx = askcolor(color=tkvar.get(),parent=master)
+    if hx is None:
+      tkvar.set(backup)
+    else:
+      tkvar.set(hx)
+      tkstyle.configure(style,background=tkvar.get())
+      widget.configure(style=style)
+  else:
+    print("Error: master is not set")
+    return False
+
+# =============================================
+def toconsola(message, tag="", wid=None):
+# =============================================
+  ''' Function: toconsola()
+    Purpose: Send message to a consola
+    Input: 
+       wid: widget id of the consola.
+       message: string to be send
+       tag: string not implemented allows to pass tags to format the output
+       concerning the font, the color, etc...
+       As an example three tags has been introduced:
+         "y" ("yellow" and "bold")
+         "o" ("orange" and "bold")
+         "r" ("red" and "bold")
+    EGL, 06/2020
+  '''
+  if wid is not None:
+    wid.insert("end", message + "\n", tag)
+    wid.see(tk.END)
+  else:
+    print(message)

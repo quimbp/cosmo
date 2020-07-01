@@ -1,17 +1,14 @@
 ''' COSMO-VIEW,
     Quim Ballabrera, May 2017
     Script for visualizing model outputs provided by various operational
-      systems'''
+      systems
+    EGL, 06/2020: Changes:
+      A heap variable MESSAGE has been introduce to store "print" messages      
+'''
 
-try:
-  import tkinter as tk
-  from tkinter import ttk
-  from tkinter import messagebox
-except:
-  import Tkinter as tk
-  import ttk
-  import tkMessageBox as messagebox
-
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
 
 import datetime
 from datetime import timedelta
@@ -82,6 +79,8 @@ class WinOpendap:
 
   def __init__ (self,master):
   # ================================
+
+    self.MESSAGE = ""
 
     self.PARAMS = parameters()
 
@@ -160,7 +159,6 @@ class WinOpendap:
     self.master.destroy()
     self.master = None
     
-
   def visit(self):
     if self.PARAMS.NAME == 'SOCIB':
       pp = 1
@@ -176,14 +174,14 @@ class WinOpendap:
     else:
       pp = 0
     theurl = self.filename(self.PARAMS.DPATH[pp])
-    print('Fetching ',theurl) 
-    print('')
+    self.MESSAGE += 'Fetching '+ theurl
+    #print('Fetching ',theurl) 
+    #print('')
     try: 
       filename = wget.download(theurl)
       messagebox.showinfo(parent=self.master,message='Download complete')
     except:
       messagebox.showinfo(parent=self.master,message='Unable to complete download')
-
 
   def get_filename(self):
     return self.PARAMS.FILENAME.get()
@@ -199,7 +197,6 @@ class WinOpendap:
     self.PARAMS.FILENAME.set(theurl)
     self.master.destroy()
     self.master = None
-
 
   def filename(self,PATH):
 
@@ -237,7 +234,9 @@ class WinOpendap:
                 '%02d'%dfin.month+'%02d'%dfin.day+'23-B'+ \
                 str(self.PARAMS.YEAR)+'%02d'%self.PARAMS.MONTH+\
                 '%02d'%self.PARAMS.DAY+'00-FC.nc'
-    print(theurl)
+    
+    self.MESSAGE += theurl
+    #print(theurl)
     return theurl
 
   def provider_selection(self):
@@ -288,7 +287,6 @@ class WinOpendap:
     self.day_var.set(self.PARAMS.DAY)
     self.daybox['values'] = self.PARAMS.DAY_LIST
         
-   
   def provider_year(self):
 
     self.PARAMS.YEAR = int(self.yearbox.get())
@@ -329,8 +327,7 @@ class WinOpendap:
     else:
       self.PARAMS.DAY_LIST = list(range(1,monthrange(self.PARAMS.YEAR,self.PARAMS.MONTH)[1]+1))
     self.daybox['values'] = self.PARAMS.DAY_LIST
-        
-        
+           
   def provider_day(self):
 
     self.PARAMS.DAY = int(self.daybox.get())
