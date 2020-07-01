@@ -55,7 +55,7 @@ def main():
   print(COSMO_CONF_PATH)
   
   #EG Consola
-  inicio += "CONF_PATH: "+COSMO_CONF_PATH
+  #inicio += "CONF_PATH: "+COSMO_CONF_PATH
   #EG Consola
   
   image = Image.open(COSMO_CONF_PATH+'cosmo-logo.png')
