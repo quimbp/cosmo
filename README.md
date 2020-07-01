@@ -30,9 +30,7 @@ This command should extract the isobaths and place them in the folder **data/iso
 
 ## Compilling Fortran code
 
-Edit the file **make.inc** and modify the paths of the installation folder **$COSMO** (*Default: $(HOME)/cosmo*), the fortran compiler (*Default: gfortran*), 
-and the path to the NetCDF Fortran 90 modules and libraries (**NF90_INC** and
-**NF90_LIB**).
+Edit (if necessary) the file **make.inc** and modify the fortran compiler, the fortran compiler options or the paths to the NetCDF modules and libraries. Be aware that **make.inc** uses the utility **nc-config** to obtain the location of the NetCDF files. If using the **gfortran** compiler and the standard version of the NetCDF libraries, no modifications of **make.inc** should be necessary.
 
 Then type,
 
@@ -40,11 +38,11 @@ Then type,
 $ make
 ```
 
-If compilation succeeds, the COSMO Lagrangian Model will be located in **$COSMO/bin/lagrangian**
+If compilation succeeds, the COSMO Lagrangian Model will be located in **$COSMO/bin/blm**
 
 Type
 ```
-$ $COSMO/bin/lagrangian --help
+$ $COSMO/bin/blm --help
 ```
 to obtain the list of options for running the model. A detailed User Documentation will be uploaded shortly.
 
@@ -83,7 +81,7 @@ Opening file ../data/exp0001.json
 A visualization tool to visualize ocean currents. It can load fields directly from operational providers or from Netcdf files. It can superimpose satellite SST data received by the HPRT station located in the Institut de Ciencies del Mar (ICM/CSIC) and lagrangian trajectories created by the COSMO Lagrangian Model or JSON files from field experiments.
 
 ```
-$ python3 cosmo-view.py
+$ $COSMO/bin/cosmo-view
 ```
 
 A detailed User Documentation will be uploaded shortly.
