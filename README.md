@@ -91,6 +91,7 @@ A detailed User Documentation will be uploaded shortly.
 ## Authors
 
 * **Joaquim Ballabrera** (*ICM/CSIC*) E-mail: joaquim@icm.csic.es
+* **Emilio García** (*ICM/CSIC*) E-mail: emilio@icm.csic.es
 
 ## License
 
