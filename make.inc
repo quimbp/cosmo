@@ -21,8 +21,8 @@ FFLAGS = -O3 -fno-range-check -pedantic -finit-real=nan -finit-integer=0 -finit-
 INSTALL = install
 AR = ar cq
 
-NF90_INC = `nc-config --includedir`
-NF90_LIB = `nc-config --libdir`
+NF90_INC = $(shell nc-config --includedir)
+NF90_LIB = $(shell nc-config --libdir)
 
 CDFLIB = -L$(NF90_LIB) -lnetcdff
 CDFINC = -I$(NF90_INC)
