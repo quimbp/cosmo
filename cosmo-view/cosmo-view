@@ -8,8 +8,8 @@ import tkinter as tk
 from PIL import Image, ImageTk
 from cosmo.drawing import CosmoDrawing
 
-__version__ = "1.0"
-__author__  = "Quim Ballabrera"
+__version__ = "2.0"
+__author__  = "Quim Ballabrera and Emilio Garcia"
 __date__    = "July 2018"
 
 from cosmo import COSMO_CONF_PATH
