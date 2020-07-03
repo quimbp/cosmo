@@ -295,12 +295,17 @@ class geocdf():
     from netCDF4 import Dataset
     import math
 
-    toconsola('Opening file '+filename,wid=args["wid"])
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    toconsola('Opening file '+filename,wid=wid)
     #print('Opening file ',filename)
     try:
       ncid = Dataset(filename)
     except:
-      toconsola('Unable to open file '+filename,wid=args["wid"])
+      toconsola('Unable to open file '+filename,wid=wid)
       #print('Unable to open file')
       return None
 
