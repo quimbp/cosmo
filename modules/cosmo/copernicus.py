@@ -79,8 +79,8 @@ class WinTracking():
     except:
       self.MESSAGE += 'Failed'
       #print('Failed')
-      self.python = '/usr/bin/python'
-      self.motu = '/usr/local/src/motu-client-python/motu-client.py'
+      self.python = 'python3'
+      self.motu = '-m motuclient'
       self.user = 'USERNAME_REQUIRED'
       self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('.' + os.sep)

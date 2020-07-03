@@ -2,7 +2,7 @@
 
 BINDIR=${PWD}/bin
 
-all: path include lib bin COSMO BLM MLM TOOLS COSMO_VIEW
+all: path include lib bin default COSMO BLM MLM TOOLS COSMO_VIEW
 	@echo "Done"
 
 path:
@@ -10,13 +10,20 @@ path:
 	echo "COSMO = ${PWD}" > path.inc
 
 include:
+	@echo creating folder $@
 	mkdir -p $@
 
 lib:
+	@echo creating folder $@
 	mkdir -p $@
 
 bin:
+	@echo creating folder $@
 	mkdir -p $@
+
+default:
+	@echo creating folder conf/default
+	mkdir -p conf/default 
 
 COSMO:
 	@echo 
