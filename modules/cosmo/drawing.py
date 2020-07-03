@@ -1986,7 +1986,7 @@ class CosmoDrawing():
       self.Window_opendap.title('Load Operational service Opendap file')
       self.Window_opendap.protocol('WM_DELETE_WINDOW',_close)
       a = providers.WinOpendap(self.Window_opendap)
-      toconsola(a.MESSAGE,wid=self.tcons)
+      toconsola(a.MESSAGE,wid=self.cons)
       self.Window_opendap.wait_window()
       self.Window_opendap = None
       filename = a.get_filename()
@@ -2007,7 +2007,7 @@ class CosmoDrawing():
       self.Window_codar.title('HF Radar station selector')
       self.Window_codar.protocol('WM_DELETE_WINDOW',_close)
       a = codar.WinCodar(self.Window_codar)
-      toconsola(a.MESSAGE,wid=self.tcons)
+      toconsola(a.MESSAGE,wid=self.cons)
       self.Window_codar.wait_window()
       self.Window_codar = None
       filename = a.get_filename()
@@ -2030,7 +2030,7 @@ class CosmoDrawing():
 
       self.Window_copernicus.protocol('WM_DELETE_WINDOW',_close)
       a = copernicus.WinTracking(self.Window_copernicus)
-      toconsola(a.MESSAGE,wid=self.tcons)
+      toconsola(a.MESSAGE,wid=self.cons)
       self.Window_copernicus.wait_window()
       self.Window_copernicus = None
       filename = a.out()

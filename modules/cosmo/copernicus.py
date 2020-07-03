@@ -4,6 +4,9 @@
       systems
     EGL, 06/2020: Changes:
     A heap variable MESSAGE has been introduce to store "print" messages
+    QB, 06/2020: Changes:
+    The variable COSMO_CONF_DATA is imported from the cosmo module
+    The script now works with python3 
 '''
 
 import tkinter as tk
@@ -21,13 +24,12 @@ import io
 import json
 import ftplib
 
-__version__ = "1.0"
+from cosmo import COSMO_CONF_PATH
+
+__version__ = "1.1"
 __author__  = "Quim Ballabrera"
 __date__    = "July 2018"
 
-HOME = os.path.expanduser('~') + os.sep
-COSMO_ROOT = os.environ.get('COSMO',HOME+'cosmo') + os.sep
-COSMO_CONF = COSMO_ROOT + 'conf' + os.sep 
 
 try:
   to_unicode = unicode
@@ -66,10 +68,11 @@ class WinTracking():
 
     # Connection credentials
     #
-    self.MESSAGE += 'Loading credentials from '+COSMO_CONF+'copernicus-credentials.conf'
+    filename = COSMO_CONF_PATH + 'copernicus-credentials.conf'
+    self.MESSAGE += 'Loading credentials from '+filename
     #print('Loading credentials from ',COSMO_CONF+'copernicus-credentials.conf')
     try:
-      with open(COSMO_CONF+'copernicus-credentials.conf','r') as infile:
+      with open(filename,'r') as infile:
         conf = json.load(infile)
       self.python = conf['PYTHON']
       self.motu = conf['MOTU-CLIENT']
@@ -84,6 +87,13 @@ class WinTracking():
       self.user = 'USERNAME_REQUIRED'
       self.password = 'PASSWORD_REQUIRED'
       self.PATH.set('.' + os.sep)
+      conf = {}
+      conf['PYTHON'] = self.python
+      conf['MOTU-CLIENT'] = self.motu
+      conf['USER'] = self.user
+      conf['PASSWD'] = self.password
+      conf['PATH'] = self.PATH.get()
+      conf_save(conf,filename)
 
     # Define PRODUCTS: Example: GLOBAL, IBI, etc.
     #
@@ -105,8 +115,8 @@ class WinTracking():
 
     self.MESSAGE += 'Loading product list'
     #print('Loading product list')
-    if os.path.isfile(COSMO_CONF+'copernicus-products.conf'):
-      with open(COSMO_CONF+'copernicus-products.conf','r') as infile:
+    if os.path.isfile(COSMO_CONF_PATH+'copernicus-products.conf'):
+      with open(COSMO_CONF_PATH+'copernicus-products.conf','r') as infile:
         conf = json.load(infile)
       self.Nprod = len(conf)
       for i in range(self.Nprod):
@@ -179,8 +189,8 @@ class WinTracking():
 
     self.MESSAGE += 'Loading regions list'
     #print('Loading regions list')
-    if os.path.isfile(COSMO_CONF+'copernicus-regions.conf'):
-      with open(COSMO_CONF+'copernicus-regions.conf','r') as infile:
+    if os.path.isfile(COSMO_CONF_PATH+'copernicus-regions.conf'):
+      with open(COSMO_CONF_PATH+'copernicus-regions.conf','r') as infile:
         conf = json.load(infile)
       for i in range(len(conf)):
         self.Rname.append(conf[i]['NAME'])
@@ -415,7 +425,7 @@ class WinTracking():
     except:
       pass
    
-    with open(COSMO_CONF+'copernicus-credentials.conf','r') as infile:
+    with open(COSMO_CONF_PATH+'copernicus-credentials.conf','r') as infile:
       conf = json.load(infile)
 
     conf['PYTHON'] = self.python
@@ -423,7 +433,7 @@ class WinTracking():
     conf['USER'] = self.user
     conf['PASSWD'] = self.password
     conf['PATH'] = self.PATH.get()
-    conf_save(conf,COSMO_CONF+'copernicus-credentials.conf')
+    conf_save(conf,COSMO_CONF_PATH+'copernicus-credentials.conf')
 
   def output(self):
     '''Change output path and filename'''
