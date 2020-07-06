@@ -284,11 +284,13 @@ class geocdf():
 # =============
   ''' Class whose attributes will contain the information about dimensions
       and variables of a Netcdf file, making a guessing of the 
-      variables representing the X, Y, Z, and T axis.'''
+      variables representing the X, Y, Z, and T axis. 
+      version 1.0 - Initial version, June 2017.
+      version 1.1 - Corrected undesired behavior, July 2020'''
 
-  __version__ = "1.0"
+  __version__ = "1.1"
   __author__  = "Quim Ballabrerera"
-  __date__    = "June 2017"
+  __date__    = "July 2020"
 
   def __init__(self,filename,**args):
   # ================================
@@ -316,16 +318,24 @@ class geocdf():
     self.DIM_LIST = [dim for dim in ncid.dimensions] # List of nc dimensions
     self.VAR_LIST = [var for var in ncid.variables] # List of nc dimensions
 
+
     # The following variables can be used to create tkinter menus 
     self.DIM_MENU = self.DIM_LIST[:]
     self.DIM_MENU.append(' ')
     self.VAR_MENU = self.VAR_LIST[:]
     self.VAR_MENU.append(' ')
 
+    # To account for the role as axis of each dimension and variable:
+    # Values: None, 'X', 'Y', 'Z', 'T'
+    self.DIM_AXIS = [None for dim in self.DIM_MENU]
+    self.VAR_AXIS = [None for dim in self.VAR_MENU]
+
     # Number of dimensions and variables:
     self.fndims = len(self.DIM_LIST)
     self.fnvars = len(self.VAR_LIST)
 
+    self.withX = False; self.withY = False; 
+    self.withZ = False; self.withT = False
     self.nx  =  1; self.ny  =  1; self.nz  =  1; self.nt  =  1
     self.idi = -1; self.idj = -1; self.idk = -1; self.idl = -1
     self.idx = -1; self.idy = -1; self.idz = -1; self.idt = -1
@@ -333,72 +343,246 @@ class geocdf():
     self.xname = ''; self.yname = ''; self.zname = ''; self.tname = ''
     self.time_units = ''
     self.time_calendar = ''
-    self.regular = True
+    self.grid2d = True
     self.georef  = True
 
-    # We will try to identify the axes in the file:
-    for name,variable in ncid.variables.items():
+    # Trying to get the GEOCDF axes:
+    # Strategy: 
+    # A) Through attribute axis
+    # B) Through attribute long_name
+    # C) Through attribute standard name
+    # D) Through variable name
+    # E) The first variable
+
+    self.withX = False
+    for name,variable in reversed(ncid.variables.items()):
       try:
-        axis = getattr(variable,'axis')
-        if axis == 'X':
-          self.georef  = True
+        axis = getattr(variable,'axis').lower()
+        with_axis = True
+      except:
+        with_axis = False
+      try:
+        long_name = getattr(variable,'long_name').lower()
+        with_longname = True
+      except:
+        with_longname = False
+      try:
+        standard_name = getattr(variable,'standard_name').lower()
+        with_stdname = True
+      except:
+        with_stdname = False
+
+      if name[0:3].lower() == 'lon':
+        this_one = True
+      else:
+        this_one = False
+
+      if with_axis and axis == 'x': 
+        this_one = True
+      elif with_longname and 'longitude' in long_name:
+        this_one = True
+      elif with_stdname and 'longitude' in standard_name:
+        this_one = True
+
+      if this_one:
+        ndms = len(variable.dimensions)
+        if ndms == 1 or ndms == 2:
           self.xname = name
           self.idx = self.VAR_LIST.index(name)
-          if len(variable.dimensions) == 1:
-            self.regular = True
+          self.VAR_AXIS[self.idx] = 'X'
+          self.withX = True
+          ndms = len(variable.dimensions)
+          if ndms == 1:
             self.iname = variable.dimensions[0]
             self.idi = self.DIM_LIST.index(self.iname)
+            self.DIM_AXIS[self.idi] = 'X'
             self.nx = ncid.dimensions[self.iname].size
           else:
-            self.regular = False
-            for dim,dname in enumerate(self.DIM_LIST):
-              word = dname.upper()
-              if word[0:1] == 'X' or 'LON' in word:
-                self.iname = dname
-                self.idi   = dim
-                self.nx    = ncid.dimensions[dname].size
-        elif axis == 'Y':
-          self.georef  = True
-          self.yname = name
-          self.idy = self.VAR_LIST.index(name)
-          if len(variable.dimensions) == 1:
-            self.regular = True
             self.jname = variable.dimensions[0]
             self.idj = self.DIM_LIST.index(self.jname)
+            self.DIM_AXIS[self.idj] = 'Y'
+            self.ny = ncid.dimensions[self.jname].size
+            self.iname = variable.dimensions[1]
+            self.idi = self.DIM_LIST.index(self.iname)
+            self.DIM_AXIS[self.idi] = 'X'
+            self.nx = ncid.dimensions[self.iname].size
+
+    withY = False
+    for name,variable in reversed(ncid.variables.items()):
+      try:
+        axis = getattr(variable,'axis').lower()
+        with_axis = True
+      except:
+        with_axis = False
+      try:
+        long_name = getattr(variable,'long_name').lower()
+        with_longname = True
+      except:
+        with_longname = False
+      try:
+        standard_name = getattr(variable,'standard_name').lower()
+        with_stdname = True
+      except:
+        with_stdname = False
+
+      if name[0:3].lower() == 'lat':
+        this_one = True
+      else:
+        this_one = False
+
+      if with_axis and axis == 'y': 
+        this_one = True
+      elif with_longname and 'latitude' in long_name:
+        this_one = True
+      elif with_stdname and 'latitude' in standard_name:
+        this_one = True
+
+      if this_one:
+        ndms = len(variable.dimensions)
+        if ndms == 1 or ndms == 2:
+          self.yname = name
+          self.idy = self.VAR_LIST.index(name)
+          self.VAR_AXIS[self.idy] = 'Y'
+          self.withY = True
+          if ndms == 1:
+            self.jname = variable.dimensions[0]
+            self.idj = self.DIM_LIST.index(self.jname)
+            self.DIM_AXIS[self.idj] = 'Y'
             self.ny = ncid.dimensions[self.jname].size
           else:
-            self.regular = False
-            for dim,dname in enumerate(self.DIM_LIST):
-              word = dname.upper()
-              if word[0:1] == 'X' or 'LON' in word:
-                self.iname = dname
-                self.idi   = dim
-                self.nx    = ncid.dimensions[dname].size
-        elif axis == 'Z':
+            self.jname = variable.dimensions[0]
+            self.idj = self.DIM_LIST.index(self.jname)
+            self.DIM_AXIS[self.idj] = 'Y'
+            self.ny = ncid.dimensions[self.jname].size
+            self.iname = variable.dimensions[1]
+            self.idi = self.DIM_LIST.index(self.iname)
+            self.DIM_AXIS[self.idi] = 'X'
+            self.nx = ncid.dimensions[self.iname].size
+
+    withZ = False
+    for name,variable in reversed(ncid.variables.items()):
+      try:
+        axis = getattr(variable,'axis').lower()
+        with_axis = True
+      except:
+        with_axis = False
+      try:
+        long_name = getattr(variable,'long_name').lower()
+        with_longname = True
+      except:
+        with_longname = False
+      try:
+        standard_name = getattr(variable,'standard_name').lower()
+        with_stdname = True
+      except:
+        with_stdname = False
+
+      if 'depth' in name.lower():
+        this_one = True
+      else:
+        this_one = False
+
+      if name.lower() == 's_rho':
+        this_one = True
+      if name.lower() == 's_w':
+        this_one = True
+
+      if with_axis and axis == 'z': 
+        this_one = True
+      elif with_longname and 'depth' in long_name:
+        this_one = True
+      elif with_stdname and 'depth' in standard_name:
+        this_one = True
+
+      if this_one:
+        ndms = len(variable.dimensions)
+        if ndms == 1:
           self.zname = name
           self.idz = self.VAR_LIST.index(name)
+          self.VAR_AXIS[self.idz] = 'Z'
+          self.withZ = True
+          
           self.kname = variable.dimensions[0]
           self.idk = self.DIM_LIST.index(self.kname)
+          self.DIM_AXIS[self.idk] = 'Z'
           self.nz = ncid.dimensions[self.kname].size
-        elif axis == 'T':
+
+    withT = False
+    for name,variable in reversed(ncid.variables.items()):
+      try:
+        axis = getattr(variable,'axis').lower()
+        with_axis = True
+      except:
+        with_axis = False
+      try:
+        long_name = getattr(variable,'long_name').lower()
+        with_longname = True
+      except:
+        with_longname = False
+      try:
+        standard_name = getattr(variable,'standard_name').lower()
+        with_stdname = True
+      except:
+        with_stdname = False
+      try:
+        units = getattr(variable,'units').lower()
+        with_units = True
+      except:
+        with_units = False
+
+
+
+      if 'time' in name.lower():
+        this_one = True
+      else:
+        this_one = False
+
+
+      if with_axis and axis == 't': 
+        this_one = True
+      elif with_longname and 'time' in long_name:
+        this_one = True
+        if with_units and '-1' in units:          # Check if is a time scale days-1, etc.
+          this_one = False
+      elif with_stdname and 'time' in standard_name:
+        this_one = True
+        if with_units and '-1' in units:      # Check if is a time scale days-1, etc.
+          this_one = False
+      elif with_units and 'since' in units:
+        this_one = True
+
+      if this_one:
+        ndms = len(variable.dimensions)
+        if ndms == 1:
           self.tname = name
           self.idt = self.VAR_LIST.index(name)
+          self.VAR_AXIS[self.idt] = 'T'
+          self.withT = True
+          
           self.lname = variable.dimensions[0]
           self.idl = self.DIM_LIST.index(self.lname)
+          self.DIM_AXIS[self.idl] = 'T'
           self.nt = ncid.dimensions[self.lname].size
-      except:
-        pass
 
-    if (self.idi,self.idj,self.idk,self.idl).count(-1) == 4:
-      print('GEOCDF > No axis attributes used')
-      self.geocdf_varnames(ncid)
+
+    if self.withX and self.withY:
+      self.georef = True
+    else:
+      self.georef = False
+
 
     # Unlimitted dimension:
+    # By default we set it to time dimension
     self.unlimited_name = ''; self.unlimited_id = -1
     for name,dimension in ncid.dimensions.items():
       if dimension.isunlimited():
+        print('UNLIMITED dimension: ', name)
         self.unlimited_name = name
         self.unlimited_id = self.DIM_LIST.index(name)
+        self.lname = name
+        self.idl = self.unlimited_id
+        self.DIM_AXIS[self.idl] = 'T'
+        self.nt = ncid.dimensions[name].size
 
     # Time units and calendar:
     if self.idt > -1:
@@ -488,7 +672,7 @@ class geocdf():
   # =================
 
     conf = {}
-    conf['regular'] = self.regular
+    conf['grid2d'] = self.grid2d
     conf['georef'] = self.georef
     conf['nx'] = self.nx
     conf['ny'] = self.ny
@@ -520,7 +704,7 @@ class geocdf():
   def conf_set(self,conf):
   # ======================
 
-    self.regular  = conf['regular']
+    self.grid2d  = conf['grid2d']
     self.georef  = conf['georef']
     self.nx  = conf['nx']
     self.ny  = conf['ny']
@@ -579,9 +763,9 @@ class geocdf():
           self.idx   = var
           self.xname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            regular = True
+            grid2d = True
           else:
-            regular = False
+            grid2d = False
 
     if self.idj > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -590,9 +774,9 @@ class geocdf():
           self.idy   = var
           self.yname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            regular = True
+            grid2d = True
           else:
-            regular = False
+            grid2d = False
 
     if self.idk > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -661,9 +845,9 @@ class WinGeoaxes():
     self.strnz.set(str(icdf.nz))
     self.strnt.set(str(icdf.nt))
 
-    self.regular = tk.BooleanVar()
+    self.grid2d = tk.BooleanVar()
     self.georef  = tk.BooleanVar()
-    self.regular.set(icdf.regular)
+    self.grid2d.set(icdf.grid2d)
     self.georef.set(icdf.georef)
 
 
@@ -756,8 +940,8 @@ class WinGeoaxes():
     self.wgr.grid(row=4,column=1)
     self.wgr.bind('<Button-1>',lambda e: self._georef(icdf))
 
-    self.wrg = tk.Checkbutton(Fr1,text='Regular grid',variable=self.regular,font=font_bold)
-    self.wrg.grid(row=4,column=3)
+    #self.wrg = tk.Checkbutton(Fr1,text='Regular grid',variable=self.grid2d,font=font_bold)
+    #self.wrg.grid(row=4,column=3)
 
     Fr1.grid(row=1,column=0,rowspan=4,sticky='ewns')
 
@@ -795,9 +979,12 @@ class WinGeoaxes():
       icdf.idi   = ind
       icdf.nx    = icdf.dlen[ind]
       icdf.iname = value_selected
+      icdf.DIM_AXIS[icdf.idi] = 'X'
+      icdf.withX = True
     else:
       icdf.idi = -1
       icdf.nx = 1
+      icdf.withX = False
     self.Ibox.selection_clear()
     self.strnx.set(str(icdf.nx))
 
@@ -809,9 +996,12 @@ class WinGeoaxes():
       icdf.idj   = ind
       icdf.ny    = icdf.dlen[ind]
       icdf.jname = value_selected
+      icdf.DIM_AXIS[icdf.idj] = 'Y'
+      icdf.withY = True
     else:
       icdf.idj = -1
       icdf.ny = 1
+      icdf.withY = False
     self.Jbox.selection_clear()
     self.strny.set(str(icdf.ny))
 
@@ -823,9 +1013,12 @@ class WinGeoaxes():
       icdf.idk   = ind
       icdf.nz    = icdf.dlen[ind]
       icdf.kname = value_selected
+      icdf.DIM_AXIS[icdf.idk] = 'Z'
+      icdf.withZ = True
     else:
       icdf.idk = -1
       icdf.nz = 1
+      icdf.withZ = False
     self.Kbox.selection_clear()
     self.strnz.set(str(icdf.nz))
 
@@ -837,21 +1030,25 @@ class WinGeoaxes():
       icdf.idl   = ind
       icdf.nt    = icdf.dlen[ind]
       icdf.lname = value_selected
+      icdf.DIM_AXIS[icdf.idl] = 'T'
+      icdf.withT = True
     else:
       icdf.idl = -1
       icdf.nt = 1
+      icdf.withT = False
     self.Lbox.selection_clear()
     self.strnt.set(str(icdf.nt))
 
-  def xselection(self,icdf):
-    value_selected = self.Xbox.get()
+  def xselection(self,icdf,value_selected=None):
+  # ============================================
+    if value_selected is None:
+      value_selected = self.Xbox.get()
+
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
       icdf.idx   = ind
       icdf.xname = value_selected
-
-      print(icdf.ndims[ind])
-      print(icdf.dimids[ind])
+      icdf.withX = True
 
       if icdf.ndims[ind] == 1:
         print('xselection 1D')
@@ -862,11 +1059,11 @@ class WinGeoaxes():
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.regular = True
+        icdf.grid2d = True
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         self.georef.set(icdf.georef)
-        self.regular.set(icdf.regular)
+        self.grid2d.set(icdf.grid2d)
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
         print('xselection 2D grid')
@@ -875,11 +1072,11 @@ class WinGeoaxes():
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.regular = False
+        icdf.grid2d = False
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         self.georef.set(icdf.georef)
-        self.regular.set(icdf.regular)
+        self.grid2d.set(icdf.grid2d)
         kk = icdf.dimids[ind][0]
         icdf.idj   = kk
         icdf.ny    = icdf.dlen[kk]
@@ -891,22 +1088,29 @@ class WinGeoaxes():
                                      It must have a single dimension')
         self.Xname.set(icdf.VAR_MENU[icdf.idx])
     else:
+      icdf.withX = False
       icdf.idx = -1
-      icdf.idi = -1
-      icdf.nx  =  1
-      icdf.georef =  False
+      #icdf.idi = -1
+      #icdf.nx  =  1
       self.Xname.set(icdf.VAR_MENU[icdf.idx])
-      self.Iname.set(icdf.DIM_MENU[icdf.idi])
-      self.strnx.set(str(icdf.nx))
-      self.georef.set(icdf.georef)
+      #self.Iname.set(icdf.DIM_MENU[icdf.idi])
+      #self.strnx.set(str(icdf.nx))
     self.Xbox.selection_clear()
 
+    if icdf.withX and icdf.withY:
+      icdf.georef = True
+    else:
+      icdf.georef = False
+    self.georef.set(icdf.georef)
+
   def yselection(self,icdf):
+  # ========================
     value_selected = self.Ybox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
       icdf.idy   = ind
       icdf.yname = value_selected
+      icdf.withY = True
       if icdf.ndims[ind] == 1:
 
         # Update dimension to match selected variable
@@ -915,7 +1119,7 @@ class WinGeoaxes():
         icdf.ny    = icdf.dlen[kk]
         icdf.jname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.regular = True
+        icdf.grid2d = True
         self.Jname.set(icdf.jname)
         self.strny.set(str(icdf.ny))
       elif icdf.ndims[ind] == 2:
@@ -926,7 +1130,7 @@ class WinGeoaxes():
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.regular = False
+        icdf.grid2d = False
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         kk = icdf.dimids[ind][0]
@@ -940,14 +1144,21 @@ class WinGeoaxes():
                                      It must have a single dimension')
         self.Yname.set(icdf.VAR_MENU[icdf.idy])
     else:
+      icdf.withY = False
       icdf.idy = -1
-      icdf.idj = -1
-      icdf.ny  =  1
-      icdf.georef =  False
+      #icdf.idj = -1
+      #icdf.ny  =  1
       self.Yname.set(icdf.VAR_MENU[icdf.idy])
-      self.Jname.set(icdf.DIM_MENU[icdf.idj])
-      self.strny.set(str(icdf.ny))
+      #self.Jname.set(icdf.DIM_MENU[icdf.idj])
+      #self.strny.set(str(icdf.ny))
     self.Ybox.selection_clear()
+
+    if icdf.withX and icdf.withY:
+      icdf.georef = True
+    else:
+      icdf.georef = False
+    self.georef.set(icdf.georef)
+
 
   def _georef(self,icdf):
   # ========================
@@ -971,6 +1182,7 @@ class WinGeoaxes():
     value_selected = self.Zbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
+      icdf.withZ = True
       if icdf.ndims[ind] == 1:
         icdf.idz   = ind
         icdf.zname = value_selected
@@ -987,12 +1199,13 @@ class WinGeoaxes():
                                      It must have a single dimension')
         self.Zname.set(icdf.VAR_MENU[icdf.idz])
     else:
+      icdf.withZ = False
       icdf.idz = -1
-      icdf.idk = -1
-      icdf.nz  =  1
+      #icdf.idk = -1
+      #icdf.nz  =  1
       self.Zname.set(icdf.VAR_MENU[icdf.idz])
-      self.Kname.set(icdf.DIM_MENU[icdf.idk])
-      self.strnz.set(str(icdf.nz))
+      #self.Kname.set(icdf.DIM_MENU[icdf.idk])
+      #self.strnz.set(str(icdf.nz))
     self.Zbox.selection_clear()
 
   def tselection(self,icdf):
@@ -1000,6 +1213,7 @@ class WinGeoaxes():
     value_selected = self.Tbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
+      icdf.withT = True
       if icdf.ndims[ind] == 1:
         icdf.idt = ind
         icdf.tname = value_selected
@@ -1026,12 +1240,13 @@ class WinGeoaxes():
                                      It must have a single dimension')
         self.Tname.set(icdf.VAR_MENU[icdf.idt])
     else:
+      icdf.withT = False
       icdf.idt = -1
-      icdf.idl = -1
-      icdf.nt  =  1
+      #icdf.idl = -1
+      #icdf.nt  =  1
       self.Tname.set(icdf.VAR_MENU[icdf.idt])
-      self.Lname.set(icdf.DIM_MENU[icdf.idl])
-      self.strnt.set(str(icdf.nt))
+      #self.Lname.set(icdf.DIM_MENU[icdf.idl])
+      #self.strnt.set(str(icdf.nt))
       icdf.time_units = ''
       icdf.time_calendar = ''
     self.Tbox.selection_clear()
@@ -1039,43 +1254,188 @@ class WinGeoaxes():
   def selected_var(self,icdf,Vbox):
   # ===============================
     value_selected = Vbox.get()
+    # Save currently selected variables and axes
+    nx  = icdf.nx;  ny  = icdf.ny;   nz = icdf.nz;   nt = icdf.nt
+    idi = icdf.idi; idj = icdf.idj; idk = icdf.idk; idl = icdf.idl
+    idx = icdf.idx; idy = icdf.idy; idz = icdf.idz; idt = icdf.idt
+    doX = False;    doY = False;    doZ = False;    doT = False
+
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
       dlist = icdf.dimids[ind]
       nd = len(dlist) - dlist.count(-1)
       dlist[nd:] = []
       idim = 0
-      print(list(dlist))
-      for kk in reversed(dlist):
-        idim += 1
-        if idim == 1:
-          print("SELECTED_VAR idim=1")
-          icdf.idi   = kk
-          icdf.nx    = icdf.dlen[kk]
-          icdf.iname = icdf.DIM_LIST[kk]
-          self.Iname.set(icdf.iname)
-          self.strnx.set(str(icdf.nx))
-        elif idim == 2:
-          print("SELECTED_VAR idim=2")
-          icdf.idj   = kk
-          icdf.ny    = icdf.dlen[kk]
-          icdf.jname = icdf.DIM_LIST[kk]
-          self.Jname.set(icdf.jname)
-          self.strny.set(str(icdf.ny))
-        elif idim == 3:
-          print("SELECTED_VAR idim=3")
-          icdf.idk   = kk
-          icdf.nz    = icdf.dlen[kk]
-          icdf.kname = icdf.DIM_LIST[kk]
-          self.Kname.set(icdf.kname)
-          self.strnz.set(str(icdf.nz))
-        elif idim == 4:
-          print("SELECTED_VAR idim=4")
-          icdf.idl   = kk
-          icdf.nt    = icdf.dlen[kk]
-          icdf.lname = icdf.DIM_LIST[kk]
-          self.Lname.set(icdf.lname)
-          self.strnt.set(str(icdf.nt))
+      icdf.ny = 1
+      icdf.nz = 1
+      icdf.nt = 1
+      self.strny.set(str(icdf.ny))
+      self.strnz.set(str(icdf.nz))
+      self.strnt.set(str(icdf.nt))
+      try:
+        axes_list = self.ncid.variables[value_selected].getncattr('coordinates').split(' ')
+        print('coordinates attribute = ', axes_list)
+        for aname in axes_list:
+          print('axis name: ', aname)
+          kk = icdf.VAR_LIST.index(aname)
+          if icdf.VAR_AXIS[kk] == 'X':
+            icdf.idx   = kk
+            icdf.withX = True
+            self.Xname.set(aname)
+            avar = self.ncid.variables[aname]
+            ndms = len(avar.dimensions)
+            if ndms == 1:
+              doX = True
+              icdf.iname = avar.dimensions[0]
+              icdf.idi = icdf.DIM_LIST.index(cdf.iname)
+              icdf.DIM_AXIS[icdf.idi] = 'X'
+              icdf.nx = self.ncid.dimensions[cdf.iname].size
+              self.Iname.set(icdf.iname)
+              self.strnx.set(str(icdf.nx))
+            else:
+              doY = True
+              doX = True
+              icdf.jname = avar.dimensions[0]
+              icdf.idj = icdf.DIM_LIST.index(icdf.jname)
+              icdf.DIM_AXIS[icdf.idj] = 'Y'
+              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              icdf.iname = avar.dimensions[1]
+              icdf.idi = icdf.DIM_LIST.index(icdf.iname)
+              icdf.DIM_AXIS[icdf.idi] = 'X'
+              icdf.nx = self.ncid.dimensions[icdf.iname].size
+              self.Jname.set(icdf.jname)
+              self.strny.set(str(icdf.ny))
+              self.Iname.set(icdf.iname)
+              self.strnx.set(str(icdf.nx))
+          if icdf.VAR_AXIS[kk] == 'Y':
+            icdf.idy   = kk
+            icdf.withY = True
+            self.Yname.set(aname)
+            avar = self.ncid.variables[aname]
+            ndms = len(avar.dimensions)
+            if ndms == 1:
+              doY = True
+              icdf.jname = avar.dimensions[0]
+              icdf.idj = icdf.DIM_LIST.index(icdf.jname)
+              icdf.DIM_AXIS[icdf.idj] = 'Y'
+              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              self.Jname.set(icdf.jname)
+              self.strny.set(str(icdf.ny))
+            else:
+              doY = True
+              doX = True
+              icdf.jname = avar.dimensions[0]
+              icdf.idj = icdf.DIM_LIST.index(icdf.jname)
+              icdf.DIM_AXIS[icdf.idj] = 'Y'
+              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              icdf.iname = avar.dimensions[1]
+              icdf.idi = icdf.DIM_LIST.index(icdf.iname)
+              icdf.DIM_AXIS[icdf.idi] = 'X'
+              icdf.nx = self.ncid.dimensions[icdf.iname].size
+              self.Jname.set(icdf.jname)
+              self.strny.set(str(icdf.ny))
+              self.Iname.set(icdf.iname)
+              self.strnx.set(str(icdf.nx))
+          if icdf.VAR_AXIS[kk] == 'Z':
+            icdf.idz   = kk
+            icdf.withZ = True
+            self.Zname.set(aname)
+            avar = self.ncid.variables[aname]
+            doZ = True
+            icdf.kname = avar.dimensions[0]
+            icdf.idk = icdf.DIM_LIST.index(icdf.kname)
+            icdf.DIM_AXIS[icdf.idk] = 'Z'
+            icdf.nz = self.ncid.dimensions[icdf.kname].size
+            self.Kname.set(icdf.kname)
+            self.strnz.set(str(icdf.nz))
+          if icdf.VAR_AXIS[kk] == 'T':
+            icdf.idt   = kk
+            icdf.withT = True
+            self.Tname.set(aname)
+            avar = self.ncid.variables[aname]
+            doT = True
+            icdf.lname = avar.dimensions[0]
+            icdf.idl = icdf.DIM_LIST.index(icdf.lname)
+            icdf.DIM_AXIS[icdf.idl] = 'T'
+            icdf.nt = self.ncid.dimensions[icdf.lname].size
+            self.Lname.set(icdf.lname)
+            self.strnt.set(str(icdf.nt))
+              
+      except:
+        # No axis information is specified in the netcdf file
+        # The onyl information we have are the dimensions
+        # 
+        print('retrieving information of dimensions. Axe variables must be set by hand ...')
+        for kk in dlist:
+          if icdf.DIM_AXIS[kk] == 'X':
+            doX        = True
+            icdf.idi   = kk
+            icdf.nx    = icdf.dlen[kk]
+            icdf.iname = icdf.DIM_LIST[kk]
+            self.Iname.set(icdf.iname)
+            self.strnx.set(str(icdf.nx))
+          if icdf.DIM_AXIS[kk] == 'Y':
+            doY        = True
+            icdf.idj   = kk
+            icdf.ny    = icdf.dlen[kk]
+            icdf.jname = icdf.DIM_LIST[kk]
+            self.Jname.set(icdf.jname)
+            self.strny.set(str(icdf.ny))
+          if icdf.DIM_AXIS[kk] == 'Z':
+            doZ        = True
+            icdf.idk   = kk
+            icdf.nz    = icdf.dlen[kk]
+            icdf.kname = icdf.DIM_LIST[kk]
+            self.Kname.set(icdf.kname)
+            self.strnz.set(str(icdf.nz))
+          if icdf.DIM_AXIS[kk] == 'T':
+            doT        = True
+            icdf.idl   = kk
+            icdf.nt    = icdf.dlen[kk]
+            icdf.lname = icdf.DIM_LIST[kk]
+            self.Lname.set(icdf.lname)
+            self.strnt.set(str(icdf.nt))
+
+      if not doX:
+        icdf.nx = 1
+        self.strnx.set(str(icdf.nx))
+        icdf.idi = -1
+        icdf.idx = -1
+        self.Xname.set(icdf.VAR_MENU[icdf.idx])
+        self.Iname.set(icdf.DIM_MENU[icdf.idi])
+        icdf.withX = False
+
+      if not doY:
+        icdf.ny = 1
+        self.strny.set(str(icdf.ny))
+        icdf.idj = -1
+        icdf.idy = -1
+        self.Yname.set(icdf.VAR_MENU[icdf.idy])
+        self.Jname.set(icdf.DIM_MENU[icdf.idj])
+        icdf.withY = False
+      if not doZ:
+        icdf.nz = 1
+        self.strnz.set(str(icdf.nz))
+        icdf.idk = -1
+        icdf.idz = -1
+        self.Zname.set(icdf.VAR_MENU[icdf.idz])
+        self.Kname.set(icdf.DIM_MENU[icdf.idk])
+        icdf.withZ = False
+      if not doT:
+        icdf.nt = 1
+        self.strnt.set(str(icdf.nt))
+        icdf.idl = -1
+        icdf.idt = -1
+        self.Tname.set(icdf.VAR_MENU[icdf.idt])
+        self.Lname.set(icdf.DIM_MENU[icdf.idl])
+        icdf.withT = False
+
+
+      if icdf.withX and icdf.withY:
+        icdf.georef = True
+      else:
+        icdf.georef = False
+      self.georef.set(icdf.georef)
 
 
 def marker_string(s):

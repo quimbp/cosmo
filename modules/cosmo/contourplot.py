@@ -371,7 +371,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
   if PLOT.CONTOUR_MODE.get() == 0:
     # ----------------------------- CONTOURS
     if PLOT.CONTOUR_LINEMODE.get() == 'M':    # colormapped contours
-      IFIELD.MESSAGE += "EG Contouring CONTOURS M"
+      PLOT.MESSAGE += "EG Contouring CONTOURS M"
       #print("EG Contouring CONTOURS M")
       _cl = ax.contour(X,Y,FIELD, \
                          linewidths=PLOT.CONTOUR_WIDTH.get(), \
@@ -405,7 +405,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
 
   elif PLOT.CONTOUR_MODE.get() == 1:
     # ----------------------------- SHADED
-    IFIELD.MESSAGE += "EG Contouring CONTOUR_DASHEDNE G"
+    PLOT.MESSAGE += "EG Contouring CONTOUR_DASHEDNE G"
     #print("EG Contouring CONTOUR_DASHEDNE G")
     #EG divider give errors, divider is for colorbar
     divider = make_axes_locatable(ax)
@@ -445,7 +445,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
 
   else:
     # ----------------------------- COLORMESH
-    IFIELD.MESSAGE += "EG Contouring COLORMESH"
+    PLOT.MESSAGE += "EG Contouring COLORMESH"
     #print("EG Contouring COLORMESH")
 	# EG divider gives cartopy errors
     divider = make_axes_locatable(ax)
