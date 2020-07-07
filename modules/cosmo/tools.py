@@ -796,9 +796,12 @@ class geocdf():
 class WinGeoaxes():
 # =================
   '''Class to interactively select/modify the names of the
-     axis variables of a netcdf file'''
+     axis variables of a netcdf file.
+     Version 1.0, June 2017 original version
+     Version 1.1, July 2018 move the ncdump from the menu to the 
+                  widget body as a button'''
 
-  __version__ = "1.0"
+  __version__ = "1.1"
   __author__  = "Quim Ballabrerera"
   __date__    = "June 2017"
 
@@ -853,22 +856,24 @@ class WinGeoaxes():
 
   # --------------------------------------------- Frame for X, Y, Z, T
 
-    menubar = tk.Menu(self.parent)
-    menu = tk.Menu(menubar,tearoff=0)
-    menubar.add_cascade(label='File',menu=menu)
-    menu.add_command(label='ncdump',command=self.ncdump)
-    try:
-      self.parent.config(menu=menubar)
-    except AttributeError:
-      # parent is a toplevel window (Python 2.4/Tkinter 1.63)
-      self.parent.tk.call(self.parent, "config", "-menu", menubar)
+    #menubar = tk.Menu(self.parent)
+    #menu = tk.Menu(menubar,tearoff=0)
+    #menubar.add_cascade(label='File',menu=menu)
+    #menu.add_command(label='ncdump',command=self.ncdump)
+    #try:
+    #  self.parent.config(menu=menubar)
+    #except AttributeError:
+    #  # parent is a toplevel window (Python 2.4/Tkinter 1.63)
+    #  self.parent.tk.call(self.parent, "config", "-menu", menubar)
 
     font_italic = tkfont.Font(font='TkDefaultFont').copy()
     font_italic['slant'] = tkfont.ITALIC
     
     Fr0 = ttk.Frame(self.parent,padding=5,width=700)
     ttk.Label(Fr0,text='Filename = '+icdf.filename,padding=5,font=font_italic)  \
-       .grid(row=0,column=0)
+       .grid(row=0,column=0,columnspan=7)
+    ttk.Button(Fr0,text='ncdump',command=self.ncdump).grid(row=0,column=8,padx=2)
+    # AAA
     Fr0.grid(row=0,column=0,sticky='E'+'W'+'N'+'S')
 
     font_bold = tkfont.Font(font='TkDefaultFont').copy()
