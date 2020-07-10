@@ -52,4 +52,5 @@ from cosmo import drawing
 from cosmo import db
 from cosmo import json_editor
 from cosmo import legend
+from cosmo import geoplot
 
