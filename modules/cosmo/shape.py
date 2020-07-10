@@ -151,7 +151,7 @@ class parameters():
     #self.type = self.shp.shapeType
                           
     # Cheack that something has been read:
-    if self.n is 0:
+    if self.n == 0:
       self = None
       return
 
