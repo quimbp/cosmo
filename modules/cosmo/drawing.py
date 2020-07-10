@@ -2342,7 +2342,7 @@ class CosmoDrawing():
         CDF.FIELD = fld_parameters()
         CDF.FILENAME.set(filename)
         CDF.ncid = Dataset(filename)
-        CDF.icdf = tools.geocdf(filename)
+        CDF.icdf = tools.geocdf(filename, wid=self.cons)
 
         # Update from CONF attributes:
         #
@@ -2401,7 +2401,7 @@ class CosmoDrawing():
         VEC.VEL = vel_parameters()
         VEC.FILENAME.set(filename)
         VEC.ncid = Dataset(filename)
-        VEC.icdf = tools.geocdf(filename)
+        VEC.icdf = tools.geocdf(filename, wid=self.cons)
        
         # Update from CONF attributes:
         #
@@ -2566,7 +2566,7 @@ class CosmoDrawing():
         #
         self.SAIDIN.FILENAME.set(filename)
         self.SAIDIN.ncid = Dataset(filename)
-        self.SAIDIN.icdf = tools.geocdf(filename)
+        self.SAIDIN.icdf = tools.geocdf(filename, wid=self.cons)
 
         # Update from CONF attributes:
         #
@@ -4949,7 +4949,7 @@ class CosmoDrawing():
       CDF.FIELD = fld_parameters()
       CDF.FILENAME.set(filename)
       CDF.ncid = Dataset(filename)
-      CDF.icdf = tools.geocdf(filename)
+      CDF.icdf = tools.geocdf(filename, wid=self.cons)
 
       #self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
       #self.DepthandDate(CDF)
@@ -5149,7 +5149,7 @@ class CosmoDrawing():
         return
 
       self.SAIDIN.ncid = Dataset('[FillMismatch]'+self.SAIDIN.FILENAME.get(),'r')
-      self.SAIDIN.icdf = tools.geocdf(self.SAIDIN.FILENAME.get())
+      self.SAIDIN.icdf = tools.geocdf(self.SAIDIN.FILENAME.get(), wid=self.cons)
       self.SAIDIN.FIELD.varname = 'mcsst'
       self.SAIDIN.lon = self.SAIDIN.ncid.variables['lon'][:]
       self.SAIDIN.lat = self.SAIDIN.ncid.variables['lat'][:]
@@ -7495,12 +7495,12 @@ class CosmoDrawing():
                      borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
                      labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
 
-    if self.PLOT.WATER_COLOR.get() is not 'None':
+    if self.PLOT.WATER_COLOR.get() != 'None':
       toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
 					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
-    if self.PLOT.LAND_COLOR.get() is not 'None': 
+    if self.PLOT.LAND_COLOR.get() != 'None': 
       toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
 					self.PLOT.MAP_RESOLUTION.get(), \
@@ -7856,13 +7856,13 @@ class CosmoDrawing():
                      borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
                      labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
 
-    if self.PLOT.WATER_COLOR.get() is not 'None':
+    if self.PLOT.WATER_COLOR.get() != 'None':
       toconsola("EG PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       #print("EG PLOT.WATER_COLOR por defecto 50m")
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
 					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
-    if self.PLOT.LAND_COLOR.get() is not 'None': 
+    if self.PLOT.LAND_COLOR.get() != 'None': 
       toconsola("EG PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       #print("EG PLOT.LAND_COLOR por defecto 50m")
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
