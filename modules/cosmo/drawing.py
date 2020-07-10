@@ -1848,7 +1848,7 @@ class CosmoDrawing():
 
     def _kselection():
     # ================
-      _zbox['text'] = self.VEC[ii].Z_LIST[self.VEC[ii].L.get()]
+      _zbox['text'] = self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
 
     def _uselection():
     # ================
@@ -4999,7 +4999,7 @@ class CosmoDrawing():
 
     def _kselection():
     # ================
-      _zbox['text'] = self.CDF[ii].Z_LIST[self.CDF[ii].L.get()]
+      _zbox['text'] = self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
 
     def _vselection():
     # ================
