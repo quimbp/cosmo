@@ -10,10 +10,12 @@
        contourf() has been replaced by pcolormesh() is faster when data
        is on regular grids.
        Added: icdf.close()
-       Addes self.region to select between available westmed and eastmed
+       Added self.REGION to select between available westmed and eastmed
        images.
+       Added self.JS to select the corresponding url for requesting the
+       region.
        An additional variable "wid" in the constructor has been added to pass
-	   the reference of the master consola to send "print" messages
+       the reference of the master consola to send "print" messages
 '''
 
 import numpy as np
@@ -89,7 +91,8 @@ class WinSaidin(tk.Toplevel):
     font_bold['weight']='bold'
 
     self.FILENAME = tk.StringVar()
-    #EG Self.REGION 
+    #EG self.REGION, self.JS  
+    self.JS       = tk.StringVar()
     self.REGION   = tk.StringVar()
     self.YEAR     = tk.IntVar()
     self.MONTH    = tk.IntVar()
@@ -98,6 +101,7 @@ class WinSaidin(tk.Toplevel):
  
     self.FILENAME.set('')
     self.REGION.set("westmed")
+    self.JS.set("saidin-js")
 
     self.TODAY = datetime.datetime.now().date()
     self.THIS_YEAR  = self.TODAY.year
@@ -112,16 +116,15 @@ class WinSaidin(tk.Toplevel):
     self.YEAR_INI   = 2001
     self.MONTH_INI  = 5
     
-    #EG Self.REGION =western Mediterranean> 
+    #EG self.REGION =western Mediterranean> 
     self.REGION_LIST =["westmed","eastmed"]
-
+    self.JS_LIST     ={"westmed":"saidin-js","eastmed":"esaidin-js"}
     self.PATH       = 'http://cooweb.cmima.csic.es/thredds/dodsC/'
     self.PATH_LOAD  = 'http://cooweb.cmima.csic.es/thredds/fileServer/'
     self.PATH       += self.REGION.get()+'/'
     self.PATH_LOAD  += self.REGION.get()+'/'
 
-    # Fill the default pull-down menu lists to select the data of the 
-    # simulation.
+    # Fill the default pull-down menu lists to select SST region simulation.
     self.YEAR_LIST  = list(range(self.YEAR_INI,self.THIS_YEAR+1))
     self.MONTH_LIST = list(range(1,self.THIS_MONTH+1))
     self.DAY_LIST   = list(range(1,self.THIS_DAY+1))
@@ -223,17 +226,23 @@ class WinSaidin(tk.Toplevel):
   def request(self):
   #=================
     '''Sends the request to scan the page contents'''
+    '''
     if self.regbox.get() == "eastmed":
       toconsola("Eastern Mediterranean soon available",wid=self.cons)
       #print("Eastern Mediterranean soon available")
       region ="westmed"
-      self.REGION.set(region)
-      self.PATH       = 'http://cooweb.cmima.csic.es/thredds/dodsC/'+region+"/"
-      self.PATH_LOAD  = 'http://cooweb.cmima.csic.es/thredds/fileServer/'+region+"/"
+      self.REGION.set(self.regbox.get())
+      self.PATH       = 'http://cooweb.cmima.csic.es/thredds/dodsC/'+self.REGION.get()+"/"
+      self.PATH_LOAD  = 'http://cooweb.cmima.csic.es/thredds/fileServer/'+self.REGION.get()+"/"
       self.request()
       return
-    
-    PATH = 'http://cooweb.cmima.csic.es/saidin-js/jsoncontrolservlet?service=search&'
+    '''
+    region = self.regbox.get()
+    self.REGION.set(region)
+    self.PATH       = 'http://cooweb.cmima.csic.es/thredds/dodsC/'+region+"/"
+    self.PATH_LOAD  = 'http://cooweb.cmima.csic.es/thredds/fileServer/'+region+"/"
+    #PATH = 'http://cooweb.cmima.csic.es/saidin-js/jsoncontrolservlet?service=search&'
+    PATH = "http://cooweb.cmima.csic.es/"+self.JS_LIST[region]+"/jsoncontrolservlet?service=search&"
     year  = self.YEAR.get()
     month = self.MONTH.get()
     day   = self.DAY.get()
@@ -292,7 +301,6 @@ class WinSaidin(tk.Toplevel):
     EAST  = np.max(lon)
 
     #print([EAST, WEST,SOUTH, NORTH])
-    
     #EG mod faltan los detalles line,fill
     self.ax1.set_extent([EAST, WEST, SOUTH, NORTH])
     self.ax1.coastlines('110m',linewidth=2)
