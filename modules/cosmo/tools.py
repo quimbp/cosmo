@@ -355,7 +355,7 @@ class geocdf():
     # E) The first variable
 
     self.withX = False
-    for name,variable in reversed(ncid.variables.items()):
+    for name,variable in reversed(list(ncid.variables.items())):
       try:
         axis = getattr(variable,'axis').lower()
         with_axis = True
@@ -408,7 +408,7 @@ class geocdf():
             self.nx = ncid.dimensions[self.iname].size
 
     withY = False
-    for name,variable in reversed(ncid.variables.items()):
+    for name,variable in reversed(list(ncid.variables.items())):
       try:
         axis = getattr(variable,'axis').lower()
         with_axis = True
@@ -460,7 +460,7 @@ class geocdf():
             self.nx = ncid.dimensions[self.iname].size
 
     withZ = False
-    for name,variable in reversed(ncid.variables.items()):
+    for name,variable in reversed(list(ncid.variables.items())):
       try:
         axis = getattr(variable,'axis').lower()
         with_axis = True
@@ -508,7 +508,7 @@ class geocdf():
           self.nz = ncid.dimensions[self.kname].size
 
     withT = False
-    for name,variable in reversed(ncid.variables.items()):
+    for name,variable in reversed(list(ncid.variables.items())):
       try:
         axis = getattr(variable,'axis').lower()
         with_axis = True
@@ -1268,6 +1268,9 @@ class WinGeoaxes():
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
       dlist = icdf.dimids[ind]
+      #self.ndims = icdf.ndims[ind]  #BBBBB
+      #print('Variable ndims = ', self.ndims)
+
       nd = len(dlist) - dlist.count(-1)
       dlist[nd:] = []
       idim = 0
@@ -1370,7 +1373,7 @@ class WinGeoaxes():
         # No axis information is specified in the netcdf file
         # The onyl information we have are the dimensions
         # 
-        print('retrieving information of dimensions. Axe variables must be set by hand ...')
+        #print('retrieving information of dimensions. Axe variables must be set by hand ...')
         for kk in dlist:
           if icdf.DIM_AXIS[kk] == 'X':
             doX        = True
