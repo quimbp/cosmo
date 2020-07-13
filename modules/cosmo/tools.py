@@ -763,9 +763,9 @@ class geocdf():
           self.idx   = var
           self.xname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            grid2d = True
+            self.grid2d = True
           else:
-            grid2d = False
+            self.grid2d = False
 
     if self.idj > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -774,9 +774,9 @@ class geocdf():
           self.idy   = var
           self.yname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            grid2d = True
+            self.grid2d = True
           else:
-            grid2d = False
+            self.grid2d = False
 
     if self.idk > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -798,12 +798,13 @@ class WinGeoaxes():
   '''Class to interactively select/modify the names of the
      axis variables of a netcdf file.
      Version 1.0, June 2017 original version
-     Version 1.1, July 2018 move the ncdump from the menu to the 
-                  widget body as a button'''
+     Version 1.1, July 2020 move the ncdump from the menu to the 
+                  widget body as a button.'''
+
 
   __version__ = "1.1"
   __author__  = "Quim Ballabrerera"
-  __date__    = "June 2017"
+  __date__    = "July 2020"
 
   def __init__ (self,icdf,ncid,parent=None):
 
@@ -849,7 +850,7 @@ class WinGeoaxes():
     self.strnt.set(str(icdf.nt))
 
     self.grid2d = tk.BooleanVar()
-    self.georef  = tk.BooleanVar()
+    self.georef = tk.BooleanVar()
     self.grid2d.set(icdf.grid2d)
     self.georef.set(icdf.georef)
 
@@ -1064,7 +1065,7 @@ class WinGeoaxes():
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.grid2d = True
+        icdf.grid2d = False
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         self.georef.set(icdf.georef)
@@ -1077,7 +1078,7 @@ class WinGeoaxes():
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.grid2d = False
+        icdf.grid2d = True
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         self.georef.set(icdf.georef)
@@ -1118,24 +1119,25 @@ class WinGeoaxes():
       icdf.withY = True
       if icdf.ndims[ind] == 1:
 
+        print('yselection 1D grid')
         # Update dimension to match selected variable
         kk = icdf.dimids[ind][0]
         icdf.idj   = kk
         icdf.ny    = icdf.dlen[kk]
         icdf.jname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.grid2d = True
+        icdf.grid2d = False
         self.Jname.set(icdf.jname)
         self.strny.set(str(icdf.ny))
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
-        print('2D grid')
+        print('yselection 2D grid')
         kk = icdf.dimids[ind][1]
         icdf.idi   = kk
         icdf.nx    = icdf.dlen[kk]
         icdf.iname = icdf.DIM_LIST[kk]
         icdf.georef = True
-        icdf.grid2d = False
+        icdf.grid2d = True
         self.Iname.set(icdf.iname)
         self.strnx.set(str(icdf.nx))
         kk = icdf.dimids[ind][0]
