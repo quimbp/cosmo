@@ -208,12 +208,16 @@ class fld_parameters():
     else:
       self.with_axes = False
 
+    print(self.icdf.xname)
+    print(self.icdf.yname)
+    print(self.with_axes)
+    print(self.icdf.grid2d)
+
     if self.with_axes:
 
       self.x = self.nc.variables[self.icdf.xname][:]
       self.y = self.nc.variables[self.icdf.yname][:]
 
-      print(self.icdf.grid2d)
       if self.icdf.grid2d:
         self.xx = self.x
         self.yy = self.y

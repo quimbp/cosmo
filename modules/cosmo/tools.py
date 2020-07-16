@@ -1286,6 +1286,7 @@ class WinGeoaxes():
           if icdf.VAR_AXIS[kk] == 'X':
             icdf.idx   = kk
             icdf.withX = True
+            icdf.xname = aname
             self.Xname.set(aname)
             avar = self.ncid.variables[aname]
             ndms = len(avar.dimensions)
@@ -1315,6 +1316,7 @@ class WinGeoaxes():
           if icdf.VAR_AXIS[kk] == 'Y':
             icdf.idy   = kk
             icdf.withY = True
+            icdf.yname = aname
             self.Yname.set(aname)
             avar = self.ncid.variables[aname]
             ndms = len(avar.dimensions)
@@ -1344,6 +1346,7 @@ class WinGeoaxes():
           if icdf.VAR_AXIS[kk] == 'Z':
             icdf.idz   = kk
             icdf.withZ = True
+            icdf.zname = aname
             self.Zname.set(aname)
             avar = self.ncid.variables[aname]
             doZ = True
@@ -1356,6 +1359,7 @@ class WinGeoaxes():
           if icdf.VAR_AXIS[kk] == 'T':
             icdf.idt   = kk
             icdf.withT = True
+            icdf.tname = aname
             self.Tname.set(aname)
             avar = self.ncid.variables[aname]
             doT = True

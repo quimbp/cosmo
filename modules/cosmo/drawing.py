@@ -95,6 +95,7 @@ import cosmo.legend as legend
 #EG
 import cosmo.shape as shape
 import cosmo.geoplot as geoplot
+import cosmo.field as field
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -132,6 +133,215 @@ BGC  = 'pale green'    # Background color
 BWC  = 'lime green'    # Buttons (PREV and NEXT) color
 EBC  = 'forest green'  # Exit Buttons color
 FONT = 'Helvetica 14'  # Default font
+
+
+# =====================
+class CONTOUR():
+# =====================
+  ''' Class for 2D data contours'''
+
+  __version__ = "2.0" 
+  __author__ = "Quim Ballabrera" 
+  __date__ = "July 2020"
+
+  def __init__(self,filename=None):
+  # ===============================
+    ''' Define and initialize the class attributes '''
+
+    self.MESSAGE = "\nCONTOUR class:\n"
+
+    self.FILENAME = tk.StringVar()
+
+    if filename is None:
+      pass
+    else:
+      self.FILENAME.set(filename)
+
+
+    self.FLD     = field.fld_parameters()
+    self.PLOT    = contourplot.parameters()
+    self.MESSAGE += self.PLOT.MESSAGE
+
+    self.show    = tk.BooleanVar()
+    self.varname = tk.StringVar()
+    self.minval  = tk.DoubleVar()
+    self.maxval  = tk.DoubleVar()
+
+    self.K       = tk.IntVar()
+    self.L       = tk.IntVar()
+
+    self.K_LIST  = []
+    self.L_LIST  = []
+    self.Z_LIST  = []
+    self.T_LIST  = []
+    self.DATE    = []
+    self.TIME    = []
+
+    self.cbar   = None
+    self.show.set(True)
+
+  def conf_get(self):
+  # =================
+    ''' Set class dictionary from class attributes '''
+
+    conf = {}
+    conf['MINVAL'] = self.minval.get()
+    conf['MAXVAL'] = self.maxval.get()
+    conf['SHOW']   = self.show.get()
+    conf['PLOT']   = self.PLOT.conf_get()
+    conf['FLD']    = self.FLD.conf_get()
+    return conf
+
+  def conf_set(self,conf):
+  # ======================
+    ''' Set class dictionary from class attributes '''
+
+    self.minval.set(conf['MINVAL'])
+    self.maxval.set(conf['MAXVAL'])
+    self.show.set(conf['SHOW'])
+    self.PLOT.conf_set(conf['PLOT'])
+    self.FLD.conf_set(conf['FLD'])
+
+
+# =====================
+class vector():
+# =====================
+  ''' Class for 2D data (x,y) vectors'''
+
+  __version__ = "2.0" 
+  __author__ = "Quim Ballabrera" 
+  __date__ = "July 2020"
+
+  def __init__(self,ufile=None,vfile=None):
+  # =======================================
+    ''' Define and initialize the class attributes '''
+
+    self.MESSAGE = "\nVECTOR class:\n"
+
+    self.UFILENAME = tk.StringVar()
+    self.VFILENAME = tk.StringVar()
+
+    if ufile is None:
+      pass
+    else:
+      self.UFILENAME.set(ufile)
+      if vfile is None:
+        self.VFILENAME.set(ufile)
+      else:
+        self.VFILENAME.set(vfile)
+
+
+    self.U         = field.fld_parameters()
+    self.V         = field.fld_parameters()
+
+    self.uname     = tk.StringVar()
+    self.vname     = tk.StringVar()
+
+    self.PLOT      = vectorplot.parameters()
+    self.MESSAGE  += self.PLOT.MESSAGE
+    
+    self.K         = tk.IntVar()
+    self.L         = tk.IntVar()
+
+    self.K_LIST    = []
+    self.L_LIST    = []
+    self.Z_LIST    = []
+    self.T_LIST    = []
+    self.DATE      = []
+    self.TIME      = []
+
+    self.show      = tk.BooleanVar()
+    self.show.set(True)
+
+    # Select grid type:
+    self.grid_type = tk.StringVar()
+    self.grid_type_list = ['A','B','C','D']
+    self.grid_type.set('A')
+
+
+  def conf_get(self):
+  # =================
+    ''' Set class dictionary from class attributes '''
+
+    conf = {}
+    conf['SHOW'] = self.show.get()
+    conf['PLOT'] = self.PLOT.conf_get()
+    conf['GRID'] = self.grid_type.get()
+    conf['U']    = self.U.conf_get()
+    conf['V']    = self.V.conf_get()
+    return conf
+
+  def conf_set(self,conf):
+  # ======================
+    ''' Set class dictionary from class attributes '''
+
+    self.show.set(conf['SHOW'])
+    self.grid_type.set(conf['GRID_TYPE'])
+    self.PLOT.conf_set(conf['PLOT'])
+    self.U.conf_set(conf['U'])
+    self.V.conf_set(conf['V'])
+
+
+  def read(self,**args):
+  # ====================
+
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    K = self.K.get()
+    L = self.L.get()
+
+    print('uname: ', self.U.varname)
+    print('vname: ', self.V.varname)
+    print('ndims: ', self.U.ndims)
+    print('K, L : ', K, L)
+
+    if self.U.ndims == 2:
+      u = VEC.U.nc.variables[uname][:,:]
+      v = VEC.V.nc.variables[vname][:,:]
+    elif self.U.ndims == 3:
+      if VEC.U.icdf.ppl[VEC.uid] > -1:
+        u = VEC.U.nc.variables[self.U.varname][L,:,:].squeeze()
+        v = VEC.V.nc.variables[self.V.varname][L,:,:].squeeze()
+      elif VEC.icdf.ppk[VEC.uid] > -1:
+        u = VEC.U.nc.variables[self.U.varname][K,:,:].squeeze()
+        v = VEC.V.nc.variables[self.V.varname][K,:,:].squeeze()
+      else:
+        toconsola('Invalid file!',wid=wid)
+        return
+    elif self.U.ndims == 4:
+      u = VEC.U.nc.variables[self.U.varname][L,K,:,:].squeeze()
+      v = VEC.V.nc.variables[self.V.varname][L,K,:,:].squeeze()
+    else:
+      toconsola("Invalid number of dimensions, "+str(ndim),wid=wid)
+      #print('Invalid number of dimensions, '+str(ndim))
+
+    # Make sure that the missing value is NaN:
+    _u = u.filled(fill_value=np.nan)
+    _v = v.filled(fill_value=np.nan)
+    u = np.ma.masked_equal(_u,np.nan); del _u
+    v = np.ma.masked_equal(_v,np.nan); del _v
+
+    if self.grid_type.get() == 'A' or self.grid_type.get() == 'B':
+      VEC.U.data = u.copy()
+      VEC.V.data = v.copy()
+      return
+
+    if self.grid_type.get() == 'C':
+      VEC.U.data = 0.5*(u[1:-1,:-1]+u[1:-1,1:])
+      VEC.V.data = 0.5*(v[:-1,1:-1]+v[1:,1:-1])
+      print('in read: ', VEC.U.data.shape, VEC.V.data.shape)
+      return
+
+
+
+
+
+
+
+
 
 # =====================
 class fld_parameters():
@@ -208,6 +418,12 @@ class vel_parameters():
     
     self.u             = None
     self.v             = None
+    self.xu            = None    # To allow grid-types
+    self.yu            = None    # To allow grid-types
+    self.xv            = None    # To allow grid-types
+    self.yv            = None    # To allow grid-types
+    self.xt            = None    # To allow grid-types
+    self.yt            = None    # To allow grid-types
     self.speed         = None
     self.F             = None
     self.cbar          = None
@@ -272,6 +488,11 @@ class cdf_parameters():
     self.uname.set('')
     self.vname.set('')
 
+    # Add mutiple grid types:
+    self.grid_type     = tk.StringVar()
+    self.grid_type_list = ['A','B','C','D']
+    self.grid_type.set('A')
+
   def conf_get(self):
   # =================
     ''' Set class dictionary from class attributes'''
@@ -286,6 +507,7 @@ class cdf_parameters():
     conf['varid'] = self.varid
     conf['uid'] = self.uid
     conf['vid'] = self.vid
+    conf['grid_type'] = self.grid_type.get()
 
     if self.icdf is None:
       conf['ICDF'] = None
@@ -317,6 +539,7 @@ class cdf_parameters():
     self.varid = conf['varid']
     self.uid = conf['uid']
     self.vid = conf['vid']
+    self.grid_type.set(conf['grid_type'])
     if conf['ICDF'] == "None":
       pass
     else:
@@ -359,6 +582,7 @@ class DrawingConfig():
     self.OUTPUT_FIGURE      = tk.BooleanVar()
     self.OUTPUT_LEAFLET     = tk.BooleanVar()
     self.GEOMAP             = tk.BooleanVar()
+    self.WITH_AXIS          = tk.BooleanVar()
     #EG Cartopy projection and parameters
     self.MAP_PROJECTION     = tk.StringVar()
     self.MAP_PROJ_LAT_0		= tk.DoubleVar()
@@ -387,7 +611,7 @@ class DrawingConfig():
 
     self.COASTLINE_SHOW     = tk.BooleanVar()
     # EG 1:Natural-Earth 2: EMODNET
-    self.COASTLINE_SOURCE	= tk.IntVar()
+    self.COASTLINE_SOURCE   = tk.IntVar()
     self.COASTLINE_WIDTH    = tk.DoubleVar()
     self.COASTLINE_COLOR    = tk.StringVar()
     self.COUNTRYLINE_SHOW   = tk.BooleanVar()
@@ -507,6 +731,7 @@ class DrawingConfig():
     self.OUTPUT_FIGURE.set(True)
     self.OUTPUT_LEAFLET.set(False)
     self.GEOMAP.set(True)
+    self.WITH_AXIS.set(False)
     #EG Default Cartopy PlateCarree and parameters
     self.MAP_PROJECTION.set('PlateCarree')
     self.MAP_PROJ_LAT_0.set(0.0)
@@ -715,6 +940,7 @@ class DrawingConfig():
     conf['FIGURE_COLOR'] = self.FIGURE_COLOR.get()
     conf['TEXT_COLOR'] = self.TEXT_COLOR.get()
     conf['GEOMAP'] = self.GEOMAP.get()
+    conf['WITH_AXIS'] = self.WITH_AXIS.get()
     
     #EG Default Cartopy PlateCarree and parameters
     conf['MAP_PROJECTION'] = self.MAP_PROJECTION.get()
@@ -871,6 +1097,7 @@ class DrawingConfig():
     self.FIGURE_COLOR.set(conf['FIGURE_COLOR'])
     self.TEXT_COLOR.set(conf['TEXT_COLOR'])
     self.GEOMAP.set(conf['GEOMAP'])
+    self.WITH_AXIS.set(conf['WITH_AXIS'])
     
     #EG Default Cartopy PlateCarree and parameters
     self.MAP_PROJECTION.set(conf['MAP_PROJECTION'])
@@ -1166,8 +1393,12 @@ class CosmoDrawing():
                           'Remote Folder', \
                           'Trajectories Database']
 
-    self.SAIDIN        = cdf_parameters()
-    self.SAIDIN.FIELD  = fld_parameters()
+    self.SAIDIN        = CONTOUR()
+    #self.SAIDIN        = cdf_parameters()
+    #self.SAIDIN.FIELD  = fld_parameters()
+    # Add an aditional logical flag: landmask (True if land must be masked)
+    self.SAIDIN.landmask = tk.BooleanVar()
+    self.SAIDIN.landmask.set(False)
     self.sbar          = []
     self.Msbar         = []
 
@@ -1299,7 +1530,7 @@ class CosmoDrawing():
          self.cons.grid(row=0,column=0,sticky='we')
          cscrollb.config(command=self.cons.yview)
          line = tconsola + '\n'+ versions + "\n"+ mess + self.PLOT.MESSAGE+ \
-                 self.SAIDIN.FIELD.MESSAGE+self.BLM.MESSAGE+self.MLM.MESSAGE
+                 self.SAIDIN.FLD.MESSAGE+self.BLM.MESSAGE+self.MLM.MESSAGE
          self.cons.insert("end", line + "\n")
          self.cons.see(tk.END)
          wiconsola.grid(row=3, column=0, columnspan=6, pady=5, sticky='nsew')  
@@ -1315,6 +1546,7 @@ class CosmoDrawing():
     self.Window_other         = None
     self.Window_saidin        = None
     self.Window_currents      = None
+    self.Window_currents_sel  = None
     self.Window_opendap       = None
     self.Window_copernicus    = None
     self.Window_codar         = None
@@ -1389,14 +1621,14 @@ class CosmoDrawing():
      
     if self.nvec > 0:
       ii = self.VEC_INDX.get()
-      if self.VEC[ii].VEL.PLOT.KEY_GETXY:
-        self.VEC[ii].VEL.PLOT.KEY_GETXY = False
+      if self.VEC[ii].PLOT.KEY_GETXY:
+        self.VEC[ii].PLOT.KEY_GETXY = False
         xx = event.x/self.PLOT.DPI.get()/self.PLOT.SIZE[0]
         yy = event.y/self.PLOT.DPI.get()/self.PLOT.SIZE[1]
-        self.VEC[ii].VEL.PLOT.KEY_X.set(np.round(xx,3))
-        self.VEC[ii].VEL.PLOT.KEY_Y.set(np.round(yy,3))
-        self.VEC[ii].VEL.PLOT.KEY_OBJ.X = xx
-        self.VEC[ii].VEL.PLOT.KEY_OBJ.Y = yy
+        self.VEC[ii].PLOT.KEY_X.set(np.round(xx,3))
+        self.VEC[ii].PLOT.KEY_Y.set(np.round(yy,3))
+        self.VEC[ii].PLOT.KEY_OBJ.X = xx
+        self.VEC[ii].PLOT.KEY_OBJ.Y = yy
         self.canvas.draw()
         return
 
@@ -1535,7 +1767,7 @@ class CosmoDrawing():
       # save the panel's image from 'garbage collection'
       panel1.image = photoimage
 
-      _author = 'Author: Quim Ballabrera (COSMO Project)'
+      _author = 'Author: Quim Ballabrera (COSMO Project) \n Emilio Garcia (COSMO Project)'
       _description = ' Ocean visualization tool for the COSMO project'
       tk.Label(self.Window_about,text='COSMO-VIEW'). \
               grid(row=1,column=0,sticky='ew')
@@ -1568,12 +1800,15 @@ class CosmoDrawing():
       ii = self.VEC_INDX.get()
       #EG Corrected exception when the user tries to plot before 
       #EG importing product
-      try:
-        self.read_UV(self.VEC[ii])
-      except:
-        toconsola("Press Import to select a product",tag="o", wid=self.cons)
-        return
-      self.read_UV(self.VEC[ii])
+      #try:
+      #  self.read_UV(self.VEC[ii])
+      #except:
+      #  toconsola("Press Import to select a product",tag="o", wid=self.cons)
+      #  return
+
+      self.VEC[ii].read()
+
+      #self.read_UV(self.VEC[ii])
       _close()
       self.make_plot()
       if self.Window_vectorconfig is not None:
@@ -1615,32 +1850,33 @@ class CosmoDrawing():
         self.VEC_LIST = list(range(self.nvec))
         _wsel.configure(state='!disabled')
         _wsel['values'] = self.VEC_LIST
-        _went['textvariable'] = self.VEC[ii].FILENAME
+        _went['textvariable'] = self.VEC[ii].UFILENAME
+        _went2['textvariable'] = self.VEC[ii].VFILENAME
         _uvar.configure(state='!disabled')
         _uvar['textvariable'] = self.VEC[ii].uname
-        _uvar['values'] = self.VEC[ii].icdf.VAR_MENU
+        _uvar['values'] = self.VEC[ii].U.icdf.VAR_MENU
         _vvar.configure(state='!disabled')
         _vvar['textvariable'] = self.VEC[ii].vname
-        _vvar['values'] = self.VEC[ii].icdf.VAR_MENU
+        _vvar['values'] = self.VEC[ii].V.icdf.VAR_MENU
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.VEC[ii].K
         _kbox['values'] = self.VEC[ii].K_LIST
         _lbox.configure(state='!disabled')
         _lbox['textvariable'] = self.VEC[ii].L
         _lbox['values'] = self.VEC[ii].L_LIST
-        if self.VEC[ii].icdf.idk < 0:
+        if self.VEC[ii].U.icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-        if self.VEC[ii].icdf.idl < 0:
+        if self.VEC[ii].U.icdf.idl < 0:
           _lbox.configure(state='disabled')
           _dbox['text']='--'
         else:
           _lbox['textvariable'] = self.VEC[ii].L
           _lbox['values'] = self.VEC[ii].L_LIST
           _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
-        _show['variable'] = self.VEC[ii].VEL.show
+        _show['variable'] = self.VEC[ii].show
 
       else:
         self.VEC         = []
@@ -1673,39 +1909,91 @@ class CosmoDrawing():
     def _add(SOURCE):
     # ===============
 
-      global Window_select
       global VEC
 
       def _cancel():
       # ============
-        global Window_select
-        Window_select.destroy()
-        Window_select = None
+        self.Window_currents_sel.destroy()
+        self.Window_currents_sel = None
 
       def _done():
       # ==========
-        global Window_select
         global _uvar,_vvar
         global VEC
 
         if empty(VEC.uname.get()):
-          VEC.uid = None
+          VEC.U.varid = None
         else:
-          VEC.uid = VEC.icdf.vname.index(VEC.uname.get())
+          VEC.U.varid = VEC.U.icdf.vname.index(VEC.uname.get())
         if empty(VEC.vname.get()):
-          VEC.vid = None
+          VEC.V.varid = None
         else:
-          VEC.vid = VEC.icdf.vname.index(VEC.vname.get())
+          print('totot .....')
+          VEC.V.varid = VEC.V.icdf.vname.index(VEC.vname.get())
 
-        if VEC.uid is None or VEC.vid is None:
-          messagebox.showinfo(parent=Window_select,message='Select velocity components')
+        if VEC.U.varid is None or VEC.V.varid is None:
+          messagebox.showinfo(parent=self.Window_currents_sel,message='Select velocity components')
           return
 
         # Seems a suitable location for those statements:
-        #
-        self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
-        self.DepthandDate(VEC)
-        VEC.VEL.show.set(True)
+        VEC.U.varname = VEC.uname.get()
+        #VEC.U.varid   = VEC.U.icdf.vname.index(VEC.U.varname)
+        VEC.U.ndims   = VEC.U.icdf.ndims[VEC.U.varid]
+        VEC.U.get_info(wid=self.cons)
+        VEC.U.get_grid()
+
+        VEC.V.varname = VEC.vname.get()
+        #VEC.V.varid   = VEC.V.icdf.vname.index(VEC.V.varname)
+        VEC.V.ndims   = VEC.V.icdf.ndims[VEC.V.varid]
+        VEC.V.get_info(wid=self.cons)
+
+        if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+          VEC.V.VAR_MENU = VEC.U.VAR_MENU[:]
+        else:
+          print('VEC.V.get.grid() ...')
+          VEC.V.get_grid()
+          print('in drawing, type C ...')
+
+          if VEC.grid_type.get() == 'C':
+
+            print('U xx: ',VEC.U.xx.shape)
+            print('U yy: ',VEC.U.yy.shape)
+            print('V xx: ',VEC.V.xx.shape)
+            print('V yy: ',VEC.V.yy.shape)
+
+            # X-center
+            xmu0 = 0.5*(VEC.U.xx[:,:-1]+VEC.U.xx[:,1:])
+            xmv0 = VEC.V.xx[:,1:-1]
+            ymu0 = 0.5*(VEC.U.yy[:,:-1]+VEC.U.yy[:,1:])
+            ymv0 = VEC.V.yy[:,1:-1]
+            # Y-center
+            VEC.V.xx = 0.5*(xmv0[:-1,:]+xmv0[1:,:])
+            VEC.U.xx = xmu0[1:-1,:]
+            VEC.V.yy = 0.5*(ymv0[:-1,:]+ymv0[1:,:])
+            VEC.U.yy = ymu0[1:-1,:]
+
+            print('MU xx: ',VEC.U.xx.shape)
+            print('MU yy: ',VEC.U.yy.shape)
+            print('MV xx: ',VEC.V.xx.shape)
+            print('MV yy: ',VEC.V.yy.shape)
+
+
+
+        #self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
+        VEC.K_LIST   = list(range(VEC.U.icdf.nz))
+        VEC.L_LIST   = list(range(VEC.U.icdf.nt))
+
+        VEC.K.set(0)
+        VEC.Z_LIST = VEC.U.get_zlist()
+        print(VEC.K_LIST)
+        print('done zlist')
+
+        VEC.L.set(0)
+        VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
+
+
+        #self.DepthandDate(VEC)
+        VEC.show.set(True)
 
         self.nvec += 1
         self.VEC.append(VEC)
@@ -1713,7 +2001,7 @@ class CosmoDrawing():
         self.VEC_LIST = list(range(self.nvec))
 
         self.nfiles += 1
-        self.FILENAMES.append(VEC.FILENAME.get())
+        self.FILENAMES.append(VEC.UFILENAME.get())
         self.FILETYPES.append('VEC')
         self.FILEORDER.append(self.nvec-1)
         self.SEQUENCES.append(tk.BooleanVar(value=False))
@@ -1722,30 +2010,39 @@ class CosmoDrawing():
 
         if self.first:
           if self.drawmap is None:
-            self.PLOT.WEST.set(np.min(self.VEC[ii].lon))
-            self.PLOT.EAST.set(np.max(self.VEC[ii].lon))
-            self.PLOT.SOUTH.set(np.min(self.VEC[ii].lat))
-            self.PLOT.NORTH.set(np.max(self.VEC[ii].lat))
+            if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+              self.PLOT.WEST.set(self.VEC[ii].U.xmin)
+              self.PLOT.EAST.set(self.VEC[ii].U.xmax)
+              self.PLOT.SOUTH.set(self.VEC[ii].U.ymin)
+              self.PLOT.NORTH.set(self.VEC[ii].U.ymax)
+            else:
+              self.PLOT.WEST.set(max(self.VEC[ii].U.xmin,self.VEC[ii].V.xmin))
+              self.PLOT.EAST.set(min(self.VEC[ii].U.xmax,self.VEC[ii].V.xmax))
+              self.PLOT.SOUTH.set(max(self.VEC[ii].U.ymin,self.VEC[ii].V.ymin))
+              self.PLOT.NORTH.set(min(self.VEC[ii].U.ymax,self.VEC[ii].V.ymax))
             self.plot_initialize()
           self.L.set(self.VEC[ii].L.get())
-          self.L_LIST = list(range(self.VEC[ii].icdf.nt))
+          self.L_LIST = list(range(self.VEC[ii].U.icdf.nt))
           self.NL = len(self.L_LIST)
           self.lbox.configure(state='!disabled')
           self.lbox['values'] = self.L_LIST
           self.DATE = self.VEC[ii].DATE.copy()
           self.TIME = self.VEC[ii].TIME.copy()
           #self.TFILE = '%d' % self.nfiles
+          print(self.L.get())
+          print(self.VEC[ii].L.get())
+          print(self.VEC[ii].DATE)
           self.PLOT.TLABEL.set(self.VEC[ii].DATE[self.L.get()])
           if len(self.DATE) > 1:
             self.bnext.configure(state='normal')
           try:
-            self.PLOT.XLABEL.set(self.VEC[ii].ncid.variables[self.VEC[ii].icdf.xname].getncattr('long_name'))
+            self.PLOT.XLABEL.set(self.VEC[ii].U.nc.variables[self.VEC[ii].U.icdf.xname].getncattr('long_name'))
           except:
-            self.PLOT.XLABEL.set(self.VEC[ii].icdf.xname)
+            self.PLOT.XLABEL.set(self.VEC[ii].U.icdf.xname)
           try:
-            self.PLOT.YLABEL.set(self.VEC[ii].ncid.variables[self.VEC[ii].icdf.yname].getncattr('long_name'))
+            self.PLOT.YLABEL.set(self.VEC[ii].U.nc.variables[self.VEC[ii].U.icdf.yname].getncattr('long_name'))
           except:
-            self.PLOT.YLABEL.set(self.VEC[ii].icdf.yname)
+            self.PLOT.YLABEL.set(self.VEC[ii].U.icdf.yname)
           self.SEQUENCES[-1].set(True)
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
@@ -1760,8 +2057,39 @@ class CosmoDrawing():
             self.SEQUENCES[-1].set(same)
 
         _refill(ii)
-        Window_select.destroy()
-        Window_select = None
+        self.Window_currents_sel.destroy()
+        self.Window_currents_sel = None
+
+      def _arakawa():
+      # =============
+        toconsola('Selected Arakawa '+VEC.grid_type.get()+' grid ',wid=self.cons)
+        if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+          vselect['state'] = 'disabled'
+          vaxesid.Ibox['state'] = 'disabled'
+          vaxesid.Jbox['state'] = 'disabled'
+          vaxesid.Kbox['state'] = 'disabled'
+          vaxesid.Lbox['state'] = 'disabled'
+          vaxesid.Xbox['state'] = 'disabled'
+          vaxesid.Ybox['state'] = 'disabled'
+          vaxesid.Zbox['state'] = 'disabled'
+          vaxesid.Tbox['state'] = 'disabled'
+          vaxesid.wgr['state']  = 'disabled'
+        else:
+          vselect['state'] = 'normal'
+          vaxesid.Ibox['state'] = 'normal'
+          vaxesid.Jbox['state'] = 'normal'
+          vaxesid.Kbox['state'] = 'normal'
+          vaxesid.Lbox['state'] = 'normal'
+          vaxesid.Xbox['state'] = 'normal'
+          vaxesid.Ybox['state'] = 'normal'
+          vaxesid.Zbox['state'] = 'normal'
+          vaxesid.Tbox['state'] = 'normal'
+          vaxesid.wgr['state']  = 'normal'
+
+
+      def _vselect():
+      # =============
+        print('Select V file ...')
 
       #names = ['Operational','CODAR','COPERNICUS','Local']
       ISOURCE = self.CURRENT_OPTIONS.index(SOURCE)
@@ -1791,48 +2119,120 @@ class CosmoDrawing():
         return
 
       # Not empty filename:
-      VEC = cdf_parameters()
-      VEC.FILENAME.set(filename)
-      VEC.VEL = vel_parameters()
+      '''Update to account for multiple Arakawa grids. We begin by duplicatinge
+      the velocity object and use the first one for the U information
+      and the second one for the V information. Once the grid information
+      has been filled, we merge the V-information of the second object
+      into the first one '''
+      VEC = vector()
+
+      #VEC = cdf_parameters()
+      VEC.UFILENAME.set(filename)
+      VEC.VFILENAME.set(filename)
+      #VEC.VEL = vel_parameters()
+
+      #toconsola(VEC.VEL.MESSAGE,wid=self.cons)
       
-      toconsola(VEC.VEL.MESSAGE,wid=self.cons)
+      VEC.U.nc = Dataset(filename)
+      VEC.U.icdf = tools.geocdf(filename, wid=self.cons)
+
+      VEC.V.nc = Dataset(filename)
+      VEC.V.icdf = tools.geocdf(filename, wid=self.cons)
+
+      # Object to capture the information about the V-field
+      #VEC2 = cdf_parameters()
+      #VEC2.FILENAME.set(filename)
+      #VEC2.VEL = vel_parameters()
+
+      toconsola(VEC.MESSAGE,wid=self.cons)
       
-      VEC.ncid = Dataset(filename)
-      VEC.icdf = tools.geocdf(filename, wid=self.cons)
+      #VEC2.ncid = Dataset(filename)
+      #VEC2.icdf = tools.geocdf(filename, wid=self.cons)
+
 
       # self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
       # self.DepthandDate(VEC)
       # VEC.VEL.show.set(True)
 
-      if Window_select is None:
-        Window_select = tk.Toplevel(self.master)
-        Window_select.title('SELECT VARIABLES')
-        Window_select.protocol('WM_DELETE_WINDOW',Window_select.destroy)
-      else:
-        Window_select.lift()
-        return
-
-      axesid = tools.WinGeoaxes(VEC.icdf,VEC.ncid,Window_select)
+      if self.Window_currents_sel is None:
+        self.Window_currents_sel = tk.Toplevel(self.master)
+        self.Window_currents_sel.title('SELECT VARIABLES')
+        self.Window_currents_sel.protocol('WM_DELETE_WINDOW',self.Window_currents_sel.destroy)
+      #else:
+      #  self.Window_currents_sel.lift()
+      #  return
 
       font_bold = tkfont.Font(font='TkDefaultFont').copy()
       font_bold['weight']='bold'
 
-      F0 = ttk.Frame(Window_select,padding=5,borderwidth=5)
-      ttk.Label(F0,text='Select U', \
-                   borderwidth=3,   \
-                   font=font_bold).grid(row=0,column=0)
-      ttk.Combobox(F0,textvariable=VEC.uname,   \
-                      values=VEC.icdf.VAR_MENU, \
-                      width=20).grid(row=0,column=1,columnspan=2)
-      ttk.Label(F0,text='Select V', \
-                   borderwidth=3,   \
-                   font=font_bold).grid(row=0,column=4)
-      ttk.Combobox(F0,textvariable=VEC.vname,   \
-                      values=VEC.icdf.VAR_MENU, \
-                      width=20).grid(row=0,column=5,columnspan=2)
-      F0.grid()
+      '''Now, we launch two WinGeoaxes widgets to capturate the two
+      components of the field'''
 
-      F1 = ttk.Frame(Window_select,padding=5)
+      FAgrid = ttk.Frame(self.Window_currents_sel,padding=5,borderwidth=5)
+      ttk.Label(FAgrid,text='Grid type', \
+                   font=font_bold).grid(row=0,column=0,sticky='w')
+      gtype = ttk.Combobox(FAgrid,textvariable=VEC.grid_type,   \
+                      values=VEC.grid_type_list, \
+                      width=5)
+      gtype.grid(row=0,column=1,columnspan=1,sticky='w')
+      gtype.bind('<<ComboboxSelected>>',lambda e: _arakawa())
+
+      FAgrid.grid(row=0,column=0,columnspan=5)
+
+
+      # -------------------------------------------------------
+      FUmain = ttk.Frame(self.Window_currents_sel,padding=5,borderwidth=5)
+
+      FU = ttk.Frame(FUmain,padding=5,borderwidth=5)
+      uaxesid = tools.WinGeoaxes(VEC.U.icdf,VEC.U.nc,FU)
+      FU.grid(row=0,column=0,columnspan=5)
+
+      ttk.Label(FUmain,text='Select U', \
+                   borderwidth=3,   \
+                   font=font_bold).grid(row=1,column=2)
+      Usel = ttk.Combobox(FUmain,textvariable=VEC.uname,   \
+                      values=VEC.U.icdf.VAR_MENU, \
+                      width=20)
+      Usel.bind('<<ComboboxSelected>>',lambda e: uaxesid.selected_var(VEC.U.icdf,Usel))
+      Usel.grid(row=1,column=3,columnspan=2)
+
+      FUmain.grid()
+
+
+      # -------------------------------------------------------
+      FVmain = ttk.Frame(self.Window_currents_sel,padding=5,borderwidth=5)
+
+      vselect = ttk.Button(FVmain,text='Open meridional velocity file',command=_vselect)
+      vselect.grid(row=0,column=0,columnspan=2)
+
+      FV = ttk.Frame(FVmain,padding=5,borderwidth=5)
+      vaxesid = tools.WinGeoaxes(VEC.V.icdf,VEC.V.nc,FV)
+      FV.grid(row=1,column=0,columnspan=5)
+
+      ttk.Label(FVmain,text='Select V', \
+                   borderwidth=3,   \
+                   font=font_bold).grid(row=2,column=2)
+      Vsel = ttk.Combobox(FVmain,textvariable=VEC.vname,   \
+                      values=VEC.V.icdf.VAR_MENU, \
+                      width=20)
+      Vsel.bind('<<ComboboxSelected>>',lambda e: vaxesid.selected_var(VEC.V.icdf,Vsel))
+      Vsel.grid(row=2,column=3,columnspan=2)
+
+      FVmain.grid()
+
+      if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+        vselect['state'] = 'disabled'
+        vaxesid.Ibox['state'] = 'disabled'
+        vaxesid.Jbox['state'] = 'disabled'
+        vaxesid.Kbox['state'] = 'disabled'
+        vaxesid.Lbox['state'] = 'disabled'
+        vaxesid.Xbox['state'] = 'disabled'
+        vaxesid.Ybox['state'] = 'disabled'
+        vaxesid.Zbox['state'] = 'disabled'
+        vaxesid.Tbox['state'] = 'disabled'
+        vaxesid.wgr['state']  = 'disabled'
+
+      F1 = ttk.Frame(self.Window_currents_sel,padding=5)
       cancel = ttk.Button(F1,text='Cancel',command=_cancel)
       cancel.grid(row=0,column=3,sticky='e',padx=10)
       cancel.bind("<Return>",lambda e:_cancel())
@@ -1840,7 +2240,7 @@ class CosmoDrawing():
       done.grid(row=0,column=4,sticky='e',padx=10)
       done.bind("<Return>",lambda e:_done())
       F1.grid(sticky='we')
-      Window_select.wait_window(Window_select)
+      self.Window_currents_sel.wait_window(self.Window_currents_sel)
 
     def _lselection():
     # ================
@@ -1848,6 +2248,7 @@ class CosmoDrawing():
 
     def _kselection():
     # ================
+      print(self.VEC[ii].Z_LIST)
       _zbox['text'] = self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
 
     def _uselection():
@@ -1882,10 +2283,9 @@ class CosmoDrawing():
     else:
       ii = -1
 
-    global Window_select
     global _uvar,_vvar
 
-    Window_select = None
+    self.Window_currents_sel = None
     F0 = ttk.Frame(self.Window_currents,padding=5)
 
     # Add
@@ -1904,32 +2304,35 @@ class CosmoDrawing():
     _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
     _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
     _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+    _went2 = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    _went2.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
 
     # Velocity components:
-    ttk.Label(F0,text='Zonal').grid(row=1,column=1,padx=3,pady=3)
+    ttk.Label(F0,text='Zonal').grid(row=2,column=1,padx=3,pady=3)
     _uvar = ttk.Combobox(F0,width=15)
-    _uvar.grid(row=1,column=2,columnspan=2,sticky='w')
+    _uvar.grid(row=2,column=2,columnspan=2,sticky='w')
     _uvar.bind('<<ComboboxSelected>>',lambda e: _uselection())
 
-    ttk.Label(F0,text='Meridional').grid(row=1,column=4,padx=3,pady=3)
+    ttk.Label(F0,text='Meridional').grid(row=2,column=4,padx=3,pady=3)
     _vvar = ttk.Combobox(F0,width=15)
-    _vvar.grid(row=1,column=5,columnspan=2,sticky='w')
+    _vvar.grid(row=2,column=5,columnspan=2,sticky='w')
     _vvar.bind('<<ComboboxSelected>>',lambda e: _vselection())
 
     # Depth:
-    ttk.Label(F0,text='Depth').grid(row=2,column=1,padx=3,pady=3)
+    ttk.Label(F0,text='Depth').grid(row=3,column=1,padx=3,pady=3)
     _kbox = ttk.Combobox(F0,values=['0'],width=5)
-    _kbox.grid(row=2,column=2)
+    _kbox.grid(row=3,column=2)
+    _kbox.bind('<<ComboboxSelected>>',lambda e: _kselection())
     _zbox = ttk.Label(F0,width=20)
-    _zbox.grid(row=2,column=3,columnspan=2,sticky='w')
+    _zbox.grid(row=3,column=3,columnspan=2,sticky='w')
 
     # Time:
-    ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
+    ttk.Label(F0,text='Time').grid(row=4,column=1,padx=3,pady=3)
     _lbox = ttk.Combobox(F0,width=5)
-    _lbox.grid(row=3,column=2)
+    _lbox.grid(row=4,column=2)
     _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
     _dbox = ttk.Label(F0,width=20)
-    _dbox.grid(row=3,column=3,columnspan=2,sticky='w')
+    _dbox.grid(row=4,column=3,columnspan=2,sticky='w')
 
     if ii == -1:
       _wsel.configure(state='disabled')
@@ -1938,19 +2341,20 @@ class CosmoDrawing():
       _kbox.configure(state='disabled')
       _lbox.configure(state='disabled')
     else:
-      _went['textvariable'] = self.VEC[ii].FILENAME
+      _went['textvariable'] = self.VEC[ii].UFILENAME
+      _went2['textvariable'] = self.VEC[ii].VFILENAME
       _uvar['textvariable'] = self.VEC[ii].uname
       _vvar['textvariable'] = self.VEC[ii].vname
-      _uvar['values'] = self.VEC[ii].icdf.VAR_MENU
-      _vvar['values'] = self.VEC[ii].icdf.VAR_MENU
+      _uvar['values'] = self.VEC[ii].U.icdf.VAR_MENU
+      _vvar['values'] = self.VEC[ii].V.icdf.VAR_MENU
       _kbox['textvariable'] = self.VEC[ii].K
       _kbox['values'] = self.VEC[ii].K_LIST
-      if self.VEC[ii].icdf.idk < 0:
+      if self.VEC[ii].U.icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-      if self.VEC[ii].icdf.idl < 0:
+      if self.VEC[ii].U.icdf.idl < 0:
         _lbox.configure(state='disabled')
         _dbox['text']='--'
       else:
@@ -1965,7 +2369,7 @@ class CosmoDrawing():
       _show = ttk.Checkbutton(F1,text='Show')
     else:
       _show = ttk.Checkbutton(F1,text='Show')
-      _show['variable']=self.VEC[ii].VEL.show
+      _show['variable']=self.VEC[ii].show
       _show.configure(command=self.make_plot)
     _show.grid(row=1,column=5)
     ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
@@ -2076,13 +2480,13 @@ class CosmoDrawing():
       #             justify='right').grid(row=i+1,column=0,padx=5)
       if self.FILETYPES[i] == 'VEC':
         nvec += 1
-        ttk.Checkbutton(F0,variable=self.VEC[nvec].VEL.show,\
+        ttk.Checkbutton(F0,variable=self.VEC[nvec].show,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
         
       if self.FILETYPES[i] == 'FLD':
         nfld += 1
-        ttk.Checkbutton(F0,variable=self.CDF[nfld].FIELD.show,\
+        ttk.Checkbutton(F0,variable=self.CDF[nfld].show,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
         
@@ -2093,7 +2497,7 @@ class CosmoDrawing():
                  grid(row=i+1,column=0,padx=3)
         
       if self.FILETYPES[i] == 'SAIDIN':
-        ttk.Checkbutton(F0,variable=self.SAIDIN.FIELD.show,\
+        ttk.Checkbutton(F0,variable=self.SAIDIN.show,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
         
@@ -2336,13 +2740,17 @@ class CosmoDrawing():
 
       if CONF[ii]['TYPE'] == 'FLD':
 
+        # Initialize contour class:
+        CDF = CONTOUR(filename)
+        CDF.FLD.open(filename,wid=self.cons)
+
         # Initialize classes:
         #
-        CDF = cdf_parameters()
-        CDF.FIELD = fld_parameters()
-        CDF.FILENAME.set(filename)
-        CDF.ncid = Dataset(filename)
-        CDF.icdf = tools.geocdf(filename, wid=self.cons)
+        #CDF = cdf_parameters()
+        #CDF.FIELD = fld_parameters()
+        #CDF.FILENAME.set(filename)
+        #CDF.ncid = Dataset(filename)
+        #CDF.icdf = tools.geocdf(filename, wid=self.cons)
 
         # Update from CONF attributes:
         #
@@ -2565,19 +2973,20 @@ class CosmoDrawing():
         # Initialize classes:
         #
         self.SAIDIN.FILENAME.set(filename)
-        self.SAIDIN.ncid = Dataset(filename)
-        self.SAIDIN.icdf = tools.geocdf(filename, wid=self.cons)
+        self.SAIDIN.FLD.nc   = Dataset(filename)
+        self.SAIDIN.FLD.icdf = tools.geocdf(filename, wid=self.cons)
 
         # Update from CONF attributes:
         #
         self.SAIDIN.conf_set(CONF[ii]['SAIDIN'])
 
         # Read the data:
-        self.SAIDIN.lon = self.SAIDIN.ncid.variables['lon'][:]
-        self.SAIDIN.lat = self.SAIDIN.ncid.variables['lat'][:]
-        self.SAIDIN.FIELD.varname = 'mcsst'
-        self.SAIDIN.FIELD.data = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname][0,:,:].squeeze()
-        self.SAIDIN.xx,self.SAIDIN.yy = np.meshgrid(self.SAIDIN.lon,self.SAIDIN.lat)
+        self.SAIDIN.FLD.x = self.SAIDIN.FLD.nc.variables['lon'][:]
+        self.SAIDIN.FLD.y = self.SAIDIN.FLD.nc.variables['lat'][:]
+        self.SAIDIN.varname.set('mcsst')
+        self.SAIDIN.FLD.varname = 'mcsst'
+        self.SAIDIN.FLD.data = self.SAIDIN.FLD.nc.variables[self.SAIDIN.FIELD.varname][0,:,:].squeeze()
+        self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy = np.meshgrid(self.SAIDIN.FLD.x,self.SAIDIN.FLD.y)
         self.DepthandDate(self.SAIDIN)
 
         self.nfiles += 1
@@ -4480,41 +4889,41 @@ class CosmoDrawing():
     CDF.K.set(0)             # Default layer
     CDF.L.set(0)             # Default time step
 
-    CDF.K_LIST   = list(range(CDF.icdf.nz))
-    CDF.L_LIST   = list(range(CDF.icdf.nt))
+    CDF.K_LIST   = list(range(CDF.FLD.icdf.nz))
+    CDF.L_LIST   = list(range(CDF.FLD.icdf.nt))
 
    # Depth selector
-    if CDF.icdf.idk > -1:
+    if CDF.FLD.icdf.idk > -1:
       if self.PLOT.GEOMAP.get():
-        wrk = CDF.ncid.variables[CDF.icdf.zname][:]
+        wrk = CDF.FLD.nc.variables[CDF.FLD.icdf.zname][:]
         CDF.Z_LIST = list(wrk)
         toconsola(str(CDF.Z_LIST),wid=self.cons)
         #print(CDF.Z_LIST)
       else:
-        CDF.Z_LIST = np.arange(CDF.icdf.nz)
+        CDF.Z_LIST = np.arange(CDF.FLD.icdf.nz)
     else:
       CDF.Z_LIST = []
 
    # Time selector and TIME and DATE values
     CDF.DATE = []
-    if CDF.icdf.idl > -1:
-      wrk = CDF.ncid.variables[CDF.icdf.tname][:]
+    if CDF.FLD.icdf.idl > -1:
+      wrk = CDF.FLD.nc.variables[CDF.FLD.icdf.tname][:]
       CDF.T_LIST = list(wrk)
       try:
         for i in range(CDF.icdf.nt):
           CDF.DATE.append(num2date(CDF.T_LIST[i],       \
-                          units=CDF.icdf.time_units,    \
-                          calendar=CDF.icdf.time_calendar))
+                          units=CDF.FLD.icdf.time_units,    \
+                          calendar=CDF.FLD.icdf.time_calendar))
       except:
-        for i in range(CDF.icdf.nt):
+        for i in range(CDF.FLD.icdf.nt):
           CDF.DATE.append(i)
 
       try:
         CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]).total_seconds() \
-                           for i in range(CDF.icdf.nt)])
+                           for i in range(CDF.FLD.icdf.nt)])
       except:
         CDF.TIME = np.array([(CDF.DATE[i]-CDF.DATE[0]) \
-                           for i in range(CDF.icdf.nt)])
+                           for i in range(CDF.FLD.icdf.nt)])
 
     else:
       CDF.T_LIST = []
@@ -4548,54 +4957,54 @@ class CosmoDrawing():
       CDF.xx = vlon[:].copy()
       CDF.yy = vlat[:].copy()
 
-  # ====================
-  def read_UV(self,VEC):
-  # ====================
-    '''Read 2D velocity data according to user selections'''
-    #K     = self.K.get()
-    #L     = self.L.get()
-    K     = VEC.K.get()
-    L     = VEC.L.get()
-    uname = '%s' % VEC.uname.get()
-    vname = '%s' % VEC.vname.get()
-    ndim  = VEC.icdf.ndims[VEC.uid]
-
-    #VEC.K.set(K)
-    #VEC.L.set(L)
-
-    if ndim == 2:
-      VEC.VEL.u = VEC.ncid.variables[uname][:,:]
-      VEC.VEL.v = VEC.ncid.variables[vname][:,:]
-    elif ndim == 3:
-      if VEC.icdf.ppl[VEC.uid] > -1:
-        VEC.VEL.u = VEC.ncid.variables[uname][L,:,:].squeeze()
-        VEC.VEL.v = VEC.ncid.variables[vname][L,:,:].squeeze()
-      elif VEC.icdf.ppk[VEC.uid] > -1:
-        VEC.VEL.u = VEC.ncid.variables[uname][K,:,:].squeeze()
-        VEC.VEL.v = VEC.ncid.variables[vname][K,:,:].squeeze()
-      else:
-        toconsola('Invalid file!',wid=self.cons)
-        print('Invalid file!')
-        return
-    elif ndim == 4:
-      VEC.VEL.u = VEC.ncid.variables[uname][L,K,:,:].squeeze()
-      VEC.VEL.v = VEC.ncid.variables[vname][L,K,:,:].squeeze()
-    else:
-      toconsola("Invalid number of dimensions, "+str(ndim),wid=self.cons)
-      #print('Invalid number of dimensions, '+str(ndim))
-
-    _u   = VEC.VEL.u.copy()
-    _v   = VEC.VEL.v.copy()
-    msku = ma.getmask(VEC.VEL.u)
-    mskv = ma.getmask(VEC.VEL.v)
-    msk  = ma.mask_or(msku,mskv)
-    VEC.VEL.u = ma.array(_u,mask=msk).copy()
-    VEC.VEL.v = ma.array(_v,mask=msk).copy()
-    #VEC.VEL.speed = np.sqrt(VEC.VEL.u**2+VEC.VEL.v**2)
-    #VEC.VEL.F = interpolate.interp2d(VEC.lon, \
-    #                                 VEC.lat, \
-    #                                 VEC.VEL.speed)
-
+#  # ====================
+#  def read_UV(self,VEC):
+#  # ====================
+#    '''Read 2D velocity data according to user selections'''
+#    #K     = self.K.get()
+#    #L     = self.L.get()
+#    K     = VEC.K.get()
+#    L     = VEC.L.get()
+#    uname = '%s' % VEC.uname.get()
+#    vname = '%s' % VEC.vname.get()
+#    ndim  = VEC.icdf.ndims[VEC.uid]
+#
+#    #VEC.K.set(K)
+#    #VEC.L.set(L)
+#
+#    if ndim == 2:
+#      VEC.VEL.u = VEC.ncid.variables[uname][:,:]
+#      VEC.VEL.v = VEC.ncid.variables[vname][:,:]
+#    elif ndim == 3:
+#      if VEC.icdf.ppl[VEC.uid] > -1:
+#        VEC.VEL.u = VEC.ncid.variables[uname][L,:,:].squeeze()
+#        VEC.VEL.v = VEC.ncid.variables[vname][L,:,:].squeeze()
+#      elif VEC.icdf.ppk[VEC.uid] > -1:
+#        VEC.VEL.u = VEC.ncid.variables[uname][K,:,:].squeeze()
+#        VEC.VEL.v = VEC.ncid.variables[vname][K,:,:].squeeze()
+#      else:
+#        toconsola('Invalid file!',wid=self.cons)
+#        print('Invalid file!')
+#        return
+#    elif ndim == 4:
+#      VEC.VEL.u = VEC.ncid.variables[uname][L,K,:,:].squeeze()
+#      VEC.VEL.v = VEC.ncid.variables[vname][L,K,:,:].squeeze()
+#    else:
+#      toconsola("Invalid number of dimensions, "+str(ndim),wid=self.cons)
+#      #print('Invalid number of dimensions, '+str(ndim))
+#
+#    _u   = VEC.VEL.u.copy()
+#    _v   = VEC.VEL.v.copy()
+#    msku = ma.getmask(VEC.VEL.u)
+#    mskv = ma.getmask(VEC.VEL.v)
+#    msk  = ma.mask_or(msku,mskv)
+#    VEC.VEL.u = ma.array(_u,mask=msk).copy()
+#    VEC.VEL.v = ma.array(_v,mask=msk).copy()
+#    #VEC.VEL.speed = np.sqrt(VEC.VEL.u**2+VEC.VEL.v**2)
+#    #VEC.VEL.F = interpolate.interp2d(VEC.lon, \
+#    #                                 VEC.lat, \
+#    #                                 VEC.VEL.speed)
+#
   # ===========================================
   #def read_Field(self,FIELD,ncid,icdf,sid,K,L):
   # ===========================================
@@ -4668,6 +5077,10 @@ class CosmoDrawing():
       #print('Min val = '+str(CDF.FIELD.minval))
       #print('Max val = '+str(CDF.FIELD.maxval))
 
+      print('Here: ', update_lims)
+      print(CDF.FIELD.minval)
+      print(CDF.FIELD.maxval)
+
       if update_lims:
         try:
           CDF.FIELD.PLOT.CONTOUR_MIN.set(myround(CDF.FIELD.minval))
@@ -4703,7 +5116,8 @@ class CosmoDrawing():
     def _done():
     # ===========
       ii = self.CDF_INDX.get()
-      self.read_CDF(self.CDF[ii])
+      self.CDF[ii].FLD.read(self.CDF[ii].K.get(),self.CDF[ii].L.get(),wid=self.cons)
+      #self.read_CDF(self.CDF[ii])
       #self.read_Field(self.CDF[ii].FIELD,   \
       #                self.CDF[ii].ncid,    \
       #                self.CDF[ii].icdf,    \
@@ -4711,6 +5125,24 @@ class CosmoDrawing():
       #                self.CDF[ii].K.get(), \
       #                self.CDF[ii].L.get())
 
+
+      # Set the contour levels
+      try:
+        self.CDF[ii].PLOT.CONTOUR_MIN.set(myround(self.CDF[ii].FLD.minval))
+      except:
+        self.CDF[ii].PLOT.CONTOUR_MIN.set(self.CDF[ii].FLD.minval)
+      try:
+        self.CDF[ii].PLOT.CONTOUR_MAX.set(myround(self.CDF[ii].FLD.maxval))
+      except:
+        self.CDF[ii].PLOT.CONTOUR_MAX.set(self.CDF[ii].FLD.maxval)
+
+      dd = self.CDF[ii].PLOT.CONTOUR_MAX.get() - self.CDF[ii].PLOT.CONTOUR_MIN.get()
+      try:
+        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+      except:
+        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+
+      # The date of the data
       try:
         nodate = empty(self.DATE[0])
       except:
@@ -4781,26 +5213,26 @@ class CosmoDrawing():
         _went['textvariable'] = self.CDF[ii].FILENAME
         _wvar.configure(state='!disabled')
         _wvar['textvariable'] = self.CDF[ii].varname
-        _wvar['values'] = self.CDF[ii].icdf.VAR_MENU
+        _wvar['values'] = self.CDF[ii].FLD.icdf.VAR_MENU
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.CDF[ii].K
         _kbox['values'] = self.CDF[ii].K_LIST
         _lbox.configure(state='!disabled')
         _lbox['textvariable'] = self.CDF[ii].L
         _lbox['values'] = self.CDF[ii].L_LIST
-        if self.CDF[ii].icdf.idk < 0:
+        if self.CDF[ii].FLD.icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-        if self.CDF[ii].icdf.idl < 0:
+        if self.CDF[ii].FLD.icdf.idl < 0:
           _lbox.configure(state='disabled')
           _dbox['text']='--'
         else:
           _lbox['textvariable'] = self.CDF[ii].L
           _lbox['values'] = self.CDF[ii].L_LIST
           _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
-        _show['variable'] = self.CDF[ii].FIELD.show
+        _show['variable'] = self.CDF[ii].show
 
       else:
         self.CDF         = []
@@ -4846,12 +5278,17 @@ class CosmoDrawing():
           messagebox.showinfo(parent=Window_select,message='Select variable')
           return
         else:
-          CDF.varid = CDF.icdf.vname.index(CDF.varname.get())
+          CDF.FLD.varname = CDF.varname.get()
+          CDF.FLD.varid = CDF.FLD.icdf.vname.index(CDF.FLD.varname)
+          CDF.FLD.ndims = CDF.FLD.icdf.ndims[CDF.FLD.varid]
+          CDF.FLD.get_info(wid=self.cons)
+          
 
         # Seems the good place where to put this:
-        self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
+        CDF.FLD.get_grid()
+        #self.read_lonlat(CDF,CDF.FLD.icdf.xname,CDF.FLD.icdf.yname)
         self.DepthandDate(CDF)
-        CDF.FIELD.show.set(True)
+        CDF.show.set(True)
         if empty(CDF.DATE[0].__str__()):
           _dsel.configure(state='enabled')
 
@@ -4873,13 +5310,13 @@ class CosmoDrawing():
 
         if self.first:
           if self.drawmap is None:
-            self.PLOT.WEST.set(np.min(self.CDF[ii].lon))
-            self.PLOT.EAST.set(np.max(self.CDF[ii].lon))
-            self.PLOT.SOUTH.set(np.min(self.CDF[ii].lat))
-            self.PLOT.NORTH.set(np.max(self.CDF[ii].lat))
+            self.PLOT.WEST.set(self.CDF[ii].FLD.xmin)
+            self.PLOT.EAST.set(self.CDF[ii].FLD.xmax)
+            self.PLOT.SOUTH.set(self.CDF[ii].FLD.ymin)
+            self.PLOT.NORTH.set(self.CDF[ii].FLD.ymax)
             self.plot_initialize()
           self.L.set(self.CDF[ii].L.get())
-          self.L_LIST = list(range(self.CDF[ii].icdf.nt))
+          self.L_LIST = list(range(self.CDF[ii].FLD.icdf.nt))
           self.NL = len(self.L_LIST)
           self.lbox.configure(state='!disabled')
           self.lbox['values'] = self.L_LIST
@@ -4890,13 +5327,13 @@ class CosmoDrawing():
           if len(self.DATE) > 1:
             self.bnext.configure(state='normal')
           try:
-            self.PLOT.XLABEL.set(self.CDF[ii].ncid.variables[self.CDF[ii].icdf.xname].getncattr('long_name'))
+            self.PLOT.XLABEL.set(self.CDF[ii].FLD.nc.variables[self.CDF[ii].FLD.icdf.xname].getncattr('long_name'))
           except:
-            self.PLOT.XLABEL.set(self.CDF[ii].icdf.xname)
+            self.PLOT.XLABEL.set(self.CDF[ii].FLD.icdf.xname)
           try:
-            self.PLOT.YLABEL.set(self.CDF[ii].ncid.variables[self.CDF[ii].icdf.yname].getncattr('long_name'))
+            self.PLOT.YLABEL.set(self.CDF[ii].FLD.nc.variables[self.CDF[ii].FLD.icdf.yname].getncattr('long_name'))
           except:
-            self.PLOT.YLABEL.set(self.CDF[ii].icdf.yname)
+            self.PLOT.YLABEL.set(self.CDF[ii].FLD.icdf.yname)
           self.SEQUENCES[-1].set(True)
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
@@ -4944,29 +5381,35 @@ class CosmoDrawing():
       if empty(filename):
         return
 
+      # Initialize contour class:
+      CDF = CONTOUR(filename)
+      CDF.FLD.open(filename,wid=self.cons)
+
+
       # Not empty filename:
-      CDF = cdf_parameters()
-      CDF.FIELD = fld_parameters()
-      CDF.FILENAME.set(filename)
-      CDF.ncid = Dataset(filename)
-      CDF.icdf = tools.geocdf(filename, wid=self.cons)
+      #CDF = cdf_parameters()
+      #CDF.FIELD = fld_parameters()
+      #CDF.FILENAME.set(filename)
+      #CDF.ncid = Dataset(filename)
+      #CDF.icdf = tools.geocdf(filename, wid=self.cons)
 
-      #self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
-      #self.DepthandDate(CDF)
-      #CDF.FIELD.show.set(True)
+      ##self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
+      ##self.DepthandDate(CDF)
+      ##CDF.FIELD.show.set(True)
 
-      #if empty(CDF.DATE[0].__str__()):
-      #  _dsel.configure(state='enabled')
+      ##if empty(CDF.DATE[0].__str__()):
+      ##  _dsel.configure(state='enabled')
 
       if Window_select is None:
         Window_select = tk.Toplevel(self.master)
-        Window_select.title('SELECT VARIABLES')
+        Window_select.title('SELECT VARIABLE')
         Window_select.protocol('WM_DELETE_WINDOW',Window_select.destroy)
       else:
         Window_select.lift()
         return
 
-      axesid = tools.WinGeoaxes(CDF.icdf,CDF.ncid,Window_select)
+      #axesid = tools.WinGeoaxes(CDF.icdf,CDF.ncid,Window_select)
+      axesid = tools.WinGeoaxes(CDF.FLD.icdf,CDF.FLD.nc,Window_select)
       
       font_bold = tkfont.Font(font='TkDefaultFont').copy()
       font_bold['weight']='bold'
@@ -4975,14 +5418,14 @@ class CosmoDrawing():
       ttk.Label(F0,text='Select variable',borderwidth=3,font=font_bold) \
          .grid(row=0,column=0)
       dvar = ttk.Combobox(F0,textvariable=CDF.varname, \
-                   values=CDF.icdf.VAR_MENU,    \
+                   values=CDF.FLD.icdf.VAR_MENU,    \
                    width=20)
       dvar.grid(row=0,column=1,columnspan=2)
-      dvar.bind('<<ComboboxSelected>>',lambda e: axesid.selected_var(CDF.icdf,dvar))
+      dvar.bind('<<ComboboxSelected>>',lambda e: axesid.selected_var(CDF.FLD.icdf,dvar))
 
       F0.grid()
 
-      CDF.icdf.nx = -9999
+      #CDF.icdf.nx = -9999
       F1 = ttk.Frame(Window_select,padding=5)
       cancel = ttk.Button(F1,text='Cancel',command=_cancel)
       cancel.grid(row=0,column=3,sticky='e',padx=10)
@@ -5003,11 +5446,12 @@ class CosmoDrawing():
 
     def _vselection():
     # ================
+      print('I am here !!!!!!!')
       try:
-        self.CDF[ii].varid = self.CDF[ii].icdf.vname.index( \
+        self.CDF[ii].FLD.varid = self.CDF[ii].FLD.icdf.vname.index( \
                                              self.CDF[ii].varname.get())
       except:
-        self.CDF[ii].varid = -1
+        self.CDF[ii].FLD.varid = -1
 
     def _date():
     # ==========
@@ -5087,15 +5531,15 @@ class CosmoDrawing():
     else:
       _went['textvariable'] = self.CDF[ii].FILENAME
       _wvar['textvariable'] = self.CDF[ii].varname
-      _wvar['values'] = self.CDF[ii].icdf.VAR_MENU
+      _wvar['values'] = self.CDF[ii].FLD.icdf.VAR_MENU
       _kbox['textvariable'] = self.CDF[ii].K
       _kbox['values'] = self.CDF[ii].K_LIST
-      if self.CDF[ii].icdf.idk < 0:
+      if self.CDF[ii].FLD.icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-      if self.CDF[ii].icdf.idl < 0:
+      if self.CDF[ii].FLD.icdf.idl < 0:
         _lbox.configure(state='disabled')
         _dsel.configure(state='enabled')
         try:
@@ -5121,7 +5565,7 @@ class CosmoDrawing():
       _show.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
-      _show['variable']=self.CDF[ii].FIELD.show
+      _show['variable']=self.CDF[ii].show
       _show.configure(command=self.make_plot)
     _show.grid(row=1,column=5)
     ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
@@ -5148,13 +5592,16 @@ class CosmoDrawing():
         messagebox.showinfo(message='No image selected')
         return
 
-      self.SAIDIN.ncid = Dataset('[FillMismatch]'+self.SAIDIN.FILENAME.get(),'r')
-      self.SAIDIN.icdf = tools.geocdf(self.SAIDIN.FILENAME.get(), wid=self.cons)
-      self.SAIDIN.FIELD.varname = 'mcsst'
-      self.SAIDIN.lon = self.SAIDIN.ncid.variables['lon'][:]
-      self.SAIDIN.lat = self.SAIDIN.ncid.variables['lat'][:]
-      self.SAIDIN.FIELD.data = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname][0,:,:].squeeze()
-      self.SAIDIN.xx,self.SAIDIN.yy = np.meshgrid(self.SAIDIN.lon,self.SAIDIN.lat)
+      self.SAIDIN.FLD.nc = Dataset('[FillMismatch]'+self.SAIDIN.FILENAME.get(),'r')
+      self.SAIDIN.FLD.icdf = tools.geocdf(self.SAIDIN.FILENAME.get(), wid=self.cons)
+      print(self.SAIDIN.FLD.icdf.xname)
+      print(self.SAIDIN.FLD.icdf.yname)
+      self.SAIDIN.varname.set('mcsst')
+      self.SAIDIN.FLD.varname = 'mcsst'
+      self.SAIDIN.FLD.x = self.SAIDIN.FLD.nc.variables['lon'][:]
+      self.SAIDIN.FLD.y = self.SAIDIN.FLD.nc.variables['lat'][:]
+      self.SAIDIN.FLD.data = self.SAIDIN.FLD.nc.variables[self.SAIDIN.FLD.varname][0,:,:].squeeze()
+      self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy = np.meshgrid(self.SAIDIN.FLD.x,self.SAIDIN.FLD.y)
       self.DepthandDate(self.SAIDIN)
 
       self.nfiles += 1
@@ -5165,74 +5612,74 @@ class CosmoDrawing():
 
       if self.first:
         if self.drawmap is None:
-          self.PLOT.WEST.set(np.min(self.SAIDIN.lon))
-          self.PLOT.EAST.set(np.max(self.SAIDIN.lon))
-          self.PLOT.SOUTH.set(np.min(self.SAIDIN.lat))
-          self.PLOT.NORTH.set(np.max(self.SAIDIN.lat))
+          self.PLOT.WEST.set(np.min(self.SAIDIN.FLD.x))
+          self.PLOT.EAST.set(np.max(self.SAIDIN.FLD.x))
+          self.PLOT.SOUTH.set(np.min(self.SAIDIN.FLD.y))
+          self.PLOT.NORTH.set(np.max(self.SAIDIN.FLD.y))
           self.plot_initialize()
         self.L.set(self.SAIDIN.L.get())
         self.DATE = self.SAIDIN.DATE.copy()
         self.TIME = self.SAIDIN.TIME.copy()
         try:
-          self.PLOT.XLABEL.set(self.SAIDIN.ncid.variables[self.SAIDIN.icdf.xname]. \
+          self.PLOT.XLABEL.set(self.SAIDIN.FLD.nc.variables[self.SAIDIN.icdf.xname]. \
                                                                           getncattr('long_name'))
         except:
-          self.PLOT.XLABEL.set(self.SAIDIN.icdf.xname)
+          self.PLOT.XLABEL.set(self.SAIDIN.FLD.icdf.xname)
         try:
-          self.PLOT.YLABEL.set(self.SAIDIN.ncid.variables[self.SAIDIN.icdf.yname] \
+          self.PLOT.YLABEL.set(self.SAIDIN.FLD.nc.variables[self.SAIDIN.icdf.yname] \
                                                                           .getncattr('long_name'))
         except:
-          self.PLOT.YLABEL.set(self.SAIDIN.icdf.yname)
+          self.PLOT.YLABEL.set(self.SAIDIN.FLD.icdf.yname)
         self.first = False
 
-      try:
-        self.SAIDIN.FIELD.units = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
-                                                                          .getncattr('units')
-      except:
-        self.SAIDIN.FIELD.units = ''
+      self.SAIDIN.FLD.get_info(wid=self.cons)
+      #try:
+      #  self.SAIDIN.FLD.units = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
+      #                                                                    .getncattr('units')
+      #except:
+      #  self.SAIDIN.FLD.units = ''
+#
+#      try:
+#        self.SAIDIN.FLD.missing_value = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
+#                                                                          .getncattr('_FillValue')
+#      except:
+#        try:
+#          self.SAIDIN.FLD.missing_value = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
+#                                                                          .getncattr('missing_value')
+#        except:
+#          self.SAIDIN.FIELD.missing_value = None
 
-      try:
-        self.SAIDIN.FIELD.missing_value = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
-                                                                          .getncattr('_FillValue')
-      except:
-        try:
-          self.SAIDIN.FIELD.missing_value = self.SAIDIN.ncid.variables[self.SAIDIN.FIELD.varname] \
-                                                                          .getncattr('missing_value')
-        except:
-          self.SAIDIN.FIELD.missing_value = None
-
-      toconsola(str(self.SAIDIN.FIELD.data.min()),wid=self.cons)
-      toconsola(str(self.SAIDIN.FIELD.data.max()),wid=self.cons)
+      toconsola(str(self.SAIDIN.FLD.minval),wid=self.cons)
+      toconsola(str(self.SAIDIN.FLD.maxval),wid=self.cons)
       #print(str(self.SAIDIN.FIELD.data.min()))
       #print(str(self.SAIDIN.FIELD.data.max()))
-      if self.SAIDIN.FIELD.masked.get():
+      if self.SAIDIN.landmask.get():
         toconsola('Applying land/sea mask ...',wid=self.cons)
         #print('Applying land/sea mask ...')
-        _a  = self.SAIDIN.FIELD.data.copy()
-        tmp  = self.SAIDIN.ncid.variables['lsmask'][0,:,:].squeeze()
+        _a  = self.SAIDIN.FLD.data.copy()
+        tmp  = self.SAIDIN.FLD.nc.variables['lsmask'][0,:,:].squeeze()
         msk = ma.masked_where(tmp==1,tmp)
-        self.SAIDIN.FIELD.data = ma.array(_a,mask=msk).copy()
+        self.SAIDIN.FLD.data = ma.array(_a,mask=msk).copy()
 
-      self.SAIDIN.FIELD.mask = ma.getmask(self.SAIDIN.FIELD.data)
+      self.SAIDIN.FLD.mask = ma.getmask(self.SAIDIN.FLD.data)
 
       # Contour intervals
-      self.SAIDIN.FIELD.minval = self.SAIDIN.FIELD.data.min()
-      self.SAIDIN.FIELD.maxval = self.SAIDIN.FIELD.data.max()
+      self.SAIDIN.FLD.minval = self.SAIDIN.FLD.data.min()
+      self.SAIDIN.FLD.maxval = self.SAIDIN.FLD.data.max()
       try:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_MIN.set(myround(self.SAIDIN.FIELD.minval))
+        self.SAIDIN.PLOT.CONTOUR_MIN.set(myround(self.SAIDIN.FLD.minval))
       except:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_MIN.set(self.SAIDIN.FIELD.minval)
+        self.SAIDIN.PLOT.CONTOUR_MIN.set(self.SAIDIN.FLD.minval)
       try:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_MAX.set(myround(self.SAIDIN.FIELD.maxval))
+        self.SAIDIN.PLOT.CONTOUR_MAX.set(myround(self.SAIDIN.FLD.maxval))
       except:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_MAX.set(self.SAIDIN.FIELD.maxval)
+        self.SAIDIN.PLOT.CONTOUR_MAX.set(self.SAIDIN.FLD.maxval)
 
-      dd =   self.SAIDIN.FIELD.PLOT.CONTOUR_MAX.get() \
-           - self.SAIDIN.FIELD.PLOT.CONTOUR_MIN.get()
+      dd =   self.SAIDIN.PLOT.CONTOUR_MAX.get() - self.SAIDIN.PLOT.CONTOUR_MIN.get()
       try:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd))
+        self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd))
       except:
-        self.SAIDIN.FIELD.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+        self.SAIDIN.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
       #self.SAIDIN.FIELD.F = interpolate.interp2d(self.SAIDIN.lon, \
       #                                     self.SAIDIN.lat, \
@@ -5242,11 +5689,11 @@ class CosmoDrawing():
 
     def _clear():
       self.SAIDIN.FILENAME.set('')
-      self.SAIDIN.lon = None
-      self.SAIDIN.lat = None
-      self.SAIDIN.xx  = None
-      self.SAIDIN.yy  = None
-      self.SAIDIN.FIELD.data = None
+      self.SAIDIN.FLD.x    = None
+      self.SAIDIN.FLD.y    = None
+      self.SAIDIN.FLD.xx   = None
+      self.SAIDIN.FLD.yy   = None
+      self.SAIDIN.FLD.data = None
       _close()
 
     if self.Window_saidin is None:
@@ -5260,7 +5707,7 @@ class CosmoDrawing():
     ttk.Entry(F0,textvariable=self.SAIDIN.FILENAME,justify='left', \
               width=80).grid(row=0,column=0,columnspan=8,padx=3)
     ttk.Button(F0,text='Select',command=_selector).grid(row=0,column=8,padx=3)
-    ttk.Checkbutton(F0,text='Mask land data',variable=self.SAIDIN.FIELD.masked).grid(row=1,column=5,padx=3)
+    ttk.Checkbutton(F0,text='Mask land data',variable=self.SAIDIN.landmask).grid(row=1,column=5,padx=3)
     ttk.Button(F0,text='Cancel',command=_clear).grid(row=1,column=6,padx=3)
     ttk.Button(F0,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
     ttk.Button(F0,text='Plot',command=_done).grid(row=1,column=8,padx=3)
@@ -6541,11 +6988,11 @@ class CosmoDrawing():
 
     # The usual configuration:
     ii = self.VEC_INDX.get()
-    _went['textvariable'] = self.VEC[ii].FILENAME
+    _went['textvariable'] = self.VEC[ii].UFILENAME
 
     fshow = ttk.Frame(self.Window_vectorconfig,padding=10)
     vectorplot.Configuration(parent=fshow,
-                             PLOT=self.VEC[ii].VEL.PLOT)
+                             PLOT=self.VEC[ii].PLOT)
 
     f0 = ttk.Frame(fshow,padding=5)
     ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -6579,15 +7026,15 @@ class CosmoDrawing():
     # =============
       '''Load contour configuration'''
       toconsola('Restoring contour configuration from '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
       #print('Restoring contour configuration from '+
       #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
-        self.SAIDIN.FIELD.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
+        self.SAIDIN.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-              self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+              self.SAIDIN.PLOT.FILECONF,wid=self.cons)
         #print('Error: Unable to load file '+
         #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
@@ -6595,14 +7042,14 @@ class CosmoDrawing():
     # =============
       '''Load contour configuration'''
       toconsola('Saving contour configuration to '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
       #print('Saving contour configuration to '+
       #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
-        self.SAIDIN.FIELD.PLOT.save(FF.PLOT.FILECONF)
+        self.SAIDIN.PLOT.save(FF.PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
         #print('Error: Unable to write file '+
         #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
@@ -6615,17 +7062,17 @@ class CosmoDrawing():
       if len(nn) == 0:
         return
 
-      self.SAIDIN.FIELD.PLOT.FILECONF = '%s' % nn
+      self.SAIDIN.PLOT.FILECONF = '%s' % nn
       toconsola('Restoring contour configuration from '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
       #print('Restoring contour configuration from '+
       #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
-        self.SAIDIN.FIELD.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
+        self.SAIDIN.PLOT.load(self.SAIDIN.PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-              self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+              self.SAIDIN.PLOT.FILECONF,wid=self.cons)
         #print('Error: Unable to load file '+
         #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
@@ -6639,16 +7086,16 @@ class CosmoDrawing():
       if nn is None or len(nn) == 0:
         return
 
-      self.SAIDIN.FIELD.PLOT.FILECONF = '%s' % nn
+      self.SAIDIN.PLOT.FILECONF = '%s' % nn
       toconsola('Saving contour configuration to '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
       #print('Saving contour configuration to '+
       #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
-        self.SAIDIN.FIELD.PLOT.save(self.SAIDIN.FIELD.PLOT.FILECONF)
+        self.SAIDIN.PLOT.save(self.SAIDIN.PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
-            self.SAIDIN.FIELD.PLOT.FILECONF,wid=self.cons)
+            self.SAIDIN.PLOT.FILECONF,wid=self.cons)
         #print('Error: Unable to write file '+
         #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
@@ -6677,12 +7124,12 @@ class CosmoDrawing():
     gshow = ttk.Frame(self.Window_saidinconfig,padding=10)
 
     contourplot.Configuration(parent=gshow,
-                              varname=self.SAIDIN.FIELD.varname,
-                              units=self.SAIDIN.FIELD.units,
-                              missing=self.SAIDIN.FIELD.missing_value,
-                              minval=self.SAIDIN.FIELD.minval,
-                              maxval=self.SAIDIN.FIELD.maxval,
-                              PLOT=self.SAIDIN.FIELD.PLOT)
+                              varname=self.SAIDIN.FLD.varname,
+                              units=self.SAIDIN.FLD.units,
+                              missing=self.SAIDIN.FLD.missing,
+                              minval=self.SAIDIN.FLD.minval,
+                              maxval=self.SAIDIN.FLD.maxval,
+                              PLOT=self.SAIDIN.PLOT)
 
     f0 = ttk.Frame(gshow,padding=5)
     ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
@@ -6863,12 +7310,12 @@ class CosmoDrawing():
     gshow = ttk.Frame(self.Window_contourconfig,padding=10)
 
     contourplot.Configuration(parent=gshow,
-                              varname=self.CDF[ii].FIELD.varname,
-                              units=self.CDF[ii].FIELD.units,
-                              missing=self.CDF[ii].FIELD.missing_value,
-                              minval=self.CDF[ii].FIELD.minval,
-                              maxval=self.CDF[ii].FIELD.maxval,
-                              PLOT=self.CDF[ii].FIELD.PLOT)
+                              varname=self.CDF[ii].varname,
+                              units=self.CDF[ii].FLD.units,
+                              missing=self.CDF[ii].FLD.missing,
+                              minval=self.CDF[ii].FLD.minval,
+                              maxval=self.CDF[ii].FLD.maxval,
+                              PLOT=self.CDF[ii].PLOT)
 
     f0 = ttk.Frame(gshow,padding=5)
     ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
@@ -7231,7 +7678,7 @@ class CosmoDrawing():
         self.Window_mapa.resizable(width=True,height=True)
         self.Window_mapa.grid_columnconfigure(0, weight=1)
         self.Window_mapa.grid_rowconfigure(0, weight=1)
-        self.Window_mapa.wm_geometry("1900x1200")
+        #self.Window_mapa.wm_geometry("1900x1200")
         
         #self.canvas = None # canvas
         # Frame container
@@ -7368,33 +7815,33 @@ class CosmoDrawing():
     # Draw SAIDIN:
     # 
     if not empty(self.SAIDIN.FILENAME.get()):
-      if self.SAIDIN.FIELD.show.get():
+      if self.SAIDIN.show.get():
         toconsola("EG plot SAIDIN",wid=self.cons)
         #EG Added projection argument, map reference dropped
         self.scbar = contourplot.drawing(self.fig,self.ax,proj['proj'],
-                       self.SAIDIN.xx, self.SAIDIN.yy,
-                       self.SAIDIN.FIELD.data,
-                       self.SAIDIN.FIELD.mask,
-                       self.SAIDIN.FIELD.PLOT)
+                       self.SAIDIN.FLD.xx, self.SAIDIN.FLD.yy,
+                       self.SAIDIN.FLD.data,
+                       self.SAIDIN.FLD.data.mask,
+                       self.SAIDIN.PLOT)
     # Draw fields:
     # 
     if self.ncdf > 0:
       #EG Added projection argument, map reference dropped	
       toconsola("EG: plot netcdf",wid=self.cons)
       for ii in range(self.ncdf):
-        if self.CDF[ii].FIELD.show.get():
+        if self.CDF[ii].show.get():
           self.cdfbar.append(contourplot.drawing(self.fig, 
 							self.ax, proj['proj'],
-							self.CDF[ii].xx, self.CDF[ii].yy,
-							self.CDF[ii].FIELD.data,
-							self.CDF[ii].FIELD.mask,
-							self.CDF[ii].FIELD.PLOT))
+							self.CDF[ii].FLD.xx, self.CDF[ii].FLD.yy,
+							self.CDF[ii].FLD.data,
+							self.CDF[ii].FLD.data.mask,
+							self.CDF[ii].PLOT))
     # Draw currents:
     #
     if self.nvec > 0:
       toconsola("EG plot currents",wid=self.cons)
       for ii in range(self.nvec):
-        if self.VEC[ii].VEL.show.get():
+        if self.VEC[ii].show.get():
           vectorplot.drawing(self.ax, proj['proj'], self.VEC[ii])
           
     # Draw floats:
@@ -7754,7 +8201,7 @@ class CosmoDrawing():
     # Draw fields:
     if self.ncdf > 0:
       for ii in range(self.ncdf):
-        if self.CDF[ii].FIELD.show.get():
+        if self.CDF[ii].show.get():
           self.Mcdfbar.append(contourplot.drawing(self.Mfig,self.Max, proj,\
                                     self.CDF[ii].xx,   \
                                     self.CDF[ii].yy,   \
@@ -7764,7 +8211,7 @@ class CosmoDrawing():
     # Draw currents:
     if self.nvec > 0:
       for ii in range(self.nvec):
-        if self.VEC[ii].VEL.show.get():
+        if self.VEC[ii].show.get():
           vectorplot.drawing(self.Max,proj,self.VEC[ii])
     # Draw floats:
     if self.nfloat > 0:
