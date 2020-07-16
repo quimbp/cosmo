@@ -180,8 +180,6 @@ class get_remote(tk.Toplevel):
   # =================
     return self.url.get()
 
-
-
 # ===================================================
 def askforpermission(parent,question,nowarning):
 # ===================================================
@@ -353,7 +351,8 @@ class geocdf():
     # C) Through attribute standard name
     # D) Through variable name
     # E) The first variable
-
+    import pprint
+    
     self.withX = False
     for name,variable in reversed(list(ncid.variables.items())):
       try:
@@ -1119,7 +1118,6 @@ class WinGeoaxes():
       icdf.withY = True
       if icdf.ndims[ind] == 1:
 
-        print('yselection 1D grid')
         # Update dimension to match selected variable
         kk = icdf.dimids[ind][0]
         icdf.idj   = kk
@@ -1270,9 +1268,6 @@ class WinGeoaxes():
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
       dlist = icdf.dimids[ind]
-      #self.ndims = icdf.ndims[ind]  #BBBBB
-      #print('Variable ndims = ', self.ndims)
-
       nd = len(dlist) - dlist.count(-1)
       dlist[nd:] = []
       idim = 0
@@ -2711,3 +2706,4 @@ def toconsola(message, tag="", wid=None):
     wid.see(tk.END)
   else:
     print(message)
+
