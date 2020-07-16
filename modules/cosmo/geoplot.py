@@ -9,6 +9,8 @@ for the COSMO project.
 		All color selections are managed through tools.colsel() function
 		Cartopy projection can be accessed through tools.map_proj()
 		A heap variable MESSAGE has been introduce to store "print" messages
+	EGL, 07/2020: Changes:
+		Corrected minor bug with face and edge color selection
 '''
 import tkinter as tk
 from tkinter import ttk
@@ -223,14 +225,14 @@ def Configuration(parent,PLOT):
   ttk.Label(F0,text='Edge Color').grid(row=2,padx=3,column=0,sticky='w')
   ELabel = ttk.Label(F0,textvariable=PLOT.EDGECOLOR,width=8,style="selabel.TLabel")
   ELabel.grid(row=2,padx=3,column=1)
-  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.COLOR, \
+  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.EDGECOLOR, \
             selabel,ELabel,"selabel.TLabel",master=parent)).\
             grid(row=2,column=2,padx=3,sticky='ew')
             
   ttk.Label(F0,text='Face Color').grid(row=3,padx=3,column=0,sticky='w')
-  FLabel = ttk.Label(F0,textvariable=PLOT.COLOR,width=8,style="sflabel.TLabel")
+  FLabel = ttk.Label(F0,textvariable=PLOT.FACECOLOR,width=8,style="sflabel.TLabel")
   FLabel.grid(row=3,column=1)
-  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.COLOR, \
+  ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.FACECOLOR, \
             sflabel,FLabel,"sflabel.TLabel",master=parent)).\
             grid(row=3,column=2,padx=3,sticky='ew')
   
@@ -255,4 +257,5 @@ def Configuration(parent,PLOT):
   ttk.Entry(fs0,textvariable=PLOT.ZORDER,width=8).grid(row=0,column=4,padx=3)
   fs0.grid(row=5,column=0,columnspan=6,sticky='we',pady=10)         
   F0.grid()
+
 
