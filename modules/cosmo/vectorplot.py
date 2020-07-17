@@ -152,6 +152,7 @@ class parameters():
     self.BARB_HEIGHT.set(0.40)
     self.BARB_WIDTH.set(0.25)
     self.BARB_EMPTYBARB.set(0.15)
+    self.STREAM_DENSITY.set(1)
     self.STREAM_WIDTH.set(2)
     self.STREAM_COLOR.set('black')
     self.STREAM_ZORDER.set(1)
