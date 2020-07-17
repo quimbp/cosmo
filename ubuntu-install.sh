@@ -21,6 +21,7 @@ sudo apt-get install python3-matplotlib
 sudo apt-get install python3-bs4
 sudo apt-get install python3-scipy
 sudo apt-get install python3-pip
+sudo apt-get install ffmpeg
 
 sudo python3 -m pip install tkcolorpicker
 sudo python3 -m pip install wget
