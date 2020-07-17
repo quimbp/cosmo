@@ -127,7 +127,7 @@ class parameters():
     # Defautl attribute values
     #
     self.DRAWING_MODE.set(0)     # 0 - Vector, 1 - Barb, 2 - Streamplot
-    self.GRID_MODE.set(1)
+    self.GRID_MODE.set(0)
     self.CURRENT_DX.set(4)
     self.CURRENT_DY.set(4)
     self.CURRENT_NX.set(41)
@@ -671,12 +671,6 @@ def drawing(ax,proj,CFIELD):
   font = fnt0.copy()
   font.set_size('x-large')
   
-  #print('one ...')
-  #print(CFIELD.U.xx.shape)
-  #print(CFIELD.V.yy.shape)
-  #print(CFIELD.U.data.shape)
-  #print(CFIELD.V.data.shape)
-
   if CFIELD.PLOT.DRAWING_MODE.get() == 2:
   # -------------------------------------------- STREAMFUNCTION
     CFIELD.PLOT.MESSAGE += "Plot STREAMFUNCTION"+str(CFIELD.PLOT.MESSAGE)
@@ -704,7 +698,7 @@ def drawing(ax,proj,CFIELD):
       #print("EG VECTORS: original or decimated grid")
       dx = CFIELD.PLOT.CURRENT_DX.get()
       dy = CFIELD.PLOT.CURRENT_DY.get()
-      xplt, yplt = CFIELD.U.xx[::dy,::dx], CFIELD.V.yy[::dy,::dx]
+      xplt, yplt = CFIELD.U.xx[::dy,::dx], CFIELD.U.yy[::dy,::dx]    # Grid stored in U
       uplt, vplt = CFIELD.U.data[::dy,::dx], CFIELD.V.data[::dy,::dx]
     else:
       CFIELD.PLOT.MESSAGE += "EG VECTORS: fixed grid"
@@ -715,12 +709,10 @@ def drawing(ax,proj,CFIELD):
       xplt = np.linspace(lonmin,lonmax,CFIELD.PLOT.CURRENT_NX.get())
       yplt = np.linspace(latmin,latmax,CFIELD.PLOT.CURRENT_NY.get())
       n_lon, n_lat = np.meshgrid(xplt,yplt)
-      #o_lon, o_lat = np.meshgrid(CFIELD.U.lon,CFIELD.U.lat)
-      o_lon = CFIELD.U.xx
-      o_lat = CFIELD.U.yy
-      uplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
+
+      uplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
                 CFIELD.U.data.flatten(),(n_lon,n_lat), method='linear')
-      vplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
+      vplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
                 CFIELD.V.data.flatten(),(n_lon,n_lat), method='linear')
       
     speed = np.sqrt(uplt**2+vplt**2)

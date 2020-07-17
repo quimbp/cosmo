@@ -301,12 +301,10 @@ class geocdf():
       wid = None
 
     toconsola('Opening file '+filename,wid=wid)
-    #print('Opening file ',filename)
     try:
       ncid = Dataset(filename)
     except:
       toconsola('Unable to open file '+filename,wid=wid)
-      #print('Unable to open file')
       return None
 
     # Save the name of the input file:
@@ -341,7 +339,7 @@ class geocdf():
     self.xname = ''; self.yname = ''; self.zname = ''; self.tname = ''
     self.time_units = ''
     self.time_calendar = ''
-    self.grid2d = True
+    self.grid2d = False
     self.georef  = True
 
     # Trying to get the GEOCDF axes:
@@ -575,7 +573,7 @@ class geocdf():
     self.unlimited_name = ''; self.unlimited_id = -1
     for name,dimension in ncid.dimensions.items():
       if dimension.isunlimited():
-        print('UNLIMITED dimension: ', name)
+        toconsola('UNLIMITED dimension: '+name,wid=wid)
         self.unlimited_name = name
         self.unlimited_id = self.DIM_LIST.index(name)
         self.lname = name
@@ -762,9 +760,9 @@ class geocdf():
           self.idx   = var
           self.xname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            self.grid2d = True
-          else:
             self.grid2d = False
+          else:
+            self.grid2d = True
 
     if self.idj > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -773,9 +771,9 @@ class geocdf():
           self.idy   = var
           self.yname = vname
           if len(ncid.variables[vname].dimensions) == 1:
-            self.grid2d = True
-          else:
             self.grid2d = False
+          else:
+            self.grid2d = True
 
     if self.idk > -1:
       for var,vname in enumerate(self.VAR_LIST):
@@ -1056,7 +1054,6 @@ class WinGeoaxes():
       icdf.withX = True
 
       if icdf.ndims[ind] == 1:
-        print('xselection 1D')
 
         # Update dimension to match selected variable
         kk = icdf.dimids[ind][0]
@@ -1071,7 +1068,6 @@ class WinGeoaxes():
         self.grid2d.set(icdf.grid2d)
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
-        print('xselection 2D grid')
         kk = icdf.dimids[ind][1]
         icdf.idi   = kk
         icdf.nx    = icdf.dlen[kk]
@@ -1129,7 +1125,6 @@ class WinGeoaxes():
         self.strny.set(str(icdf.ny))
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
-        print('yselection 2D grid')
         kk = icdf.dimids[ind][1]
         icdf.idi   = kk
         icdf.nx    = icdf.dlen[kk]
@@ -1279,9 +1274,7 @@ class WinGeoaxes():
       self.strnt.set(str(icdf.nt))
       try:
         axes_list = self.ncid.variables[value_selected].getncattr('coordinates').split(' ')
-        print('coordinates attribute = ', axes_list)
         for aname in axes_list:
-          print('axis name: ', aname)
           kk = icdf.VAR_LIST.index(aname)
           if icdf.VAR_AXIS[kk] == 'X':
             icdf.idx   = kk

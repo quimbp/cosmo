@@ -208,16 +208,13 @@ class fld_parameters():
     else:
       self.with_axes = False
 
-    print(self.icdf.xname)
-    print(self.icdf.yname)
-    print(self.with_axes)
-    print(self.icdf.grid2d)
-
+    print('with_axes: ',self.with_axes)
     if self.with_axes:
 
       self.x = self.nc.variables[self.icdf.xname][:]
       self.y = self.nc.variables[self.icdf.yname][:]
 
+      print('grid2d: ',self.icdf.grid2d)
       if self.icdf.grid2d:
         self.xx = self.x
         self.yy = self.y
@@ -230,6 +227,8 @@ class fld_parameters():
       self.y = np.arange(self.icdf.ny)
       self.xx,self.yy = np.meshgrid(self.x,self.y)
 
+    print('xx = ',self.xx.shape)
+    print('yy = ',self.yy.shape)
     self.xmin = float(np.min(self.x))
     self.xmax = float(np.max(self.x))
     self.ymin = float(np.min(self.y))
@@ -277,10 +276,6 @@ class fld_parameters():
       tools.toconsola(str(T_LIST),wid=wid)
 
       # DATE
-      print(T_LIST)
-      print(self.icdf.time_units)
-      print(self.icdf.time_calendar)
-
       try:
         DATE = []
         for i in range(self.icdf.nt):
@@ -303,8 +298,5 @@ class fld_parameters():
       DATE = [' ']
       TIME = np.array([0])
 
-    print('T_LIST: ', T_LIST)
-    print('DATE: ', DATE)
-    print('TIME: ', TIME)
     return T_LIST, DATE, TIME
 

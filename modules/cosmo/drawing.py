@@ -202,6 +202,68 @@ class CONTOUR():
     self.PLOT.conf_set(conf['PLOT'])
     self.FLD.conf_set(conf['FLD'])
 
+  def read(self,**args):
+  # ====================
+
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    try:
+      update_lims = args["update_lims"]
+    except:
+      update_lims = True
+
+    K = self.K.get()
+    L = self.L.get()
+
+    toconsola("Reading contour, K, L = "+str(K)+", "+str(L),wid=wid)
+
+    if self.FLD.ndims == 2:
+      u = self.FLD.nc.variables[self.FLD.varname][:,:]
+    elif self.FLD.ndims == 3:
+      if self.FLD.icdf.ppl[self.FLD.varid] > -1:
+        u = self.FLD.nc.variables[self.FLD.varname][L,:,:].squeeze()
+      elif self.FLD.icdf.ppk[self.FLD.varid] > -1:
+        u = self.FLD.nc.variables[self.FLD.varname][K,:,:].squeeze()
+      else:
+        toconsola('Invalid file!',wid=wid)
+        return
+    elif self.FLD.ndims == 4:
+      u = self.FLD.nc.variables[self.FLD.varname][L,K,:,:].squeeze()
+    else:
+      toconsola("Invalid number of dimensions, "+str(ndim),wid=wid)
+
+    # Min and max values
+    self.FLD.minval = float(u.min())
+    self.FLD.maxval = float(u.max())
+    toconsola('Min val = '+str(self.FLD.minval),wid=wid)
+    toconsola('Max val = '+str(self.FLD.maxval),wid=wid)
+
+    # Make sure that the missing value is NaN:
+    _u = u.filled(fill_value=np.nan)
+    self.FLD.data = np.ma.masked_equal(_u,np.nan); del _u
+
+    if update_lims:
+      toconsola('Setting contour intervals ...',wid=wid)
+      try:
+        self.PLOT.CONTOUR_MIN.set(myround(self.FLD.minval))
+      except:
+        self.PLOT.CONTOUR_MIN.set(self.FLD.minval)
+      try:
+        self.PLOT.CONTOUR_MAX.set(myround(self.FLD.maxval))
+      except:
+        self.PLOT.CONTOUR_MAX.set(self.FLD.maxval)
+
+      dd = self.PLOT.CONTOUR_MAX.get() - self.PLOT.CONTOUR_MIN.get()
+      try:
+        self.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+      except:
+        self.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+    else:
+      toconsola('Preserving contour intervals.',wid=wid)
+
 
 # =====================
 class vector():
@@ -293,30 +355,26 @@ class vector():
     K = self.K.get()
     L = self.L.get()
 
-    print('uname: ', self.U.varname)
-    print('vname: ', self.V.varname)
-    print('ndims: ', self.U.ndims)
-    print('K, L : ', K, L)
+    toconsola("Reading vector, K, L = "+str(K)+", "+str(L),wid=wid)
 
     if self.U.ndims == 2:
-      u = VEC.U.nc.variables[uname][:,:]
-      v = VEC.V.nc.variables[vname][:,:]
+      u = self.U.nc.variables[uname][:,:]
+      v = self.V.nc.variables[vname][:,:]
     elif self.U.ndims == 3:
-      if VEC.U.icdf.ppl[VEC.uid] > -1:
-        u = VEC.U.nc.variables[self.U.varname][L,:,:].squeeze()
-        v = VEC.V.nc.variables[self.V.varname][L,:,:].squeeze()
-      elif VEC.icdf.ppk[VEC.uid] > -1:
-        u = VEC.U.nc.variables[self.U.varname][K,:,:].squeeze()
-        v = VEC.V.nc.variables[self.V.varname][K,:,:].squeeze()
+      if self.U.icdf.ppl[self.U.varid] > -1:
+        u = self.U.nc.variables[self.U.varname][L,:,:].squeeze()
+        v = self.V.nc.variables[self.V.varname][L,:,:].squeeze()
+      elif self.icdf.ppk[self.U.varid] > -1:
+        u = self.U.nc.variables[self.U.varname][K,:,:].squeeze()
+        v = self.V.nc.variables[self.V.varname][K,:,:].squeeze()
       else:
         toconsola('Invalid file!',wid=wid)
         return
     elif self.U.ndims == 4:
-      u = VEC.U.nc.variables[self.U.varname][L,K,:,:].squeeze()
-      v = VEC.V.nc.variables[self.V.varname][L,K,:,:].squeeze()
+      u = self.U.nc.variables[self.U.varname][L,K,:,:].squeeze()
+      v = self.V.nc.variables[self.V.varname][L,K,:,:].squeeze()
     else:
       toconsola("Invalid number of dimensions, "+str(ndim),wid=wid)
-      #print('Invalid number of dimensions, '+str(ndim))
 
     # Make sure that the missing value is NaN:
     _u = u.filled(fill_value=np.nan)
@@ -325,22 +383,16 @@ class vector():
     v = np.ma.masked_equal(_v,np.nan); del _v
 
     if self.grid_type.get() == 'A' or self.grid_type.get() == 'B':
-      VEC.U.data = u.copy()
-      VEC.V.data = v.copy()
+      toconsola("Velocities in a A-grid",wid=wid)
+      self.U.data = u.copy()
+      self.V.data = v.copy()
       return
 
     if self.grid_type.get() == 'C':
-      VEC.U.data = 0.5*(u[1:-1,:-1]+u[1:-1,1:])
-      VEC.V.data = 0.5*(v[:-1,1:-1]+v[1:,1:-1])
-      print('in read: ', VEC.U.data.shape, VEC.V.data.shape)
+      toconsola("Regrid C-grid velocities",wid=wid)
+      self.U.data = 0.5*(u[1:-1,:-1]+u[1:-1,1:])
+      self.V.data = 0.5*(v[:-1,1:-1]+v[1:,1:-1])
       return
-
-
-
-
-
-
-
 
 
 # =====================
@@ -1797,6 +1849,11 @@ class CosmoDrawing():
 
     def _done():
     # ==========
+
+      if self.nvec == 0:
+        messagebox.showinfo(message='No currents file opened yet')
+        return
+
       ii = self.VEC_INDX.get()
       #EG Corrected exception when the user tries to plot before 
       #EG importing product
@@ -1806,7 +1863,7 @@ class CosmoDrawing():
       #  toconsola("Press Import to select a product",tag="o", wid=self.cons)
       #  return
 
-      self.VEC[ii].read()
+      self.VEC[ii].read(wid=self.cons)
 
       #self.read_UV(self.VEC[ii])
       _close()
@@ -1928,7 +1985,6 @@ class CosmoDrawing():
         if empty(VEC.vname.get()):
           VEC.V.varid = None
         else:
-          print('totot .....')
           VEC.V.varid = VEC.V.icdf.vname.index(VEC.vname.get())
 
         if VEC.U.varid is None or VEC.V.varid is None:
@@ -1948,18 +2004,11 @@ class CosmoDrawing():
         VEC.V.get_info(wid=self.cons)
 
         if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
-          VEC.V.VAR_MENU = VEC.U.VAR_MENU[:]
+          VEC.V.icdf.VAR_MENU = VEC.U.icdf.VAR_MENU[:]
         else:
-          print('VEC.V.get.grid() ...')
           VEC.V.get_grid()
-          print('in drawing, type C ...')
 
           if VEC.grid_type.get() == 'C':
-
-            print('U xx: ',VEC.U.xx.shape)
-            print('U yy: ',VEC.U.yy.shape)
-            print('V xx: ',VEC.V.xx.shape)
-            print('V yy: ',VEC.V.yy.shape)
 
             # X-center
             xmu0 = 0.5*(VEC.U.xx[:,:-1]+VEC.U.xx[:,1:])
@@ -1972,12 +2021,6 @@ class CosmoDrawing():
             VEC.V.yy = 0.5*(ymv0[:-1,:]+ymv0[1:,:])
             VEC.U.yy = ymu0[1:-1,:]
 
-            print('MU xx: ',VEC.U.xx.shape)
-            print('MU yy: ',VEC.U.yy.shape)
-            print('MV xx: ',VEC.V.xx.shape)
-            print('MV yy: ',VEC.V.yy.shape)
-
-
 
         #self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
         VEC.K_LIST   = list(range(VEC.U.icdf.nz))
@@ -1985,8 +2028,6 @@ class CosmoDrawing():
 
         VEC.K.set(0)
         VEC.Z_LIST = VEC.U.get_zlist()
-        print(VEC.K_LIST)
-        print('done zlist')
 
         VEC.L.set(0)
         VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
@@ -2029,9 +2070,6 @@ class CosmoDrawing():
           self.DATE = self.VEC[ii].DATE.copy()
           self.TIME = self.VEC[ii].TIME.copy()
           #self.TFILE = '%d' % self.nfiles
-          print(self.L.get())
-          print(self.VEC[ii].L.get())
-          print(self.VEC[ii].DATE)
           self.PLOT.TLABEL.set(self.VEC[ii].DATE[self.L.get()])
           if len(self.DATE) > 1:
             self.bnext.configure(state='normal')
@@ -2090,7 +2128,10 @@ class CosmoDrawing():
       def _vselect():
       # =============
         print('Select V file ...')
+        print('Need to be coded !')
 
+
+      # Main part of the function ...
       #names = ['Operational','CODAR','COPERNICUS','Local']
       ISOURCE = self.CURRENT_OPTIONS.index(SOURCE)
       if ISOURCE == 0:
@@ -2248,26 +2289,29 @@ class CosmoDrawing():
 
     def _kselection():
     # ================
-      print(self.VEC[ii].Z_LIST)
       _zbox['text'] = self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
 
     def _uselection():
     # ================
       ii = self.VEC_INDX.get()
       try:
-        self.VEC[ii].uid = self.VEC[ii].icdf.vname.index( \
+        self.VEC[ii].U.varname = self.VEC[ii].uname.get()
+        self.VEC[ii].U.varid = self.VEC[ii].icdf.vname.index( \
                                              self.VEC[ii].uname.get())
       except:
-        self.VEC[ii].uid = -1
+        self.VEC[ii].U.varname = None
+        self.VEC[ii].U.varid = -1
 
     def _vselection():
     # ================
       ii = self.VEC_INDX.get()
       try:
-        self.VEC[ii].vid = self.VEC[ii].icdf.vname.index( \
+        self.VEC[ii].V.varname = self.VEC[ii].vname.get()
+        self.VEC[ii].V.varid = self.VEC[ii].icdf.vname.index( \
                                              self.VEC[ii].vname.get())
       except:
-        self.VEC[ii].vid = -1
+        self.VEC[ii].V.varname = None
+        self.VEC[ii].V.varid = -1
 
     # Main Window
     # ============
@@ -2766,7 +2810,8 @@ class CosmoDrawing():
         #
         self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
         self.DepthandDate(CDF)
-        self.read_CDF(CDF,update_lims=False)
+        CDF.read(update_lims=False,wid=self.cons)
+        #self.read_CDF(CDF,update_lims=False)
 
         self.ncdf += 1
         self.CDF.append(CDF)
@@ -2985,7 +3030,7 @@ class CosmoDrawing():
         self.SAIDIN.FLD.y = self.SAIDIN.FLD.nc.variables['lat'][:]
         self.SAIDIN.varname.set('mcsst')
         self.SAIDIN.FLD.varname = 'mcsst'
-        self.SAIDIN.FLD.data = self.SAIDIN.FLD.nc.variables[self.SAIDIN.FIELD.varname][0,:,:].squeeze()
+        self.SAIDIN.FLD.data = self.SAIDIN.FLD.nc.variables[self.SAIDIN.FLD.varname][0,:,:].squeeze()
         self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy = np.meshgrid(self.SAIDIN.FLD.x,self.SAIDIN.FLD.y)
         self.DepthandDate(self.SAIDIN)
 
@@ -4769,7 +4814,8 @@ class CosmoDrawing():
                 self.read_UV(self.VEC[self.FILEORDER[i]])
               elif self.FILETYPES[i] == 'FLD':
                 self.CDF[self.FILEORDER[i]].L.set(L)
-                self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+                #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+                self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
               else:
                 toconsola("Something wrong",wid=self.cons)
                 #print('Something wrong')
@@ -4940,8 +4986,6 @@ class CosmoDrawing():
       vlat = CDF.ncid.variables[yname]
       toconsola(str(vlon),wid=self.cons)
       toconsola(str(vlat),wid=self.cons)
-      #print(vlon)
-      #print(vlat)
     else:
       toconsola('Georef is False',wid=self.cons)
       #print('Georef is False')
@@ -5020,7 +5064,7 @@ class CosmoDrawing():
     #                  self.CDF[ii].K.get(), \
     #                  self.CDF[ii].L.get())
     if CDF.varid < 0:
-      CDF.FIELD.data = None
+      CDF.FLD.data = None
       return
 
     K = CDF.K.get()
@@ -5036,67 +5080,67 @@ class CosmoDrawing():
 
     ndim = CDF.icdf.ndims[CDF.varid]
     if ndim == 2:
-      CDF.FIELD.data = CDF.ncid.variables[vname][:,:]
+      CDF.FLD.data = CDF.ncid.variables[vname][:,:]
     elif ndim == 3:
       if CDF.icdf.ppl[CDF.varid] > -1:
-        CDF.FIELD.data = CDF.ncid.variables[vname][L,:,:].squeeze()
+        CDF.FLD.data = CDF.ncid.variables[vname][L,:,:].squeeze()
       elif CDF.icdf.ppk[CDF.varid]  > -1:
-        CDF.FIELD.data = CDF.ncid.variables[vname][K,:,:].squeeze()
+        CDF.FLD.data = CDF.ncid.variables[vname][K,:,:].squeeze()
       else:
         messagebox.showinfo(message='Invalid variable dimensions')
-        CDF.FIELD.data = None
+        CDF.FLD.data = None
     elif ndim == 4:
-      CDF.FIELD.data = CDF.ncid.variables[vname][L,K,:,:].squeeze()
+      CDF.FLD.data = CDF.ncid.variables[vname][L,K,:,:].squeeze()
 
-    CDF.FIELD.missing_value = None
+    CDF.FLD.missing_value = None
 
-    if CDF.FIELD.data is not None:
-      CDF.FIELD.varname = vname
+    if CDF.FLD.data is not None:
+      CDF.FLD.varname = vname
       try:
-        CDF.FIELD.units = CDF.ncid.variables[vname].getncattr('units')
+        CDF.FLD.units = CDF.ncid.variables[vname].getncattr('units')
       except:
-        CDF.FIELD.units = ''
+        CDF.FLD.units = ''
 
       try:
-        CDF.FIELD.missing_value = CDF.ncid.variables[vname].getncattr('_FillValue')
+        CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('_FillValue')
       except:
         try:
-          CDF.FIELD.missing_value = CDF.ncid.variables[vname].getncattr('missing_value')
+          CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('missing_value')
         except:
-          CDF.FIELD.missing_value = None
+          CDF.FLD.missing_value = None
 
-      if CDF.FIELD.missing_value is not None:
-        CDF.FIELD.mask = ma.getmask(CDF.FIELD.data)
-        CDF.FIELD.data[CDF.FIELD.data==CDF.FIELD.missing_value] = np.nan
+      if CDF.FLD.missing_value is not None:
+        CDF.FLD.mask = ma.getmask(CDF.FLD.data)
+        CDF.FLD.data[CDF.FLD.data==CDF.FLD.missing_value] = np.nan
 
       # Contour intervals
-      CDF.FIELD.minval = float(CDF.FIELD.data.min())
-      CDF.FIELD.maxval = float(CDF.FIELD.data.max())
-      toconsola('Min val = '+str(CDF.FIELD.minval),wid=self.cons)
-      toconsola('Max val = '+str(CDF.FIELD.maxval),wid=self.cons)
+      CDF.FLD.minval = float(CDF.FLD.data.min())
+      CDF.FLD.maxval = float(CDF.FLD.data.max())
+      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
       #print('Min val = '+str(CDF.FIELD.minval))
       #print('Max val = '+str(CDF.FIELD.maxval))
 
       print('Here: ', update_lims)
-      print(CDF.FIELD.minval)
-      print(CDF.FIELD.maxval)
+      print(CDF.FLD.minval)
+      print(CDF.FLD.maxval)
 
       if update_lims:
         try:
-          CDF.FIELD.PLOT.CONTOUR_MIN.set(myround(CDF.FIELD.minval))
+          CDF.PLOT.CONTOUR_MIN.set(myround(CDF.FLD.minval))
         except:
-          CDF.FIELD.PLOT.CONTOUR_MIN.set(CDF.FIELD.minval)
+          CDF.PLOT.CONTOUR_MIN.set(CDF.FLD.minval)
         try:
-          CDF.FIELD.PLOT.CONTOUR_MAX.set(myround(CDF.FIELD.maxval))
+          CDF.PLOT.CONTOUR_MAX.set(myround(CDF.FLD.maxval))
         except:
-          CDF.FIELD.PLOT.CONTOUR_MAX.set(CDF.FIELD.maxval)
+          CDF.PLOT.CONTOUR_MAX.set(CDF.FLD.maxval)
 
-        dd =   CDF.FIELD.PLOT.CONTOUR_MAX.get() \
-             - CDF.FIELD.PLOT.CONTOUR_MIN.get()
+        dd =   CDF.PLOT.CONTOUR_MAX.get() \
+             - CDF.PLOT.CONTOUR_MIN.get()
         try:
-          CDF.FIELD.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+          CDF.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
         except:
-          CDF.FIELD.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+          CDF.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
   # ===================
   def get_contour(self):
@@ -5116,7 +5160,8 @@ class CosmoDrawing():
     def _done():
     # ===========
       ii = self.CDF_INDX.get()
-      self.CDF[ii].FLD.read(self.CDF[ii].K.get(),self.CDF[ii].L.get(),wid=self.cons)
+      #self.CDF[ii].FLD.read(self.CDF[ii].K.get(),self.CDF[ii].L.get(),wid=self.cons)
+      self.CDF[ii].read(wid=self.cons)
       #self.read_CDF(self.CDF[ii])
       #self.read_Field(self.CDF[ii].FIELD,   \
       #                self.CDF[ii].ncid,    \
@@ -5127,20 +5172,20 @@ class CosmoDrawing():
 
 
       # Set the contour levels
-      try:
-        self.CDF[ii].PLOT.CONTOUR_MIN.set(myround(self.CDF[ii].FLD.minval))
-      except:
-        self.CDF[ii].PLOT.CONTOUR_MIN.set(self.CDF[ii].FLD.minval)
-      try:
-        self.CDF[ii].PLOT.CONTOUR_MAX.set(myround(self.CDF[ii].FLD.maxval))
-      except:
-        self.CDF[ii].PLOT.CONTOUR_MAX.set(self.CDF[ii].FLD.maxval)
-
-      dd = self.CDF[ii].PLOT.CONTOUR_MAX.get() - self.CDF[ii].PLOT.CONTOUR_MIN.get()
-      try:
-        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
-      except:
-        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+      #try:
+      #  self.CDF[ii].PLOT.CONTOUR_MIN.set(myround(self.CDF[ii].FLD.minval))
+      #except:
+      #  self.CDF[ii].PLOT.CONTOUR_MIN.set(self.CDF[ii].FLD.minval)
+      #try:
+      #  self.CDF[ii].PLOT.CONTOUR_MAX.set(myround(self.CDF[ii].FLD.maxval))
+      #except:
+      #  self.CDF[ii].PLOT.CONTOUR_MAX.set(self.CDF[ii].FLD.maxval)
+#
+#      dd = self.CDF[ii].PLOT.CONTOUR_MAX.get() - self.CDF[ii].PLOT.CONTOUR_MIN.get()
+#      try:
+#        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+#      except:
+#        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
       # The date of the data
       try:
@@ -5446,7 +5491,6 @@ class CosmoDrawing():
 
     def _vselection():
     # ================
-      print('I am here !!!!!!!')
       try:
         self.CDF[ii].FLD.varid = self.CDF[ii].FLD.icdf.vname.index( \
                                              self.CDF[ii].varname.get())
@@ -5594,8 +5638,6 @@ class CosmoDrawing():
 
       self.SAIDIN.FLD.nc = Dataset('[FillMismatch]'+self.SAIDIN.FILENAME.get(),'r')
       self.SAIDIN.FLD.icdf = tools.geocdf(self.SAIDIN.FILENAME.get(), wid=self.cons)
-      print(self.SAIDIN.FLD.icdf.xname)
-      print(self.SAIDIN.FLD.icdf.yname)
       self.SAIDIN.varname.set('mcsst')
       self.SAIDIN.FLD.varname = 'mcsst'
       self.SAIDIN.FLD.x = self.SAIDIN.FLD.nc.variables['lon'][:]
@@ -5651,11 +5693,8 @@ class CosmoDrawing():
 
       toconsola(str(self.SAIDIN.FLD.minval),wid=self.cons)
       toconsola(str(self.SAIDIN.FLD.maxval),wid=self.cons)
-      #print(str(self.SAIDIN.FIELD.data.min()))
-      #print(str(self.SAIDIN.FIELD.data.max()))
       if self.SAIDIN.landmask.get():
         toconsola('Applying land/sea mask ...',wid=self.cons)
-        #print('Applying land/sea mask ...')
         _a  = self.SAIDIN.FLD.data.copy()
         tmp  = self.SAIDIN.FLD.nc.variables['lsmask'][0,:,:].squeeze()
         msk = ma.masked_where(tmp==1,tmp)
@@ -5753,13 +5792,11 @@ class CosmoDrawing():
       self.nfeatures -= 1
 
       toconsola('Erasing marker '+str(ii),wid=self.cons)
-      #print('Erasing marker '+str(ii))
       del self.MARKER[ii]
       self.nmarker -= 1
 
       ii = self.nmarker-1 if ii >= self.nmarker else ii
       toconsola('New marker = '+str(self.nmarker),wid=self.cons)
-      #print('New marker = '+str(self.nmarker))
       self.MARKER_INDX.set(ii)
       _refill(ii)
       self.make_plot()
@@ -5921,13 +5958,11 @@ class CosmoDrawing():
       self.nfeatures -= 1
 
       toconsola('Erasing marker '+str(ii),wid=self.cons)
-      #print('Erasing marker '+str(ii))
       del self.SHAPE[ii]
       self.nmarker -= 1
 
       ii = self.nmarker-1 if ii >= self.nmarker else ii
       toconsola('New marker = '+str(self.nmarker),wid=self.cons)
-      #print('New marker = '+str(self.nmarker))
       self.SHAPE.set(ii)
       _refill(ii)
       self.make_plot()
@@ -6146,12 +6181,10 @@ class CosmoDrawing():
       '''Load dot configuration'''
       ii = self.MARKER_INDX.get()
       toconsola('Restoring dot configuration',wid=self.cons)
-      #print('Restoring dot configuration')
       try:
         self.MARKER[ii].PLOT.load(self.MARKER[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveconf():
@@ -6159,12 +6192,10 @@ class CosmoDrawing():
       '''Load dot configuration'''
       ii = self.MARKER_INDX.get()
       toconsola('Saving dot configuration',wid=self.cons)
-      #print('Saving dot configuration')
       try:
         self.MARKER[ii].PLOT.save(self.MARKER[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -6179,13 +6210,10 @@ class CosmoDrawing():
       self.MARKER[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Restoring dot configuration from '+
             self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Restoring dot configuration from '+
-      #      self.MARKER[ii].PLOT.FILECONF)
       try:
         self.MARKER[ii].PLOT.load(self.MARKER[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+self.MARKER[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveasconf():
@@ -6201,12 +6229,10 @@ class CosmoDrawing():
 
       self.MARKER[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Saving dot configuration to '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Saving dot configuration to '+self.MARKER[ii].PLOT.FILECONF)
       try:
         self.MARKER[ii].PLOT.save(self.MARKER[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.MARKER[ii].PLOT.FILECONF)
 
     if self.Window_dotconfig is not None:
       self.Window_dotconfig.lift()
@@ -6381,12 +6407,10 @@ class CosmoDrawing():
       '''Load dot configuration'''
       ii = self.SHAPE_INDX.get()
       toconsola('Restoring dot configuration',wid=self.cons)
-      #print('Restoring dot configuration')
       try:
         self.SHAPE[ii].PLOT.load(self.SHAPE[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveconf():
@@ -6394,12 +6418,10 @@ class CosmoDrawing():
       '''Load dot configuration'''
       ii = self.SHAPE_INDX.get()
       toconsola('Saving dot configuration',wid=self.cons)
-      #print('Saving dot configuration')
       try:
         self.SHAPE[ii].PLOT.save(self.SHAPE[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -6414,13 +6436,10 @@ class CosmoDrawing():
       self.SHAPE[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Restoring dot configuration from '+
             self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Restoring dot configuration from '+
-      #      self.SHAPE[ii].PLOT.FILECONF)
       try:
         self.SHAPE[ii].PLOT.load(self.SHAPE[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+self.SHAPE[ii].PLOT.FILECONF)
       self.make_plot()
 
     def _saveasconf():
@@ -6436,12 +6455,10 @@ class CosmoDrawing():
 
       self.SHAPE[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Saving dot configuration to '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Saving dot configuration to '+self.SHAPE[ii].PLOT.FILECONF)
       try:
         self.SHAPE[ii].PLOT.save(self.SHAPE[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.SHAPE[ii].PLOT.FILECONF)
 
     if self.Window_geoconfig is not None:
       self.Window_geoconfig.lift()
@@ -6575,13 +6592,11 @@ class CosmoDrawing():
         self.first = True
 
       toconsola('Erasing record '+str(ii),wid=self.cons)
-      #print('Erasing record '+str(ii))
       del self.FLOAT[ii]
       self.nfloat -= 1
 
       ii = self.nfloat-1 if ii >= self.nfloat else ii
       toconsola('new nfloat = '+str(self.nfloat),wid=self.cons)
-      #print('new nfloat = '+str(self.nfloat))
       self.FLOAT_INDX.set(ii)
       _refill(ii)
       #_close()
@@ -6639,7 +6654,6 @@ class CosmoDrawing():
           for f in filelist:
             filename = join(path,f)
             toconsola('Loading file: '+filename,wid=self.cons)
-            #print('Loading file: '+filename)
             _load_trajectory(filename)
 
       elif ISOURCE == 2:
@@ -6651,7 +6665,6 @@ class CosmoDrawing():
         if len(filelist) > 0:
           for filename in filelist:
             toconsola('Loading file: '+filename,wid=self.cons)
-            #print('Loading file: '+filename)
             _load_trajectory(filename)
 
       elif ISOURCE == 3:
@@ -6858,13 +6871,14 @@ class CosmoDrawing():
     # ==============
       global fshow
       fshow.destroy()
+
       # The usual configuration:
       ii = self.VEC_INDX.get()
-      _went['textvariable'] = self.VEC[ii].FILENAME
+      _went['textvariable'] = self.VEC[ii].UFILENAME
   
       fshow = ttk.Frame(self.Window_vectorconfig,padding=10)
       vectorplot.Configuration(parent=fshow,
-                               PLOT=self.VEC[ii].VEL.PLOT)
+                               PLOT=self.VEC[ii].PLOT)
 
       f0 = ttk.Frame(fshow,padding=5)
       ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -6880,33 +6894,25 @@ class CosmoDrawing():
     # =============
       '''Load vector configuration'''
       toconsola('Restoring vector configuration from '+
-            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring vector configuration from '+
-      #      self.VEC[ii].VEL.PLOT.FILECONF)
+            self.VEC[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.VEC[ii].VEL.PLOT.load(self.VEC[ii].VEL.PLOT.FILECONF)
+        self.VEC[ii].PLOT.load(self.VEC[ii].PLOT.UFILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #    self.VEC[ii].VEL.PLOT.FILECONF)
+            self.VEC[ii].PLOT.FILECONF,wid=self.cons)
 
     def _saveconf():
     # =============
       '''Load vector configuration'''
       toconsola('Saving vector configuration to '+
-            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-      #print('Saving vector configuration to '+
-      #      self.VEC[ii].VEL.PLOT.FILECONF)
+            self.VEC[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.VEC[ii].VEL.PLOT.save(self.VEC[ii].VEL.PLOT.FILECONF)
+        self.VEC[ii].PLOT.save(self.VEC[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to write file '+
-            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #    self.VEC[ii].VEL.PLOT.FILECONF)
+            self.VEC[ii].PLOT.FILECONF,wid=self.cons)
 
     def _loadfromconf():
     # ==================
@@ -6917,19 +6923,15 @@ class CosmoDrawing():
       if len(nn) == 0:
         return
 
-      self.VEC[ii].VEL.PLOT.FILECONF = '%s' % nn
+      self.VEC[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Restoring vector configuration from '+
-            self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring vector configuration from '+
-      #      self.VEC[ii].VEL.PLOT.FILECONF)
+            self.VEC[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.VEC[ii].VEL.PLOT.load(self.VEC[ii].VEL.PLOT.FILECONF)
+        self.VEC[ii].PLOT.load(self.VEC[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-             self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #     self.VEC[ii].VEL.PLOT.FILECONF)
+             self.VEC[ii].PLOT.FILECONF,wid=self.cons)
 
     def _saveasconf():
     # ================
@@ -6941,16 +6943,13 @@ class CosmoDrawing():
       if nn is None or len(nn) == 0:
         return
 
-      self.VEC[ii].VEL.PLOT.FILECONF = '%s' % nn
-      toconsola('Saving vector configuration to '+self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-      #print('Saving vector configuration to '+self.VEC[ii].VEL.PLOT.FILECONF)
+      self.VEC[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Saving vector configuration to '+self.VEC[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.VEC[ii].VEL.PLOT.save(self.VEC[ii].VEL.PLOT.FILECONF)
+        self.VEC[ii].PLOT.save(self.VEC[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
-             self.VEC[ii].VEL.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #     self.VEC[ii].VEL.PLOT.FILECONF)
+             self.VEC[ii].PLOT.FILECONF,wid=self.cons)
 
     if self.Window_vectorconfig is not None:
       self.Window_vectorconfig.lift()
@@ -6968,11 +6967,12 @@ class CosmoDrawing():
     menu.add_command(label='Restore from',command=_loadfromconf)
     menu.add_command(label='Save',command=_saveconf)
     menu.add_command(label='Save as',command=_saveasconf)
-    try:
-      self.Window_vectorconfig.config(menu=menubar)
-    except AttributeError:
-      # master is a toplevel window (Python 2.4/Tkinter 1.63)
-      master.tk.call(self.Window_vectorconfig, "config", "-menu", menubar)
+    self.Window_vectorconfig.config(menu=menubar)
+    #try:
+    #  self.Window_vectorconfig.config(menu=menubar)
+    #except AttributeError:
+    #  # master is a toplevel window (Python 2.4/Tkinter 1.63)
+    #  master.tk.call(self.Window_vectorconfig, "config", "-menu", menubar)
 
     fsel = ttk.Frame(self.Window_vectorconfig,padding=10)
     ttk.Label(fsel,text="File: ").grid(row=0,column=0,sticky='e',padx=3)
@@ -7027,31 +7027,23 @@ class CosmoDrawing():
       '''Load contour configuration'''
       toconsola('Restoring contour configuration from '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring contour configuration from '+
-      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
-        self.SAIDIN.PLOT.load(self.SAIDIN.FIELD.PLOT.FILECONF)
+        self.SAIDIN.PLOT.load(self.SAIDIN.PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
               self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load contour configuration'''
       toconsola('Saving contour configuration to '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-      #print('Saving contour configuration to '+
-      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.PLOT.save(FF.PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -7065,16 +7057,12 @@ class CosmoDrawing():
       self.SAIDIN.PLOT.FILECONF = '%s' % nn
       toconsola('Restoring contour configuration from '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring contour configuration from '+
-      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.PLOT.load(self.SAIDIN.PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
               self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #      self.SAIDIN.FIELD.PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -7089,15 +7077,11 @@ class CosmoDrawing():
       self.SAIDIN.PLOT.FILECONF = '%s' % nn
       toconsola('Saving contour configuration to '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-      #print('Saving contour configuration to '+
-      #      self.SAIDIN.FIELD.PLOT.FILECONF)
       try:
         self.SAIDIN.PLOT.save(self.SAIDIN.PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
             self.SAIDIN.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #    self.SAIDIN.FIELD.PLOT.FILECONF)
 
     if self.Window_saidinconfig is not None:
       self.Window_saidinconfig.lift()
@@ -7174,12 +7158,12 @@ class CosmoDrawing():
 
       gshow = ttk.Frame(self.Window_contourconfig,padding=10)
       contourplot.Configuration(parent=gshow,
-                              varname=self.CDF[ii].FIELD.varname,
-                              units=self.CDF[ii].FIELD.units,
-                              missing=self.CDF[ii].FIELD.missing_value,
-                              minval=self.CDF[ii].FIELD.minval,
-                              maxval=self.CDF[ii].FIELD.maxval,
-                              PLOT=self.CDF[ii].FIELD.PLOT)
+                              varname=self.CDF[ii].FLD.varname,
+                              units=self.CDF[ii].FLD.units,
+                              missing=self.CDF[ii].FLD.missing_value,
+                              minval=self.CDF[ii].FLD.minval,
+                              maxval=self.CDF[ii].FLD.maxval,
+                              PLOT=self.CDF[ii].FLD.PLOT)
 
       f0 = ttk.Frame(gshow,padding=5)
       ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -7195,32 +7179,24 @@ class CosmoDrawing():
     # =============
       '''Load contour configuration'''
       toconsola('Restoring contour configuration from '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring contour configuration from '+
-      #      self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.CDF[ii].FIELD.PLOT.load(self.CDF[ii].FIELD.PLOT.FILECONF)
+        self.CDF[ii].PLOT.load(self.CDF[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-              self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #      self.CDF[ii].FIELD.PLOT.FILECONF)
+              self.CDF[ii].PLOT.FILECONF,wid=self.cons)
 
     def _saveconf():
     # =============
       '''Load contour configuration'''
       toconsola('Saving contour configuration to '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-      #print('Saving contour configuration to '+
-      #      self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.CDF[ii].FIELD.PLOT.save(FF.PLOT.FILECONF)
+        self.CDF[ii].PLOT.save(FF.PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #    self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
 
     def _loadfromconf():
     # ==================
@@ -7231,19 +7207,15 @@ class CosmoDrawing():
       if len(nn) == 0:
         return
 
-      self.CDF[ii].FIELD.PLOT.FILECONF = '%s' % nn
+      self.CDF[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Restoring contour configuration from '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-      #print('Restoring contour configuration from '+
-      #      self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.CDF[ii].FIELD.PLOT.load(self.CDF[ii].FIELD.PLOT.FILECONF)
+        self.CDF[ii].PLOT.load(self.CDF[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
-              self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #      self.CDF[ii].FIELD.PLOT.FILECONF)
+              self.CDF[ii].PLOT.FILECONF,wid=self.cons)
 
     def _saveasconf():
     # ================
@@ -7256,18 +7228,14 @@ class CosmoDrawing():
         return
 
       
-      self.CDF[ii].FIELD.PLOT.FILECONF = '%s' % nn
+      self.CDF[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Saving contour configuration to '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-      #print('Saving contour configuration to '+
-      #      self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
       try:
-        self.CDF[ii].FIELD.PLOT.save(self.CDF[ii].FIELD.PLOT.FILECONF)
+        self.CDF[ii].PLOT.save(self.CDF[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+
-            self.CDF[ii].FIELD.PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+
-        #    self.CDF[ii].FIELD.PLOT.FILECONF)
+            self.CDF[ii].PLOT.FILECONF,wid=self.cons)
 
     if self.Window_contourconfig is not None:
       self.Window_contourconfig.lift()
@@ -7395,27 +7363,21 @@ class CosmoDrawing():
       '''Load line configuration'''
       toconsola('Restoring line configuration from '+
             self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Restoring line configuration from '+
-      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.load(self.FLOAT[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file ',self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file ',self.FLOAT[ii].PLOT.FILECONF)
 
     def _saveconf():
     # =============
       '''Load line configuration'''
       toconsola('Saving line configuration to '+
             self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Saving line configuration to '+
-      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.save(self.FLOAT[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF)
 
     def _loadfromconf():
     # ==================
@@ -7429,16 +7391,12 @@ class CosmoDrawing():
       self.FLOAT[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Restoring line configuration from '+
             self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Restoring line configuration from '+
-      #      self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.load(self.FLOAT[ii].PLOT.FILECONF)
         self.make_plot()
       except:
         toconsola('Error: Unable to load file '+
               self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to load file '+
-        #      self.FLOAT[ii].PLOT.FILECONF)
 
     def _saveasconf():
     # ================
@@ -7452,12 +7410,10 @@ class CosmoDrawing():
 
       self.FLOAT[ii].PLOT.FILECONF = '%s' % nn
       toconsola('Saving line configuration to '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-      #print('Saving line configuration to '+self.FLOAT[ii].PLOT.FILECONF)
       try:
         self.FLOAT[ii].PLOT.save(self.FLOAT[ii].PLOT.FILECONF)
       except:
         toconsola('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF,wid=self.cons)
-        #print('Error: Unable to write file '+self.FLOAT[ii].PLOT.FILECONF)
 
     if self.Window_lineconfig is not None:
       self.Window_lineconfig.lift()
@@ -7550,10 +7506,12 @@ class CosmoDrawing():
       if self.SEQUENCES[i].get():
         if self.FILETYPES[i] == 'VEC':
           self.VEC[self.FILEORDER[i]].L.set(L)
-          self.read_UV(self.VEC[self.FILEORDER[i]])
+          self.VEC[self.FILEORDER[i]].read(wid=self.cons)
+          #self.read_UV(self.VEC[self.FILEORDER[i]])
         elif self.FILETYPES[i] == 'FLD':
           self.CDF[self.FILEORDER[i]].L.set(L)
-          self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+          self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
+          #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
     self.make_plot()
 
   # ==============
@@ -7573,12 +7531,14 @@ class CosmoDrawing():
             L  = self.VEC[self.FILEORDER[i]].L.get()
             Lm = self.VEC[self.FILEORDER[i]].L.get() - 1
             self.VEC[self.FILEORDER[i]].L.set(Lm)
-            self.read_UV(self.VEC[self.FILEORDER[i]])
+            self.VEC[self.FILEORDER[i]].read(wid=self.cons)
+            #self.read_UV(self.VEC[self.FILEORDER[i]])
           elif self.FILETYPES[i] == 'FLD':
             L  = self.CDF[self.FILEORDER[i]].L.get()
             Lm = self.CDF[self.FILEORDER[i]].L.get() - 1
             self.CDF[self.FILEORDER[i]].L.set(Lm)
-            self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+            self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
+            #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
       self.make_plot()
     else:
       return
@@ -7603,12 +7563,14 @@ class CosmoDrawing():
             L  = self.VEC[self.FILEORDER[i]].L.get()
             Lp = self.VEC[self.FILEORDER[i]].L.get() + 1
             self.VEC[self.FILEORDER[i]].L.set(Lp)
-            self.read_UV(self.VEC[self.FILEORDER[i]])
+            self.VEC[self.FILEORDER[i]].read(wid=self.cons)
+            #self.read_UV(self.VEC[self.FILEORDER[i]])
           elif self.FILETYPES[i] == 'FLD':
             L  = self.CDF[self.FILEORDER[i]].L.get()
             Lp = self.CDF[self.FILEORDER[i]].L.get() + 1
             self.CDF[self.FILEORDER[i]].L.set(Lp)
-            self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+            self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
+            #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
       toconsola("EG Drawing next.................",wid=self.cons)
       #print("EG Drawing next.................")
       self.make_plot()
@@ -8194,20 +8156,21 @@ class CosmoDrawing():
     # Draw SAIDIN:
     if not empty(self.SAIDIN.FILENAME.get()):
       self.Mscbar = contourplot.drawing(self.Mfig,self.Max, proj,\
-                          self.SAIDIN.xx,self.SAIDIN.yy, \
-                          self.SAIDIN.FIELD.data, \
-                          self.SAIDIN.FIELD.mask, \
-                          self.SAIDIN.FIELD.PLOT)
+                          self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy, \
+                          self.SAIDIN.FLD.data, \
+                          self.SAIDIN.FLD.data.mask, \
+                          self.SAIDIN.PLOT)
     # Draw fields:
     if self.ncdf > 0:
       for ii in range(self.ncdf):
         if self.CDF[ii].show.get():
           self.Mcdfbar.append(contourplot.drawing(self.Mfig,self.Max, proj,\
-                                    self.CDF[ii].xx,   \
-                                    self.CDF[ii].yy,   \
-                                    self.CDF[ii].FIELD.data, \
-                                    self.CDF[ii].FIELD.mask, \
-                                    self.CDF[ii].FIELD.PLOT))
+                                    self.CDF[ii].FLD.xx,   \
+                                    self.CDF[ii].FLD.yy,   \
+                                    self.CDF[ii].FLD.data, \
+                                    self.CDF[ii].FLD.data.mask, \
+                                    self.CDF[ii].PLOT))
+
     # Draw currents:
     if self.nvec > 0:
       for ii in range(self.nvec):
