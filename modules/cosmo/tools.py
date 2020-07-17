@@ -1291,6 +1291,7 @@ class WinGeoaxes():
               icdf.nx = self.ncid.dimensions[cdf.iname].size
               self.Iname.set(icdf.iname)
               self.strnx.set(str(icdf.nx))
+              icdf.grid2d = False
             else:
               doY = True
               doX = True
@@ -1306,6 +1307,7 @@ class WinGeoaxes():
               self.strny.set(str(icdf.ny))
               self.Iname.set(icdf.iname)
               self.strnx.set(str(icdf.nx))
+              icdf.grid2d = True
           if icdf.VAR_AXIS[kk] == 'Y':
             icdf.idy   = kk
             icdf.withY = True
@@ -1321,6 +1323,7 @@ class WinGeoaxes():
               icdf.ny = self.ncid.dimensions[icdf.jname].size
               self.Jname.set(icdf.jname)
               self.strny.set(str(icdf.ny))
+              icdf.grid2d = False
             else:
               doY = True
               doX = True
@@ -1336,6 +1339,7 @@ class WinGeoaxes():
               self.strny.set(str(icdf.ny))
               self.Iname.set(icdf.iname)
               self.strnx.set(str(icdf.nx))
+              icdf.grid2d = True
           if icdf.VAR_AXIS[kk] == 'Z':
             icdf.idz   = kk
             icdf.withZ = True
