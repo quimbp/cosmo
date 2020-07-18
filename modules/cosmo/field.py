@@ -34,6 +34,7 @@ class fld_parameters():
   # ============================================
     ''' Initialization of the 2D FLD class'''
 
+    print('fld_parameters init ')
     self.MESSAGE    = '\nFLD_PARA:\n'
     #self.FILENAME   = tk.StringVar()
     self.varname    = None
@@ -42,8 +43,6 @@ class fld_parameters():
     self.icdf       = None
     self.varid      = None
     self.ndims      = None
-    self.K          = tk.IntVar()
-    self.L          = tk.IntVar()
     self.with_axes  = None              
     self.x          = None              # input netcdf x
     self.y          = None              # input netcdf y
@@ -64,34 +63,35 @@ class fld_parameters():
   # =================
     ''' Set class dictionary from class attributes '''
 
+
     conf = {}
-    #conf['FILENAME'] = self.FILENAME.get()
     conf['VARNAME']  = self.varname
-    conf['K']        = self.K.get()
-    conf['L']        = self.L.get()
     conf['varid']    = self.varid
     conf['ndims']    = self.ndims
+    conf['with_axes']= self.with_axes
     conf['georef']   = self.georef.get()
     if self.icdf is None:
       conf['ICDF']   = None
     else:
       conf['ICDF']   = self.icdf.conf_get()
 
-  def conf_set(self):
-  # =================
+    return conf
+
+  def conf_set(self,conf):
+  # ======================
     ''' Set class attributes from class dictionary '''
 
     #self.FILENAME.set(conf['FILENAME'])
     self.varname = conf['VARNAME']
-    self.K.set(conf['K'])
-    self.L.set(conf['L'])
     self.varid = conf['varid']
     self.ndims = conf['ndims']
+    self.with_axes = conf['with_axes']
     self.georef.set(conf['georef'])
     if conf['ICDF'] is None:
       pass
     else:
-      self.icdf.set(conf['ICDF'])
+      self.icdf.conf_set(conf['ICDF'])
+
 
   def open(self,filename,**args):
   # =============================
@@ -156,10 +156,6 @@ class fld_parameters():
     tools.toconsola('Min val = '+str(self.minval),wid=wid)
     tools.toconsola('Max val = '+str(self.maxval),wid=wid)
 
-    #print(type(self.data))
-    #print(self.data.fill_value)
-    #print(self.data.mask)
-
   def get_info(self,**args):
   # ========================
     ''' Retrieve information about the selected variable '''
@@ -208,13 +204,11 @@ class fld_parameters():
     else:
       self.with_axes = False
 
-    print('with_axes: ',self.with_axes)
     if self.with_axes:
 
       self.x = self.nc.variables[self.icdf.xname][:]
       self.y = self.nc.variables[self.icdf.yname][:]
 
-      print('grid2d: ',self.icdf.grid2d)
       if self.icdf.grid2d:
         self.xx = self.x
         self.yy = self.y
@@ -227,8 +221,6 @@ class fld_parameters():
       self.y = np.arange(self.icdf.ny)
       self.xx,self.yy = np.meshgrid(self.x,self.y)
 
-    print('xx = ',self.xx.shape)
-    print('yy = ',self.yy.shape)
     self.xmin = float(np.min(self.x))
     self.xmax = float(np.max(self.x))
     self.ymin = float(np.min(self.y))

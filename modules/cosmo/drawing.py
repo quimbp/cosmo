@@ -164,8 +164,8 @@ class CONTOUR():
 
     self.show    = tk.BooleanVar()
     self.varname = tk.StringVar()
-    self.minval  = tk.DoubleVar()
-    self.maxval  = tk.DoubleVar()
+    #self.minval  = tk.DoubleVar()
+    #self.maxval  = tk.DoubleVar()
 
     self.K       = tk.IntVar()
     self.L       = tk.IntVar()
@@ -185,8 +185,10 @@ class CONTOUR():
     ''' Set class dictionary from class attributes '''
 
     conf = {}
-    conf['MINVAL'] = self.minval.get()
-    conf['MAXVAL'] = self.maxval.get()
+    conf['FILENAME'] = self.FILENAME.get()
+    conf['VARNAME'] = self.varname.get()
+    conf['K']      = self.K.get()
+    conf['L']      = self.L.get()
     conf['SHOW']   = self.show.get()
     conf['PLOT']   = self.PLOT.conf_get()
     conf['FLD']    = self.FLD.conf_get()
@@ -196,8 +198,10 @@ class CONTOUR():
   # ======================
     ''' Set class dictionary from class attributes '''
 
-    self.minval.set(conf['MINVAL'])
-    self.maxval.set(conf['MAXVAL'])
+    self.FILENAME.set(conf['FILENAME'])
+    self.varname.set(conf['VARNAME'])
+    self.K.set(conf['K'])
+    self.L.set(conf['L'])
     self.show.set(conf['SHOW'])
     self.PLOT.conf_set(conf['PLOT'])
     self.FLD.conf_set(conf['FLD'])
@@ -242,8 +246,9 @@ class CONTOUR():
     toconsola('Max val = '+str(self.FLD.maxval),wid=wid)
 
     # Make sure that the missing value is NaN:
-    _u = u.filled(fill_value=np.nan)
-    self.FLD.data = np.ma.masked_equal(_u,np.nan); del _u
+    #_u = u.filled(fill_value=np.nan)
+    #self.FLD.data = np.ma.masked_equal(_u,np.nan); del _u
+    self.FLD.data = u.copy()
 
     if update_lims:
       toconsola('Setting contour intervals ...',wid=wid)
@@ -292,7 +297,6 @@ class vector():
       else:
         self.VFILENAME.set(vfile)
 
-
     self.U         = field.fld_parameters()
     self.V         = field.fld_parameters()
 
@@ -326,9 +330,15 @@ class vector():
     ''' Set class dictionary from class attributes '''
 
     conf = {}
+    conf['UFILENAME'] = self.UFILENAME.get()
+    conf['VFILENAME'] = self.VFILENAME.get()
+    conf['UNAME'] = self.uname.get()
+    conf['VNAME'] = self.vname.get()
+    conf['K']    = self.K.get()
+    conf['L']    = self.L.get()
     conf['SHOW'] = self.show.get()
+    conf['GRID_TYPE'] = self.grid_type.get()
     conf['PLOT'] = self.PLOT.conf_get()
-    conf['GRID'] = self.grid_type.get()
     conf['U']    = self.U.conf_get()
     conf['V']    = self.V.conf_get()
     return conf
@@ -337,6 +347,12 @@ class vector():
   # ======================
     ''' Set class dictionary from class attributes '''
 
+    self.UFILENAME.set(conf['UFILENAME'])
+    self.VFILENAME.set(conf['VFILENAME'])
+    self.uname.set(conf['UNAME'])
+    self.vname.set(conf['VNAME'])
+    self.K.set(conf['K'])
+    self.L.set(conf['L'])
     self.show.set(conf['SHOW'])
     self.grid_type.set(conf['GRID_TYPE'])
     self.PLOT.conf_set(conf['PLOT'])
@@ -724,8 +740,11 @@ class DrawingConfig():
     self.SCALE_LINECOLOR    = tk.StringVar()
     self.SCALE_LINEWIDTH    = tk.IntVar()
 
-    self.X                  = None
-    self.Y                  = None
+    self.cons               = None
+
+    #self.X                  = None
+    #self.Y                  = None
+
     #EG RELIEF=1 GEBCO, RELIEF=2 EMODNET
     self.RELIEF_SHOW        = tk.BooleanVar()
     self.RELIEF             = tk.IntVar()
@@ -1991,6 +2010,8 @@ class CosmoDrawing():
           messagebox.showinfo(parent=self.Window_currents_sel,message='Select velocity components')
           return
 
+        toconsola('2D-grid axes : '+'%s'%VEC.U.icdf.grid2d,wid=self.cons)
+
         # Seems a suitable location for those statements:
         VEC.U.varname = VEC.uname.get()
         #VEC.U.varid   = VEC.U.icdf.vname.index(VEC.U.varname)
@@ -2744,6 +2765,7 @@ class CosmoDrawing():
   # ==================================
     ''' Load Figure configuration from json'''
 
+    self.cons  = None
     self.first = True
 
     if filename is None:
@@ -2803,15 +2825,22 @@ class CosmoDrawing():
         if self.first:
           self.K.set(CDF.K.get())
           self.L.set(CDF.L.get())
-          self.L_LIST = list(range(CDF.icdf.nt))
+          self.L_LIST = list(range(CDF.FLD.icdf.nt))
           self.NL = len(self.L_LIST)
 
         # Read data:
         #
-        self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
+        #self.read_lonlat(CDF,CDF.icdf.xname,CDF.icdf.yname)
+        #self.DepthandDate(CDF)
+        CDF.FLD.get_grid()
         self.DepthandDate(CDF)
         CDF.read(update_lims=False,wid=self.cons)
         #self.read_CDF(CDF,update_lims=False)
+
+        print(CDF.PLOT.CONTOUR_MIN.get())
+        print(CDF.PLOT.CONTOUR_MAX.get())
+        print(CDF.FLD.xx)
+        print(CDF.FLD.yy)
 
         self.ncdf += 1
         self.CDF.append(CDF)
@@ -2850,27 +2879,71 @@ class CosmoDrawing():
 
         # Initialize classes:
         #
-        VEC = cdf_parameters()
-        VEC.VEL = vel_parameters()
-        VEC.FILENAME.set(filename)
-        VEC.ncid = Dataset(filename)
-        VEC.icdf = tools.geocdf(filename, wid=self.cons)
-       
+        VEC = vector()
+        VEC.UFILENAME.set(filename)
+        VEC.U.nc = Dataset(filename)
+        VEC.U.icdf = tools.geocdf(filename, wid=self.cons)
+
+        # Vheck the Arakawa's grid type and read, if required, the VFILENAME
+        #
+        vv = CONF[ii]['VEC']
+        VEC.grid_type.set(vv['GRID_TYPE'])
+        if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+          vfilename = filename
+        else:
+          vfilename = vv['VFILENAME']
+
+        print('In read_figure, VEC.grid_type: ', VEC.grid_type.get())
+
+        VEC.VFILENAME.set(vfilename)
+        VEC.V.nc = Dataset(vfilename)
+        VEC.V.icdf = tools.geocdf(vfilename, wid=self.cons)
+
         # Update from CONF attributes:
         #
         VEC.conf_set(CONF[ii]['VEC'])
 
+        # Read data:
+        #
+        print('going to read ....')
+        VEC.U.get_info(wid=self.cons)
+        VEC.U.get_grid()
+
+        VEC.V.varname = VEC.vname.get()
+        VEC.V.ndims   = VEC.V.icdf.ndims[VEC.V.varid]
+        VEC.V.get_info(wid=self.cons)
+
+        if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+          VEC.V.icdf.VAR_MENU = VEC.U.icdf.VAR_MENU[:]
+        else:
+          VEC.V.get_grid()
+
+          if VEC.grid_type.get() == 'C':
+
+            # X-center
+            xmu0 = 0.5*(VEC.U.xx[:,:-1]+VEC.U.xx[:,1:])
+            xmv0 = VEC.V.xx[:,1:-1]
+            ymu0 = 0.5*(VEC.U.yy[:,:-1]+VEC.U.yy[:,1:])
+            ymv0 = VEC.V.yy[:,1:-1]
+            # Y-center
+            VEC.V.xx = 0.5*(xmv0[:-1,:]+xmv0[1:,:])
+            VEC.U.xx = xmu0[1:-1,:]
+            VEC.V.yy = 0.5*(ymv0[:-1,:]+ymv0[1:,:])
+            VEC.U.yy = ymu0[1:-1,:]
+
+        VEC.K_LIST = list(range(VEC.U.icdf.nz))
+        VEC.L_LIST = list(range(VEC.U.icdf.nt))
+        VEC.Z_LIST = VEC.U.get_zlist()
+        VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
+
+        VEC.read(wid=self.cons)
+        #self.read_UV(VEC)
+
         if self.first:
           self.K.set(VEC.K.get())
           self.L.set(VEC.L.get())
-          self.L_LIST = list(range(VEC.icdf.nt))
-          self.NL = len(self.L_LIST)
-
-        # Read data:
-        #
-        self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
-        self.DepthandDate(VEC)
-        self.read_UV(VEC)
+          self.L_LIST = list(range(VEC.U.icdf.nt))
+          self.NL = len(VEC.L_LIST)
 
         self.nvec += 1
         self.VEC.append(VEC)
@@ -4976,30 +5049,30 @@ class CosmoDrawing():
       CDF.DATE = [' ']
       CDF.TIME = np.array([0])
   
-  # ====================================
-  def read_lonlat(self,CDF,xname,yname):
-  # ====================================
-    '''Read 1D/2D lon lat grid '''
-
-    if CDF.icdf.georef:
-      vlon = CDF.ncid.variables[xname]
-      vlat = CDF.ncid.variables[yname]
-      toconsola(str(vlon),wid=self.cons)
-      toconsola(str(vlat),wid=self.cons)
-    else:
-      toconsola('Georef is False',wid=self.cons)
-      #print('Georef is False')
-      self.PLOT.GEOMAP.set(False)
-      vlon = np.arange(CDF.icdf.nx)
-      vlat = np.arange(CDF.icdf.ny)
-
-    CDF.lon = vlon[:].copy()
-    CDF.lat = vlat[:].copy()
-    if len(vlon.shape) == 1:
-      CDF.xx,CDF.yy = np.meshgrid(CDF.lon,CDF.lat)
-    else:
-      CDF.xx = vlon[:].copy()
-      CDF.yy = vlat[:].copy()
+#  # ====================================
+#  def read_lonlat(self,CDF,xname,yname):
+#  # ====================================
+#    '''Read 1D/2D lon lat grid '''
+#
+#    if CDF.icdf.georef:
+#      vlon = CDF.ncid.variables[xname]
+#      vlat = CDF.ncid.variables[yname]
+#      toconsola(str(vlon),wid=self.cons)
+#      toconsola(str(vlat),wid=self.cons)
+#    else:
+#      toconsola('Georef is False',wid=self.cons)
+#      #print('Georef is False')
+#      self.PLOT.GEOMAP.set(False)
+#      vlon = np.arange(CDF.icdf.nx)
+#      vlat = np.arange(CDF.icdf.ny)
+#
+#    CDF.lon = vlon[:].copy()
+#    CDF.lat = vlat[:].copy()
+#    if len(vlon.shape) == 1:
+#      CDF.xx,CDF.yy = np.meshgrid(CDF.lon,CDF.lat)
+#    else:
+#      CDF.xx = vlon[:].copy()
+#      CDF.yy = vlat[:].copy()
 
 #  # ====================
 #  def read_UV(self,VEC):
@@ -5049,99 +5122,99 @@ class CosmoDrawing():
 #    #                                 VEC.lat, \
 #    #                                 VEC.VEL.speed)
 #
-  # ===========================================
-  #def read_Field(self,FIELD,ncid,icdf,sid,K,L):
-  # ===========================================
-  # ===========================================
-  def read_CDF(self,CDF,update_lims=True):
-  # ===========================================
-    '''Read 2D data according to user selections'''
-
-    #  self.read_Field(self.CDF[ii].FIELD,   \
-    #                  self.CDF[ii].ncid,    \
-    #                  self.CDF[ii].icdf,    \
-    #                  self.CDF[ii].varid,   \
-    #                  self.CDF[ii].K.get(), \
-    #                  self.CDF[ii].L.get())
-    if CDF.varid < 0:
-      CDF.FLD.data = None
-      return
-
-    K = CDF.K.get()
-    L = CDF.L.get()
-
-    vname = '%s' % CDF.varname.get()
-    toconsola('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
-                                                     ", "+str(CDF.K.get())+
-                                                     ", "+str(CDF.L.get()),wid=self.cons)
-    #print('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
-     #                                                ", "+str(CDF.K.get())+
-     #                                                ", "+str(CDF.L.get()))
-
-    ndim = CDF.icdf.ndims[CDF.varid]
-    if ndim == 2:
-      CDF.FLD.data = CDF.ncid.variables[vname][:,:]
-    elif ndim == 3:
-      if CDF.icdf.ppl[CDF.varid] > -1:
-        CDF.FLD.data = CDF.ncid.variables[vname][L,:,:].squeeze()
-      elif CDF.icdf.ppk[CDF.varid]  > -1:
-        CDF.FLD.data = CDF.ncid.variables[vname][K,:,:].squeeze()
-      else:
-        messagebox.showinfo(message='Invalid variable dimensions')
-        CDF.FLD.data = None
-    elif ndim == 4:
-      CDF.FLD.data = CDF.ncid.variables[vname][L,K,:,:].squeeze()
-
-    CDF.FLD.missing_value = None
-
-    if CDF.FLD.data is not None:
-      CDF.FLD.varname = vname
-      try:
-        CDF.FLD.units = CDF.ncid.variables[vname].getncattr('units')
-      except:
-        CDF.FLD.units = ''
-
-      try:
-        CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('_FillValue')
-      except:
-        try:
-          CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('missing_value')
-        except:
-          CDF.FLD.missing_value = None
-
-      if CDF.FLD.missing_value is not None:
-        CDF.FLD.mask = ma.getmask(CDF.FLD.data)
-        CDF.FLD.data[CDF.FLD.data==CDF.FLD.missing_value] = np.nan
-
-      # Contour intervals
-      CDF.FLD.minval = float(CDF.FLD.data.min())
-      CDF.FLD.maxval = float(CDF.FLD.data.max())
-      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
-      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
-      #print('Min val = '+str(CDF.FIELD.minval))
-      #print('Max val = '+str(CDF.FIELD.maxval))
-
-      print('Here: ', update_lims)
-      print(CDF.FLD.minval)
-      print(CDF.FLD.maxval)
-
-      if update_lims:
-        try:
-          CDF.PLOT.CONTOUR_MIN.set(myround(CDF.FLD.minval))
-        except:
-          CDF.PLOT.CONTOUR_MIN.set(CDF.FLD.minval)
-        try:
-          CDF.PLOT.CONTOUR_MAX.set(myround(CDF.FLD.maxval))
-        except:
-          CDF.PLOT.CONTOUR_MAX.set(CDF.FLD.maxval)
-
-        dd =   CDF.PLOT.CONTOUR_MAX.get() \
-             - CDF.PLOT.CONTOUR_MIN.get()
-        try:
-          CDF.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
-        except:
-          CDF.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
-
+#  # ===========================================
+#  #def read_Field(self,FIELD,ncid,icdf,sid,K,L):
+#  # ===========================================
+#  # ===========================================
+#  def read_CDF(self,CDF,update_lims=True):
+#  # ===========================================
+#    '''Read 2D data according to user selections'''
+#
+#    #  self.read_Field(self.CDF[ii].FIELD,   \
+#    #                  self.CDF[ii].ncid,    \
+#    #                  self.CDF[ii].icdf,    \
+#    #                  self.CDF[ii].varid,   \
+#    #                  self.CDF[ii].K.get(), \
+#    #                  self.CDF[ii].L.get())
+#    if CDF.varid < 0:
+#      CDF.FLD.data = None
+#      return
+#
+#    K = CDF.K.get()
+#    L = CDF.L.get()
+#
+#    vname = '%s' % CDF.varname.get()
+#    toconsola('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
+#                                                     ", "+str(CDF.K.get())+
+#                                                     ", "+str(CDF.L.get()),wid=self.cons)
+#    #print('READ_FIELD Reading Var, Level and Time:'+str(CDF.varid)+
+#     #                                                ", "+str(CDF.K.get())+
+#     #                                                ", "+str(CDF.L.get()))
+#
+#    ndim = CDF.icdf.ndims[CDF.varid]
+#    if ndim == 2:
+#      CDF.FLD.data = CDF.ncid.variables[vname][:,:]
+#    elif ndim == 3:
+#      if CDF.icdf.ppl[CDF.varid] > -1:
+#        CDF.FLD.data = CDF.ncid.variables[vname][L,:,:].squeeze()
+#      elif CDF.icdf.ppk[CDF.varid]  > -1:
+#        CDF.FLD.data = CDF.ncid.variables[vname][K,:,:].squeeze()
+#      else:
+#        messagebox.showinfo(message='Invalid variable dimensions')
+#        CDF.FLD.data = None
+#    elif ndim == 4:
+#      CDF.FLD.data = CDF.ncid.variables[vname][L,K,:,:].squeeze()
+#
+#    CDF.FLD.missing_value = None
+#
+#    if CDF.FLD.data is not None:
+#      CDF.FLD.varname = vname
+#      try:
+#        CDF.FLD.units = CDF.ncid.variables[vname].getncattr('units')
+#      except:
+#        CDF.FLD.units = ''
+#
+#      try:
+#        CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('_FillValue')
+#      except:
+#        try:
+#          CDF.FLD.missing_value = CDF.ncid.variables[vname].getncattr('missing_value')
+#        except:
+#          CDF.FLD.missing_value = None
+#
+#      if CDF.FLD.missing_value is not None:
+#        CDF.FLD.mask = ma.getmask(CDF.FLD.data)
+#        CDF.FLD.data[CDF.FLD.data==CDF.FLD.missing_value] = np.nan
+#
+#      # Contour intervals
+#      CDF.FLD.minval = float(CDF.FLD.data.min())
+#      CDF.FLD.maxval = float(CDF.FLD.data.max())
+#      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+#      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+#      #print('Min val = '+str(CDF.FIELD.minval))
+#      #print('Max val = '+str(CDF.FIELD.maxval))
+#
+#      print('Here: ', update_lims)
+#      print(CDF.FLD.minval)
+#      print(CDF.FLD.maxval)
+#
+#      if update_lims:
+#        try:
+#          CDF.PLOT.CONTOUR_MIN.set(myround(CDF.FLD.minval))
+#        except:
+#          CDF.PLOT.CONTOUR_MIN.set(CDF.FLD.minval)
+#        try:
+#          CDF.PLOT.CONTOUR_MAX.set(myround(CDF.FLD.maxval))
+#        except:
+#          CDF.PLOT.CONTOUR_MAX.set(CDF.FLD.maxval)
+#
+#        dd =   CDF.PLOT.CONTOUR_MAX.get() \
+#             - CDF.PLOT.CONTOUR_MIN.get()
+#        try:
+#          CDF.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+#        except:
+#          CDF.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
+#
   # ===================
   def get_contour(self):
   # ==================

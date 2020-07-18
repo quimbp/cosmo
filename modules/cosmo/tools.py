@@ -669,6 +669,10 @@ class geocdf():
   # =================
 
     conf = {}
+    conf['withX'] = self.withX
+    conf['withY'] = self.withY
+    conf['withZ'] = self.withZ
+    conf['withT'] = self.withT
     conf['grid2d'] = self.grid2d
     conf['georef'] = self.georef
     conf['nx'] = self.nx
@@ -701,6 +705,10 @@ class geocdf():
   def conf_set(self,conf):
   # ======================
 
+    self.withX   = conf['withX']
+    self.withY   = conf['withY']
+    self.withZ   = conf['withZ']
+    self.withT   = conf['withT']
     self.grid2d  = conf['grid2d']
     self.georef  = conf['georef']
     self.nx  = conf['nx']
@@ -1442,6 +1450,7 @@ class WinGeoaxes():
       else:
         icdf.georef = False
       self.georef.set(icdf.georef)
+      print('self.georef : ', self.georef.get())
 
 
 def marker_string(s):
