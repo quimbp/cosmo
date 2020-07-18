@@ -4423,7 +4423,8 @@ class CosmoDrawing():
       ba = (0,0)
 
     self.ab = AnnotationBbox(im,[xx,yy], xycoords='data', \
-                             box_alignment=ba,pad=0.0,frameon=True,zorder=100)
+                             box_alignment=ba,pad=0.0,frameon=True)
+    #                         box_alignment=ba,pad=0.0,frameon=True,zorder=100)
     self.with_logo = self.ax.add_artist(self.ab)
 
   # ============
