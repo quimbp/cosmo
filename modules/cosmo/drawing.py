@@ -177,8 +177,13 @@ class CONTOUR():
     self.DATE    = []
     self.TIME    = []
 
-    self.cbar   = None
+    self.cbar    = None
     self.show.set(True)
+
+    # Selected point
+    self.io      = tk.IntVar()
+    self.jo      = tk.IntVar()
+
 
   def conf_get(self):
   # =================
@@ -324,6 +329,9 @@ class vector():
     self.grid_type_list = ['A','B','C','D']
     self.grid_type.set('A')
 
+    # Selected point
+    self.io        = tk.IntVar()
+    self.jo        = tk.IntVar()
 
   def conf_get(self):
   # =================
@@ -1710,6 +1718,9 @@ class CosmoDrawing():
       latlon = p_ref['proj'].transform_point(event.xdata, event.ydata, \
                  p_local['proj'])
 
+      # Coordinates selected point:
+      xo = latlon[0]; yo = latlon[1]
+
       toconsola("Selected Point : "+str(latlon[0])+" - "+str(latlon[1]),wid=self.cons)
       #print('Current speed = ', self.CURRENTS.F(event.xdata,event.ydata))
       #if not empty(self.SAIDIN.FILENAME.get()):
@@ -1719,6 +1730,24 @@ class CosmoDrawing():
       self.BLM.yo.set(latlon[1])
       self.MLM.xo.set(latlon[0])
       self.MLM.yo.set(latlon[1])
+
+      if self.nvec > 0:
+        ii = self.VEC_INDX.get()
+        dis = (xo-self.VEC[ii].U.xx)**2 + (yo-self.VEC[ii].U.yy)**2
+        ind = np.unravel_index(dis.argmin(), dis.shape)
+        self.VEC[ii].jo.set(ind[0])
+        self.VEC[ii].io.set(ind[1])
+        print('Vector selected point: ', self.VEC[ii].io.get(), self.VEC[ii].jo.get())
+
+      if self.ncdf > 0:
+        ii = self.CDF_INDX.get()
+        dis = (xo-self.CDF[ii].FLD.xx)**2 + (yo-self.CDF[ii].FLD.yy)**2
+        ind = np.unravel_index(dis.argmin(), dis.shape)
+        self.CDF[ii].jo.set(ind[0])
+        self.CDF[ii].io.set(ind[1])
+        print('Contour selected point: ', self.CDF[ii].io.get(), self.CDF[ii].jo.get())
+
+
 
   # ===========================
   def on_xlims_change(self,event):
@@ -2837,10 +2866,10 @@ class CosmoDrawing():
         CDF.read(update_lims=False,wid=self.cons)
         #self.read_CDF(CDF,update_lims=False)
 
-        print(CDF.PLOT.CONTOUR_MIN.get())
-        print(CDF.PLOT.CONTOUR_MAX.get())
-        print(CDF.FLD.xx)
-        print(CDF.FLD.yy)
+        #print(CDF.PLOT.CONTOUR_MIN.get())
+        #print(CDF.PLOT.CONTOUR_MAX.get())
+        #print(CDF.FLD.xx)
+        #print(CDF.FLD.yy)
 
         self.ncdf += 1
         self.CDF.append(CDF)

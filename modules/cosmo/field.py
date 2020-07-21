@@ -34,7 +34,6 @@ class fld_parameters():
   # ============================================
     ''' Initialization of the 2D FLD class'''
 
-    print('fld_parameters init ')
     self.MESSAGE    = '\nFLD_PARA:\n'
     #self.FILENAME   = tk.StringVar()
     self.varname    = None
@@ -241,7 +240,6 @@ class fld_parameters():
         Z_LIST = list(wrk)
       else:
         Z_LIST = np.arange(self.icdf.nz)
-      tools.toconsola(str(Z_LIST),wid=wid)
     else:
       Z_LIST = []
 
@@ -265,7 +263,6 @@ class fld_parameters():
         T_LIST = list(wrk)
       else:
         T_LIST = np.arange(self.icdf.nt)
-      tools.toconsola(str(T_LIST),wid=wid)
 
       # DATE
       try:
