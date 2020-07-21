@@ -102,6 +102,8 @@ class parameters():
     self.LABEL_SIZE        = tk.IntVar()
     self.LABEL_VALUES      = tk.StringVar()
 
+    self.ZORDER            = tk.IntVar()
+
     # Default attribute values'''
     #
     self.CONTOUR_MODE.set(2)             # Default: Line contours
@@ -125,6 +127,8 @@ class parameters():
     self.LABEL_SET.set('A')              # Default: Show All contour labels
     self.LABEL_SIZE.set(12)              # Default: Label character size
     self.LABEL_VALUES.set('')            # Default: Label character size
+    self.ZORDER.set(1)                   # Default: Zorder
+
 
     # If configuration file exists, it is read and 
     # the default values are overrided. If the configuration
@@ -171,6 +175,7 @@ class parameters():
     conf['LABEL_SET'] = self.LABEL_SET.get()
     conf['LABEL_SIZE'] = self.LABEL_SIZE.get()
     conf['LABEL_VALUES'] = self.LABEL_VALUES.get()
+    conf['ZORDER'] = self.ZORDER.get()
     return conf
 
   def conf_set(self,conf):
@@ -202,6 +207,7 @@ class parameters():
     self.LABEL_SET.set(conf['LABEL_SET'])   
     self.LABEL_SIZE.set(conf['LABEL_SIZE'])   
     self.LABEL_VALUES.set(conf['LABEL_VALUES'])   
+    self.ZORDER.set(conf['ZORDER'])   
 
   def conf_load(self,filename):
   # ============================
@@ -377,7 +383,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
                          linewidths=PLOT.CONTOUR_WIDTH.get(), \
                          levels=_levels, \
                          cmap=cmap, \
-                         zorder=4, \
+                         zorder=PLOT.ZORDER.get(), \
                          transform=proj, \
                          alpha=PLOT.ALPHA.get())
     else:
@@ -389,7 +395,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
       _cl = ax.contour(X,Y,FIELD,                                   \
                        linewidths=PLOT.CONTOUR_WIDTH.get(),         \
                        levels=_levels,                              \
-                       zorder=4, \
+                       zorder=PLOT.ZORDER.get(), \
                        transform=proj, \
                        colors=PLOT.CONTOUR_COLOR.get(),             \
                        alpha=PLOT.ALPHA.get())
@@ -412,7 +418,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
     _cf = ax.contourf(X,Y,FIELD,
         levels=_levels,
         cmap=cmap,
-        zorder=4, 
+        zorder=PLOT.ZORDER.get(), 
         transform=proj, 
         alpha=PLOT.ALPHA.get())
       
@@ -451,7 +457,7 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
     divider = make_axes_locatable(ax)
     _cp = ax.pcolormesh(X,Y,FIELD,                        \
                          cmap=cmap,                         \
-                         zorder=4, \
+                         zorder=PLOT.ZORDER.get(), \
                          transform=proj, \
                          vmin=PLOT.CONTOUR_MIN.get(),       \
                          vmax=PLOT.CONTOUR_MAX.get(),       \
