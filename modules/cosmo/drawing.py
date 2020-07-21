@@ -2346,7 +2346,7 @@ class CosmoDrawing():
       ii = self.VEC_INDX.get()
       try:
         self.VEC[ii].U.varname = self.VEC[ii].uname.get()
-        self.VEC[ii].U.varid = self.VEC[ii].icdf.vname.index( \
+        self.VEC[ii].U.varid = self.VEC[ii].U.icdf.vname.index( \
                                              self.VEC[ii].uname.get())
       except:
         self.VEC[ii].U.varname = None
@@ -2357,7 +2357,7 @@ class CosmoDrawing():
       ii = self.VEC_INDX.get()
       try:
         self.VEC[ii].V.varname = self.VEC[ii].vname.get()
-        self.VEC[ii].V.varid = self.VEC[ii].icdf.vname.index( \
+        self.VEC[ii].V.varid = self.VEC[ii].V.icdf.vname.index( \
                                              self.VEC[ii].vname.get())
       except:
         self.VEC[ii].V.varname = None
@@ -5595,6 +5595,7 @@ class CosmoDrawing():
     def _vselection():
     # ================
       try:
+        self.CDF[ii].FLD.varname = self.CDF[ii].varname.get()
         self.CDF[ii].FLD.varid = self.CDF[ii].FLD.icdf.vname.index( \
                                              self.CDF[ii].varname.get())
       except:
