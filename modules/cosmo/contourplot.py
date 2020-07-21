@@ -310,6 +310,8 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
   tk.Checkbutton(frame2,text='Reverse',variable=PLOT.CONTOUR_REVERSE).grid(row=5,column=3,sticky='w')
   ttk.Label(frame2,text='Alpha:').grid(row=6,column=0,sticky='w')
   ttk.Entry(frame2,textvariable=PLOT.ALPHA,width=7).grid(row=6,column=1,sticky='w')
+  ttk.Label(frame2,text='Zorder:').grid(row=7,column=0,sticky='w')
+  ttk.Entry(frame2,textvariable=PLOT.ZORDER,width=7).grid(row=7,column=1,sticky='w')
   #ttk.Label(frame2,text='0: transparent; 1: opaque').grid(row=6,column=2,sticky='w')
   frame2.grid()
 
