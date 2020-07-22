@@ -100,6 +100,7 @@ class parameters():
     self.LABEL_SHOW        = tk.BooleanVar()
     self.LABEL_SET         = tk.StringVar()    # 'A'=All, 'V'=Selected Values
     self.LABEL_SIZE        = tk.IntVar()
+    self.LABEL_FORMAT      = tk.StringVar()
     self.LABEL_VALUES      = tk.StringVar()
 
     self.ZORDER            = tk.IntVar()
@@ -126,6 +127,7 @@ class parameters():
     self.LABEL_SHOW.set(True)            # Default: Show contour labels
     self.LABEL_SET.set('A')              # Default: Show All contour labels
     self.LABEL_SIZE.set(12)              # Default: Label character size
+    self.LABEL_FORMAT.set(' {:.1f} ')    # Default: One decimal with space
     self.LABEL_VALUES.set('')            # Default: Label character size
     self.ZORDER.set(1)                   # Default: Zorder
 
@@ -174,6 +176,7 @@ class parameters():
     conf['LABEL_SHOW'] = self.LABEL_SHOW.get()
     conf['LABEL_SET'] = self.LABEL_SET.get()
     conf['LABEL_SIZE'] = self.LABEL_SIZE.get()
+    conf['LABEL_FORMAT'] = self.LABEL_FORMAT.get()
     conf['LABEL_VALUES'] = self.LABEL_VALUES.get()
     conf['ZORDER'] = self.ZORDER.get()
     return conf
@@ -206,6 +209,7 @@ class parameters():
     self.LABEL_SHOW.set(conf['LABEL_SHOW'])   
     self.LABEL_SET.set(conf['LABEL_SET'])   
     self.LABEL_SIZE.set(conf['LABEL_SIZE'])   
+    self.LABEL_FORMAT.set(conf['LABEL_FORMAT'])   
     self.LABEL_VALUES.set(conf['LABEL_VALUES'])   
     self.ZORDER.set(conf['ZORDER'])   
 
@@ -322,26 +326,30 @@ def Configuration(parent,varname,units,missing,minval,maxval,PLOT):
   lall.grid(row=1,column=1,sticky='w')
   lset.grid(row=2,column=1,sticky='w')
   ttk.Entry(frame3,textvariable=PLOT.LABEL_VALUES,width=30).grid(row=2,column=2,sticky='w')
+  ttk.Label(frame3,text='e.g.: 20,21,...',width=15).grid(row=2,column=3,sticky='w')
   ttk.Label(frame3,text='Label size:').grid(row=3,column=1,sticky='w')
   ttk.Entry(frame3,textvariable=PLOT.LABEL_SIZE,width=7).grid(row=3,column=2,sticky='w')
+  ttk.Label(frame3,text='Label format:').grid(row=4,column=1,sticky='w')
+  ttk.Entry(frame3,textvariable=PLOT.LABEL_FORMAT,width=7).grid(row=4,column=2,sticky='w')
+  ttk.Label(frame3,text='e.g.: {:.0f} ',width=15).grid(row=4,column=3,sticky='w')
 
-  tk.Checkbutton(frame3,text='Show colorbar',variable=PLOT.COLORBAR_SHOW).grid(row=5,column=0,sticky='w')
-  ttk.Label(frame3,text='Label').grid(row=6,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABEL,width=30).grid(row=6,column=2,sticky='w')
-  ttk.Label(frame3,text='Labelpad').grid(row=7,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABELPAD,width=7).grid(row=7,column=2,sticky='w')
-  ttk.Label(frame3,text='Location').grid(row=8,column=1,sticky='w')
+  tk.Checkbutton(frame3,text='Show colorbar',variable=PLOT.COLORBAR_SHOW).grid(row=6,column=0,sticky='w')
+  ttk.Label(frame3,text='Label').grid(row=7,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABEL,width=30).grid(row=7,column=2,sticky='w')
+  ttk.Label(frame3,text='Labelpad').grid(row=8,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABELPAD,width=7).grid(row=8,column=2,sticky='w')
+  ttk.Label(frame3,text='Location').grid(row=9,column=1,sticky='w')
   cb = ttk.Combobox(frame3,textvariable=PLOT.COLORBAR_LOCATION,width=12)
-  cb.grid(row=8,column=2,sticky='w')
+  cb.grid(row=9,column=2,sticky='w')
   cb['values']=('left','right','bottom','top')
-  ttk.Label(frame3,text='Colorbar Padding').grid(row=9,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_PAD,width=7).grid(row=9,column=2,sticky='w')
-  ttk.Label(frame3,text='Colorbar Size').grid(row=10,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_SIZE,width=7).grid(row=10,column=2,sticky='w')
-  ttk.Label(frame3,text='Label Size').grid(row=11,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABELSIZE,width=7).grid(row=11,column=2,sticky='w')
-  ttk.Label(frame3,text='Tick Size').grid(row=12,column=1,sticky='w')
-  tk.Entry(frame3,textvariable=PLOT.COLORBAR_TICKSIZE,width=7).grid(row=12,column=2,sticky='w')
+  ttk.Label(frame3,text='Colorbar Padding').grid(row=10,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_PAD,width=7).grid(row=10,column=2,sticky='w')
+  ttk.Label(frame3,text='Colorbar Size').grid(row=11,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_SIZE,width=7).grid(row=11,column=2,sticky='w')
+  ttk.Label(frame3,text='Label Size').grid(row=12,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_LABELSIZE,width=7).grid(row=12,column=2,sticky='w')
+  ttk.Label(frame3,text='Tick Size').grid(row=13,column=1,sticky='w')
+  tk.Entry(frame3,textvariable=PLOT.COLORBAR_TICKSIZE,width=7).grid(row=13,column=2,sticky='w')
   frame3.grid()
 
 # ============================================
@@ -405,11 +413,15 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
     # About contour labels
     if PLOT.LABEL_SHOW.get():
       if PLOT.LABEL_SET.get() == 'A':   # Label all contours
-        ax.clabel(_cl,_cl.levels,inline=1,fontsize=PLOT.LABEL_SIZE.get())
+        ax.clabel(_cl,_cl.levels,inline=1, \
+                  fontsize=PLOT.LABEL_SIZE.get(), \
+                  fmt=PLOT.LABEL_FORMAT.get().format)
       else:
         l1 = str(PLOT.LABEL_VALUES.get())
         label_list = [float(ll) for ll in l1.split(',')]
-        ax.clabel(_cl,label_list,inline=1,fontsize=PLOT.LABEL_SIZE.get())
+        ax.clabel(_cl,label_list,inline=1, \
+                  fontsize=PLOT.LABEL_SIZE.get(), \
+                  fmt=PLOT.LABEL_FORMAT.get().format)
 
   elif PLOT.CONTOUR_MODE.get() == 1:
     # ----------------------------- SHADED
