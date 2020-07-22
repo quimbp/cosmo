@@ -703,7 +703,8 @@ class DrawingConfig():
     self.XLABEL             = tk.StringVar()
     self.YLABEL             = tk.StringVar()
     self.LABEL_SIZE         = tk.IntVar()
-    self.LABEL_PAD          = tk.IntVar()
+    self.XLABEL_PAD         = tk.DoubleVar()
+    self.YLABEL_PAD         = tk.DoubleVar()
     self.ZLABEL             = tk.StringVar()
     self.TLABEL             = tk.StringVar()
 
@@ -856,7 +857,8 @@ class DrawingConfig():
     self.XLABEL.set('Longitude')
     self.YLABEL.set('Latitude')
     self.LABEL_SIZE.set(16)
-    self.LABEL_PAD.set(24)
+    self.XLABEL_PAD.set(0.1)
+    self.YLABEL_PAD.set(0.05)
     self.ZLABEL.set('')
     self.TLABEL.set('')
     self.DPI.set(72)
@@ -1059,7 +1061,8 @@ class DrawingConfig():
     conf['TITLEFONT'] = self.TITLEFONT.__dict__
     conf['TITLE_PAD'] = self.TITLE_PAD.get()
     conf['LABEL_SIZE'] = self.LABEL_SIZE.get()
-    conf['LABEL_PAD'] = self.LABEL_PAD.get()
+    conf['XLABEL_PAD'] = self.XLABEL_PAD.get()
+    conf['YLABEL_PAD'] = self.YLABEL_PAD.get()
     conf['GRID_SHOW'] = self.GRID_SHOW.get()
     conf['GRID_LINEWIDTH'] = self.GRID_LINEWIDTH.get()
     conf['MERIDIAN_INI'] = self.MERIDIAN_INI.get()
@@ -1222,7 +1225,8 @@ class DrawingConfig():
     self.TITLEFONT = setfont(conf['TITLEFONT'])
     self.TITLE_PAD.set(conf['TITLE_PAD'])
     self.LABEL_SIZE.set(conf['LABEL_SIZE'])
-    self.LABEL_PAD.set(conf['LABEL_PAD'])
+    self.XLABEL_PAD.set(conf['XLABEL_PAD'])
+    self.YLABEL_PAD.set(conf['YLABEL_PAD'])
     self.GRID_SHOW.set(conf['GRID_SHOW'])
     self.GRID_LINEWIDTH.set(conf['GRID_LINEWIDTH'])
     self.GRID_COLOR.set(conf['GRID_COLOR'])
@@ -4169,10 +4173,14 @@ class CosmoDrawing():
     ttk.Label(f6,text='Size').grid(row=6,column=0,columnspan=1,sticky='w')
     ttk.Entry(f6,textvariable=self.PLOT.LABEL_SIZE,width=5). \
           grid(row=6,column=1,columnspan=1,sticky='w')
-    ttk.Label(f6,text='Label Pad'). \
+    ttk.Label(f6,text='X Label Pad'). \
           grid(row=7,column=0,columnspan=1,sticky='w')
-    ttk.Entry(f6,textvariable=self.PLOT.LABEL_PAD,width=5). \
+    ttk.Entry(f6,textvariable=self.PLOT.XLABEL_PAD,width=5). \
           grid(row=7,column=1,columnspan=1,sticky='w')
+    ttk.Label(f6,text='Y Label Pad'). \
+          grid(row=7,column=3,columnspan=1,sticky='w')
+    ttk.Entry(f6,textvariable=self.PLOT.YLABEL_PAD,width=5). \
+          grid(row=7,column=4,columnspan=1,sticky='w')
 
       #ttk.Label(f6,text='Plot logo'). \
       #    grid(row=8,column=0,sticky='w')
@@ -8120,10 +8128,12 @@ class CosmoDrawing():
               'color'  : self.PLOT.TEXT_COLOR.get(),
               'size'   : font_size}
       
-      self.ax.text(-0.07, 0.55, self.PLOT.YLABEL.get(), va="bottom", \
+      # -0.07
+      self.ax.text(-self.PLOT.YLABEL_PAD.get(), 0.55, self.PLOT.YLABEL.get(), va="bottom", \
 					ha="center", rotation="vertical", rotation_mode="anchor",
 					transform=self.ax.transAxes,fontdict=font)
-      self.ax.text(0.5, -0.2, self.PLOT.XLABEL.get(), va="bottom", \
+      # -0.2
+      self.ax.text(0.5, -self.PLOT.XLABEL_PAD.get(), self.PLOT.XLABEL.get(), va="bottom", \
 					ha="center", rotation="horizontal", rotation_mode="anchor",
 					transform=self.ax.transAxes,fontdict=font)
     # Title
