@@ -2177,8 +2177,50 @@ class CosmoDrawing():
 
       def _vselect():
       # =============
-        print('Select V file ...')
-        print('Need to be coded !')
+        global Vsel
+
+        nn = filedialog.askopenfilename(parent=self.Window_currents, \
+                                        filetypes=[('Netcdf','*.nc'),  \
+                                                   ('CDF','*.cdf'),  \
+                                                   ('ALL','*')])
+        if len(nn) == 0:
+          return
+        else:
+          filename = '%s' % nn
+
+        VEC.VFILENAME.set(filename)
+        VEC.V.nc = Dataset(filename)
+        VEC.V.icdf = tools.geocdf(filename, wid=self.cons)
+        toconsola('Opening meridional velocity file '+VEC.VFILENAME.get(),wid=self.cons)
+
+        FV = ttk.Frame(FVmain,padding=5,borderwidth=5)
+        vaxesid = tools.WinGeoaxes(VEC.V.icdf,VEC.V.nc,FV)
+        FV.grid(row=1,column=0,columnspan=5)
+
+        #vaxesid.FILENAME.set(VEC.VFILENAME.get())
+        #vaxesid.Ibox['values'] = VEC.V.icdf.DIM_MENU
+        #vaxesid.Jbox['values'] = VEC.V.icdf.DIM_MENU
+        #vaxesid.Kbox['values'] = VEC.V.icdf.DIM_MENU
+        #vaxesid.Lbox['values'] = VEC.V.icdf.DIM_MENU
+        #vaxesid.Xbox['values'] = VEC.V.icdf.VAR_MENU
+        #vaxesid.Ybox['values'] = VEC.V.icdf.VAR_MENU
+        #vaxesid.Zbox['values'] = VEC.V.icdf.VAR_MENU
+        #vaxesid.Tbox['values'] = VEC.V.icdf.VAR_MENU
+        #vaxesid.Ibox.bind('<<ComboboxSelected>>',lambda e: vaxesid.iselection(VEC.V.icdf))
+        #vaxesid.Jbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.jselection(VEC.V.icdf))
+        #vaxesid.Kbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.kselection(VEC.V.icdf))
+        #vaxesid.Lbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.lselection(VEC.V.icdf))
+        #vaxesid.Xbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.xselection(VEC.V.icdf))
+        #vaxesid.Ybox.bind('<<ComboboxSelected>>',lambda e: vaxesid.yselection(VEC.V.icdf))
+        #vaxesid.Zbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.zselection(VEC.V.icdf))
+        #vaxesid.Tbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.tselection(VEC.V.icdf))
+        #vaxesid.Bncdump.bind('<Button-1>',lambda e: vaxesid.ncdump(VEC.V.nc))
+        Vsel['values'] = VEC.V.icdf.VAR_MENU
+        Vsel.bind('<<ComboboxSelected>>',lambda e: vaxesid.selected_var(VEC.V.icdf,VEC.V.nc,Vsel))
+
+
+
+
 
 
       # Main part of the function ...
@@ -2284,13 +2326,14 @@ class CosmoDrawing():
       Usel = ttk.Combobox(FUmain,textvariable=VEC.uname,   \
                       values=VEC.U.icdf.VAR_MENU, \
                       width=20)
-      Usel.bind('<<ComboboxSelected>>',lambda e: uaxesid.selected_var(VEC.U.icdf,Usel))
+      Usel.bind('<<ComboboxSelected>>',lambda e: uaxesid.selected_var(VEC.U.icdf,VEC.U.nc,Usel))
       Usel.grid(row=1,column=3,columnspan=2)
 
       FUmain.grid()
 
 
       # -------------------------------------------------------
+      global Vsel
       FVmain = ttk.Frame(self.Window_currents_sel,padding=5,borderwidth=5)
 
       vselect = ttk.Button(FVmain,text='Open meridional velocity file',command=_vselect)
@@ -2306,7 +2349,7 @@ class CosmoDrawing():
       Vsel = ttk.Combobox(FVmain,textvariable=VEC.vname,   \
                       values=VEC.V.icdf.VAR_MENU, \
                       width=20)
-      Vsel.bind('<<ComboboxSelected>>',lambda e: vaxesid.selected_var(VEC.V.icdf,Vsel))
+      Vsel.bind('<<ComboboxSelected>>',lambda e: vaxesid.selected_var(VEC.V.icdf,VEC.V.nc,Vsel))
       Vsel.grid(row=2,column=3,columnspan=2)
 
       FVmain.grid()
@@ -5569,7 +5612,7 @@ class CosmoDrawing():
                    values=CDF.FLD.icdf.VAR_MENU,    \
                    width=20)
       dvar.grid(row=0,column=1,columnspan=2)
-      dvar.bind('<<ComboboxSelected>>',lambda e: axesid.selected_var(CDF.FLD.icdf,dvar))
+      dvar.bind('<<ComboboxSelected>>',lambda e: axesid.selected_var(CDF.FLD.icdf,CDF.FLD.nc,dvar))
 
       F0.grid()
 

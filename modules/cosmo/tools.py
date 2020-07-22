@@ -859,6 +859,8 @@ class WinGeoaxes():
     self.grid2d.set(icdf.grid2d)
     self.georef.set(icdf.georef)
 
+    self.FILENAME = tk.StringVar()
+    self.FILENAME.set(icdf.filename)
 
   # --------------------------------------------- Frame for X, Y, Z, T
 
@@ -876,9 +878,17 @@ class WinGeoaxes():
     font_italic['slant'] = tkfont.ITALIC
     
     Fr0 = ttk.Frame(self.parent,padding=5,width=700)
-    ttk.Label(Fr0,text='Filename = '+icdf.filename,padding=5,font=font_italic)  \
-       .grid(row=0,column=0,columnspan=7)
-    ttk.Button(Fr0,text='ncdump',command=self.ncdump).grid(row=0,column=8,padx=2)
+    #ttk.Label(Fr0,text='Filename = '+icdf.filename,padding=5,font=font_italic)  \
+    #   .grid(row=0,column=0,columnspan=7)
+    ttk.Label(Fr0,text='Filename = ',padding=5,font=font_italic)  \
+       .grid(row=0,column=0,columnspan=1)
+    self.fname = ttk.Entry(Fr0,textvariable=self.FILENAME,justify='left',width=50,state='readonly')
+    self.fname.grid(row=0,column=1,columnspan=6)
+
+    self.Bncdump = ttk.Button(Fr0,text='ncdump')
+    self.Bncdump.grid(row=0,column=8,padx=2)
+    self.Bncdump.bind('<Button-1>',lambda e: self.ncdump(ncid))
+
     # AAA
     Fr0.grid(row=0,column=0,sticky='E'+'W'+'N'+'S')
 
@@ -959,8 +969,8 @@ class WinGeoaxes():
     self.Window_ncdump = None
 
 
-  def ncdump(self):
-  # ===============
+  def ncdump(self,NC):
+  # ========================
     ''' Show the contents of the file'''
 
     # -----------
@@ -978,7 +988,7 @@ class WinGeoaxes():
       self.Window_ncdump.title('ncdump')
       self.Window_ncdump.resizable(width=True,height=True)
       self.Window_ncdump.protocol('WM_DELETE_WINDOW',_close)
-      ncdump.WinNcdump(self.Window_ncdump,self.ncid)
+      ncdump.WinNcdump(self.Window_ncdump,NC)
     else:
       self.Window_ncdump.lift()
 
@@ -1259,8 +1269,8 @@ class WinGeoaxes():
       icdf.time_calendar = ''
     self.Tbox.selection_clear()
 
-  def selected_var(self,icdf,Vbox):
-  # ===============================
+  def selected_var(self,icdf,ncid,Vbox):
+  # ====================================
     value_selected = Vbox.get()
     # Save currently selected variables and axes
     nx  = icdf.nx;  ny  = icdf.ny;   nz = icdf.nz;   nt = icdf.nt
@@ -1281,7 +1291,7 @@ class WinGeoaxes():
       self.strnz.set(str(icdf.nz))
       self.strnt.set(str(icdf.nt))
       try:
-        axes_list = self.ncid.variables[value_selected].getncattr('coordinates').split(' ')
+        axes_list = ncid.variables[value_selected].getncattr('coordinates').split(' ')
         for aname in axes_list:
           kk = icdf.VAR_LIST.index(aname)
           if icdf.VAR_AXIS[kk] == 'X':
@@ -1289,14 +1299,14 @@ class WinGeoaxes():
             icdf.withX = True
             icdf.xname = aname
             self.Xname.set(aname)
-            avar = self.ncid.variables[aname]
+            avar = ncid.variables[aname]
             ndms = len(avar.dimensions)
             if ndms == 1:
               doX = True
               icdf.iname = avar.dimensions[0]
               icdf.idi = icdf.DIM_LIST.index(cdf.iname)
               icdf.DIM_AXIS[icdf.idi] = 'X'
-              icdf.nx = self.ncid.dimensions[cdf.iname].size
+              icdf.nx = ncid.dimensions[cdf.iname].size
               self.Iname.set(icdf.iname)
               self.strnx.set(str(icdf.nx))
               icdf.grid2d = False
@@ -1306,11 +1316,11 @@ class WinGeoaxes():
               icdf.jname = avar.dimensions[0]
               icdf.idj = icdf.DIM_LIST.index(icdf.jname)
               icdf.DIM_AXIS[icdf.idj] = 'Y'
-              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              icdf.ny = ncid.dimensions[icdf.jname].size
               icdf.iname = avar.dimensions[1]
               icdf.idi = icdf.DIM_LIST.index(icdf.iname)
               icdf.DIM_AXIS[icdf.idi] = 'X'
-              icdf.nx = self.ncid.dimensions[icdf.iname].size
+              icdf.nx = ncid.dimensions[icdf.iname].size
               self.Jname.set(icdf.jname)
               self.strny.set(str(icdf.ny))
               self.Iname.set(icdf.iname)
@@ -1321,14 +1331,14 @@ class WinGeoaxes():
             icdf.withY = True
             icdf.yname = aname
             self.Yname.set(aname)
-            avar = self.ncid.variables[aname]
+            avar = ncid.variables[aname]
             ndms = len(avar.dimensions)
             if ndms == 1:
               doY = True
               icdf.jname = avar.dimensions[0]
               icdf.idj = icdf.DIM_LIST.index(icdf.jname)
               icdf.DIM_AXIS[icdf.idj] = 'Y'
-              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              icdf.ny = ncid.dimensions[icdf.jname].size
               self.Jname.set(icdf.jname)
               self.strny.set(str(icdf.ny))
               icdf.grid2d = False
@@ -1338,11 +1348,11 @@ class WinGeoaxes():
               icdf.jname = avar.dimensions[0]
               icdf.idj = icdf.DIM_LIST.index(icdf.jname)
               icdf.DIM_AXIS[icdf.idj] = 'Y'
-              icdf.ny = self.ncid.dimensions[icdf.jname].size
+              icdf.ny = ncid.dimensions[icdf.jname].size
               icdf.iname = avar.dimensions[1]
               icdf.idi = icdf.DIM_LIST.index(icdf.iname)
               icdf.DIM_AXIS[icdf.idi] = 'X'
-              icdf.nx = self.ncid.dimensions[icdf.iname].size
+              icdf.nx = ncid.dimensions[icdf.iname].size
               self.Jname.set(icdf.jname)
               self.strny.set(str(icdf.ny))
               self.Iname.set(icdf.iname)
@@ -1353,12 +1363,12 @@ class WinGeoaxes():
             icdf.withZ = True
             icdf.zname = aname
             self.Zname.set(aname)
-            avar = self.ncid.variables[aname]
+            avar = ncid.variables[aname]
             doZ = True
             icdf.kname = avar.dimensions[0]
             icdf.idk = icdf.DIM_LIST.index(icdf.kname)
             icdf.DIM_AXIS[icdf.idk] = 'Z'
-            icdf.nz = self.ncid.dimensions[icdf.kname].size
+            icdf.nz = ncid.dimensions[icdf.kname].size
             self.Kname.set(icdf.kname)
             self.strnz.set(str(icdf.nz))
           if icdf.VAR_AXIS[kk] == 'T':
@@ -1366,12 +1376,12 @@ class WinGeoaxes():
             icdf.withT = True
             icdf.tname = aname
             self.Tname.set(aname)
-            avar = self.ncid.variables[aname]
+            avar = ncid.variables[aname]
             doT = True
             icdf.lname = avar.dimensions[0]
             icdf.idl = icdf.DIM_LIST.index(icdf.lname)
             icdf.DIM_AXIS[icdf.idl] = 'T'
-            icdf.nt = self.ncid.dimensions[icdf.lname].size
+            icdf.nt = ncid.dimensions[icdf.lname].size
             self.Lname.set(icdf.lname)
             self.strnt.set(str(icdf.nt))
               
@@ -1444,13 +1454,11 @@ class WinGeoaxes():
         self.Lname.set(icdf.DIM_MENU[icdf.idl])
         icdf.withT = False
 
-
       if icdf.withX and icdf.withY:
         icdf.georef = True
       else:
         icdf.georef = False
       self.georef.set(icdf.georef)
-      print('self.georef : ', self.georef.get())
 
 
 def marker_string(s):
