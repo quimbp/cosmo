@@ -290,7 +290,7 @@ class geocdf():
   __author__  = "Quim Ballabrerera"
   __date__    = "July 2020"
 
-  def __init__(self,filename,**args):
+  def __init__(self,filename=None,**args):
   # ================================
     from netCDF4 import Dataset
     import math
@@ -299,6 +299,46 @@ class geocdf():
       wid = args["wid"]
     except:
       wid = None
+
+    if filename is None:
+      toconsola('Empty Geocdf values ',wid=wid)
+      self.filename = ''
+      self.varname  = ''
+      self.withX  = False
+      self.withY  = False
+      self.withZ  = False
+      self.withT  = False
+      self.grid2d = False
+      self.georef = False
+      self.nx     =  1
+      self.ny     =  1
+      self.nz     =  1
+      self.nt     =  1
+      self.idi    = -1
+      self.idj    = -1
+      self.idk    = -1
+      self.idl    = -1
+      self.idx    = -1
+      self.idy    = -1
+      self.idz    = -1
+      self.idt    = -1
+      self.xname  = ''
+      self.yname  = ''
+      self.zname  = ''
+      self.tname  = ''
+      self.time_units  = ''
+      self.time_calendar  = ''
+      self.ndims  = ''
+      self.ppi    = []
+      self.ppj    = []
+      self.ppk    = []
+      self.ppl    = []
+      self.DIM_LIST = []
+      self.VAR_LIST = []
+      self.VAR_MENU = []
+      return
+
+
 
     toconsola('Opening file '+filename,wid=wid)
     try:

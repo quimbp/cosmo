@@ -48,6 +48,7 @@ class parameters():
 
     self.MESSAGE = ''
     
+    self.ALIAS           = tk.StringVar()
     self.FILENAME        = tk.StringVar()
 
     self.PLOT            = dotplot.parameters()
@@ -66,6 +67,7 @@ class parameters():
     ''' Set class dictionnary from class attributes'''
 
     conf = {}
+    conf['ALIAS'] = self.ALIAS.get()
     conf['PLOT'] = self.PLOT.conf_get()
     conf['TEXTMODE'] = self.textmode.get()
     return conf
@@ -74,6 +76,7 @@ class parameters():
   # ======================
     ''' Set class attributes from conf class dictionary'''
 
+    self.ALIAS.set(conf['ALIAS'])
     self.PLOT.conf_set(conf['PLOT'])
     self.textmode.set(conf['TEXTMODE'])
 
@@ -163,7 +166,7 @@ class parameters():
     self.n = len(self.lon)
 
     # Cheack that something has been read:
-    if self.n is 0:
+    if self.n == 0:
       self = None
       return
 

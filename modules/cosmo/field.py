@@ -106,9 +106,9 @@ class fld_parameters():
     self.icdf = tools.geocdf(filename, wid=wid)
 
 
-  def read(self,K=None,L=None,**args):
+  def read(self,K=0,L=0,**args):
   # ====================
-    ''' Read 2D field from netcdf file '''
+    ''' Read 2D field from netcdf file and returns the data array'''
 
     try:
       wid = args["wid"]
@@ -116,14 +116,17 @@ class fld_parameters():
       wid = None
 
     if self.varid is None:
-      self.data = None
+      data = None
       tools.toconsola('Undefined variable,',wid=wid)
       return
 
     if self.ndims is None:
-      self.data = None
+      data = None
       tools.toconsola('Undefined number of variable dimensions,',wid=wid)
       return
+
+
+    tools.toconsola('Reading, K, L = '+str(K)+', '+str(L),wid=wid)
 
     if self.ndims == 2:
       data = self.nc.variables[self.varname][:,:]
@@ -141,19 +144,20 @@ class fld_parameters():
 
 
     # Check if the returned arrays is Masked Array:
-    if isinstance(data,np.ma.MaskedArray):
-      self.data = data.copy()
-    else:
-      if self.missing is None:
-        self.data = np.ma.masked_array(data)
-      else:
-        self.data = np.ma.masked_equal(data,self.missing)
+    #if isinstance(data,np.ma.MaskedArray):
+    #  pass
+    #else:
+    #  if self.missing is None:
+    #    data = np.ma.masked_array(data)
+    #  else:
+    #    data = np.ma.masked_equal(data,self.missing)
 
-    self.minval = float(self.data.min())
-    self.maxval = float(self.data.max())
+    #self.minval = float(self.data.min())
+    #self.maxval = float(self.data.max())
+    #tools.toconsola('Min val = '+str(self.minval),wid=wid)
+    #tools.toconsola('Max val = '+str(self.maxval),wid=wid)
 
-    tools.toconsola('Min val = '+str(self.minval),wid=wid)
-    tools.toconsola('Max val = '+str(self.maxval),wid=wid)
+    return data
 
   def get_info(self,**args):
   # ========================
@@ -166,17 +170,17 @@ class fld_parameters():
 
     # --- Units
     try:
-      self.units = self.nc.variables[self.varid].getncattr('units')
+      self.units = self.nc.variables[self.varname].getncattr('units')
     except:
       self.units = ''
 
 
     # --- Fill or missing value
     try:
-      self.missing = self.nc.variables[self.varid].getncattr('_FillValue')
+      self.missing = self.nc.variables[self.varname].getncattr('_FillValue')
     except:
       try:
-        self.missing = self.nc.variables[self.varid].getncattr('missing_value')
+        self.missing = self.nc.variables[self.varname].getncattr('missing_value')
       except:
         self.missing = None
 

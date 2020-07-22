@@ -150,6 +150,7 @@ class CONTOUR():
 
     self.MESSAGE = "\nCONTOUR class:\n"
 
+    self.ALIAS    = tk.StringVar()
     self.FILENAME = tk.StringVar()
 
     if filename is None:
@@ -190,6 +191,7 @@ class CONTOUR():
     ''' Set class dictionary from class attributes '''
 
     conf = {}
+    conf['ALIAS'] = self.ALIAS.get()
     conf['FILENAME'] = self.FILENAME.get()
     conf['VARNAME'] = self.varname.get()
     conf['K']      = self.K.get()
@@ -203,6 +205,7 @@ class CONTOUR():
   # ======================
     ''' Set class dictionary from class attributes '''
 
+    self.ALIAS.set(conf['ALIAS'])
     self.FILENAME.set(conf['FILENAME'])
     self.varname.set(conf['VARNAME'])
     self.K.set(conf['K'])
@@ -290,6 +293,7 @@ class vector():
 
     self.MESSAGE = "\nVECTOR class:\n"
 
+    self.ALIAS     = tk.StringVar()
     self.UFILENAME = tk.StringVar()
     self.VFILENAME = tk.StringVar()
 
@@ -338,6 +342,7 @@ class vector():
     ''' Set class dictionary from class attributes '''
 
     conf = {}
+    conf['ALIAS'] = self.ALIAS.get()
     conf['UFILENAME'] = self.UFILENAME.get()
     conf['VFILENAME'] = self.VFILENAME.get()
     conf['UNAME'] = self.uname.get()
@@ -355,6 +360,7 @@ class vector():
   # ======================
     ''' Set class dictionary from class attributes '''
 
+    self.ALIAS.set(conf['ALIAS'])
     self.UFILENAME.set(conf['UFILENAME'])
     self.VFILENAME.set(conf['VFILENAME'])
     self.uname.set(conf['UNAME'])
@@ -1830,6 +1836,8 @@ class CosmoDrawing():
 
     toolmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Tools',menu=toolmenu)
+    toolmenu.add_command(label='Contour mean',
+                         command=self.contour_mean)
     toolmenu.add_command(label='Trajectory editor',
                          command=self.trajectory_editor)
     toolmenu.add_command(label='Make animation',
@@ -2981,7 +2989,6 @@ class CosmoDrawing():
 
         # Read data:
         #
-        print('going to read ....')
         VEC.U.get_info(wid=self.cons)
         VEC.U.get_grid()
 
@@ -5476,18 +5483,18 @@ class CosmoDrawing():
         if empty(CDF.varname.get()):
           messagebox.showinfo(parent=Window_select,message='Select variable')
           return
-        else:
-          CDF.FLD.varname = CDF.varname.get()
-          CDF.FLD.varid = CDF.FLD.icdf.vname.index(CDF.FLD.varname)
-          CDF.FLD.ndims = CDF.FLD.icdf.ndims[CDF.FLD.varid]
-          CDF.FLD.get_info(wid=self.cons)
           
+        # Seems the suitable place where to put this:
+        CDF.FLD.varname = CDF.varname.get()
+        CDF.FLD.varid = CDF.FLD.icdf.vname.index(CDF.FLD.varname)
+        CDF.FLD.ndims = CDF.FLD.icdf.ndims[CDF.FLD.varid]
+        CDF.FLD.get_info(wid=self.cons)
 
-        # Seems the good place where to put this:
         CDF.FLD.get_grid()
         #self.read_lonlat(CDF,CDF.FLD.icdf.xname,CDF.FLD.icdf.yname)
         self.DepthandDate(CDF)
         CDF.show.set(True)
+
         if empty(CDF.DATE[0].__str__()):
           _dsel.configure(state='enabled')
 
@@ -7315,10 +7322,10 @@ class CosmoDrawing():
       contourplot.Configuration(parent=gshow,
                               varname=self.CDF[ii].FLD.varname,
                               units=self.CDF[ii].FLD.units,
-                              missing=self.CDF[ii].FLD.missing_value,
+                              missing=self.CDF[ii].FLD.missing,
                               minval=self.CDF[ii].FLD.minval,
                               maxval=self.CDF[ii].FLD.maxval,
-                              PLOT=self.CDF[ii].FLD.PLOT)
+                              PLOT=self.CDF[ii].PLOT)
 
       f0 = ttk.Frame(gshow,padding=5)
       ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -7433,7 +7440,7 @@ class CosmoDrawing():
     gshow = ttk.Frame(self.Window_contourconfig,padding=10)
 
     contourplot.Configuration(parent=gshow,
-                              varname=self.CDF[ii].varname,
+                              varname=self.CDF[ii].FLD.varname,
                               units=self.CDF[ii].FLD.units,
                               missing=self.CDF[ii].FLD.missing,
                               minval=self.CDF[ii].FLD.minval,
@@ -8623,4 +8630,77 @@ class CosmoDrawing():
       jeditor.EDITOR(self.Window_editor, \
                      self.FLOAT[self.FLOAT_INDX.get()].FILENAME.get(),\
                      wid=self.cons)
+
+  def contour_mean(self):
+  # ==========================
+    ''' Calculates the long term mean of a contour field '''
+    
+    if self.ncdf > 0:
+      ii = self.CDF_INDX.get()
+      K  = self.CDF[ii].K.get()
+      L  = self.CDF[ii].L.get()
+      nt = self.CDF[ii].FLD.icdf.nt
+
+      for L in range(0,nt):
+        data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
+        ny, nx = data.shape
+        data = data.reshape((1,ny,nx))
+        if L==0:
+          num = data.copy()
+        else:
+          num = np.ma.concatenate([num,data])
+
+      #data = num.var(axis=0)
+
+      CDF = CONTOUR()
+
+      CDF.FLD.data = num.mean(axis=0)
+      CDF.FLD.minval = float(data.min())
+      CDF.FLD.maxval = float(data.max())
+
+      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+
+      CDF.K.set(K)
+      CDF.L.set(0)
+      CDF.K_LIST = [K]
+      CDF.L_LIST = [0]
+      CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
+      CDF.T_LIST = [0]
+      CDF.DATE   = [self.CDF[ii].DATE[0]]
+
+      CDF.ALIAS       = 'Mean field'
+      CDF.FLD.x       = self.CDF[ii].FLD.x
+      CDF.FLD.y       = self.CDF[ii].FLD.y
+      CDF.FLD.xx      = self.CDF[ii].FLD.xx
+      CDF.FLD.yy      = self.CDF[ii].FLD.yy
+      CDF.FLD.units   = self.CDF[ii].FLD.units
+      CDF.FLD.missing = self.CDF[ii].FLD.missing
+      CDF.FLD.varname = self.CDF[ii].FLD.varname
+      CDF.varname.set(CDF.FLD.varname)
+
+      CDF.FLD.icdf = tools.geocdf(wid=self.cons)
+
+      conf = self.CDF[ii].FLD.icdf.conf_get()
+      CDF.FLD.icdf.conf_set(conf)
+      CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+
+      conf = self.CDF[ii].PLOT.conf_get()
+      CDF.PLOT.conf_set(conf)
+
+      CDF.show.set(True)
+      self.CDF[ii].show.set(False)
+
+      self.ncdf += 1
+      self.CDF.append(CDF)
+      self.CDF_INDX.set(self.ncdf-1)
+      self.CDF_LIST = list(range(self.ncdf))
+
+      self.nfiles += 1
+      self.FILENAMES.append('Mean field ')
+      self.FILETYPES.append('FLD')
+      self.FILEORDER.append(self.ncdf-1)
+      self.SEQUENCES.append(tk.BooleanVar(value=False))
+
+      self.make_plot()
 
