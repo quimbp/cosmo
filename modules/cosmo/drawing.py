@@ -36,6 +36,7 @@ import json
 import io
 import ast
 import math
+import datetime
 
 import matplotlib.pyplot as plt
 import matplotlib.image as image
@@ -96,6 +97,7 @@ import cosmo.legend as legend
 import cosmo.shape as shape
 import cosmo.geoplot as geoplot
 import cosmo.field as field
+import cosmo.plotxy as plotxy
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -245,7 +247,7 @@ class CONTOUR():
     elif self.FLD.ndims == 4:
       u = self.FLD.nc.variables[self.FLD.varname][L,K,:,:].squeeze()
     else:
-      toconsola("Invalid number of dimensions, "+str(ndim),wid=wid)
+      toconsola("Invalid number of dimensions, "+str(self.FLD.ndims),wid=wid)
 
     # Min and max values
     self.FLD.minval = float(u.min())
@@ -404,7 +406,7 @@ class vector():
       u = self.U.nc.variables[self.U.varname][L,K,:,:].squeeze()
       v = self.V.nc.variables[self.V.varname][L,K,:,:].squeeze()
     else:
-      toconsola("Invalid number of dimensions, "+str(ndim),wid=wid)
+      toconsola("Invalid number of dimensions, "+str(self.U.ndims),wid=wid)
 
     # Make sure that the missing value is NaN:
     _u = u.filled(fill_value=np.nan)
@@ -1625,6 +1627,10 @@ class CosmoDrawing():
          wiconsola.grid(row=3, column=0, columnspan=6, pady=5, sticky='nsew')  
     #EG
 
+    self.CAPTURE_POINT        = False
+    self.pxo                  = tk.DoubleVar()
+    self.pyo                  = tk.DoubleVar()
+
     # Initialize window widget IDs:
     self.Window_cfile         = None
     self.Window_legendconfig  = None
@@ -1661,8 +1667,11 @@ class CosmoDrawing():
     self.Window_shapefile     = None
     self.Window_shapeconfig   = None
     self.Window_geoconfig     = None
+    self.Window_xysel         = None
     
-    self.Window_mapa     = None
+    self.Window_mapa          = None
+
+
 
   ## CosmoDrawing EVENTS Handlers ##############
 
@@ -1741,6 +1750,11 @@ class CosmoDrawing():
       self.MLM.xo.set(latlon[0])
       self.MLM.yo.set(latlon[1])
 
+      if self.CAPTURE_POINT:
+        self.pxo.set(xo)
+        self.pyo.set(yo)
+        return
+
       if self.nvec > 0:
         ii = self.VEC_INDX.get()
         dis = (xo-self.VEC[ii].U.xx)**2 + (yo-self.VEC[ii].U.yy)**2
@@ -1756,6 +1770,7 @@ class CosmoDrawing():
         self.CDF[ii].jo.set(ind[0])
         self.CDF[ii].io.set(ind[1])
         print('Contour selected point: ', self.CDF[ii].io.get(), self.CDF[ii].jo.get())
+
 
 
 
@@ -1836,8 +1851,12 @@ class CosmoDrawing():
 
     toolmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Tools',menu=toolmenu)
+    toolmenu.add_command(label='Vector series',
+                         command=self.vector_series)
     toolmenu.add_command(label='Contour mean',
                          command=self.contour_mean)
+    toolmenu.add_command(label='Contour variance',
+                         command=self.contour_var)
     toolmenu.add_command(label='Trajectory editor',
                          command=self.trajectory_editor)
     toolmenu.add_command(label='Make animation',
@@ -8697,10 +8716,185 @@ class CosmoDrawing():
       self.CDF_LIST = list(range(self.ncdf))
 
       self.nfiles += 1
-      self.FILENAMES.append('Mean field ')
-      self.FILETYPES.append('FLD')
+      self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+      self.FILETYPES.append('CDF-MEAN')
       self.FILEORDER.append(self.ncdf-1)
       self.SEQUENCES.append(tk.BooleanVar(value=False))
 
       self.make_plot()
 
+  def contour_var(self):
+  # ==========================
+    ''' Calculates the long term variance of a contour field '''
+    
+    if self.ncdf > 0:
+      ii = self.CDF_INDX.get()
+      K  = self.CDF[ii].K.get()
+      L  = self.CDF[ii].L.get()
+      nt = self.CDF[ii].FLD.icdf.nt
+
+      for L in range(0,nt):
+        data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
+        ny, nx = data.shape
+        data = data.reshape((1,ny,nx))
+        if L==0:
+          num = data.copy()
+        else:
+          num = np.ma.concatenate([num,data])
+
+      #data = num.var(axis=0)
+
+      CDF = CONTOUR()
+
+      CDF.FLD.data = num.var(axis=0)
+      CDF.FLD.minval = float(data.min())
+      CDF.FLD.maxval = float(data.max())
+
+      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+
+      CDF.K.set(K)
+      CDF.L.set(0)
+      CDF.K_LIST = [K]
+      CDF.L_LIST = [0]
+      CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
+      CDF.T_LIST = [0]
+      CDF.DATE   = [self.CDF[ii].DATE[0]]
+
+      CDF.ALIAS       = 'Variance field'
+      CDF.FLD.x       = self.CDF[ii].FLD.x
+      CDF.FLD.y       = self.CDF[ii].FLD.y
+      CDF.FLD.xx      = self.CDF[ii].FLD.xx
+      CDF.FLD.yy      = self.CDF[ii].FLD.yy
+      CDF.FLD.units   = self.CDF[ii].FLD.units
+      CDF.FLD.missing = self.CDF[ii].FLD.missing
+      CDF.FLD.varname = self.CDF[ii].FLD.varname
+      CDF.varname.set(CDF.FLD.varname)
+
+      CDF.FLD.icdf = tools.geocdf(wid=self.cons)
+
+      conf = self.CDF[ii].FLD.icdf.conf_get()
+      CDF.FLD.icdf.conf_set(conf)
+      CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+
+      conf = self.CDF[ii].PLOT.conf_get()
+      CDF.PLOT.conf_set(conf)
+
+      CDF.show.set(True)
+      self.CDF[ii].show.set(False)
+
+      self.ncdf += 1
+      self.CDF.append(CDF)
+      self.CDF_INDX.set(self.ncdf-1)
+      self.CDF_LIST = list(range(self.ncdf))
+
+      self.nfiles += 1
+      self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+      self.FILETYPES.append('CDF-VAR')
+      self.FILEORDER.append(self.ncdf-1)
+      self.SEQUENCES.append(tk.BooleanVar(value=False))
+
+      self.make_plot()
+
+  def get_map_coords(self):
+  # ====================
+
+    def _close():
+    # -----------
+      self.CAPTURE_POINT = False
+      self.Window_xysel.destroy()
+      self.Window_xysel = None
+
+    def _done():
+    # -----------
+      _close()
+
+    if self.Window_xysel is None:
+      self.CAPTURE_POINT = True
+      self.Window_xysel = tk.Toplevel(self.master)
+      self.Window_xysel.title('Select point')
+      self.Window_xysel.resizable(width=False,height=False)
+      self.Window_xysel.protocol('WM_DELETE_WINDOW',_close)
+
+      F0 = ttk.Frame(self.Window_xysel,padding=5,borderwidth=5)
+      ttk.Label(F0,text='Enter or select a point in the map ...').grid(row=0,column=0,columnspan=6,sticky='we',pady=10)
+      ttk.Label(F0,text='x = ',width=5).grid(row=1,column=0,sticky='e')
+      ttk.Entry(F0,textvariable=self.pxo,width=15).grid(row=1,column=1,columnspan=3,sticky='ew',pady=5)
+      ttk.Label(F0,text='y = ',width=5).grid(row=1,column=4,sticky='e')
+      ttk.Entry(F0,textvariable=self.pyo,width=15).grid(row=1,column=5,columnspan=3,sticky='ew',pady=5)
+
+      ttk.Button(F0,text='Cancel',command=_close).grid(row=2,column=4,sticky='e',padx=5)
+      ttk.Button(F0,text='Done',command=_done).grid(row=2,column=5,sticky='e',padx=5)
+
+      F0.grid()
+      self.Window_xysel.wait_window()
+      return [self.pxo.get(), self.pyo.get()]
+
+
+
+
+  def vector_series(self):
+  # ==========================
+    ''' Opens a figure and shows the time series of the velocity.
+    The user has selected a point. '''
+
+
+    if self.nvec == 0:
+      messagebox.showinfo(message='No currents file opened yet')
+      return
+
+    ii    = self.VEC_INDX.get()
+    K     = self.VEC[ii].K.get()
+    nt    = self.VEC[ii].U.icdf.nt
+    ndims = self.VEC[ii].U.ndims
+
+    if nt == 1:
+      messagebox.showinfo(message='Single time step. No time series')
+      return
+
+    yy = self.get_map_coords()
+    xo = yy[0]; yo = yy[1]
+
+    dis = (xo-self.VEC[ii].U.xx)**2 + (yo-self.VEC[ii].U.yy)**2
+    ind = np.unravel_index(dis.argmin(), dis.shape)
+    
+    io = ind[1]
+    jo = ind[0]
+    self.VEC[ii].jo.set(jo)
+    self.VEC[ii].io.set(io)
+
+    toconsola('Vector selected point: '+str(io)+', '+str(jo),wid=self.cons)
+
+    if ndims == 3:
+      if self.VEC[ii].U.icdf.ppl[self.VEC[ii].U.varid] > -1:
+        u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,jo,io].squeeze()
+        v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,jo,io].squeeze()
+      else:
+        toconsola('Invalid file!',wid=wid)
+        return
+    elif ndims == 4:
+      u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,K,jo,io].squeeze()
+      v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,K,jo,io].squeeze()
+    else:
+      toconsola("Invalid number of dimensions, "+str(ndims),wid=wid)
+
+    _u = u.filled(fill_value=np.nan)
+    _v = v.filled(fill_value=np.nan)
+    u = np.ma.masked_equal(_u,np.nan); del _u
+    v = np.ma.masked_equal(_v,np.nan); del _v
+    t = []
+    for i in range(nt):
+        t.append(datetime.datetime.strptime(str(self.VEC[ii].DATE[i]),'%Y-%m-%d %H:%M:%S'))
+
+
+    Window = tk.Toplevel(self.master)
+    Window.title('PLOTXY')
+    Window.resizable(width=False,height=False)
+    #Window.protocol('WM_DELETE_WINDOW',_close)
+
+    plotxy.PLOTXY(Window,t=t,u=u,v=v)
+
+    #print(self.VEC[ii].TIME[:])
+    #print(self.VEC[ii].DATE[:])
+    #print(u)
+    #print(v)

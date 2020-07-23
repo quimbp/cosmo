@@ -54,4 +54,5 @@ from cosmo import json_editor
 from cosmo import legend
 from cosmo import geoplot
 from cosmo import field
+from cosmo import plotxy
 
