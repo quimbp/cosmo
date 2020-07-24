@@ -423,9 +423,41 @@ class PLOTXY:
 
       self.ax1 = self.fig.add_subplot(111)
       self.ax1.axis('equal')
+      plt.subplots_adjust(bottom=0.4)
       self.ax1.set_xlim(-np.sqrt(Tra),np.sqrt(Tra))
       self.ax1.set_ylim(-np.sqrt(Tra),np.sqrt(Tra))
       plot_ellipse(self.ax1,0,0,np.sqrt(a2),np.sqrt(b2),mphi+aphi)
+      txt1 = 'Mean velocity components: %.2f, %.2f ' %(mu,mv)
+      txt2 = 'Mean velocity angle: %.2f ' %(180*mphi/np.pi)
+      txt3 = 'Total anomaly variance: %.2f ' %(Tra)
+      txt4 = 'Directional anomaly variance: %.2f ' %(a2-b2)
+      txt5 = 'Isotropic anomaly variance: %.2f ' %(2*b2)
+      txt6 = 'Polarization factor: %.2f ' %((a2-b2)/Tra)
+      txt7 = 'Anomaly Variance angle: %.2f ' %(180*aphi/np.pi)
+      print(txt1)
+      print(txt2)
+      print(txt3)
+      print(txt4)
+      print(txt5)
+      print(txt6)
+      print(txt7)
+
+      self.ax1.annotate(txt1,(0.11,0.98),xycoords='figure fraction')
+      self.ax1.annotate(txt2,(0.55,0.98),xycoords='figure fraction')
+      self.ax1.annotate(txt3,(0.11,0.95),xycoords='figure fraction')
+      self.ax1.annotate(txt4,(0.11,0.92),xycoords='figure fraction')
+      self.ax1.annotate(txt5,(0.55,0.92),xycoords='figure fraction')
+      self.ax1.annotate(txt6,(0.11,0.89),xycoords='figure fraction')
+      self.ax1.annotate(txt7,(0.55,0.89),xycoords='figure fraction')
+
+      #self.ax1.text(0.05,0.01,'Mean velocity components: %.2f, %.2f' % (mu,mv), \
+      #            ha='right',fontsize=8)
+      #plt.figtext(0.05,0.01,'Mean velocity components: '+str(mu)+', '+str(mv), \
+      #            horizontalalignment='right',fontsize=8)
+      #plt.figtext(0.18,0.92,'Mean velocity angle: '+str(180*mphi/np.pi), \
+      #            horizontalalignment='right',fontsize=8)
+      #plt.figtext(0.18,0.89,'Total eddy variance: '+str(Tra), \
+      #            horizontalalignment='right',fontsize=8)
       self.canvas.draw()
       #self.make_plot()
 
@@ -477,6 +509,7 @@ class PLOTXY:
                    linewidth=self.uthick.get())
       self.ax1.set_ylim(self.umin.get(),self.umax.get())
       self.ax1.set_ylabel(self.ulabel.get())
+      self.ax1.axhline(color='black')
       if self.Vgrid.get():
         self.ax1.xaxis.grid()
       if self.Hgrid.get():
@@ -492,6 +525,7 @@ class PLOTXY:
                    linewidth=self.uthick.get())
       self.ax1.set_ylim(self.umin.get(),self.umax.get())
       self.ax1.set_ylabel(self.ulabel.get())
+      self.ax1.axhline(color='black')
       if self.Vgrid.get():
         self.ax1.xaxis.grid()
       if self.Hgrid.get():
@@ -508,6 +542,7 @@ class PLOTXY:
       self.ax2.set_ylim(self.vmin.get(),self.vmax.get())
       # Print vertical label
       self.ax2.set_ylabel(self.vlabel.get())
+      self.ax2.axhline(color='black')
 
       if isinstance(self.t[0],datetime.datetime):
         self.ax2.tick_params(axis='x',rotation=35)
@@ -540,6 +575,9 @@ class PLOTXY:
 def main():
   from datetime import datetime, timedelta
 
+  def _close():
+    quit()
+
   # Random data to plot
   u = np.random.rand(100)
   v = np.random.rand(100)
@@ -549,7 +587,7 @@ def main():
   root = tk.Tk()
   root.title('PLOTXY')
   root.resizable(width=True,height=False)
-  #app = PLOTXY(root,t=time,u=u,v=v,exit_mode='quit',ucolor='green')
+  root.protocol('WM_DELETE_WINDOW',_close)
   app = PLOTXY(root,t=time,u=u,v=v,exit_mode='quit')
   root.mainloop()
 
