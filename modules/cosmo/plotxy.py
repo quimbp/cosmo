@@ -16,6 +16,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib.dates import date2num
 
+def rot(phi):
+# -----------
+  ''' Returns the complex rotation factor: exp(j*phi)'''
+
+  return np.exp(1j*phi)
+
 # ===========
 class PLOTXY:
 # ===========
@@ -31,6 +37,11 @@ class PLOTXY:
 
     self.master    = master
     self.exit_mode = exit_mode
+    self.t         = t           # Working data
+    self.u         = u           # Working data
+    self.v         = v           # Working data
+    self.u_orig    = u           # Data backup
+    self.v_orig    = v           # Data backup
 
     ucolor = args.pop('ucolor','blue')
     vcolor = args.pop('vcolor','red')
@@ -66,7 +77,7 @@ class PLOTXY:
     self.Hgrid  = tk.BooleanVar()
 
     self.type = tk.StringVar()
-    self.type_options = ['u plot','uv plot','stick plot']
+    self.type_options = ['u plot','uv plot','stick plot','rotated uv']
 
     if v is None:
       self.type_options = ['u plot']
@@ -126,7 +137,7 @@ class PLOTXY:
     ttk.Label(F0,text='Plot type',width=12,padding=3).grid(row=0,column=0,sticky='e')
     self.wtype = ttk.Combobox(F0,textvariable=self.type,values=self.type_options,width=12)
     self.wtype.grid(row=0,column=1,sticky='w')
-    self.wtype.bind("<<ComboboxSelected>>", lambda f: self.select_plot(t,u,v))
+    self.wtype.bind("<<ComboboxSelected>>", lambda f: self.select_plot())
 
 
     FU = ttk.Frame(F0)
@@ -135,23 +146,23 @@ class PLOTXY:
     ttk.Label(FU,text='Max value',padding=3).grid(row=1,column=0,sticky='e')
     self.wumax = ttk.Entry(FU,textvariable=self.umax,width=12)
     self.wumax.grid(row=1,column=1,sticky='ew')
-    self.wumax.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wumax.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FU,text='Min value',padding=3).grid(row=2,column=0,sticky='e')
     self.wumin = ttk.Entry(FU,textvariable=self.umin,width=12)
     self.wumin.grid(row=2,column=1,sticky='ew')
-    self.wumin.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wumin.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FU,text='Line color',padding=3).grid(row=3,column=0,sticky='e')
     self.wucol = ttk.Entry(FU,textvariable=self.ucolor,width=12)
     self.wucol.grid(row=3,column=1,sticky='ew')
-    self.wucol.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wucol.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FU,text='Line thickness',padding=3).grid(row=4,column=0,sticky='e')
     self.wuthk = ttk.Entry(FU,textvariable=self.uthick,width=12)
     self.wuthk.grid(row=4,column=1,sticky='ew')
-    self.wuthk.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wuthk.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FU,text='Label',padding=3).grid(row=5,column=0,sticky='e')
     self.wulab = ttk.Entry(FU,textvariable=self.ulabel,width=12)
     self.wulab.grid(row=5,column=1,sticky='ew')
-    self.wulab.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wulab.bind("<Return>", lambda f: self.make_plot())
 
     FU.grid(row=1,column=0,columnspan=2)
 
@@ -161,23 +172,23 @@ class PLOTXY:
     ttk.Label(FV,text='Max value',padding=3).grid(row=1,column=0,sticky='e')
     self.wvmax = ttk.Entry(FV,textvariable=self.vmax,width=12)
     self.wvmax.grid(row=1,column=1,sticky='ew')
-    self.wvmax.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wvmax.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FV,text='Min value',padding=3).grid(row=2,column=0,sticky='e')
     self.wvmin = ttk.Entry(FV,textvariable=self.vmin,width=12)
     self.wvmin.grid(row=2,column=1,sticky='ew')
-    self.wvmin.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wvmin.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FV,text='Line color',padding=3).grid(row=3,column=0,sticky='e')
     self.wvcol = ttk.Entry(FV,textvariable=self.vcolor,width=12)
     self.wvcol.grid(row=3,column=1,sticky='ew')
-    self.wvcol.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wvcol.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FV,text='Line thickness',padding=3).grid(row=4,column=0,sticky='e')
     self.wvthk = ttk.Entry(FV,textvariable=self.vthick,width=12)
     self.wvthk.grid(row=4,column=1,sticky='ew')
-    self.wvthk.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wvthk.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FV,text='Label',padding=3).grid(row=5,column=0,sticky='e')
     self.wvlab = ttk.Entry(FV,textvariable=self.vlabel,width=12)
     self.wvlab.grid(row=5,column=1,sticky='ew')
-    self.wvlab.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wvlab.bind("<Return>", lambda f: self.make_plot())
 
     FV.grid(row=2,column=0,columnspan=2)
 
@@ -186,28 +197,28 @@ class PLOTXY:
     ttk.Label(FT,text='Scale',padding=3).grid(row=1,column=0,sticky='e')
     self.wtscl = ttk.Entry(FT,textvariable=self.tscale,width=12)
     self.wtscl.grid(row=1,column=1,sticky='ew')
-    self.wtscl.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wtscl.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FT,text='Color',padding=3).grid(row=2,column=0,sticky='e')
     self.wtcol = ttk.Entry(FT,textvariable=self.tcolor,width=12)
     self.wtcol.grid(row=2,column=1,sticky='ew')
-    self.wtcol.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wtcol.bind("<Return>", lambda f: self.make_plot())
     ttk.Label(FT,text='Thickness',padding=3).grid(row=3,column=0,sticky='e')
     self.wtthk = ttk.Entry(FT,textvariable=self.twidth,width=12)
     self.wtthk.grid(row=3,column=1,sticky='ew')
-    self.wtthk.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wtthk.bind("<Return>", lambda f: self.make_plot())
     FT.grid(row=3,column=0,columnspan=2)
 
     FM = ttk.Frame(F0)
     ttk.Label(FM,text='Grid options').grid(row=0,column=0,pady=5,sticky='w')
     ttk.Label(FM,text='Show vertical grid',padding=3).grid(row=1,column=0,sticky='e')
-    ttk.Checkbutton(FM,variable=self.Vgrid,command = lambda : self.make_plot(t,u,v),padding=3).grid(row=1,column=1,sticky='we')
+    ttk.Checkbutton(FM,variable=self.Vgrid,command = lambda : self.make_plot(),padding=3).grid(row=1,column=1,sticky='we')
     ttk.Label(FM,text='Show horizontal grid',padding=3).grid(row=2,column=0,sticky='e')
-    ttk.Checkbutton(FM,variable=self.Hgrid,command = lambda : self.make_plot(t,u,v),padding=3).grid(row=2,column=1,sticky='we')
+    ttk.Checkbutton(FM,variable=self.Hgrid,command = lambda : self.make_plot(),padding=3).grid(row=2,column=1,sticky='we')
 
     ttk.Label(FM,text='Title').grid(row=3,column=0,pady=5,sticky='w')
     self.wtitle = ttk.Entry(FM,textvariable=self.title,width=30)
     self.wtitle.grid(row=4,column=0,columnspan=2,sticky='ew')
-    self.wtitle.bind("<Return>", lambda f: self.make_plot(t,u,v))
+    self.wtitle.bind("<Return>", lambda f: self.make_plot())
 
     tk.Button(FM,text='Save',command=self.save_plot).grid(row=5,column=0,padx=5,pady=5)
     tk.Button(FM,text='Quit',command=self.quit_plot).grid(row=5,column=1,padx=5,pady=5)
@@ -240,7 +251,7 @@ class PLOTXY:
     self.main.grid_columnconfigure(1,weight=1)
     self.main.grid_columnconfigure(2,weight=1)
 
-    self.make_plot(t,u,v)
+    self.make_plot()
 
     if v is None:
       self.wvmax.configure(state='disabled')
@@ -282,12 +293,13 @@ class PLOTXY:
       return
 
 
-  def select_plot(self,t=None,u=None,v=None):
+  def select_plot(self):
   # ---------------------------------------
 
     self.fig.clear()
 
     if self.type.get() == 'u plot':
+      self.u = self.u_orig
       self.wumax.configure(state='normal')
       self.wumin.configure(state='normal')
       self.wucol.configure(state='normal')
@@ -302,10 +314,12 @@ class PLOTXY:
       self.wtcol.configure(state='disabled')
       self.wtthk.configure(state='disabled')
       self.ax1 = self.fig.add_subplot(111)
-      self.make_plot(t,u,v)
+      self.make_plot()
       return
       
     if self.type.get() == 'uv plot':
+      self.u = self.u_orig
+      self.v = self.v_orig
       self.wumax.configure(state='normal')
       self.wumin.configure(state='normal')
       self.wucol.configure(state='normal')
@@ -321,10 +335,12 @@ class PLOTXY:
       self.wtthk.configure(state='disabled')
       self.ax1 = self.fig.add_subplot(211)
       self.ax2 = self.fig.add_subplot(212)
-      self.make_plot(t,u,v)
+      self.make_plot()
       return
 
     if self.type.get() == 'stick plot':
+      self.u = self.u_orig
+      self.v = self.v_orig
       self.wumax.configure(state='disabled')
       self.wumin.configure(state='disabled')
       self.wucol.configure(state='disabled')
@@ -339,9 +355,28 @@ class PLOTXY:
       self.wtcol.configure(state='normal')
       self.wtthk.configure(state='normal')
       self.ax1 = self.fig.add_subplot(111)
-      self.make_plot(t,u,v)
+      self.make_plot()
       return
       
+    if self.type.get() == 'rotated uv':
+      self.ax1 = self.fig.add_subplot(211)
+      self.ax2 = self.fig.add_subplot(212)
+      self.rotated_uv()
+
+  def rotated_uv(self):
+  # -----------------------------
+    c = self.u + 1j*self.v          # Complex velocity
+    mc = np.mean(c)
+    print('Mean current: ',mc)
+    angle_rad = np.angle(mc)
+    angle_deg = 180*angle_rad/np.pi
+    print('Mean current angle (Rad, Deg): ',angle_rad,angle_deg)
+    rc = c*rot(-angle_rad)  # Rotated current
+    print('Mean rotated current: ', np.mean(rc))
+    #print(np.angle(np.mean(rc)))
+    self.u = rc.real
+    self.v = rc.imag
+    self.make_plot()
 
       
   def stick_plot(self,time,u,v,**kw):
@@ -365,13 +400,13 @@ class PLOTXY:
     ax.xaxis_date()
     return q
 
-  def make_plot(self,t=None,u=None,v=None):
+  def make_plot(self):
   # ---------------------------------------
 
     if self.type.get() == 'u plot':
     # - - - - - - - - - - - - - - - -
       self.ax1.clear()
-      self.ax1.plot(t,u,                        \
+      self.ax1.plot(self.t,self.u,                        \
                    color=self.ucolor.get(),   \
                    linewidth=self.uthick.get())
       self.ax1.set_ylim(self.umin.get(),self.umax.get())
@@ -383,10 +418,10 @@ class PLOTXY:
       if isinstance(t[0],datetime.datetime):
         self.ax1.tick_params(axis='x',rotation=35)
 
-    elif self.type.get() == 'uv plot':
-    # - - - - - - - - - - - - - - - -
+    elif self.type.get() == 'uv plot' or self.type.get() == 'rotated uv':
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       self.ax1.clear()
-      self.ax1.plot(t,u,                        \
+      self.ax1.plot(self.t,self.u,                        \
                    color=self.ucolor.get(),   \
                    linewidth=self.uthick.get())
       self.ax1.set_ylim(self.umin.get(),self.umax.get())
@@ -400,7 +435,7 @@ class PLOTXY:
       self.ax1.tick_params(labelbottom=False) 
 
       self.ax2.clear()
-      self.ax2.plot(t,v,                        \
+      self.ax2.plot(self.t,self.v,                        \
                    color=self.vcolor.get(),   \
                    linewidth=self.vthick.get())
       # Set vertical limits
@@ -408,7 +443,7 @@ class PLOTXY:
       # Print vertical label
       self.ax2.set_ylabel(self.vlabel.get())
 
-      if isinstance(t[0],datetime.datetime):
+      if isinstance(self.t[0],datetime.datetime):
         self.ax2.tick_params(axis='x',rotation=35)
 
       # Show (or not) Vertical grid
@@ -421,7 +456,7 @@ class PLOTXY:
     elif self.type.get() == 'stick plot':
     # - - - - - - - - - - - - - - - - - -
       self.ax1.clear()
-      q = self.stick_plot(t,u,v,                     \
+      q = self.stick_plot(self.t,self.u,self.v,                     \
                           ax=self.ax1,               \
                           width=self.twidth.get(),   \
                           scale=self.tscale.get(),   \
