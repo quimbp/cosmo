@@ -22,6 +22,37 @@ def rot(phi):
 
   return np.exp(1j*phi)
 
+def plot_ellipse(ax,xo,yo,a,b,phi):
+# -------------------------------
+
+  # Rotation matrix
+  R = np.array([[np.cos(phi), -np.sin(phi)],[np.sin(phi), np.cos(phi)]])
+  
+  # Parametric centered ellipse
+  n = 100
+  t = np.linspace(0,2*np.pi,n)
+  E = np.array([a*np.cos(t), b*np.sin(t)])
+
+  Er = np.zeros((2,n))
+  for i in range(n):
+    Er[:,i] = np.dot(R,E[:,i])
+
+  ax.plot(xo+Er[0,:], yo+Er[1,:],linestyle='-')
+
+  C = np.array([b*np.cos(t), b*np.sin(t)])
+  ax.plot(xo+C[0,:], yo+C[1,:],linestyle='--')
+
+  tc = np.arctan2(np.tan(phi)*a,b)
+  xmax = np.abs(a*np.cos(tc))
+  xmin = -np.abs(a*np.cos(tc))
+
+  x = np.linspace(xmin,xmax,20)
+  y = np.tan(phi)*x
+
+  ax.plot(xo+x, yo+y,linestyle='--')
+
+
+
 # ===========
 class PLOTXY:
 # ===========
@@ -77,7 +108,7 @@ class PLOTXY:
     self.Hgrid  = tk.BooleanVar()
 
     self.type = tk.StringVar()
-    self.type_options = ['u plot','uv plot','stick plot','rotated uv']
+    self.type_options = ['u plot','uv plot','stick plot','rotated uv','var ellipse']
 
     if v is None:
       self.type_options = ['u plot']
@@ -363,6 +394,41 @@ class PLOTXY:
       self.ax2 = self.fig.add_subplot(212)
       self.rotated_uv()
 
+    if self.type.get() == 'var ellipse':
+      u = self.u
+      v = self.v
+
+      # Calculation of the anomalies
+      mu = np.mean(u)
+      mv = np.mean(v)
+      mphi = np.angle(mu+1j*mv)
+      print('Angle mean current = ', mphi, 180*mphi/np.pi)
+      u = u - np.mean(u)
+      v = v - np.mean(v)
+      suu = np.dot(u,u)
+      svv = np.dot(v,v)
+      suv = np.dot(u,v)
+      Tra = suu + svv
+      Det = suu*svv - suv*suv
+      a2  = 0.5*(Tra + np.sqrt(Tra*Tra - 4*Det))
+      b2  = 0.5*(Tra - np.sqrt(Tra*Tra - 4*Det))
+      aphi = 0.5*np.arctan2(2*suv,suu-svv)
+      print('Test: ',2*suv/(suu-svv), np.tan(2*aphi))
+      print('Eddy kinetic energy: ', 0.5*Tra)
+      print('Total eddy variance: ', a2 + b2, Tra)
+      print('Directional eddy variance: ', a2 - b2)
+      print('Isotropic eddy variance: ', 2*b2)
+      print('Polarization factor: ', (a2-b2)/(a2+b2))
+      print('Variance angle: ', aphi, 180*aphi/np.pi)
+
+      self.ax1 = self.fig.add_subplot(111)
+      self.ax1.axis('equal')
+      self.ax1.set_xlim(-np.sqrt(Tra),np.sqrt(Tra))
+      self.ax1.set_ylim(-np.sqrt(Tra),np.sqrt(Tra))
+      plot_ellipse(self.ax1,0,0,np.sqrt(a2),np.sqrt(b2),mphi+aphi)
+      self.canvas.draw()
+      #self.make_plot()
+
   def rotated_uv(self):
   # -----------------------------
     c = self.u + 1j*self.v          # Complex velocity
@@ -415,7 +481,7 @@ class PLOTXY:
         self.ax1.xaxis.grid()
       if self.Hgrid.get():
         self.ax1.yaxis.grid()
-      if isinstance(t[0],datetime.datetime):
+      if isinstance(self.t[0],datetime.datetime):
         self.ax1.tick_params(axis='x',rotation=35)
 
     elif self.type.get() == 'uv plot' or self.type.get() == 'rotated uv':
@@ -465,7 +531,7 @@ class PLOTXY:
         self.ax1.xaxis.grid()
       if self.Hgrid.get():
         self.ax1.yaxis.grid()
-      if isinstance(t[0],datetime.datetime):
+      if isinstance(self.t[0],datetime.datetime):
         self.ax1.tick_params(axis='x',rotation=35)
 
     self.ax1.set_title(self.title.get())
