@@ -98,6 +98,7 @@ import cosmo.shape as shape
 import cosmo.geoplot as geoplot
 import cosmo.field as field
 import cosmo.plotxy as plotxy
+import cosmo.ellipse as ellipse
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -281,7 +282,7 @@ class CONTOUR():
 
 
 # =====================
-class vector():
+class VECTOR():
 # =====================
   ''' Class for 2D data (x,y) vectors'''
 
@@ -319,6 +320,8 @@ class vector():
     
     self.K         = tk.IntVar()
     self.L         = tk.IntVar()
+    self.K.set(0)
+    self.L.set(0)
 
     self.K_LIST    = []
     self.L_LIST    = []
@@ -1513,6 +1516,12 @@ class CosmoDrawing():
     self.SHAPE_INDX   = tk.IntVar()
     self.SHAPE_INDX.set(0)
 
+    self.nellipse      = 0
+    self.ELLIPSE       = []
+    self.ELLIPSE_LIST  = ['0']       # Llista ellipse files en configuracion 
+    self.ELLIPSE_INDX  = tk.IntVar() # contador de files
+    self.ELLIPSE_INDX.set(0)
+
     # Initialize BLM command:
     self.BLM = blm.parameters()
 
@@ -1853,6 +1862,8 @@ class CosmoDrawing():
     menubar.add_cascade(label='Tools',menu=toolmenu)
     toolmenu.add_command(label='Vector series',
                          command=self.vector_series)
+    toolmenu.add_command(label='Vector mean',
+                         command=self.vector_mean)
     toolmenu.add_command(label='Contour mean',
                          command=self.contour_mean)
     toolmenu.add_command(label='Contour variance',
@@ -2288,7 +2299,7 @@ class CosmoDrawing():
       and the second one for the V information. Once the grid information
       has been filled, we merge the V-information of the second object
       into the first one '''
-      VEC = vector()
+      VEC = VECTOR()
 
       #VEC = cdf_parameters()
       VEC.UFILENAME.set(filename)
@@ -2982,7 +2993,7 @@ class CosmoDrawing():
 
         # Initialize classes:
         #
-        VEC = vector()
+        VEC = VECTOR()
         VEC.UFILENAME.set(filename)
         VEC.U.nc = Dataset(filename)
         VEC.U.icdf = tools.geocdf(filename, wid=self.cons)
@@ -8012,6 +8023,12 @@ class CosmoDrawing():
         #EG Added projection argument, reference map and fig 
         shape.drawing(self.ax, proj['proj'], self.SHAPE[ii])
 
+    # Draw Ellipses:
+    #
+    if self.nellipse > 0:
+      for ii in range(self.nellipse):
+        ellipse.drawing(self.ax, proj['proj'], self.ELLIPSE[ii])
+
     #EG Coastlines
     toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
     if self.PLOT.COASTLINE_SHOW.get():
@@ -8369,6 +8386,11 @@ class CosmoDrawing():
       for ii in range(self.nmarker):
         geomarker.drawing(self.Max,proj,self.MARKER[ii])
 
+    # Draw Ellipses:
+    if self.nellipse > 0:
+      for ii in range(self.nellipse):
+        ellipse.drawing(self.Max, proj['proj'], self.ELLIPSE[ii])
+
     #EG Coastlines
     toconsola("EG: COASTLINES",wid=self.cons)
     #print("EG: COASTLINES")
@@ -8653,148 +8675,166 @@ class CosmoDrawing():
   def contour_mean(self):
   # ==========================
     ''' Calculates the long term mean of a contour field '''
-    
-    if self.ncdf > 0:
-      ii = self.CDF_INDX.get()
-      K  = self.CDF[ii].K.get()
-      L  = self.CDF[ii].L.get()
-      nt = self.CDF[ii].FLD.icdf.nt
 
-      for L in range(0,nt):
-        data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
-        ny, nx = data.shape
-        data = data.reshape((1,ny,nx))
-        if L==0:
-          num = data.copy()
-        else:
-          num = np.ma.concatenate([num,data])
+    if self.ncdf == 0:
+      messagebox.showinfo(message='No Netcdf file opened yet')
+      return
 
-      #data = num.var(axis=0)
+    ii = self.CDF_INDX.get()
+    K  = self.CDF[ii].K.get()
+    L  = self.CDF[ii].L.get()
+    nt = self.CDF[ii].FLD.icdf.nt
 
-      CDF = CONTOUR()
+    for L in range(0,nt):
+      data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
+      #ny, nx = data.shape
+      #data = data.reshape((1,ny,nx))
+      #if L==0:
+      #  num = data.copy()
+      #else:
+      #  num = np.ma.concatenate([num,data])
+      if L==0:
+        num = data.copy()
+      else:
+        num = num + data
 
-      CDF.FLD.data = num.mean(axis=0)
-      CDF.FLD.minval = float(data.min())
-      CDF.FLD.maxval = float(data.max())
+    #data = num.var(axis=0)
 
-      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
-      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+    CDF = CONTOUR()
 
-      CDF.K.set(K)
-      CDF.L.set(0)
+    #CDF.FLD.data = num.mean(axis=0)
+    CDF.FLD.data = num / nt
+    CDF.FLD.minval = float(data.min())
+    CDF.FLD.maxval = float(data.max())
+
+    toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+    toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+
+    CDF.K.set(K)
+    if len(self.CDF[ii].Z_LIST) > 0:
       CDF.K_LIST = [K]
-      CDF.L_LIST = [0]
       CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
-      CDF.T_LIST = [0]
-      CDF.DATE   = [self.CDF[ii].DATE[0]]
 
-      CDF.ALIAS       = 'Mean field'
-      CDF.FLD.x       = self.CDF[ii].FLD.x
-      CDF.FLD.y       = self.CDF[ii].FLD.y
-      CDF.FLD.xx      = self.CDF[ii].FLD.xx
-      CDF.FLD.yy      = self.CDF[ii].FLD.yy
-      CDF.FLD.units   = self.CDF[ii].FLD.units
-      CDF.FLD.missing = self.CDF[ii].FLD.missing
-      CDF.FLD.varname = self.CDF[ii].FLD.varname
-      CDF.varname.set(CDF.FLD.varname)
+    CDF.L.set(0)
+    CDF.L_LIST = [0]
+    CDF.T_LIST = [0]
+    CDF.DATE   = [self.CDF[ii].DATE[0]]
 
-      CDF.FLD.icdf = tools.geocdf(wid=self.cons)
+    CDF.ALIAS       = 'Mean field'
+    CDF.FLD.x       = self.CDF[ii].FLD.x
+    CDF.FLD.y       = self.CDF[ii].FLD.y
+    CDF.FLD.xx      = self.CDF[ii].FLD.xx
+    CDF.FLD.yy      = self.CDF[ii].FLD.yy
+    CDF.FLD.units   = self.CDF[ii].FLD.units
+    CDF.FLD.missing = self.CDF[ii].FLD.missing
+    CDF.FLD.varname = self.CDF[ii].FLD.varname
+    CDF.FILENAME.set(self.CDF[ii].FILENAME.get())
+    CDF.varname.set(CDF.FLD.varname)
 
-      conf = self.CDF[ii].FLD.icdf.conf_get()
-      CDF.FLD.icdf.conf_set(conf)
-      CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+    CDF.FLD.icdf = tools.geocdf(wid=self.cons)
 
-      conf = self.CDF[ii].PLOT.conf_get()
-      CDF.PLOT.conf_set(conf)
+    conf = self.CDF[ii].FLD.icdf.conf_get()
+    CDF.FLD.icdf.conf_set(conf)
+    CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
 
-      CDF.show.set(True)
-      self.CDF[ii].show.set(False)
+    conf = self.CDF[ii].PLOT.conf_get()
+    CDF.PLOT.conf_set(conf)
 
-      self.ncdf += 1
-      self.CDF.append(CDF)
-      self.CDF_INDX.set(self.ncdf-1)
-      self.CDF_LIST = list(range(self.ncdf))
+    CDF.show.set(True)
+    self.CDF[ii].show.set(False)
 
-      self.nfiles += 1
-      self.FILENAMES.append(self.CDF[ii].FILENAME.get())
-      self.FILETYPES.append('CDF-MEAN')
-      self.FILEORDER.append(self.ncdf-1)
-      self.SEQUENCES.append(tk.BooleanVar(value=False))
+    self.ncdf += 1
+    self.CDF.append(CDF)
+    self.CDF_INDX.set(self.ncdf-1)
+    self.CDF_LIST = list(range(self.ncdf))
 
-      self.make_plot()
+    self.nfiles += 1
+    self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+    self.FILETYPES.append('FLD')
+    self.FILEORDER.append(self.ncdf-1)
+    self.SEQUENCES.append(tk.BooleanVar(value=False))
+
+    self.make_plot()
 
   def contour_var(self):
   # ==========================
     ''' Calculates the long term variance of a contour field '''
     
-    if self.ncdf > 0:
-      ii = self.CDF_INDX.get()
-      K  = self.CDF[ii].K.get()
-      L  = self.CDF[ii].L.get()
-      nt = self.CDF[ii].FLD.icdf.nt
+    if self.ncdf == 0:
+      messagebox.showinfo(message='No Netcdf file opened yet')
+      return
 
-      for L in range(0,nt):
-        data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
-        ny, nx = data.shape
-        data = data.reshape((1,ny,nx))
-        if L==0:
-          num = data.copy()
-        else:
-          num = np.ma.concatenate([num,data])
+    ii = self.CDF_INDX.get()
+    K  = self.CDF[ii].K.get()
+    L  = self.CDF[ii].L.get()
+    nt = self.CDF[ii].FLD.icdf.nt
 
-      #data = num.var(axis=0)
+    if nt <= 1:
+      messagebox.showinfo(message='Variance requires more than one time records')
+      return
 
-      CDF = CONTOUR()
+    for L in range(0,nt):
+      data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
+      ny, nx = data.shape
+      data = data.reshape((1,ny,nx))
+      if L==0:
+        num = data.copy()
+      else:
+        num = np.ma.concatenate([num,data])
 
-      CDF.FLD.data = num.var(axis=0)
-      CDF.FLD.minval = float(data.min())
-      CDF.FLD.maxval = float(data.max())
+    #data = num.var(axis=0)
 
-      toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
-      toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+    CDF = CONTOUR()
 
-      CDF.K.set(K)
-      CDF.L.set(0)
-      CDF.K_LIST = [K]
-      CDF.L_LIST = [0]
-      CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
-      CDF.T_LIST = [0]
-      CDF.DATE   = [self.CDF[ii].DATE[0]]
+    CDF.FLD.data = num.var(axis=0)
+    CDF.FLD.minval = float(data.min())
+    CDF.FLD.maxval = float(data.max())
 
-      CDF.ALIAS       = 'Variance field'
-      CDF.FLD.x       = self.CDF[ii].FLD.x
-      CDF.FLD.y       = self.CDF[ii].FLD.y
-      CDF.FLD.xx      = self.CDF[ii].FLD.xx
-      CDF.FLD.yy      = self.CDF[ii].FLD.yy
-      CDF.FLD.units   = self.CDF[ii].FLD.units
-      CDF.FLD.missing = self.CDF[ii].FLD.missing
-      CDF.FLD.varname = self.CDF[ii].FLD.varname
-      CDF.varname.set(CDF.FLD.varname)
+    toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
+    toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
 
-      CDF.FLD.icdf = tools.geocdf(wid=self.cons)
+    CDF.K.set(K)
+    CDF.L.set(0)
+    CDF.K_LIST = [K]
+    CDF.L_LIST = [0]
+    CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
+    CDF.T_LIST = [0]
+    CDF.DATE   = [self.CDF[ii].DATE[0]]
 
-      conf = self.CDF[ii].FLD.icdf.conf_get()
-      CDF.FLD.icdf.conf_set(conf)
-      CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+    CDF.ALIAS       = 'Variance field'
+    CDF.FLD.x       = self.CDF[ii].FLD.x
+    CDF.FLD.y       = self.CDF[ii].FLD.y
+    CDF.FLD.xx      = self.CDF[ii].FLD.xx
+    CDF.FLD.yy      = self.CDF[ii].FLD.yy
+    CDF.FLD.units   = self.CDF[ii].FLD.units
+    CDF.FLD.missing = self.CDF[ii].FLD.missing
+    CDF.FLD.varname = self.CDF[ii].FLD.varname
+    CDF.varname.set(CDF.FLD.varname)
 
-      conf = self.CDF[ii].PLOT.conf_get()
-      CDF.PLOT.conf_set(conf)
+    CDF.FLD.icdf = tools.geocdf(wid=self.cons)
 
-      CDF.show.set(True)
-      self.CDF[ii].show.set(False)
+    conf = self.CDF[ii].FLD.icdf.conf_get()
+    CDF.FLD.icdf.conf_set(conf)
+    CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
 
-      self.ncdf += 1
-      self.CDF.append(CDF)
-      self.CDF_INDX.set(self.ncdf-1)
-      self.CDF_LIST = list(range(self.ncdf))
+    conf = self.CDF[ii].PLOT.conf_get()
+    CDF.PLOT.conf_set(conf)
 
-      self.nfiles += 1
-      self.FILENAMES.append(self.CDF[ii].FILENAME.get())
-      self.FILETYPES.append('CDF-VAR')
-      self.FILEORDER.append(self.ncdf-1)
-      self.SEQUENCES.append(tk.BooleanVar(value=False))
+    CDF.show.set(True)
+    self.CDF[ii].show.set(False)
 
-      self.make_plot()
+    self.ncdf += 1
+    self.CDF.append(CDF)
+    self.CDF_INDX.set(self.ncdf-1)
+    self.CDF_LIST = list(range(self.ncdf))
+
+    self.nfiles += 1
+    self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+    self.FILETYPES.append('FLD')
+    self.FILEORDER.append(self.ncdf-1)
+    self.SEQUENCES.append(tk.BooleanVar(value=False))
+
+    self.make_plot()
 
   def get_map_coords(self):
   # ====================
@@ -8894,7 +8934,106 @@ class CosmoDrawing():
 
     plotxy.PLOTXY(Window,t=t,u=u,v=v)
 
-    #print(self.VEC[ii].TIME[:])
-    #print(self.VEC[ii].DATE[:])
-    #print(u)
-    #print(v)
+
+  def vector_mean(self):
+  # ==========================
+    ''' Calculates the long term mean of a vector field '''
+    
+    if self.nvec == 0:
+      messagebox.showinfo(message='No currents file opened yet')
+      return
+
+    ii = self.VEC_INDX.get()
+    K  = self.VEC[ii].K.get()
+    L  = self.VEC[ii].L.get()
+    nt = self.VEC[ii].U.icdf.nt
+
+    for L in range(0,nt):
+      print('L = ', L)
+      udata = self.VEC[ii].U.read(K=K,L=L,wid=self.cons)
+      vdata = self.VEC[ii].V.read(K=K,L=L,wid=self.cons)
+      #ny, nx = udata.shape
+      #udata = udata.reshape((1,ny,nx))
+      #vdata = vdata.reshape((1,ny,nx))
+      #if L==0:
+      #  unum = udata.copy()
+      #  vnum = vdata.copy()
+      #else:
+      #  unum = np.ma.concatenate([unum,udata])
+      #  vnum = np.ma.concatenate([vnum,vdata])
+      if L==0:
+        unum = udata.copy()
+        vnum = vdata.copy()
+      else:
+        unum = unum + udata
+        vnum = vnum + vdata
+
+    VEC = VECTOR()
+
+    # Make sure that the missing value is NaN:
+    #udata = unum.mean(axis=0)
+    #vdata = vnum.mean(axis=0)
+    udata = unum / nt
+    vdata = vnum / nt
+    _u = udata.filled(fill_value=np.nan)
+    _v = vdata.filled(fill_value=np.nan)
+    udata = np.ma.masked_equal(_u,np.nan); del _u
+    vdata = np.ma.masked_equal(_v,np.nan); del _v
+
+    VEC.U.data = udata
+    VEC.V.data = vdata
+
+    VEC.K.set(K)
+    if len(self.VEC[ii].Z_LIST) > 0:
+      VEC.K_LIST = [K]
+      VEC.Z_LIST = [self.VEC[ii].Z_LIST[K]]
+
+    VEC.L.set(0)
+    VEC.L_LIST = [0]
+    VEC.T_LIST = [0]
+    VEC.DATE   = [self.VEC[ii].DATE[0]]
+
+    VEC.ALIAS       = 'Mean field'
+    VEC.U.x       = self.VEC[ii].U.x
+    VEC.U.y       = self.VEC[ii].U.y
+    VEC.U.xx      = self.VEC[ii].U.xx
+    VEC.U.yy      = self.VEC[ii].U.yy
+    VEC.U.units   = self.VEC[ii].U.units
+    VEC.U.missing = self.VEC[ii].U.missing
+    VEC.U.varname = self.VEC[ii].U.varname
+    VEC.V.varname = self.VEC[ii].V.varname
+    VEC.UFILENAME.set(self.VEC[ii].UFILENAME.get())
+    VEC.VFILENAME.set(self.VEC[ii].VFILENAME.get())
+    VEC.uname.set(VEC.U.varname)
+    VEC.vname.set(VEC.V.varname)
+
+    VEC.U.icdf = tools.geocdf(wid=self.cons)
+    VEC.V.icdf = tools.geocdf(wid=self.cons)
+
+    conf = self.VEC[ii].U.icdf.conf_get()
+    VEC.U.icdf.conf_set(conf)
+    VEC.U.icdf.VAR_MENU = [VEC.U.varname]
+
+    conf = self.VEC[ii].V.icdf.conf_get()
+    VEC.V.icdf.conf_set(conf)
+    VEC.V.icdf.VAR_MENU = [VEC.V.varname]
+
+    conf = self.VEC[ii].PLOT.conf_get()
+    VEC.PLOT.conf_set(conf)
+
+    VEC.show.set(True)
+    self.VEC[ii].show.set(False)
+
+    self.nvec += 1
+    self.VEC.append(VEC)
+    self.VEC_INDX.set(self.nvec-1)
+    self.VEC_LIST = list(range(self.nvec))
+
+    self.nfiles += 1
+    self.FILENAMES.append(self.VEC[ii].UFILENAME.get())
+    self.FILETYPES.append('VEC')
+    self.FILEORDER.append(self.nvec-1)
+    self.SEQUENCES.append(tk.BooleanVar(value=False))
+
+    self.make_plot()
+

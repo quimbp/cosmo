@@ -22,8 +22,10 @@ def rot(phi):
 
   return np.exp(1j*phi)
 
-def plot_ellipse(ax,xo,yo,a,b,phi):
-# -------------------------------
+def plot_ellipse(ax,xo,yo,a,b,mphi,ephi):
+# ---------------------------------------
+
+  phi = ephi
 
   # Rotation matrix
   R = np.array([[np.cos(phi), -np.sin(phi)],[np.sin(phi), np.cos(phi)]])
@@ -42,14 +44,29 @@ def plot_ellipse(ax,xo,yo,a,b,phi):
   C = np.array([b*np.cos(t), b*np.sin(t)])
   ax.plot(xo+C[0,:], yo+C[1,:],linestyle='--')
 
-  tc = np.arctan2(np.tan(phi)*a,b)
+
+  # - Direction mean flow
+  tc = np.arctan2(np.tan(mphi)*a,b)
   xmax = np.abs(a*np.cos(tc))
   xmin = -np.abs(a*np.cos(tc))
 
   x = np.linspace(xmin,xmax,20)
-  y = np.tan(phi)*x
+  y = np.tan(mphi)*x
 
-  ax.plot(xo+x, yo+y,linestyle='--')
+  ax.plot(xo+x, yo+y,linestyle='--',color='brown',linewidth=1.5,label='Mean flow direction')
+
+  # - Eddy orientation
+  tc = np.arctan2(np.tan(ephi)*a,b)
+  xmax = np.abs(a*np.cos(tc))
+  xmin = -np.abs(a*np.cos(tc))
+
+  x = np.linspace(xmin,xmax,20)
+  y = np.tan(ephi)*x
+
+  ax.plot(xo+x, yo+y,linestyle='--',color='red',linewidth=0.8,label='Eddy orientation')
+
+
+  ax.legend()
 
 
 
@@ -426,14 +443,14 @@ class PLOTXY:
       plt.subplots_adjust(bottom=0.4)
       self.ax1.set_xlim(-np.sqrt(Tra),np.sqrt(Tra))
       self.ax1.set_ylim(-np.sqrt(Tra),np.sqrt(Tra))
-      plot_ellipse(self.ax1,0,0,np.sqrt(a2),np.sqrt(b2),mphi+aphi)
+      plot_ellipse(self.ax1,0,0,np.sqrt(a2),np.sqrt(b2),mphi,aphi)
       txt1 = 'Mean velocity components: %.2f, %.2f ' %(mu,mv)
       txt2 = 'Mean velocity angle: %.2f ' %(180*mphi/np.pi)
       txt3 = 'Total anomaly variance: %.2f ' %(Tra)
       txt4 = 'Directional anomaly variance: %.2f ' %(a2-b2)
       txt5 = 'Isotropic anomaly variance: %.2f ' %(2*b2)
       txt6 = 'Polarization factor: %.2f ' %((a2-b2)/Tra)
-      txt7 = 'Anomaly Variance angle: %.2f ' %(180*aphi/np.pi)
+      txt7 = 'Eddy orientation: %.2f ' %(180*aphi/np.pi)
       print(txt1)
       print(txt2)
       print(txt3)
