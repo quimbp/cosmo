@@ -9530,6 +9530,7 @@ class CosmoDrawing():
       if self.PLOT.TIMESTAMP_SHOW.get():
         toconsola("EG Time stamp: "+str(self.DATE[self.L.get()]),wid=self.cons)
         #print("EG Time stamp: ", self.DATE[self.L.get()])
+        font_family = self.PLOT.MAP_FONT_TYPE.get()
         font_weight = 'normal'
         if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
    

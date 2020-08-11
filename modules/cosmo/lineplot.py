@@ -325,7 +325,7 @@ def Configuration_OnMap(parent,PLOT,LL):
   MMLabel = ttk.Label(F0,textvariable=PLOT.ONMAP_COLOR,width=8,style="ssmarker.TLabel")
   MMLabel.grid(row=3,column=1,sticky='w')
   ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.ONMAP_COLOR, \
-            szmarker,MMLabel,"ssmarker.TLabel",master=parent)). \
+            ssmarker,MMLabel,"ssmarker.TLabel",master=parent)). \
             grid(row=3,column=2,sticky='w')
   F0.grid(row=0,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='w')
 
