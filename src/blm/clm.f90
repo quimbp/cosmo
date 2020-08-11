@@ -49,7 +49,7 @@ integer                                  :: internal_step
 integer                                  :: internal_nsteps
 real(dp)                                 :: simulation_length
 real(dp)                                 :: external_dt
-real(dp)                                 :: internal_dt
+!real(dp)                                 :: internal_dt
 real(dp)                                 :: file_time
 
 ! ... Stationnary simulation
@@ -112,8 +112,8 @@ real(dp), dimension(:,:,:,:), pointer   :: ucoef,vcoef,wcoef,tcoef,scoef,rcoef
 ! ... Those fields represent the values at any given time
 ! ... they can be constant or come from a cubic interpolation
 ! ...
-real(dp), dimension(:,:,:,:), pointer   :: urhs,vrhs,wrhs,trhs,srhs,rrhs
-real(dp), dimension(:,:,:), pointer     :: hrhs
+!real(dp), dimension(:,:,:,:), pointer   :: urhs,vrhs,wrhs,trhs,srhs,rrhs
+!real(dp), dimension(:,:,:), pointer     :: hrhs
 
 ! ... Working box
 ! ...
@@ -130,105 +130,105 @@ real(dp)                                :: north  = nan
 real(dp)                                :: west   = nan
 real(dp)                                :: east   = nan
 
-type field
-  ! This structure contains the necessary information for a
-  ! variable to be read and processed
-  integer                               :: fid               ! ncdf file id
-  integer                               :: id                ! ncdf Var id
-  integer                               :: nx
-  integer                               :: ny
-  integer                               :: nz
-  integer                               :: ndims
-  integer                               :: ppi
-  integer                               :: ppj
-  integer                               :: ppk
-  integer                               :: ppl
-  real(dp)                              :: time
-  logical                               :: missingdefined
-  logical                               :: missingisnan
-  real(dp)                              :: missing_value
-  real(dp)                              :: add_offset
-  real(dp)                              :: scale_factor
-  real(dp), dimension(:,:,:), pointer   :: data
-end type field
-
-! ... Input grids:
-! ...
-type cdf_vgrid
-  logical                               :: defined  = .false.
-  integer                               :: fid      = -1
-  integer                               :: ndims    = -1
-  integer                               :: idx      = -1
-  integer                               :: idy      = -1
-  integer                               :: idz      = -1
-  integer                               :: idt      = -1
-  integer                               :: idvel    = -1
-  integer                               :: nx       =  1
-  integer                               :: ny       =  1
-  integer                               :: nz       =  1
-  integer                               :: nt       =  1
-  character(len=maxlen)                 :: filename = ''
-  character(len=80)                     :: varname  = ''
-  character(len=80)                     :: xname    = ''
-  character(len=80)                     :: yname    = ''
-  character(len=80)                     :: zname    = ''
-  character(len=80)                     :: tname    = ''
-  character(len=80)                     :: calendar = ''
-  integer, dimension(:), pointer        :: po
-  integer, dimension(:), pointer        :: pf
-  real(dp), dimension(:), pointer       :: x
-  real(dp), dimension(:), pointer       :: y
-  real(dp), dimension(:), pointer       :: z
-  real(dp), dimension(:), pointer       :: t
-  real(dp), dimension(:), pointer       :: xm
-  real(dp), dimension(:), pointer       :: ym
-  real(dp)                              :: time_ref
-  type(date_type)                       :: date_ref
-  type(field)                           :: vel
-  logical, dimension(:,:,:), pointer    :: land
-  logical, dimension(:,:,:), pointer    :: sea
-end type cdf_vgrid
-
-type cdf_tgrid
-  logical                               :: defined  = .false.
-  integer                               :: fid      = -1
-  integer                               :: ndims    = -1
-  integer                               :: idx      = -1
-  integer                               :: idy      = -1
-  integer                               :: idz      = -1
-  integer                               :: idt      = -1
-  integer                               :: idtemp   = -1
-  integer                               :: idsalt   = -1
-  integer                               :: iddens   = -1
-  integer                               :: nx       =  1
-  integer                               :: ny       =  1
-  integer                               :: nz       =  1
-  integer                               :: nt       =  1
-  character(len=maxlen)                 :: filename = ''
-  character(len=80)                     :: tempname = ''
-  character(len=80)                     :: saltname = ''
-  character(len=80)                     :: densname = ''
-  character(len=80)                     :: xname    = ''
-  character(len=80)                     :: yname    = ''
-  character(len=80)                     :: zname    = ''
-  character(len=80)                     :: tname    = ''
-  character(len=80)                     :: calendar = ''
-  integer, dimension(:), pointer        :: po
-  integer, dimension(:), pointer        :: pf
-  real(dp), dimension(:), pointer       :: x
-  real(dp), dimension(:), pointer       :: y
-  real(dp), dimension(:), pointer       :: z
-  real(dp), dimension(:), pointer       :: t
-  real(dp), dimension(:), pointer       :: xm
-  real(dp), dimension(:), pointer       :: ym
-  real(dp)                              :: time_ref
-  type(date_type)                       :: date_ref
-  type(field)                           :: temp
-  type(field)                           :: salt
-  type(field)                           :: dens
-  logical, dimension(:,:,:), pointer    :: land
-  logical, dimension(:,:,:), pointer    :: sea
-end type cdf_tgrid
+!type field
+!  ! This structure contains the necessary information for a
+!  ! variable to be read and processed
+!  integer                               :: fid               ! ncdf file id
+!  integer                               :: id                ! ncdf Var id
+!  integer                               :: nx
+!  integer                               :: ny
+!  integer                               :: nz
+!  integer                               :: ndims
+!  integer                               :: ppi
+!  integer                               :: ppj
+!  integer                               :: ppk
+!  integer                               :: ppl
+!  real(dp)                              :: time
+!  logical                               :: missingdefined
+!  logical                               :: missingisnan
+!  real(dp)                              :: missing_value
+!  real(dp)                              :: add_offset
+!  real(dp)                              :: scale_factor
+!  real(dp), dimension(:,:,:), pointer   :: data
+!end type field
+!
+!! ... Input grids:
+!! ...
+!type cdf_vgrid
+!  logical                               :: defined  = .false.
+!  integer                               :: fid      = -1
+!  integer                               :: ndims    = -1
+!  integer                               :: idx      = -1
+!  integer                               :: idy      = -1
+!  integer                               :: idz      = -1
+!  integer                               :: idt      = -1
+!  integer                               :: idvel    = -1
+!  integer                               :: nx       =  1
+!  integer                               :: ny       =  1
+!  integer                               :: nz       =  1
+!  integer                               :: nt       =  1
+!  character(len=maxlen)                 :: filename = ''
+!  character(len=80)                     :: varname  = ''
+!  character(len=80)                     :: xname    = ''
+!  character(len=80)                     :: yname    = ''
+!  character(len=80)                     :: zname    = ''
+!  character(len=80)                     :: tname    = ''
+!  character(len=80)                     :: calendar = ''
+!  integer, dimension(:), pointer        :: po
+!  integer, dimension(:), pointer        :: pf
+!  real(dp), dimension(:), pointer       :: x
+!  real(dp), dimension(:), pointer       :: y
+!  real(dp), dimension(:), pointer       :: z
+!  real(dp), dimension(:), pointer       :: t
+!  real(dp), dimension(:), pointer       :: xm
+!  real(dp), dimension(:), pointer       :: ym
+!  real(dp)                              :: time_ref
+!  type(date_type)                       :: date_ref
+!  type(field)                           :: vel
+!  logical, dimension(:,:,:), pointer    :: land
+!  logical, dimension(:,:,:), pointer    :: sea
+!end type cdf_vgrid
+!
+!type cdf_tgrid
+!  logical                               :: defined  = .false.
+!  integer                               :: fid      = -1
+!  integer                               :: ndims    = -1
+!  integer                               :: idx      = -1
+!  integer                               :: idy      = -1
+!  integer                               :: idz      = -1
+!  integer                               :: idt      = -1
+!  integer                               :: idtemp   = -1
+!  integer                               :: idsalt   = -1
+!  integer                               :: iddens   = -1
+!  integer                               :: nx       =  1
+!  integer                               :: ny       =  1
+!  integer                               :: nz       =  1
+!  integer                               :: nt       =  1
+!  character(len=maxlen)                 :: filename = ''
+!  character(len=80)                     :: tempname = ''
+!  character(len=80)                     :: saltname = ''
+!  character(len=80)                     :: densname = ''
+!  character(len=80)                     :: xname    = ''
+!  character(len=80)                     :: yname    = ''
+!  character(len=80)                     :: zname    = ''
+!  character(len=80)                     :: tname    = ''
+!  character(len=80)                     :: calendar = ''
+!  integer, dimension(:), pointer        :: po
+!  integer, dimension(:), pointer        :: pf
+!  real(dp), dimension(:), pointer       :: x
+!  real(dp), dimension(:), pointer       :: y
+!  real(dp), dimension(:), pointer       :: z
+!  real(dp), dimension(:), pointer       :: t
+!  real(dp), dimension(:), pointer       :: xm
+!  real(dp), dimension(:), pointer       :: ym
+!  real(dp)                              :: time_ref
+!  type(date_type)                       :: date_ref
+!  type(field)                           :: temp
+!  type(field)                           :: salt
+!  type(field)                           :: dens
+!  logical, dimension(:,:,:), pointer    :: land
+!  logical, dimension(:,:,:), pointer    :: sea
+!end type cdf_tgrid
 
 ! ==========================================================================
 ! ==========================================================================
@@ -236,6 +236,8 @@ end type cdf_tgrid
 contains
 
 subroutine clm_ufield_open(UCDF)
+
+use grids
 
 type(cdf_vgrid), INTENT(inout)           :: UCDF
 
@@ -406,7 +408,12 @@ end subroutine clm_ufield_open
 ! ...
 subroutine clm_tfield_open(TCDF)
 
+use grids
+
+implicit none
+
 type(cdf_tgrid), INTENT(inout)           :: TCDF
+
 
 ! ... Input velocity and temperature grid
 ! ...
@@ -722,6 +729,8 @@ end subroutine clm_tfield_open
 ! ...
 subroutine get_land(u,land)
 
+use grids
+
 type(field), intent(in)                         :: u
 logical, dimension(u%nx,u%ny,u%nz), intent(out) :: land
 
@@ -749,12 +758,15 @@ end subroutine get_land
 ! ...
 ! ==========================================================================
 ! ...
-subroutine clm_ini(UCDF,VCDF,WCDF,TCDF)
+!subroutine clm_ini(UCDF,VCDF,WCDF,TCDF)
+subroutine clm_ini()
 
-type(cdf_vgrid)                         :: UCDF
-type(cdf_vgrid)                         :: VCDF
-type(cdf_vgrid)                         :: WCDF
-type(cdf_tgrid)                         :: TCDF
+use mrhs
+
+!type(cdf_vgrid)                         :: UCDF
+!type(cdf_vgrid)                         :: VCDF
+!type(cdf_vgrid)                         :: WCDF
+!type(cdf_tgrid)                         :: TCDF
 !type(floater)                           :: FLT
 
 ! ... Local variables:
@@ -1031,13 +1043,16 @@ end subroutine clm_ini
 ! ...
 ! ==========================================================================
 ! ...
-subroutine clm_run (UCDF,VCDF,WCDF,TCDF,FLT)
+!subroutine clm_run (UCDF,VCDF,WCDF,TCDF,FLT)
+subroutine clm_run ()
 
-type(cdf_vgrid)                         :: UCDF
-type(cdf_vgrid)                         :: VCDF
-type(cdf_vgrid)                         :: WCDF
-type(cdf_tgrid)                         :: TCDF
-type(floater)                           :: FLT
+use mrhs
+
+!type(cdf_vgrid)                         :: UCDF
+!type(cdf_vgrid)                         :: VCDF
+!type(cdf_vgrid)                         :: WCDF
+!type(cdf_tgrid)                         :: TCDF
+!type(floater)                           :: FLT
 
 ! ... Local variables:
 ! ...
@@ -1045,7 +1060,7 @@ logical init
 integer flo,kout,nfloating,nstranded,noutside
 integer                                  :: external_step
 real(dp)                                 :: external_time
-real(dp)                                 :: internal_time
+!real(dp)                                 :: internal_time
 real(dp)                                 :: initial_time
 real(dp), dimension(2)                   :: vp,vn
 
@@ -1054,6 +1069,11 @@ type(date_type)                          :: system_date
 
 real(dp) hinterpol,udf
 external hinterpol,udf
+
+!common/internals/internal_time,internal_dt_common
+
+external RHS
+
 
 !if (UCDF%vel%missingdefined) then
 !  missing = UCDF%vel%missing_value
@@ -1458,7 +1478,6 @@ contains
     do kk=1,5
       trk = internal_time + 0.25_dp*(kk-1)*internal_dt 
       tf = abs((trk-external_time)/external_dt)
-      print*, trk, tf
       do j=1,ny
       do i=1,nx
         do k=1,nz
@@ -1677,28 +1696,6 @@ contains
   ! ...
   ! ==========================================================================
   ! ...
-  subroutine RHS(n,t,x,dxdt)
-
-  integer, intent(in)                        :: n
-  real(dp), intent(in)                       :: t
-  real(dp), dimension(n), intent(in)         :: x
-  real(dp), dimension(n), intent(out)        :: dxdt
-
-  ! ... Local variables
-  ! ... 
-  integer kk
-
-  kk = nint(4.0_dp*(t-internal_time)/internal_dt) + 1
-
-  ! ... Interpolation at the float location
-  ! ... Hardcoded: first layer !!!!
-  dxdt(1) = hinterpol(nx,ny,UCDF%xm(:),UCDF%ym(:),urhs(:,:,1,kk),x(1),x(2))
-  dxdt(2) = hinterpol(nx,ny,VCDF%xm(:),VCDF%ym(:),vrhs(:,:,1,kk),x(1),x(2))
-
-  end subroutine RHS
-  ! ...
-  ! ==========================================================================
-  ! ...
   pure function cubic(a,t) result(f)
 
   real(dp), dimension(4), intent(in)   :: a
@@ -1711,12 +1708,6 @@ contains
   ! ...
   ! ==========================================================================
   ! ...
-
-! ...
-! ==========================================================================
-! ...
 end subroutine clm_run
-! ==========================================================================
-! ==========================================================================
 
 end module clm

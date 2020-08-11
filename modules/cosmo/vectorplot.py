@@ -21,6 +21,8 @@
 		All color selections are now managed through tools.colsel() function
 		Cartopy projections can be accessed through tools.map_proj()
 		A heap variable MESSAGE has been introduce to store "print" messages
+        QB, 07/2020: Changes
+                Support for different Arakawa grids
 '''
 import tkinter as tk
 from tkinter import ttk
@@ -83,8 +85,6 @@ class parameters():
     self.CURRENT_HEADLENGTH= tk.IntVar()
     self.CURRENT_HEADWIDTH = tk.IntVar()
     self.CURRENT_COLOR     = tk.StringVar()
-    self.CURRENT_ALPHA     = tk.DoubleVar()
-    self.CURRENT_ZORDER    = tk.IntVar()
 
     self.BARB_LENGTH       = tk.IntVar()
     self.BARB_PIVOT        = tk.StringVar()
@@ -97,16 +97,15 @@ class parameters():
     self.BARB_HALF         = tk.IntVar()
     self.BARB_FULL         = tk.IntVar()
     self.BARB_FLAG         = tk.IntVar()
-    self.BARB_ALPHA        = tk.DoubleVar()
     self.BARB_LINEWIDTH    = tk.DoubleVar()
-    self.BARB_ZORDER       = tk.IntVar()
     self.BARB_SCALE        = tk.DoubleVar()
 
     self.STREAM_DENSITY    = tk.DoubleVar()
     self.STREAM_WIDTH      = tk.DoubleVar()
     self.STREAM_COLOR      = tk.StringVar()
-    self.STREAM_ZORDER     = tk.IntVar()
 
+    self.ALPHA             = tk.DoubleVar()
+    self.ZORDER            = tk.IntVar()
     self.COLOR_BY_SPEED    = tk.BooleanVar()
 
     self.KEY_SHOW  = tk.BooleanVar()
@@ -125,7 +124,7 @@ class parameters():
     # Defautl attribute values
     #
     self.DRAWING_MODE.set(0)     # 0 - Vector, 1 - Barb, 2 - Streamplot
-    self.GRID_MODE.set(1)
+    self.GRID_MODE.set(0)
     self.CURRENT_DX.set(4)
     self.CURRENT_DY.set(4)
     self.CURRENT_NX.set(41)
@@ -135,15 +134,13 @@ class parameters():
     self.CURRENT_HEADLENGTH.set(5)
     self.CURRENT_HEADWIDTH.set(3)
     self.CURRENT_COLOR.set('black')
-    self.CURRENT_ALPHA.set(1.0)
-    self.CURRENT_ZORDER.set(1)
+    self.ALPHA.set(1.0)
+    self.ZORDER.set(3)
     self.BARB_PIVOT.set('middle')
     self.BARB_LENGTH.set(7)
     self.BARB_BARBCOLOR.set('black')
     self.BARB_FLAGCOLOR.set('black')
     self.BARB_LINEWIDTH.set(1.0)
-    self.BARB_ALPHA.set(1.0)
-    self.BARB_ZORDER.set(2)
     self.BARB_SCALE.set(1.9438445)
     self.BARB_HALF.set(5)
     self.BARB_FULL.set(10)
@@ -154,14 +151,14 @@ class parameters():
     self.BARB_EMPTYBARB.set(0.15)
     self.STREAM_DENSITY.set(1)
     self.STREAM_WIDTH.set(2)
+    self.STREAM_DENSITY.set(1)
     self.STREAM_COLOR.set('black')
-    self.STREAM_ZORDER.set(1)
     self.COLOR_BY_SPEED.set(False)
     self.KEY_SHOW.set(True)
     self.KEY_VALUE.set(1)
     self.KEY_LABEL.set('m/s')
     self.KEY_X.set(0.85)
-    self.KEY_Y.set(0.12)
+    self.KEY_Y.set(0.10)
     self.KEY_POS.set('E')
     self.KEY_COLOR.set('black')
     self.KEY_SIZE.set(12)
@@ -198,8 +195,8 @@ class parameters():
     conf['CURRENT_HEADLENGTH'] = self.CURRENT_HEADLENGTH.get()
     conf['CURRENT_HEADWIDTH'] = self.CURRENT_HEADWIDTH.get()
     conf['CURRENT_COLOR'] = self.CURRENT_COLOR.get()
-    conf['CURRENT_ALPHA'] = self.CURRENT_ALPHA.get()
-    conf['CURRENT_ZORDER'] = self.CURRENT_ZORDER.get()
+    conf['ALPHA'] = self.ALPHA.get()
+    conf['ZORDER'] = self.ZORDER.get()
 
     conf['BARB_LENGTH'] = self.BARB_LENGTH.get()
     conf['BARB_PIVOT'] = self.BARB_PIVOT.get()
@@ -212,15 +209,12 @@ class parameters():
     conf['BARB_HALF'] = self.BARB_HALF.get()
     conf['BARB_FULL'] = self.BARB_FULL.get()
     conf['BARB_FLAG'] = self.BARB_FLAG.get()
-    conf['BARB_ALPHA'] = self.BARB_ALPHA.get()
     conf['BARB_LINEWIDTH'] = self.BARB_LINEWIDTH.get()
-    conf['BARB_ZORDER'] = self.BARB_ZORDER.get()
     conf['BARB_SCALE'] = self.BARB_SCALE.get()
 
     conf['STREAM_DENSITY'] = self.STREAM_DENSITY.get()
     conf['STREAM_WIDTH'] = self.STREAM_WIDTH.get()
     conf['STREAM_COLOR'] = self.STREAM_COLOR.get()
-    conf['STREAM_ZORDER'] = self.STREAM_ZORDER.get()
 
     conf['COLOR_BY_SPEED'] = self.COLOR_BY_SPEED.get()
     conf['KEY_SHOW'] = self.KEY_SHOW.get()
@@ -249,8 +243,8 @@ class parameters():
     self.CURRENT_HEADLENGTH.set(conf['CURRENT_HEADLENGTH'])
     self.CURRENT_HEADWIDTH.set(conf['CURRENT_HEADWIDTH'])
     self.CURRENT_COLOR.set(conf['CURRENT_COLOR'])
-    self.CURRENT_ALPHA.set(conf['CURRENT_ALPHA'])
-    self.CURRENT_ZORDER.set(conf['CURRENT_ZORDER'])
+    self.ALPHA.set(conf['ALPHA'])
+    self.ZORDER.set(conf['ZORDER'])
 
     self.BARB_LENGTH.set(conf['BARB_LENGTH'])
     self.BARB_PIVOT.set(conf['BARB_PIVOT'])
@@ -263,15 +257,12 @@ class parameters():
     self.BARB_HALF.set(conf['BARB_HALF'])
     self.BARB_FULL.set(conf['BARB_FULL'])
     self.BARB_FLAG.set(conf['BARB_FLAG'])
-    self.BARB_ALPHA.set(conf['BARB_ALPHA'])
     self.BARB_LINEWIDTH.set(conf['BARB_LINEWIDTH'])
-    self.BARB_ZORDER.set(conf['BARB_ZORDER'])
     self.BARB_SCALE.set(conf['BARB_SCALE'])
 
     self.STREAM_DENSITY.set(conf['STREAM_DENSITY'])
     self.STREAM_WIDTH.set(conf['STREAM_WIDTH'])
     self.STREAM_COLOR.set(conf['STREAM_COLOR'])
-    self.STREAM_ZORDER.set(conf['STREAM_ZORDER'])
     self.COLOR_BY_SPEED.set(conf['COLOR_BY_SPEED'])
     self.KEY_SHOW.set(conf['KEY_SHOW'])
     self.KEY_VALUE.set(conf['KEY_VALUE'])
@@ -456,13 +447,13 @@ def Configuration(parent,PLOT):
   ttk.Label(frame1,
             text='Alpha').grid(row=7,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_ALPHA,
+            textvariable=PLOT.ALPHA,
             justify='left',
             width=8).grid(row=7,column=1,sticky='w')
   ttk.Label(frame1,
             text='Zorder').grid(row=8,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_ZORDER,
+            textvariable=PLOT.ZORDER,
             justify='left',width=8). \
             grid(row=8,column=1,sticky='w')
   frame1.grid()
@@ -592,12 +583,12 @@ def Configuration(parent,PLOT):
   ttk.Label(frame5,
             text='Alpha').grid(row=16,column=0,sticky='w')
   ttk.Entry(frame5,
-            textvariable=PLOT.BARB_ALPHA,
+            textvariable=PLOT.ALPHA,
             width=7).grid(row=16,column=1,sticky='w')
   ttk.Label(frame5,
             text='Zorder').grid(row=17,column=0,sticky='w')
   ttk.Entry(frame5,
-            textvariable=PLOT.BARB_ZORDER,
+            textvariable=PLOT.ZORDER,
             width=7).grid(row=17,column=1,sticky='w')
   ttk.Label(frame5,
             text='Scale factor').grid(row=18,column=0,sticky='w')
@@ -637,7 +628,7 @@ def Configuration(parent,PLOT):
   ttk.Label(frame3,
             text='Zorder').grid(row=5,column=0,sticky='w')
   ttk.Entry(frame3,
-            textvariable=PLOT.STREAM_ZORDER,
+            textvariable=PLOT.ZORDER,
             width=7).grid(row=5,column=1,sticky='w')
   frame3.grid()
 
@@ -669,125 +660,123 @@ def drawing(ax,proj,CFIELD):
   font = fnt0.copy()
   font.set_size('x-large')
   
-  #EG For some fields the fillvalue needs to be changed by NaNs
-  UU, VV = CFIELD.VEL.u.filled(np.nan), CFIELD.VEL.v.filled(np.nan)
-
-  if CFIELD.VEL.PLOT.DRAWING_MODE.get() == 2:
+  if CFIELD.PLOT.DRAWING_MODE.get() == 2:
   # -------------------------------------------- STREAMFUNCTION
-    CFIELD.VEL.PLOT.MESSAGE += "Plot STREAMFUNCTION"+str(CFIELD.VEL.PLOT.MESSAGE)
-    #print("PLOT: STREAMFUNCTION", CFIELD.VEL.PLOT.MESSAGE)
+    CFIELD.PLOT.MESSAGE += "Plot STREAMFUNCTION"+str(CFIELD.PLOT.MESSAGE)
+  
     if isinstance(proj,cartopy.crs.PlateCarree):
      #EG this call to quiver with zorder negative is needed to proceed
      #EG with the streamplot. Need further analysis. Cartopy 0.17
      #EG Matplotlib 3.1.1
-     ax.quiver(CFIELD.lon, CFIELD.lat, UU, VV,  \
-                   transform=proj,zorder=-1)
-     ax.streamplot(CFIELD.lon, CFIELD.lat, UU, VV,  \
-                   transform=proj, \
-                   color=CFIELD.VEL.PLOT.STREAM_COLOR.get(),        \
-                   linewidth=CFIELD.VEL.PLOT.STREAM_WIDTH.get(),       \
-                   zorder=CFIELD.VEL.PLOT.STREAM_ZORDER.get(),       \
-                   density=CFIELD.VEL.PLOT.STREAM_DENSITY.get())
+     #ax.quiver(CFIELD.U.xx, CFIELD.U.yy, CFIELD.U.data, CFIELD.V.data,  \
+     #              transform=proj,zorder=-1)
+     ax.streamplot(CFIELD.U.xx, CFIELD.U.yy,                  \
+                   CFIELD.U.data, CFIELD.V.data,              \
+                   color=CFIELD.PLOT.STREAM_COLOR.get(),      \
+                   linewidth=CFIELD.PLOT.STREAM_WIDTH.get(),  \
+                   density=CFIELD.PLOT.STREAM_DENSITY.get(),  \
+                   zorder=CFIELD.PLOT.ZORDER.get(),    \
+                   transform=proj)
     else:
-     CFIELD.VEL.PLOT.MESSAGE += 'VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection'
+     CFIELD.PLOT.MESSAGE += 'VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection'
      #print('VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection')   
   
   else:
-    if CFIELD.VEL.PLOT.GRID_MODE.get() == 0:
-      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORS: original or decimated grid"	
+    if CFIELD.PLOT.GRID_MODE.get() == 0:
+      CFIELD.PLOT.MESSAGE += "EG VECTORS: original or decimated grid"	
       #print("EG VECTORS: original or decimated grid")
-      dx = CFIELD.VEL.PLOT.CURRENT_DX.get()
-      dy = CFIELD.VEL.PLOT.CURRENT_DY.get()
-      xplt, yplt = CFIELD.lon[::dx], CFIELD.lat[::dy]
-      uplt, vplt = UU[::dy,::dx], VV[::dy,::dx]
+      dx = CFIELD.PLOT.CURRENT_DX.get()
+      dy = CFIELD.PLOT.CURRENT_DY.get()
+      xplt, yplt = CFIELD.U.xx[::dy,::dx], CFIELD.U.yy[::dy,::dx]    # Grid stored in U
+      uplt, vplt = CFIELD.U.data[::dy,::dx], CFIELD.V.data[::dy,::dx]
     else:
-      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORS: fixed grid"
+      CFIELD.PLOT.MESSAGE += "EG VECTORS: fixed grid"
       #print("EG VECTORS: fixed grid")
       #EG The method "linear" in interpol.griddata is mandatory. Other
       #EG choices provides strange behaviour
       lonmin, lonmax, latmin, latmax = ax.get_extent()
-      xplt = np.linspace(lonmin,lonmax,CFIELD.VEL.PLOT.CURRENT_NX.get())
-      yplt = np.linspace(latmin,latmax,CFIELD.VEL.PLOT.CURRENT_NY.get())
+      xplt = np.linspace(lonmin,lonmax,CFIELD.PLOT.CURRENT_NX.get())
+      yplt = np.linspace(latmin,latmax,CFIELD.PLOT.CURRENT_NY.get())
       n_lon, n_lat = np.meshgrid(xplt,yplt)
-      o_lon, o_lat = np.meshgrid(CFIELD.lon,CFIELD.lat)
-      uplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
-                UU.flatten(),(n_lon,n_lat), method='linear')
-      vplt = interpol.griddata((o_lon.flatten(),o_lat.flatten()), \
-                VV.flatten(),(n_lon,n_lat), method='linear')
+
+      uplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
+                CFIELD.U.data.flatten(),(n_lon,n_lat), method='linear')
+      vplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
+                CFIELD.V.data.flatten(),(n_lon,n_lat), method='linear')
       
     speed = np.sqrt(uplt**2+vplt**2)
     
-    if CFIELD.VEL.PLOT.DRAWING_MODE.get() == 0:
+    if CFIELD.PLOT.DRAWING_MODE.get() == 0:
     # -------------------------------------------- VECTORS
-      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORPLOT: Arrows"
+      CFIELD.PLOT.MESSAGE += "EG VECTORPLOT: Arrows"
       #print("EG VECTORPLOT: Arrows")
-      if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
+      if CFIELD.PLOT.COLOR_BY_SPEED.get():
         quiver = ax.quiver(xplt,yplt,uplt,vplt,speed,                       \
                       transform=proj, \
-                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get())
+                      color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
+                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
+                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
+                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
+                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),
+                      alpha=CFIELD.PLOT.ALPHA.get(),
+                      zorder=CFIELD.PLOT.ZORDER.get())
       else:
         quiver = ax.quiver(xplt,yplt,uplt,vplt,  \
                       transform=proj, \
-                      color=CFIELD.VEL.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.VEL.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.VEL.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.VEL.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.VEL.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.VEL.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.VEL.PLOT.CURRENT_ZORDER.get())
+                      color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
+                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
+                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
+                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
+                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),
+                      alpha=CFIELD.PLOT.ALPHA.get(),
+                      zorder=CFIELD.PLOT.ZORDER.get())
                       
-      if CFIELD.VEL.PLOT.KEY_SHOW.get():
-        CFIELD.VEL.PLOT.KEY_OBJ = ax.quiverkey(quiver,
-                        CFIELD.VEL.PLOT.KEY_X.get(),
-                        CFIELD.VEL.PLOT.KEY_Y.get(),
-                        CFIELD.VEL.PLOT.KEY_VALUE.get(),
-                        CFIELD.VEL.PLOT.KEY_LABEL.get(),
-                        labelpos=CFIELD.VEL.PLOT.KEY_POS.get(),
+      if CFIELD.PLOT.KEY_SHOW.get():
+        CFIELD.PLOT.KEY_OBJ = ax.quiverkey(quiver,
+                        CFIELD.PLOT.KEY_X.get(),
+                        CFIELD.PLOT.KEY_Y.get(),
+                        CFIELD.PLOT.KEY_VALUE.get(),
+                        CFIELD.PLOT.KEY_LABEL.get(),
+                        labelpos=CFIELD.PLOT.KEY_POS.get(),
                         coordinates='figure',
                         transform=proj,
-                        labelcolor=CFIELD.VEL.PLOT.KEY_COLOR.get(),
-                        fontproperties={'size':CFIELD.VEL.PLOT.KEY_SIZE.get()})
+                        labelcolor=CFIELD.PLOT.KEY_COLOR.get(),
+                        fontproperties={'size':CFIELD.PLOT.KEY_SIZE.get()})
 
-    elif CFIELD.VEL.PLOT.DRAWING_MODE.get() == 1:
+    elif CFIELD.PLOT.DRAWING_MODE.get() == 1:
     # -------------------------------------------- BARBS
-      CFIELD.VEL.PLOT.MESSAGE += "EG VECTORPLOT: BARBS"
+      CFIELD.PLOT.MESSAGE += "EG VECTORPLOT: BARBS"
       #print("EG VECTORPLOT: BARBS")
       # Barb plot assumes knots
-      knots = CFIELD.VEL.PLOT.BARB_SCALE.get()
-      barb_increments = {'half': CFIELD.VEL.PLOT.BARB_HALF.get(),
-                       'full': CFIELD.VEL.PLOT.BARB_FULL.get(),
-                       'flag': CFIELD.VEL.PLOT.BARB_FLAG.get()}
-      sizes = {'spacing': CFIELD.VEL.PLOT.BARB_SPACING.get(),
-             'height': CFIELD.VEL.PLOT.BARB_HEIGHT.get(),
-             'width': CFIELD.VEL.PLOT.BARB_WIDTH.get(),
-             'emptybarb': CFIELD.VEL.PLOT.BARB_EMPTYBARB.get()}
+      knots = CFIELD.PLOT.BARB_SCALE.get()
+      barb_increments = {'half': CFIELD.PLOT.BARB_HALF.get(),
+                       'full': CFIELD.PLOT.BARB_FULL.get(),
+                       'flag': CFIELD.PLOT.BARB_FLAG.get()}
+      sizes = {'spacing': CFIELD.PLOT.BARB_SPACING.get(),
+             'height': CFIELD.PLOT.BARB_HEIGHT.get(),
+             'width': CFIELD.PLOT.BARB_WIDTH.get(),
+             'emptybarb': CFIELD.PLOT.BARB_EMPTYBARB.get()}
              
-      if CFIELD.VEL.PLOT.COLOR_BY_SPEED.get():
+      if CFIELD.PLOT.COLOR_BY_SPEED.get():
         speedk = knots*speed
         barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,speedk,
-                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
-                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
-                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
+                        pivot=CFIELD.PLOT.BARB_PIVOT.get(),
+                        length=CFIELD.PLOT.BARB_LENGTH.get(),
+                        linewidth=CFIELD.PLOT.BARB_LINEWIDTH.get(),
                         barb_increments=barb_increments,
                         sizes=sizes,
                         transform=proj, 
-                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get())  
+                        alpha=CFIELD.PLOT.ALPHA.get(),
+                        zorder=CFIELD.PLOT.ZORDER.get())  
       else:
         barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,
-                        pivot=CFIELD.VEL.PLOT.BARB_PIVOT.get(),
-                        length=CFIELD.VEL.PLOT.BARB_LENGTH.get(),
-                        barbcolor=CFIELD.VEL.PLOT.BARB_BARBCOLOR.get(),
-                        flagcolor=CFIELD.VEL.PLOT.BARB_FLAGCOLOR.get(),
-                        linewidth=CFIELD.VEL.PLOT.BARB_LINEWIDTH.get(),
+                        pivot=CFIELD.PLOT.BARB_PIVOT.get(),
+                        length=CFIELD.PLOT.BARB_LENGTH.get(),
+                        barbcolor=CFIELD.PLOT.BARB_BARBCOLOR.get(),
+                        flagcolor=CFIELD.PLOT.BARB_FLAGCOLOR.get(),
+                        linewidth=CFIELD.PLOT.BARB_LINEWIDTH.get(),
                         barb_increments=barb_increments,
                         sizes=sizes,
                         transform=proj, 
-                        alpha=CFIELD.VEL.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.VEL.PLOT.BARB_ZORDER.get())
+                        alpha=CFIELD.PLOT.ALPHA.get(),
+                        zorder=CFIELD.PLOT.ZORDER.get())

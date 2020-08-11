@@ -17,6 +17,10 @@ import json
 import os
 import io
 import csv
+
+import cartopy
+import cartopy.crs as ccrs
+
 try:
   to_unicode = unicode
 except:
@@ -48,8 +52,11 @@ class parameters():
 
     self.MESSAGE = ''
     
+    self.ALIAS           = tk.StringVar()
     self.FILENAME        = tk.StringVar()
+    self.SOURCE          = ''
 
+    self.show            = tk.BooleanVar()
     self.PLOT            = dotplot.parameters()
     self.LABEL           = tk.StringVar()
     self.n               = 0
@@ -57,6 +64,8 @@ class parameters():
     self.lon             = []
     self.lat             = []
     self.label           = []
+    self.textmode.set(True)
+    self.show.set(True)
 
     #EG We collect message ftom dotplot.parameters
     self.MESSAGE += self.PLOT.MESSAGE
@@ -66,16 +75,37 @@ class parameters():
     ''' Set class dictionnary from class attributes'''
 
     conf = {}
+    conf['FILENAME'] = self.FILENAME.get()
+    conf['ALIAS'] = self.ALIAS.get()
+    conf['LABEL'] = self.LABEL.get()
+    conf['SOURCE'] = self.SOURCE
+    conf['SHOW'] = self.show.get()
     conf['PLOT'] = self.PLOT.conf_get()
     conf['TEXTMODE'] = self.textmode.get()
+    if self.SOURCE == 'VIEWER':
+      conf['n'] = self.n
+      conf['X'] = self.lon
+      conf['Y'] = self.lat
+      conf['TXT'] = self.label
+
     return conf
 
   def conf_set(self,conf):
   # ======================
     ''' Set class attributes from conf class dictionary'''
 
+    self.FILENAME.set(conf['FILENAME'])
+    self.ALIAS.set(conf['ALIAS'])
+    self.LABEL.set(conf['LABEL'])
+    self.SOURCE = conf['SOURCE']
+    self.show.set(conf['SHOW'])
     self.PLOT.conf_set(conf['PLOT'])
     self.textmode.set(conf['TEXTMODE'])
+    if self.SOURCE == 'VIEWER':
+      self.n = conf['n']
+      self.lon = conf['X']
+      self.lat = conf['Y']
+      self.label = conf['TXT']
 
   def conf_load(self,filename):
   # ============================
@@ -162,8 +192,10 @@ class parameters():
 
     self.n = len(self.lon)
 
+    self.SOURCE = 'FILE'
+
     # Cheack that something has been read:
-    if self.n is 0:
+    if self.n == 0:
       self = None
       return
 
@@ -211,6 +243,9 @@ def drawing(ax,proj,MARKER):
   __author__  = "Quim Ballabrerera"
   __date__    = "May 2018"
 
+  if not MARKER.show.get():
+    return
+
   west, east, south, north = ax.get_extent()
   
   xv = []
@@ -224,11 +259,16 @@ def drawing(ax,proj,MARKER):
       lv.append(MARKER.label[i])
   nn = len(xv)
   
+  lmrk = None
+
+  xpad = MARKER.PLOT.XPAD.get()
+  ypad = MARKER.PLOT.YPAD.get()
+
   if nn > 0:
     if MARKER.textmode.get():
       # Here, every marker is identified by its label
       for i in range(nn):
-        ax.text(xv[i],yv[i],lv[i],
+        ax.text(xpad+xv[i],ypad+yv[i],lv[i],
                  ha=MARKER.PLOT.HA.get(),
                  va=MARKER.PLOT.VA.get(),
                  wrap=MARKER.PLOT.WRAP.get(),
@@ -237,26 +277,39 @@ def drawing(ax,proj,MARKER):
                  color=MARKER.PLOT.TCOLOR.get(),
                  size=MARKER.PLOT.TSIZE.get(),
                  zorder=MARKER.PLOT.ZORDER.get(),
-                 transform=proj)
+                 rotation=MARKER.PLOT.ANGLE.get(),
+                 transform=ccrs.PlateCarree())
+                 #transform=proj)
  
-        ax.plot(xv[i],yv[i],linestyle='',
-               marker=marker_string(MARKER.PLOT.SYMBOL.get()),
-               ms=MARKER.PLOT.SIZE.get(),
-               alpha=MARKER.PLOT.ALPHA.get(),
-               color=MARKER.PLOT.COLOR.get(),
-               zorder=MARKER.PLOT.ZORDER.get(),
-               transform=proj)
+        if MARKER.PLOT.SHOW.get():
+          lines = []
+          labels = []
+          lmrk, = ax.plot(xv[i],yv[i],linestyle='',
+                  marker=marker_string(MARKER.PLOT.SYMBOL.get()),
+                  ms=MARKER.PLOT.SIZE.get(),
+                  label=MARKER.LABEL.get(),
+                  alpha=MARKER.PLOT.ALPHA.get(),
+                  color=MARKER.PLOT.COLOR.get(),
+                  zorder=MARKER.PLOT.ZORDER.get(),
+                  transform=ccrs.PlateCarree())
+                  #transform=proj)
+#          lines.append(lmrk)
+#          legend = ax.legend(lines,['toto'])
                 
     else:
-      ax.plot(xv,yv,linestyle='',
-             marker=marker_string(MARKER.PLOT.SYMBOL.get()),
-             ms=MARKER.PLOT.SIZE.get(),
-             visible=MARKER.PLOT.SHOW.get(),
-             label=MARKER.LABEL.get(),
-             alpha=MARKER.PLOT.ALPHA.get(),
-             color=MARKER.PLOT.COLOR.get(),
-             zorder=MARKER.PLOT.ZORDER.get(),
-             transform=proj)
+      if MARKER.PLOT.SHOW.get():
+        lmrk, = ax.plot(xv,yv,linestyle='',
+                marker=marker_string(MARKER.PLOT.SYMBOL.get()),
+                ms=MARKER.PLOT.SIZE.get(),
+                visible=MARKER.PLOT.SHOW.get(),
+                label=MARKER.LABEL.get(),
+                alpha=MARKER.PLOT.ALPHA.get(),
+                color=MARKER.PLOT.COLOR.get(),
+                zorder=MARKER.PLOT.ZORDER.get(),
+                transform=ccrs.PlateCarree())
+                #transform=proj)
+
+  return lmrk
                 
 # ======================================
 def TextConfigure(parent,MPLOT):
@@ -371,12 +424,42 @@ def TextConfigure(parent,MPLOT):
                            padx=3,
                            sticky='w')
   ttk.Label(f0,
-            text='Zorder').grid(row=7,
+            text='Text angle').grid(row=7,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.ANGLE,
+            width=10).grid(row=7,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+  ttk.Label(f0,
+            text='x pad').grid(row=8,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.XPAD,
+            width=10).grid(row=8,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+  ttk.Label(f0,
+            text='y pad').grid(row=9,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.YPAD,
+            width=10).grid(row=9,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+  ttk.Label(f0,
+            text='Zorder').grid(row=10,
                                    column=0,
                                    padx=3)
   ttk.Entry(f0,
             textvariable=MPLOT.ZORDER,
-            width=10).grid(row=7,
+            width=10).grid(row=10,
                            column=1,
                            padx=3,
                            sticky='w')
@@ -391,7 +474,7 @@ def ShowData(master,LL):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
-  log = tk.Text(master)
+  log = tk.Text(master,height=10)
   log.grid(row=0,column=0,padx=10,pady=10,sticky='nsew')
   log.grid_columnconfigure(0,weight=0)
   log.grid_rowconfigure(0,weight=1)

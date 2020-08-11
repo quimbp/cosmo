@@ -59,6 +59,9 @@ class parameters():
     self.geom  = None
     self.type  = None
     self.FILENAME        = tk.StringVar()
+    self.ALIAS           = tk.StringVar()
+    self.SOURCE          = ''
+    self.show            = tk.BooleanVar()
 
     self.PLOT            = geoplot.parameters()
     self.LABEL           = tk.StringVar()
@@ -66,7 +69,13 @@ class parameters():
     self.textmode        = tk.BooleanVar()
     self.lon             = []
     self.lat             = []
-    self.label           = []
+    self.name            = []
+    self.KEY_LIST        = []
+    self.LABEL_KEY       = tk.StringVar() 
+
+    self.LABEL_KEY.set('')
+    self.SOURCE = 'FILE'
+    self.show.set(True)
     
     #EG We collect message ftom dotplot.parameters
     self.MESSAGE += self.PLOT.MESSAGE
@@ -83,16 +92,26 @@ class parameters():
   # =================
     ''' Set class dictionnary from class attributes'''
     conf = {}
-    conf['PLOT'] = self.PLOT.conf_get()
+    conf['FILENAME'] = self.FILENAME.get()
+    conf['ALIAS'] = self.ALIAS.get()
+    conf['SOURCE'] = self.SOURCE
+    conf['SHOW'] = self.show.get()
     conf['TEXTMODE'] = self.textmode.get()
+    conf['LABEL_KEY'] = self.LABEL_KEY.get()
+    conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
   def conf_set(self,conf):
   # ======================
     ''' Set class attributes from conf class dictionary'''
 
-    self.PLOT.conf_set(conf['PLOT'])
+    self.FILENAME.set(conf['FILENAME'])
+    self.ALIAS.set(conf['ALIAS'])
+    self.SOURCE = conf['SOURCE']
+    self.show.set(conf['SHOW'])
     self.textmode.set(conf['TEXTMODE'])
+    self.LABEL_KEY.set(conf['LABEL_KEY'])
+    self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
   # ============================
@@ -142,6 +161,7 @@ class parameters():
       self.lon = list(self.shp.geometries())
               
     self.FILENAME.set(filename)
+    self.SOURCE = 'FILE'
 
     if filename.lower().endswith(('.shp')):
       read(filename)
@@ -149,11 +169,31 @@ class parameters():
     self.n = len(self.lon)
     self.geom = self.shp
     #self.type = self.shp.shapeType
+
+    # Label Key:
+    records = list(self.shp.records())
+    self.KEY_LIST = list(records[0].attributes.keys())
+    self.KEY_LIST.insert(0,' ')
+    del records
+
                           
     # Cheack that something has been read:
     if self.n == 0:
       self = None
       return
+
+  # --------------------------------------
+  def get_name(self):
+  # --------------------------------------
+
+    if empty(self.LABEL_KEY.get()):
+      print('No name selected')
+
+    records = list(self.shp.records())
+    self.name = []
+    for i in range(len(records)):
+      self.name.append(records[i].attributes[self.LABEL_KEY.get()])
+
 
   def Draw(self,fig=None,ax=None,m=None):
   # ================================
@@ -190,6 +230,14 @@ class parameters():
     ax.legend()
     plt.show()
 
+  def keys(self):
+  # =============
+    records = list(reader.records())
+
+    self.KEY_LIST = list(records[0].attributes.keys())
+    self.KEY_LIST.insert(0,' ')
+
+
 # ======================================
 def drawing(ax,proj,SHAPE):
 # ======================================
@@ -199,15 +247,105 @@ def drawing(ax,proj,SHAPE):
   __author__  = "Emili Garcia, based on Joaquin Ballabrera geomarker.py"
   __date__    = "May 2018"
 
-  feature = ShapelyFeature(SHAPE.geom.geometries(), proj)
-  ax.add_feature(feature,
-             visible=SHAPE.PLOT.SHOW.get(),
-             linewidth=SHAPE.PLOT.LINEWIDTH.get(),
-             #label=SHAPE.LABEL.get(),
-             alpha=SHAPE.PLOT.ALPHA.get(),
-             edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
-             facecolor=SHAPE.PLOT.FACECOLOR.get(),
-             zorder=SHAPE.PLOT.ZORDER.get())
+  if not SHAPE.show.get():
+    return
+
+  # Axis lims
+  xlim = ax.get_xlim()
+  ylim = ax.get_ylim()
+
+  records = list(SHAPE.geom.records())
+  geoms   = list(SHAPE.geom.geometries())
+  GTYPE   = type(geoms[0]).__name__.upper()
+
+  xpad = SHAPE.PLOT.XPAD.get()
+  ypad = SHAPE.PLOT.YPAD.get()
+
+  # BBOX:
+  if SHAPE.PLOT.BBOX.get():
+    bbox = dict(facecolor=SHAPE.PLOT.BBOX_FACECOLOR.get(),
+                alpha=SHAPE.PLOT.BBOX_ALPHA.get())
+  else:
+    bbox = None
+
+  lshp = None
+  if GTYPE[0:5] == 'POINT':
+    for i in range(len(records)):
+      poly = geoms[i]
+      name = '%s' % records[i].attributes['name']
+      if poly.x > xlim[0] and poly.x < xlim[1]:
+        if poly.y > ylim[0] and poly.y < ylim[1]:
+          lshp, = ax.plot(poly.x,poly.y,                                  \
+                  linestyle='',                                   \
+                  marker=marker_string(SHAPE.PLOT.SYMBOL.get()),  \
+                  ms=SHAPE.PLOT.SIZE.get(),                       \
+                  label=SHAPE.LABEL.get(),                        \
+                  color=SHAPE.PLOT.COLOR.get(),                   \
+                  alpha=SHAPE.PLOT.ALPHA.get(),                   \
+                  zorder=SHAPE.PLOT.ZORDER.get(),
+                  transform=ccrs.PlateCarree())
+                  #transform=proj)
+
+          if SHAPE.textmode.get():
+            # Here, every marker is identified by its label
+            ax.text(xpad+poly.x,ypad+poly.y,SHAPE.name[i],
+                 ha=SHAPE.PLOT.HA.get(),
+                 va=SHAPE.PLOT.VA.get(),
+                 wrap=SHAPE.PLOT.WRAP.get(),
+                 style=SHAPE.PLOT.STYLE.get(),
+                 weight=SHAPE.PLOT.WEIGHT.get(),
+                 color=SHAPE.PLOT.TCOLOR.get(),
+                 size=SHAPE.PLOT.TSIZE.get(),
+                 zorder=SHAPE.PLOT.ZORDER.get()+1,
+                 rotation=SHAPE.PLOT.ANGLE.get(),
+                 bbox=bbox,
+                 transform=ccrs.PlateCarree())
+                 #transform=proj)
+
+
+  else:
+    for i in range(len(geoms)):
+      feature = ShapelyFeature(geoms[i], proj)
+      ax.add_feature(feature,
+               visible=SHAPE.PLOT.SHOW.get(),
+               linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+               alpha=SHAPE.PLOT.ALPHA.get(),
+               edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
+               facecolor=SHAPE.PLOT.FACECOLOR.get(),
+               zorder=SHAPE.PLOT.ZORDER.get())
+      if SHAPE.textmode.get():
+        # Here, every marker is identified by its label
+        xx = geoms[i].centroid.x
+        yy = geoms[i].centroid.y
+        ss = ax.text(xx,yy,SHAPE.name[i],
+                ha=SHAPE.PLOT.HA.get(),
+                va=SHAPE.PLOT.VA.get(),
+                wrap=SHAPE.PLOT.WRAP.get(),
+                style=SHAPE.PLOT.STYLE.get(),
+                weight=SHAPE.PLOT.WEIGHT.get(),
+                color=SHAPE.PLOT.TCOLOR.get(),
+                size=SHAPE.PLOT.TSIZE.get(),
+                zorder=SHAPE.PLOT.ZORDER.get()+1,
+                rotation=SHAPE.PLOT.ANGLE.get(),
+                #bbox=dict(facecolor='white',alpha=0.5),
+                #bbox=None,
+                bbox=bbox,
+                transform=ccrs.PlateCarree())
+                #transform=proj)
+
+  return lshp
+
+#
+#    feature = ShapelyFeature(SHAPE.geom.geometries(), proj)
+#    ax.add_feature(feature,
+#             visible=SHAPE.PLOT.SHOW.get(),
+#             linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+#             #label=SHAPE.LABEL.get(),
+#             label='nomed',
+#             alpha=SHAPE.PLOT.ALPHA.get(),
+#             edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
+#             facecolor=SHAPE.PLOT.FACECOLOR.get(),
+#             zorder=SHAPE.PLOT.ZORDER.get())
                 
 # ======================================
 def TextConfigure(parent,MPLOT):
@@ -248,6 +386,9 @@ def TextConfigure(parent,MPLOT):
   sfclabel = ttk.Style()
   sfclabel.configure("sfclabel.TLabel",background=MPLOT.TCOLOR.get(),anchor="center")
 
+  bbxlabel = ttk.Style()
+  bbxlabel.configure("bbxlabel.TLabel",background=MPLOT.BBOX_FACECOLOR.get(),anchor="center")
+  
   f0 = ttk.Frame(parent,borderwidth=5,padding=5)
   ttk.Label(f0,
             text='Font size').grid(row=0,
@@ -322,15 +463,71 @@ def TextConfigure(parent,MPLOT):
                            padx=3,
                            sticky='w')
   ttk.Label(f0,
-            text='Zorder').grid(row=7,
+            text='Text angle').grid(row=7,
                                    column=0,
                                    padx=3)
   ttk.Entry(f0,
-            textvariable=MPLOT.ZORDER,
+            textvariable=MPLOT.ANGLE,
             width=10).grid(row=7,
                            column=1,
                            padx=3,
                            sticky='w')
+  ttk.Label(f0,
+            text='x pad').grid(row=8,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.XPAD,
+            width=10).grid(row=8,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+  ttk.Label(f0,
+            text='y pad').grid(row=9,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.YPAD,
+            width=10).grid(row=9,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+
+  ttk.Label(f0,
+            text='Show text BBox').grid(row=10,
+                                   column=0,
+                                   padx=3)
+  ttk.Checkbutton(f0,variable=MPLOT.BBOX).grid(row=10,column=1,sticky='w')
+
+  ttk.Label(f0,
+            text='BBox Facecolor').grid(row=11,
+                                   column=0,
+                                   padx=3)
+  BCLabel = ttk.Label(f0,textvariable=MPLOT.BBOX_FACECOLOR,width=10,style="bbxlabel.TLabel")
+  BCLabel.grid(row=11,column=1)
+  ttk.Button(f0,text='Select',command=lambda:colsel(MPLOT.BBOX_FACECOLOR, \
+            bbxlabel,BCLabel,"bbxlabel.TLabel",master=parent)).grid(row=11,column=2)
+
+  ttk.Label(f0,
+            text='BBOX Alpha').grid(row=12,
+                                   column=0,
+                                   padx=3)
+  ttk.Entry(f0,
+            textvariable=MPLOT.BBOX_ALPHA,
+            width=10).grid(row=12,
+                           column=1,
+                           padx=3,
+                           sticky='w')
+  #ttk.Label(f0,
+  #          text='Zorder').grid(row=10,
+  #                                 column=0,
+  #                                 padx=3)
+  #ttk.Entry(f0,
+  #          textvariable=MPLOT.ZORDER,
+  #          width=10).grid(row=10,
+  #                         column=1,
+  #                         padx=3,
+  #                         sticky='w')
   f0.grid()
 
 # ======================================

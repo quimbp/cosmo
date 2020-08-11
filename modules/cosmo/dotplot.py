@@ -79,6 +79,9 @@ class parameters():
     self.WEIGHT            = tk.StringVar()
     self.ZORDER            = tk.IntVar()
     self.TSIZE             = tk.DoubleVar()
+    self.ANGLE             = tk.DoubleVar()
+    self.XPAD              = tk.DoubleVar()
+    self.YPAD              = tk.DoubleVar()
 
     # Default attribute values:
     #
@@ -95,6 +98,9 @@ class parameters():
     self.WEIGHT.set('bold')
     self.ZORDER.set(1)
     self.TSIZE.set(10)
+    self.ANGLE.set(0)
+    self.XPAD.set(0.1)
+    self.YPAD.set(0)
 
     # If configuration file exists, it is read and
     # the default values are overrided. If the configuration
@@ -132,6 +138,9 @@ class parameters():
     conf['WEIGHT'] = self.WEIGHT.get()
     conf['ZORDER'] = self.ZORDER.get()
     conf['TSIZE'] = self.TSIZE.get()
+    conf['ANGLE'] = self.ANGLE.get()
+    conf['XPAD'] = self.XPAD.get()
+    conf['YPAD'] = self.YPAD.get()
     return conf
 
   def conf_set(self,conf):
@@ -151,6 +160,9 @@ class parameters():
     self.WEIGHT.set(conf['WEIGHT'])
     self.ZORDER.set(conf['ZORDER'])
     self.TSIZE.set(conf['TSIZE'])
+    self.ANGLE.set(conf['ANGLE'])
+    self.XPAD.set(conf['XPAD'])
+    self.YPAD.set(conf['YPAD'])
 
   def conf_load(self,filename):
   # ============================
