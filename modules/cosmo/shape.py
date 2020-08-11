@@ -317,7 +317,7 @@ def drawing(ax,proj,SHAPE):
         # Here, every marker is identified by its label
         xx = geoms[i].centroid.x
         yy = geoms[i].centroid.y
-        ss = ax.text(xx,yy,SHAPE.name[i],
+        ss = ax.text(xpad+xx,ypad+yy,SHAPE.name[i],
                 ha=SHAPE.PLOT.HA.get(),
                 va=SHAPE.PLOT.VA.get(),
                 wrap=SHAPE.PLOT.WRAP.get(),
