@@ -511,7 +511,7 @@ class VECTOR():
       if self.U.icdf.ppl[self.U.varid] > -1:
         u = self.U.nc.variables[self.U.varname][L,:,:].squeeze()
         v = self.V.nc.variables[self.V.varname][L,:,:].squeeze()
-      elif self.icdf.ppk[self.U.varid] > -1:
+      elif self.U.icdf.ppk[self.U.varid] > -1:
         u = self.U.nc.variables[self.U.varname][K,:,:].squeeze()
         v = self.V.nc.variables[self.V.varname][K,:,:].squeeze()
       else:
@@ -2669,7 +2669,6 @@ class CosmoDrawing():
 
         # Is this field member of the SEQUENCE?
         # Is this field a member of the SEQUENCE?
-        print('Test, nt = ', nt)
         if nt > 1:
           if self.LAYERS.nsequence == 0:
             toconsola('Vector initiates SEQUENCE list',wid=self.cons)
@@ -2693,7 +2692,6 @@ class CosmoDrawing():
             if self.L.get() > 0:
               self.bprev.configure(state='normal')
           else:
-            print('Test, sequence exists !')
             if nt == self.LAYERS.seqlen:
               toconsola('Adding vector to SEQUENCE list',wid=self.cons)
               self.LAYERS.nsequence += 1

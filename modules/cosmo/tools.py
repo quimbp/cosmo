@@ -580,11 +580,11 @@ class geocdf():
         this_one = True
       elif with_longname and 'time' in long_name:
         this_one = True
-        if with_units and '-1' in units:          # Check if is a time scale days-1, etc.
+        if 'scale' in long_name.lower():      # Check if variable is a time scale !
           this_one = False
       elif with_stdname and 'time' in standard_name:
         this_one = True
-        if with_units and '-1' in units:      # Check if is a time scale days-1, etc.
+        if 'scale' in long_name.lower():      # Check if variable is a time scale !
           this_one = False
       elif with_units and 'since' in units:
         this_one = True
@@ -962,10 +962,10 @@ class WinGeoaxes():
     self.Jbox.grid(row=1,column=2,sticky='W')
     self.Kbox.grid(row=1,column=3,sticky='W')
     self.Lbox.grid(row=1,column=4,sticky='W')
-    self.Ibox.bind('<<ComboboxSelected>>',lambda e : self.iselection(icdf))
-    self.Jbox.bind('<<ComboboxSelected>>',lambda e : self.jselection(icdf))
-    self.Kbox.bind('<<ComboboxSelected>>',lambda e : self.kselection(icdf))
-    self.Lbox.bind('<<ComboboxSelected>>',lambda e : self.lselection(icdf))
+    self.Ibox.bind('<<ComboboxSelected>>',lambda e : self.iselection(icdf,ncid))
+    self.Jbox.bind('<<ComboboxSelected>>',lambda e : self.jselection(icdf,ncid))
+    self.Kbox.bind('<<ComboboxSelected>>',lambda e : self.kselection(icdf,ncid))
+    self.Lbox.bind('<<ComboboxSelected>>',lambda e : self.lselection(icdf,ncid))
 
     ttk.Label(Fr1,text='Size',width=12, \
               font=font_bold).grid(row=2,column=0)
@@ -992,10 +992,10 @@ class WinGeoaxes():
     self.Ybox.grid(row=3,column=2,sticky='W')
     self.Zbox.grid(row=3,column=3,sticky='W')
     self.Tbox.grid(row=3,column=4,sticky='W')
-    self.Xbox.bind('<<ComboboxSelected>>',lambda e: self.xselection(icdf))
-    self.Ybox.bind('<<ComboboxSelected>>',lambda e: self.yselection(icdf))
-    self.Zbox.bind('<<ComboboxSelected>>',lambda e: self.zselection(icdf))
-    self.Tbox.bind('<<ComboboxSelected>>',lambda e: self.tselection(icdf))
+    self.Xbox.bind('<<ComboboxSelected>>',lambda e: self.xselection(icdf,ncid))
+    self.Ybox.bind('<<ComboboxSelected>>',lambda e: self.yselection(icdf,ncid))
+    self.Zbox.bind('<<ComboboxSelected>>',lambda e: self.zselection(icdf,ncid))
+    self.Tbox.bind('<<ComboboxSelected>>',lambda e: self.tselection(icdf,ncid))
 
     self.wgr = tk.Checkbutton(Fr1,text='Georeferenced',variable=self.georef, \
           font=font_bold,onvalue=True,offvalue=False)
@@ -1033,8 +1033,8 @@ class WinGeoaxes():
     else:
       self.Window_ncdump.lift()
 
-  def iselection(self,icdf):
-  # ========================
+  def iselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Ibox.get()
     if not empty(value_selected):
       ind = icdf.DIM_LIST.index(value_selected)
@@ -1043,6 +1043,14 @@ class WinGeoaxes():
       icdf.iname = value_selected
       icdf.DIM_AXIS[icdf.idi] = 'X'
       icdf.withX = True
+      #Update ppi
+      vv = 0
+      for name,variable in ncid.variables.items():
+        for dim,dname in enumerate(variable.dimensions):
+          if icdf.dimids[vv][dim] == icdf.idi:
+            icdf.ppi[vv] = dim
+        vv = vv + 1
+      #Update ppi
     else:
       icdf.idi = -1
       icdf.nx = 1
@@ -1050,8 +1058,8 @@ class WinGeoaxes():
     self.Ibox.selection_clear()
     self.strnx.set(str(icdf.nx))
 
-  def jselection(self,icdf):
-  # ========================
+  def jselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Jbox.get()
     if not empty(value_selected):
       ind = icdf.DIM_LIST.index(value_selected)
@@ -1060,6 +1068,14 @@ class WinGeoaxes():
       icdf.jname = value_selected
       icdf.DIM_AXIS[icdf.idj] = 'Y'
       icdf.withY = True
+      #Update ppj
+      vv = 0
+      for name,variable in ncid.variables.items():
+        for dim,dname in enumerate(variable.dimensions):
+          if icdf.dimids[vv][dim] == icdf.idj:
+            icdf.ppj[vv] = dim
+        vv = vv + 1
+      #Update ppj
     else:
       icdf.idj = -1
       icdf.ny = 1
@@ -1067,8 +1083,8 @@ class WinGeoaxes():
     self.Jbox.selection_clear()
     self.strny.set(str(icdf.ny))
 
-  def kselection(self,icdf):
-  # ========================
+  def kselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Kbox.get()
     if not empty(value_selected):
       ind = icdf.DIM_LIST.index(value_selected)
@@ -1077,6 +1093,14 @@ class WinGeoaxes():
       icdf.kname = value_selected
       icdf.DIM_AXIS[icdf.idk] = 'Z'
       icdf.withZ = True
+      #Update ppk
+      vv = 0
+      for name,variable in ncid.variables.items():
+        for dim,dname in enumerate(variable.dimensions):
+          if icdf.dimids[vv][dim] == icdf.idk:
+            icdf.ppk[vv] = dim
+        vv = vv + 1
+      #Update ppl
     else:
       icdf.idk = -1
       icdf.nz = 1
@@ -1084,8 +1108,8 @@ class WinGeoaxes():
     self.Kbox.selection_clear()
     self.strnz.set(str(icdf.nz))
 
-  def lselection(self,icdf):
-  # ========================
+  def lselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Lbox.get()
     if not empty(value_selected):
       ind = icdf.DIM_LIST.index(value_selected)
@@ -1094,6 +1118,16 @@ class WinGeoaxes():
       icdf.lname = value_selected
       icdf.DIM_AXIS[icdf.idl] = 'T'
       icdf.withT = True
+
+      #Update ppl
+      vv = 0
+      for name,variable in ncid.variables.items():
+        for dim,dname in enumerate(variable.dimensions):
+          if icdf.dimids[vv][dim] == icdf.idl:
+            icdf.ppl[vv] = dim
+        vv = vv + 1
+      print(icdf.ppl)
+      #Update ppl
     else:
       icdf.idl = -1
       icdf.nt = 1
@@ -1101,7 +1135,7 @@ class WinGeoaxes():
     self.Lbox.selection_clear()
     self.strnt.set(str(icdf.nt))
 
-  def xselection(self,icdf,value_selected=None):
+  def xselection(self,icdf,ncid,value_selected=None):
   # ============================================
     if value_selected is None:
       value_selected = self.Xbox.get()
@@ -1125,6 +1159,14 @@ class WinGeoaxes():
         self.strnx.set(str(icdf.nx))
         self.georef.set(icdf.georef)
         self.grid2d.set(icdf.grid2d)
+        #Update ppi
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idi:
+              icdf.ppi[vv] = dim
+          vv = vv + 1
+        #Update ppi
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
         kk = icdf.dimids[ind][1]
@@ -1143,6 +1185,16 @@ class WinGeoaxes():
         icdf.jname = icdf.DIM_LIST[kk]
         self.Jname.set(icdf.jname)
         self.strny.set(str(icdf.ny))
+        #Update ppi and ppj
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idi:
+              icdf.ppi[vv] = dim
+            if icdf.dimids[vv][dim] == icdf.idj:
+              icdf.ppj[vv] = dim
+          vv = vv + 1
+        #Update ppi and ppj
       else:
         messagebox.showinfo(message='Invalid variable. \
                                      It must have a single dimension')
@@ -1163,8 +1215,8 @@ class WinGeoaxes():
       icdf.georef = False
     self.georef.set(icdf.georef)
 
-  def yselection(self,icdf):
-  # ========================
+  def yselection(self,icdf,ncid):
+  # ==============================
     value_selected = self.Ybox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
@@ -1182,6 +1234,14 @@ class WinGeoaxes():
         icdf.grid2d = False
         self.Jname.set(icdf.jname)
         self.strny.set(str(icdf.ny))
+        #Update ppj
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idj:
+              icdf.ppj[vv] = dim
+          vv = vv + 1
+        #Update ppj
       elif icdf.ndims[ind] == 2:
         #messagebox.showinfo(message='Two-dimensional grid')
         kk = icdf.dimids[ind][1]
@@ -1198,6 +1258,16 @@ class WinGeoaxes():
         icdf.jname = icdf.DIM_LIST[kk]
         self.Jname.set(icdf.jname)
         self.strny.set(str(icdf.ny))
+        #Update ppi and ppj
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idi:
+              icdf.ppi[vv] = dim
+            if icdf.dimids[vv][dim] == icdf.idj:
+              icdf.ppj[vv] = dim
+          vv = vv + 1
+        #Update ppi and ppj
       else:
         messagebox.showinfo(message='Invalid variable. \
                                      It must have a single dimension')
@@ -1236,8 +1306,8 @@ class WinGeoaxes():
       self.Xname.set(icdf.VAR_MENU[icdf.idx])
       self.Yname.set(icdf.VAR_MENU[icdf.idy])
 
-  def zselection(self,icdf):
-  # ========================
+  def zselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Zbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
@@ -1253,6 +1323,14 @@ class WinGeoaxes():
         icdf.kname = icdf.DIM_LIST[kk]
         self.Kname.set(icdf.kname)
         self.strnz.set(str(icdf.nz))
+        #Update ppk
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idk:
+              icdf.ppk[vv] = dim
+          vv = vv + 1
+        #Update ppk
       else:
         messagebox.showinfo(message='Invalid variable. \
                                      It must have a single dimension')
@@ -1267,8 +1345,8 @@ class WinGeoaxes():
       #self.strnz.set(str(icdf.nz))
     self.Zbox.selection_clear()
 
-  def tselection(self,icdf):
-  # ========================
+  def tselection(self,icdf,ncid):
+  # =============================
     value_selected = self.Tbox.get()
     if not empty(value_selected):
       ind = icdf.VAR_LIST.index(value_selected)
@@ -1284,6 +1362,16 @@ class WinGeoaxes():
         icdf.lname = icdf.DIM_LIST[kk]
         self.Lname.set(icdf.lname)
         self.strnt.set(str(icdf.nt))
+
+        #Update ppl
+        vv = 0
+        for name,variable in ncid.variables.items():
+          for dim,dname in enumerate(variable.dimensions):
+            if icdf.dimids[vv][dim] == icdf.idl:
+              icdf.ppl[vv] = dim
+          vv = vv + 1
+        #Update ppl
+
       elif icdf.ndims[ind] == 0:
         print('No associated dimension')
         icdf.idt = ind
