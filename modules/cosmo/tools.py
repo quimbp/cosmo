@@ -389,7 +389,6 @@ class geocdf():
     # C) Through attribute standard name
     # D) Through variable name
     # E) The first variable
-    import pprint
     
     self.withX = False
     for name,variable in reversed(list(ncid.variables.items())):
@@ -443,6 +442,7 @@ class geocdf():
             self.idi = self.DIM_LIST.index(self.iname)
             self.DIM_AXIS[self.idi] = 'X'
             self.nx = ncid.dimensions[self.iname].size
+            self.grid2d = True
 
     withY = False
     for name,variable in reversed(list(ncid.variables.items())):
@@ -495,6 +495,7 @@ class geocdf():
             self.idi = self.DIM_LIST.index(self.iname)
             self.DIM_AXIS[self.idi] = 'X'
             self.nx = ncid.dimensions[self.iname].size
+            self.grid2d = True
 
     withZ = False
     for name,variable in reversed(list(ncid.variables.items())):

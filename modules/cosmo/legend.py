@@ -74,7 +74,12 @@ class LegendConfig():
     self.BORDERPAD = tk.DoubleVar()
     self.HANDLETEXTPAD = tk.DoubleVar()
     self.BORDERAXESPAD = tk.DoubleVar()
-    self.TITLEFONT   = FontProperties().copy()
+    self.TITLEFONT     = FontProperties().copy()
+    self.USE_BB        = tk.BooleanVar()
+    self.BBx           = tk.DoubleVar()
+    self.BBy           = tk.DoubleVar()
+
+    self.GET_XY        = False
 
     # Default values:
     self.SHOW.set(True)
@@ -85,10 +90,11 @@ class LegendConfig():
     self.FANCYBOX.set(True)
     self.FRAMEON.set(True)
     self.SHADOW.set(True)
-    self.TITLE.set('')
+    self.TITLE.set('Legend')
     self.ALPHA.set(1)
     self.COLOR.set('white')
     self.EDGECOLOR.set(None)
+    self.USE_BB.set(False)
 
     self.MARKERSCALE.set(matplotlib.rcParams['legend.markerscale'])
     self.LABELSPACING.set(matplotlib.rcParams['legend.labelspacing'])
@@ -137,6 +143,9 @@ class LegendConfig():
     conf['BORDERAXESPAD'] = self.BORDERAXESPAD.get()
     conf['MARKERSCALE'] = self.MARKERSCALE.get()
     conf['TITLEFONT'] = self.TITLEFONT.__dict__
+    conf['USE_BB'] = self.USE_BB.get()
+    conf['BBX'] = self.BBx.get()
+    conf['BBY'] = self.BBy.get()
     return conf
 
   def conf_set(self,conf):
@@ -163,6 +172,9 @@ class LegendConfig():
     self.BORDERAXESPAD.set(conf['BORDERAXESPAD'])
     self.MARKERSCALE.set(conf['MARKERSCALE'])
     self.TITLEFONT = setfont(conf['TITLEFONT'])
+    self.USE_BB.set(conf['USE_BB'])
+    self.BBx.set(conf['BBX'])
+    self.BBy.set(conf['BBY'])
 
   def conf_load(self,filename):
   # ============================
@@ -240,19 +252,31 @@ class LegendConfig():
                command=titleprop).grid(row=11,column=1,padx=3)
     f6.grid()
 
+    def _xyselec():
+    # -------------
+      self.GET_XY = True
+
     f7 = ttk.Frame(parent,borderwidth=5,padding=5)
-    ttk.Label(f7,text='Location').grid(row=1,column=0,padx=3)
+    ttk.Label(f7,text='Use Anchoring BBox').grid(row=0,column=0,padx=3)
+    ttk.Checkbutton(f7,variable=self.USE_BB).grid(row=0,column=1,padx=3)
+    ttk.Label(f7,text='BB x coordinate:').grid(row=1,column=0,padx=3)
+    ttk.Entry(f7,textvariable=self.BBx,width=10).grid(row=1,column=1,padx=3,sticky='w')
+    ttk.Label(f7,text='BB y coordinate:').grid(row=2,column=0,padx=3)
+    ttk.Entry(f7,textvariable=self.BBy,width=10).grid(row=2,column=1,padx=3,sticky='w')
+    ttk.Button(f7,text='Select',command=_xyselec).grid(row=2,column=3,padx=3)
+
+    ttk.Label(f7,text='Location').grid(row=3,column=0,padx=3)
     loc = ttk.Combobox(f7,values=LEGEND_LOCATION_LIST)
-    loc.grid(row=1,column=1,padx=3,sticky='w')
+    loc.grid(row=3,column=1,padx=3,sticky='w')
     loc.set(LEGEND_LOCATION_LIST[self.LOC.get()])
     loc.bind('<<ComboboxSelected>>',lambda e: legend_location())
 
-    ttk.Label(f7,text='Num columns').grid(row=2,column=0,padx=3)
-    ttk.Entry(f7,textvariable=self.NCOL,width=10).grid(row=2,column=1,padx=3,sticky='w')
+    ttk.Label(f7,text='Num columns').grid(row=4,column=0,padx=3)
+    ttk.Entry(f7,textvariable=self.NCOL,width=10).grid(row=4,column=1,padx=3,sticky='w')
 
-    ttk.Label(f7,text='MODE').grid(row=3,column=0,padx=3)
+    ttk.Label(f7,text='MODE').grid(row=5,column=0,padx=3)
     mod = ttk.Combobox(f7,values=LEGEND_MODE_LIST)
-    mod.grid(row=3,column=1,padx=3,sticky='w')
+    mod.grid(row=5,column=1,padx=3,sticky='w')
     mod.set(LEGEND_MODE_LIST[self.MODE.get()])
     mod.bind('<<ComboboxSelected>>',lambda e: legend_mode())
     f7.grid()
@@ -334,6 +358,7 @@ class LegendConfig():
     ttk.Button(f9,text='Select',command=lambda:colsel(self.COLOR, \
             self.slflabel,self.LFLabel,"slflabel.TLabel",master=parent)). \
             grid(row=8,column=2,padx=3)
+
     ttk.Label(f9,text='Edge color').grid(row=9,column=0,padx=3)
     self.LELabel = ttk.Label(f9,textvariable=self.EDGECOLOR,width=7,style="slelabel.TLabel")
     self.LELabel.grid(row=9,column=1,padx=3)

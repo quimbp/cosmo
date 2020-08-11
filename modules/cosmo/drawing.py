@@ -48,6 +48,7 @@ from matplotlib.offsetbox import TextArea, OffsetImage, AnnotationBbox, Anchored
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib import cm as CM
 from matplotlib import colors
+import matplotlib.patches as mpatches
 
 #EG Cartopy
 import cartopy
@@ -99,6 +100,7 @@ import cosmo.geoplot as geoplot
 import cosmo.field as field
 import cosmo.plotxy as plotxy
 import cosmo.ellipse as ellipse
+import cosmo.patch as patch
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -155,6 +157,8 @@ class CONTOUR():
 
     self.ALIAS    = tk.StringVar()
     self.FILENAME = tk.StringVar()
+    self.SOURCE   = 'FILE'     # Default source: Read from file
+    self.PARENT   = None       # USed in mean and variance calculations
 
     if filename is None:
       pass
@@ -170,9 +174,12 @@ class CONTOUR():
     self.varname = tk.StringVar()
     #self.minval  = tk.DoubleVar()
     #self.maxval  = tk.DoubleVar()
+    self.landmask = tk.BooleanVar()
 
     self.K       = tk.IntVar()
     self.L       = tk.IntVar()
+    self.K.set(0)
+    self.L.set(0)
 
     self.K_LIST  = []
     self.L_LIST  = []
@@ -181,6 +188,8 @@ class CONTOUR():
     self.DATE    = []
     self.TIME    = []
 
+    self.landmask.set(False)
+    self.ALIAS.set('')
     self.cbar    = None
     self.show.set(True)
 
@@ -196,9 +205,12 @@ class CONTOUR():
     conf = {}
     conf['ALIAS'] = self.ALIAS.get()
     conf['FILENAME'] = self.FILENAME.get()
+    conf['SOURCE'] = self.SOURCE
+    conf['PARENT'] = self.PARENT
     conf['VARNAME'] = self.varname.get()
     conf['K']      = self.K.get()
     conf['L']      = self.L.get()
+    conf['LANDMASK'] = self.landmask.get()
     conf['SHOW']   = self.show.get()
     conf['PLOT']   = self.PLOT.conf_get()
     conf['FLD']    = self.FLD.conf_get()
@@ -210,9 +222,12 @@ class CONTOUR():
 
     self.ALIAS.set(conf['ALIAS'])
     self.FILENAME.set(conf['FILENAME'])
+    self.SOURCE = conf['SOURCE']
+    self.PARENT = conf['PARENT']
     self.varname.set(conf['VARNAME'])
     self.K.set(conf['K'])
     self.L.set(conf['L'])
+    self.landmask.set(conf['LANDMASK'])
     self.show.set(conf['SHOW'])
     self.PLOT.conf_set(conf['PLOT'])
     self.FLD.conf_set(conf['FLD'])
@@ -232,6 +247,7 @@ class CONTOUR():
 
     K = self.K.get()
     L = self.L.get()
+    self.SOURCE = 'FILE'
 
     toconsola("Reading contour, K, L = "+str(K)+", "+str(L),wid=wid)
 
@@ -249,6 +265,12 @@ class CONTOUR():
       u = self.FLD.nc.variables[self.FLD.varname][L,K,:,:].squeeze()
     else:
       toconsola("Invalid number of dimensions, "+str(self.FLD.ndims),wid=wid)
+
+    # Eliminate NaN values in field:
+    fill_value = u.fill_value
+    _u = u.filled()
+    _u[np.isnan(_u)] = fill_value
+    u = np.ma.masked_equal(_u,fill_value)
 
     # Min and max values
     self.FLD.minval = float(u.min())
@@ -280,6 +302,88 @@ class CONTOUR():
     else:
       toconsola('Preserving contour intervals.',wid=wid)
 
+  def save(self,**args):
+  # ====================
+    filetypes=[('NetCDF','*.nc'),('ALL','*')]
+    nn = filedialog.asksaveasfilename(title='Save vector file',
+                                      initialdir='./',
+                                      filetypes=filetypes,
+                                      confirmoverwrite=True)
+    if len(nn) == 0:
+      return
+    else:
+      filename = '%s' % nn
+
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    toconsola('Saving contour data into '+filename,wid=wid)
+
+    #nc = Dataset(filename,'w',format='NETCDF4')
+    nc = Dataset(filename,'w')
+    nc.createDimension('x',self.FLD.icdf.nx)
+    nc.createDimension('y',self.FLD.icdf.ny)
+    dimensions_list = ['y','x']
+
+    if self.FLD.icdf.idk >= 0:
+      nc.createDimension('z',1)
+      dimensions_list.insert(0,'z')
+    if self.FLD.icdf.idl >= 0:
+      nc.createDimension('t',None)
+      dimensions_list.insert(0,'t')
+
+    if self.FLD.icdf.grid2d:
+      lon = nc.createVariable('Longitude','f8',['y','x'])
+      nc['Longitude'].setncatts(self.FLD.nc[self.FLD.icdf.xname].__dict__)
+      lat = nc.createVariable('Latitude','f8',['y','x'])
+      nc['Latitude'].setncatts(self.FLD.nc[self.FLD.icdf.yname].__dict__)
+    else:
+      lon = nc.createVariable('Longitude','f8',['x'])
+      nc['Longitude'].setncatts(self.FLD.nc[self.FLD.icdf.xname].__dict__)
+      lat = nc.createVariable('Latitude','f8',['y'])
+      nc['Latitude'].setncatts(self.FLD.nc[self.FLD.icdf.yname].__dict__)
+
+    if self.FLD.icdf.idk >= 0:
+      depth = nc.createVariable('Depth','f8',['z'])
+      nc['Depth'].setncatts(self.FLD.nc[self.FLD.icdf.zname].__dict__)
+    if self.FLD.icdf.idl >= 0:
+      time = nc.createVariable('Time','f8',['t'])
+      nc['Time'].setncatts(self.FLD.nc[self.FLD.icdf.tname].__dict__)
+
+    aname = self.varname.get()
+
+    a = nc.createVariable(aname,'f8',dimensions_list,fill_value=1e36)
+
+    try:
+      long_name = self.FLD.nc[aname].long_name
+      nc[aname].long_name = long_name
+    except:
+      pass
+    try:
+      units = self.FLD.nc[aname].units
+      nc[aname].units = units
+    except:
+      pass
+
+    _a = self.FLD.data.filled(fill_value=1e36)
+    _a[np.isnan(_a)] = 1e36
+
+    # Write data
+    if self.FLD.icdf.grid2d:
+      lon[:,:] = self.FLD.xx
+      lat[:,:] = self.FLD.yy
+    else:
+      lon[:] = self.FLD.x
+      lat[:] = self.FLD.y
+
+    depth[0] = self.Z_LIST[self.K.get()]
+    time[0]  = self.T_LIST[self.L.get()]
+    a[0,0,:,:] = _a
+
+    nc.close()
+
 
 # =====================
 class VECTOR():
@@ -299,6 +403,8 @@ class VECTOR():
     self.ALIAS     = tk.StringVar()
     self.UFILENAME = tk.StringVar()
     self.VFILENAME = tk.StringVar()
+    self.SOURCE    = 'FILE'
+    self.PARENT    = None       # USed in mean and variance calculations
 
     if ufile is None:
       pass
@@ -330,12 +436,13 @@ class VECTOR():
     self.DATE      = []
     self.TIME      = []
 
+    self.ALIAS.set('')
     self.show      = tk.BooleanVar()
     self.show.set(True)
 
     # Select grid type:
     self.grid_type = tk.StringVar()
-    self.grid_type_list = ['A','B','C','D']
+    self.grid_type_list = ['A','B','C']
     self.grid_type.set('A')
 
     # Selected point
@@ -350,6 +457,8 @@ class VECTOR():
     conf['ALIAS'] = self.ALIAS.get()
     conf['UFILENAME'] = self.UFILENAME.get()
     conf['VFILENAME'] = self.VFILENAME.get()
+    conf['SOURCE'] = self.SOURCE
+    conf['PARENT'] = self.PARENT
     conf['UNAME'] = self.uname.get()
     conf['VNAME'] = self.vname.get()
     conf['K']    = self.K.get()
@@ -368,6 +477,8 @@ class VECTOR():
     self.ALIAS.set(conf['ALIAS'])
     self.UFILENAME.set(conf['UFILENAME'])
     self.VFILENAME.set(conf['VFILENAME'])
+    self.SOURCE = conf['SOURCE']
+    self.PARENT = conf['PARENT']
     self.uname.set(conf['UNAME'])
     self.vname.set(conf['VNAME'])
     self.K.set(conf['K'])
@@ -389,6 +500,7 @@ class VECTOR():
 
     K = self.K.get()
     L = self.L.get()
+    self.SOURCE = 'FILE'
 
     toconsola("Reading vector, K, L = "+str(K)+", "+str(L),wid=wid)
 
@@ -428,6 +540,264 @@ class VECTOR():
       self.U.data = 0.5*(u[1:-1,:-1]+u[1:-1,1:])
       self.V.data = 0.5*(v[:-1,1:-1]+v[1:,1:-1])
       return
+
+  def save(self,**args):
+  # ==================== 
+    filetypes=[('NetCDF','*.nc'),('ALL','*')]
+    nn = filedialog.asksaveasfilename(title='Save vector file',
+                                      initialdir='./',
+                                      filetypes=filetypes,
+                                      confirmoverwrite=True)
+    if len(nn) == 0:
+      return
+    else:
+      filename = '%s' % nn
+
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    toconsola('Saving vector data into '+filename,wid=wid)
+
+    #nc = Dataset(filename,'w',format='NETCDF4')
+    nc = Dataset(filename,'w')
+    nc.createDimension('x',self.U.icdf.nx)
+    nc.createDimension('y',self.U.icdf.ny)
+    dimensions_list = ['y','x']
+
+    if self.U.icdf.idk >= 0:
+      nc.createDimension('z',1)
+      dimensions_list.insert(0,'z')
+    if self.U.icdf.idl >= 0:
+      nc.createDimension('t',None)
+      dimensions_list.insert(0,'t')
+
+    if self.U.icdf.grid2d:
+      lon = nc.createVariable('Longitude','f8',['y','x'])
+      nc['Longitude'].setncatts(self.U.nc[self.U.icdf.xname].__dict__)
+      lat = nc.createVariable('Latitude','f8',['y','x'])
+      nc['Latitude'].setncatts(self.U.nc[self.U.icdf.yname].__dict__)
+    else:
+      lon = nc.createVariable('Longitude','f8',['x'])
+      nc['Longitude'].setncatts(self.U.nc[self.U.icdf.xname].__dict__)
+      lat = nc.createVariable('Latitude','f8',['y'])
+      nc['Latitude'].setncatts(self.U.nc[self.U.icdf.yname].__dict__)
+
+    if self.U.icdf.idk >= 0:
+      depth = nc.createVariable('Depth','f8',['z'])
+      nc['Depth'].setncatts(self.U.nc[self.U.icdf.zname].__dict__)
+    if self.U.icdf.idl >= 0:
+      time = nc.createVariable('Time','f8',['t'])
+      nc['Time'].setncatts(self.U.nc[self.U.icdf.tname].__dict__)
+
+    uname = self.uname.get()
+    vname = self.vname.get()
+
+    u = nc.createVariable(uname,'f8',dimensions_list,fill_value=1e36)
+    v = nc.createVariable(vname,'f8',dimensions_list,fill_value=1e36)
+
+    try:
+      long_name = self.U.nc[uname].long_name
+      nc[uname].long_name = long_name
+    except:
+      pass
+    try:
+      units = self.U.nc[uname].units
+      nc[uname].units = units
+    except:
+      pass
+
+    try:
+      long_name = self.V.nc[vname].long_name
+      nc[vname].long_name = long_name
+    except:
+      pass
+    try:
+      units = self.V.nc[vname].units
+      nc[vname].units = units
+    except:
+      pass
+
+    _u = self.U.data.filled(fill_value=1e36)
+    _u[np.isnan(_u)] = 1e36
+
+    _v = self.V.data.filled(fill_value=1e36)
+    _v[np.isnan(_v)] = 1e36
+
+    # Write data
+    if self.U.icdf.grid2d:
+      lon[:,:] = self.U.xx
+      lat[:,:] = self.U.yy
+    else:
+      lon[:] = self.U.x
+      lat[:] = self.U.y
+    depth[0] = self.Z_LIST[self.K.get()]
+    time[0]  = self.T_LIST[self.L.get()]
+    u[0,0,:,:] = _u
+    v[0,0,:,:] = _v
+
+    nc.close()
+
+
+# =====================
+class LAYER():
+# =====================
+  ''' Class for Drawing layers'''
+
+  __version__ = "1.0" 
+  __author__ = "Quim Ballabrera" 
+  __date__ = "August 2020"
+
+  def __init__ (self):
+  # ==================
+    ''' Define and initialize the class attributes '''
+
+    self.MESSAGE     = "\nLAYER class:\n"
+    self.n           = 0    # Number of layers
+    self.nsequence   = 0    # Number of layers attached to a SEQUENCE
+    self.seqlen      = 0    # SEQUENCE length
+    self.leader      = 0    # Points to the SEQUENCER layer
+
+    self.TYPE        = []   # VEC, FLD, MARKER, ....
+    self.TYPE_INDEX  = []
+    self.FILENAME    = []
+    self.INSEQUENCE  = []   # Belongs to a SEQUENCE
+    self.SEQUENCER   = []   # True if SEQUENCE leader
+    self.NREC        = []   # Number of records in layer
+
+#    # Different types of layers
+#    self.nfld        = 0
+#    self.nvec        = 0
+#    self.nfloat      = 0
+#    self.nmarker     = 0
+#    self.nshape      = 0
+#    self.nellipse    = 0
+#    self.npatch      = 0
+#
+#    self.FLD_LIST    = []
+#    self.VEC_LIST    = []
+#    self.FLOAT_LIST  = []
+#    self.MARKER_LIST = []
+#    self.SHAPE_LIST  = []
+#    self.ELLIPSE_LIST= []
+#    self.PATCH_LIST  = []
+
+    self.update      = False
+
+  def erase(self,TYPE,ii,**args):
+  # =============================
+    
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    if self.n == 0:
+      toconsola('Invalid ERASE action in empty layer structure',wid=wid)
+      return
+
+    ll = -1
+    for i in range(self.n):
+      if self.TYPE[i] == TYPE and self.TYPE_INDEX[i] == ii:
+        ll = i
+
+    if ll == -1:
+      toconsola('Layer not found',wid=wid)
+      return
+
+    INSEQUENCE  = self.INSEQUENCE[ll].get()
+    SEQUENCER   = self.SEQUENCER[ll].get()
+    self.update = False
+
+    toconsola('Erasing '+TYPE+' layer '+str(ii),wid=wid)
+
+    del self.TYPE[ll]
+    del self.TYPE_INDEX[ll]
+    del self.FILENAME[ll]
+    del self.INSEQUENCE[ll]
+    del self.SEQUENCER[ll]
+    del self.NREC[ll]
+
+    self.n -= 1
+
+    if self.n == 0:
+      toconsola('Empty layer structure',wid=wid)
+      self.TYPE       = []
+      self.TYPE_INDEX = []
+      self.FILENAME   = []
+      self.INSEQUENCE = []
+      self.SEQUENCER  = []
+      self.NREC       = []
+      self.nsequence  = 0
+      self.seqlen     = 0
+      return
+    
+    # If we are here , it means that the structure is not empty
+    # Update TYPE_INDEX
+    ii = -1
+    for i in range(self.n):
+      if self.TYPE[i] == TYPE:
+        ii += 1
+        self.TYPE_INDEX[i] = ii
+    
+
+    # If erasing a layer in the SEQUENCE:
+    if INSEQUENCE:
+      self.nsequence -= 1
+      if self.nsequence > 0:
+        if SEQUENCER:
+          # If we have erased the SEQUENCER,
+          # we set the first field as SEQUENCE leader
+          for i in range(self.n):
+            if self.INSEQUENCE[i].get():
+              self.SEQUENCER[i].set(True)
+              self.leader = i
+              self.update = True
+      else:
+        self.seqlen = 0
+
+  def add(self,TYPE,Filename=None,N=None,**args):
+  # ==============================================
+    
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    self.TYPE.append(TYPE)
+    self.FILENAME.append(Filename)
+    self.NREC.append(N)
+
+    ii = 0
+    for i in range(self.n):
+      if self.TYPE[i] == TYPE:
+        ii += 1
+    self.TYPE_INDEX.append(ii)
+
+    self.n += 1
+
+    self.INSEQUENCE.append(tk.BooleanVar(value=False))
+    self.SEQUENCER.append(tk.BooleanVar(value=False))
+    toconsola('Adding '+TYPE+' layer ',wid=wid)
+    toconsola('Layer %s with index %d' %(TYPE,self.TYPE_INDEX[-1]),wid=wid)
+    toconsola('Number of layers: ' + str(self.n)+'\n',wid=wid)
+
+
+  def print(self):
+  # ==============
+    print('\n ================================== ')
+    print('Number of layers, n = ', self.n)
+    print('Number of layers in SEQUENCE, nsequence = ', self.nsequence)
+    print('SEQUENCE,lenght = ', self.seqlen)
+    print('SEQUENCE leader id = ', self.leader)
+    for i in range(self.n):
+      print('> Layer ', i)
+      print('>>  Type, Type order, num records : ', self.TYPE[i], self.TYPE_INDEX[i], self.NREC[i])
+      print('>>  Filename                      : ', self.FILENAME[i])
+      print('>>  In sequence?, Sequence leader ? ', self.INSEQUENCE[i].get(), self.SEQUENCER[i].get())
+
+
 
 
 # =====================
@@ -577,7 +947,7 @@ class cdf_parameters():
 
     # Add mutiple grid types:
     self.grid_type     = tk.StringVar()
-    self.grid_type_list = ['A','B','C','D']
+    self.grid_type_list = ['A','B','C']
     self.grid_type.set('A')
 
   def conf_get(self):
@@ -860,7 +1230,7 @@ class DrawingConfig():
     self.COUNTRYLINE_WIDTH.set(2)
     self.COUNTRYLINE_COLOR.set('grey')
     self.LAND_COLOR.set('coral')
-    self.WATER_COLOR.set('aqua')
+    self.WATER_COLOR.set('white')
     self.TITLE.set('')
     self.TITLEFONT.set_size(22)
     self.TITLEFONT.set_weight('bold')
@@ -868,7 +1238,7 @@ class DrawingConfig():
     self.XLABEL.set('Longitude')
     self.YLABEL.set('Latitude')
     self.LABEL_SIZE.set(16)
-    self.XLABEL_PAD.set(0.1)
+    self.XLABEL_PAD.set(0.12)
     self.YLABEL_PAD.set(0.05)
     self.ZLABEL.set('')
     self.TLABEL.set('')
@@ -1339,9 +1709,6 @@ class DrawingConfig():
 
       self.ISOBAT_NPLOT = sum(self.ISOBAT_SHOW)
 
-    if self.ISOBAT_cropped:
-      self.isobath_crop()
-
     self.TIMESTAMP_SHOW.set(conf['TIMESTAMP_SHOW'])
     self.TIMESTAMP_BOLD.set(conf['TIMESTAMP_BOLD'])
     self.TIMESTAMP_X.set(conf['TIMESTAMP_X'])
@@ -1388,7 +1755,8 @@ class CosmoDrawing():
   # ===============
   def close(self):
   # ===============
-    if self.nfiles + self.nfeatures == 0:
+    quit()    # DEBUG
+    if self.LAYERS.n == 0:
       quit()
 
     aa = messagebox.askquestion('Close','Are you sure?',icon='warning')
@@ -1446,11 +1814,17 @@ class CosmoDrawing():
     self.L.set(0)
     self.K.set(0)
 
-    self.nfiles        = 0
-    self.FILENAMES     = []
-    self.FILETYPES     = []
-    self.FILEORDER     = []
-    self.SEQUENCES     = []
+    self.LAYERS        = LAYER()
+
+    #self.nfiles        = 0
+    #self.FILENAMES     = []
+    #self.FILETYPES     = []
+    #self.FILEORDER     = []
+    #self.nsequence     = 0
+    #self.SEQUENCES     = []
+    #self.SEQLEADER     = []    # The one provinsing the date and Nt
+    #self.SEQLEADER_INDX= 0
+    #self.SEQNTIMES     = []
 
     self.nvec          = 0
     self.VEC           = []
@@ -1462,7 +1836,7 @@ class CosmoDrawing():
                             'COPERNICUS',      \
                             'Local Dataset',   \
                             'Remote Dataset',  \
-                            'Selected FIELD']
+                            'Active CONTOUR file']
 
     self.ncdf          = 0
     self.CDF           = []
@@ -1475,7 +1849,7 @@ class CosmoDrawing():
                             'COPERNICUS',        \
                             'Local Dataset',     \
                             'Remote Dataset',    \
-                            'Selected CURRENT']
+                            'Active VECTOR file']
 
     self.nfloat        = 0
     self.FLOAT         = []
@@ -1490,19 +1864,16 @@ class CosmoDrawing():
     self.SAIDIN        = CONTOUR()
     #self.SAIDIN        = cdf_parameters()
     #self.SAIDIN.FIELD  = fld_parameters()
-    # Add an aditional logical flag: landmask (True if land must be masked)
-    self.SAIDIN.landmask = tk.BooleanVar()
-    self.SAIDIN.landmask.set(False)
     self.sbar          = []
     self.Msbar         = []
 
     # Features: Markers or shapefiles
     # Stationary information. Types: MARKER,SHAPE
 
-    self.nfeatures = 0
-    self.FEATNAMES     = []
-    self.FEATTYPES     = []
-    self.FEATORDER     = []
+    #self.nfeatures = 0
+    #self.FEATNAMES     = []
+    #self.FEATTYPES     = []
+    #self.FEATORDER     = []
 	#EG 
     self.nmarker       = 0 			# Numero de fixters de marcadors
     self.MARKER        = []        # llista de estructures de marcadors dim(self.nmarker)
@@ -1510,7 +1881,8 @@ class CosmoDrawing():
     self.MARKER_INDX   = tk.IntVar() # contador de files
     self.MARKER_INDX.set(0)         
 	#EG Shape files
-    self.nshape        = 0
+
+    self.nshape       = 0
     self.SHAPE        = []
     self.SHAPE_LIST   = ['0']
     self.SHAPE_INDX   = tk.IntVar()
@@ -1518,9 +1890,16 @@ class CosmoDrawing():
 
     self.nellipse      = 0
     self.ELLIPSE       = []
-    self.ELLIPSE_LIST  = ['0']       # Llista ellipse files en configuracion 
+    self.ELLIPSE_LIST  = ['0']       # List of ellipse files en configuracion 
     self.ELLIPSE_INDX  = tk.IntVar() # contador de files
     self.ELLIPSE_INDX.set(0)
+    self.ELLIPSE_OPTIONS = ['Local Dataset']
+
+    self.npatch       = 0
+    self.PATCH        = []
+    self.PATCH_LIST   = ['0']       # List of patches en configuracion 
+    self.PATCH_INDX   = tk.IntVar() # contador de files
+    self.PATCH_INDX.set(0)
 
     # Initialize BLM command:
     self.BLM = blm.parameters()
@@ -1639,6 +2018,7 @@ class CosmoDrawing():
     self.CAPTURE_POINT        = False
     self.pxo                  = tk.DoubleVar()
     self.pyo                  = tk.DoubleVar()
+    self.pzo                  = tk.DoubleVar()
 
     # Initialize window widget IDs:
     self.Window_cfile         = None
@@ -1677,7 +2057,14 @@ class CosmoDrawing():
     self.Window_shapeconfig   = None
     self.Window_geoconfig     = None
     self.Window_xysel         = None
+    self.Window_markered      = None
+    self.Window_gellipse      = None
+    self.Window_cellipse      = None
+    self.Window_ellipseconfig = None
+    self.Window_patch         = None
+    self.Window_patchconfig   = None
     
+    self.legendtabs           = None
     self.Window_mapa          = None
 
 
@@ -1701,6 +2088,27 @@ class CosmoDrawing():
   # ===========================
   def canvas_click(self,event):
   # ===========================
+
+    if self.PLOT.LEGEND.GET_XY:
+      if event.inaxes is not None:
+        toconsola("Getting Legend coordinates",wid=self.cons)
+        trans = self.ax.transData.transform((event.xdata,event.ydata))
+        trans = self.ax.transAxes.inverted().transform(trans)
+        self.PLOT.LEGEND.BBx.set(np.round(trans[0],3))
+        self.PLOT.LEGEND.BBy.set(np.round(trans[1],3))
+        self.PLOT.LEGEND.GET_XY = False
+        return
+
+    if self.PLOT.ISOBAT_LEGEND.GET_XY:
+      if event.inaxes is not None:
+        toconsola("Getting Legend coordinates",wid=self.cons)
+        trans = self.ax.transData.transform((event.xdata,event.ydata))
+        trans = self.ax.transAxes.inverted().transform(trans)
+        self.PLOT.ISOBAT_LEGEND.BBx.set(np.round(trans[0],3))
+        self.PLOT.ISOBAT_LEGEND.BBy.set(np.round(trans[1],3))
+        self.PLOT.ISOBAT_LEGEND.GET_XY = False
+        return
+
     if self.GET_TIMESTAMP_LOCATION:
       toconsola("EG Click_event: self.GET_TIMESTAMP_LOCATION",wid=self.cons)
       try:
@@ -1833,6 +2241,7 @@ class CosmoDrawing():
     insmenu.add_command(label='Marker',command=self.get_marker)
     #EG Shapefile and WMS server
     insmenu.add_command(label='Shapefile',command=self.get_shapefile)
+    insmenu.add_command(label='Ellipse',command=self.get_ellipse)
     insmenu.add_command(label='WMS Service',state="disable",command=self.get_wms)
 
     confmenu = tk.Menu(menubar, tearoff=0)
@@ -1854,6 +2263,10 @@ class CosmoDrawing():
                          command=self.marker_config)
     confmenu.add_command(label='Shape geometry',
                          command=self.shape_config)
+    confmenu.add_command(label='Variance ellipse',
+                         command=self.ellipse_config)
+    confmenu.add_command(label='Patch',
+                         command=self.patch_config)
     confmenu.add_separator()
     confmenu.add_command(label='Select configuration',
                          command=self.configuration_file)
@@ -1866,10 +2279,16 @@ class CosmoDrawing():
                          command=self.vector_mean)
     toolmenu.add_command(label='Contour mean',
                          command=self.contour_mean)
+    toolmenu.add_command(label='Ellipse of variance',
+                         command=self.calc_ellipse)
     toolmenu.add_command(label='Contour variance',
                          command=self.contour_var)
     toolmenu.add_command(label='Trajectory editor',
                          command=self.trajectory_editor)
+    toolmenu.add_command(label='Marker editor',
+                         command=self.marker_editor)
+    toolmenu.add_command(label='Add patch',
+                         command=self.get_patch)
     toolmenu.add_command(label='Make animation',
                          command=self.make_anim)
     toolmenu.add_command(label='COSMO B Lagrangian Model (BLM)',
@@ -1953,7 +2372,8 @@ class CosmoDrawing():
       #  toconsola("Press Import to select a product",tag="o", wid=self.cons)
       #  return
 
-      self.VEC[ii].read(wid=self.cons)
+      if self.VEC[ii].SOURCE == 'FILE':
+        self.VEC[ii].read(wid=self.cons)
 
       #self.read_UV(self.VEC[ii])
       _close()
@@ -1968,21 +2388,35 @@ class CosmoDrawing():
       if self.nvec == 0:
         return
 
+      # When erasing, we must erase two kinds of informations, the
+      # information in the LAYER structure and the VECTOR information
+      # Attention, if erasing the SEQUENCE leader, we need to update the 
+      # DATE and TIMES of the SEQUENCE
+
       ii = self.VEC_INDX.get()
 
-      for i in range(self.nfiles):
-        if self.FILETYPES[i] == 'VEC' and self.FILEORDER[i] == ii:
-          del self.FILENAMES[i]
-          del self.FILETYPES[i]
-          del self.FILEORDER[i]
-          del self.SEQUENCES[i]
-      self.nfiles -= 1
-      toconsola('Erasing record '+str(ii),wid=self.cons)
+      self.LAYERS.erase('VEC',ii,wid=self.cons)
+      self.LAYERS.print()
+
+      toconsola('Erasing data field '+str(ii),wid=self.cons)
       del self.VEC[ii]
       self.nvec -= 1
       ii = self.nvec-1 if ii>= self.nvec else ii
       self.VEC_INDX.set(ii)
       _refill(ii)
+
+      if self.LAYERS.update:
+        toconsola('Updating TIME and DATE values of SEQUENCE',wid=self.cons)
+        LEADER_TYPE = self.LAYERS.TYPE[self.LAYERS.leader]
+        jj = self.LAYERS.TYPE_INDEX[self.LAYERS.leader]
+        if LEADER_TYPE == 'VEC':
+          self.DATE = self.VEC[jj].DATE.copy()
+          self.TIME = self.VEC[jj].TIME.copy()
+        elif LEADER_TYPE == 'FLD':
+          self.DATE = self.FLD[jj].DATE.copy()
+          self.TIME = self.FLD[jj].TIME.copy()
+        self.PLOT.TLABEL.set(self.DATE[self.L.get()])
+
       self.make_plot()
 
     def _reget():
@@ -2008,22 +2442,25 @@ class CosmoDrawing():
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.VEC[ii].K
         _kbox['values'] = self.VEC[ii].K_LIST
-        _lbox.configure(state='!disabled')
-        _lbox['textvariable'] = self.VEC[ii].L
-        _lbox['values'] = self.VEC[ii].L_LIST
+        #_lbox.configure(state='!disabled')
+        #_lbox['textvariable'] = self.VEC[ii].L
+        #_lbox['values'] = self.VEC[ii].L_LIST
+        _aent.configure(state='!disabled')
+        _aent['textvariable'] = self.VEC[ii].ALIAS
         if self.VEC[ii].U.icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-        if self.VEC[ii].U.icdf.idl < 0:
-          _lbox.configure(state='disabled')
-          _dbox['text']='--'
-        else:
-          _lbox['textvariable'] = self.VEC[ii].L
-          _lbox['values'] = self.VEC[ii].L_LIST
-          _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
+        #if self.VEC[ii].U.icdf.idl < 0:
+        #  _lbox.configure(state='disabled')
+        #  _dbox['text']='--'
+        #else:
+          #_lbox['textvariable'] = self.VEC[ii].L
+          #_lbox['values'] = self.VEC[ii].L_LIST
+          #_dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
         _show['variable'] = self.VEC[ii].show
+        #_wsav.configure(state='normal')
 
       else:
         self.VEC         = []
@@ -2035,7 +2472,7 @@ class CosmoDrawing():
         _uvar.configure(state='disabled')
         _vvar.configure(state='disabled')
         _kbox.configure(state='disabled')
-        _lbox.configure(state='disabled')
+        #_lbox.configure(state='disabled')
         _wsel['values'] = self.VEC_LIST
         _went['textvariable'] = ''
         _uvar['textvariable'] = ''
@@ -2047,16 +2484,18 @@ class CosmoDrawing():
         _kbox['textvariable'] = ''
         _kbox['values'] = ['']
         _zbox['text'] = '--'
-        _lbox['text'] = ''
-        _lbox['values'] = ['']
-        _lbox['textvariable'] = ''
-        _lbox['values'] = ['']
-        _dbox['text'] = ['--']
+        #_lbox['text'] = ''
+        #_lbox['values'] = ['']
+        #_lbox['textvariable'] = ''
+        #_lbox['values'] = ['']
+        #_dbox['text'] = ['--']
+        _wsav.configure(state='disabled')
 
     def _add(SOURCE):
     # ===============
 
-      global VEC
+      # Initialize VECTOR instance:
+      VEC = VECTOR()
 
       def _cancel():
       # ============
@@ -2066,7 +2505,6 @@ class CosmoDrawing():
       def _done():
       # ==========
         global _uvar,_vvar
-        global VEC
 
         if empty(VEC.uname.get()):
           VEC.U.varid = None
@@ -2102,6 +2540,8 @@ class CosmoDrawing():
 
           if VEC.grid_type.get() == 'C':
 
+            VEC.U.icdf.grid2d = True
+            VEC.V.icdf.grid2d = True
             # X-center
             xmu0 = 0.5*(VEC.U.xx[:,:-1]+VEC.U.xx[:,1:])
             xmv0 = VEC.V.xx[:,1:-1]
@@ -2113,33 +2553,49 @@ class CosmoDrawing():
             VEC.V.yy = 0.5*(ymv0[:-1,:]+ymv0[1:,:])
             VEC.U.yy = ymu0[1:-1,:]
 
+            toconsola('Regridding field. Updating array shapes',wid=self.cons)
+            aa = VEC.U.xx.shape
+            VEC.U.icdf.nx = aa[1]
+            VEC.U.icdf.ny = aa[0]
+            VEC.V.icdf.nx = aa[1]
+            VEC.V.icdf.ny = aa[0]
+
 
         #self.read_lonlat(VEC,VEC.icdf.xname,VEC.icdf.yname)
         VEC.K_LIST   = list(range(VEC.U.icdf.nz))
         VEC.L_LIST   = list(range(VEC.U.icdf.nt))
 
-        VEC.K.set(0)
+        #VEC.K.set(0)
         VEC.Z_LIST = VEC.U.get_zlist()
 
-        VEC.L.set(0)
+        #VEC.L.set(0)
         VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
 
 
         #self.DepthandDate(VEC)
         VEC.show.set(True)
 
+        # Adding a VECTOR in the Drawing class
+        #
+        nt = VEC.U.icdf.nt
+        self.LAYERS.add(TYPE='VEC',Filename=VEC.UFILENAME.get(),N=nt,wid=self.cons)
+
         self.nvec += 1
         self.VEC.append(VEC)
         self.VEC_INDX.set(self.nvec-1)
         self.VEC_LIST = list(range(self.nvec))
 
-        self.nfiles += 1
-        self.FILENAMES.append(VEC.UFILENAME.get())
-        self.FILETYPES.append('VEC')
-        self.FILEORDER.append(self.nvec-1)
-        self.SEQUENCES.append(tk.BooleanVar(value=False))
+        n = self.LAYERS.n
 
-        ii = self.VEC_INDX.get()
+        #self.nfiles += 1
+        #self.FILENAMES.append(VEC.UFILENAME.get())
+        #self.FILETYPES.append('VEC')
+        #self.FILEORDER.append(self.nvec-1)
+        #self.SEQUENCES.append(tk.BooleanVar(value=False))  # By default, no attached
+        #self.SEQLEADER.append(tk.BooleanVar(value=False))
+        #self.SEQNTIMES.append(VEC.U.icdf.nt)
+
+        ii = self.VEC_INDX.get()    # Points to the new VECTOR
 
         if self.first:
           if self.drawmap is None:
@@ -2154,41 +2610,104 @@ class CosmoDrawing():
               self.PLOT.SOUTH.set(max(self.VEC[ii].U.ymin,self.VEC[ii].V.ymin))
               self.PLOT.NORTH.set(min(self.VEC[ii].U.ymax,self.VEC[ii].V.ymax))
             self.plot_initialize()
-          self.L.set(self.VEC[ii].L.get())
-          self.L_LIST = list(range(self.VEC[ii].U.icdf.nt))
-          self.NL = len(self.L_LIST)
-          self.lbox.configure(state='!disabled')
-          self.lbox['values'] = self.L_LIST
+
+          try:
+            self.PLOT.XLABEL.set(self.VEC[ii].U.icdf.xname)
+          except:
+            self.PLOT.XLABEL.set('Longitude')
+          try:
+            self.PLOT.YLABEL.set(self.VEC[ii].U.icdf.yname)
+          except:
+            self.PLOT.YLABEL.set('Latitude')
           self.DATE = self.VEC[ii].DATE.copy()
           self.TIME = self.VEC[ii].TIME.copy()
-          #self.TFILE = '%d' % self.nfiles
-          self.PLOT.TLABEL.set(self.VEC[ii].DATE[self.L.get()])
-          if len(self.DATE) > 1:
-            self.bnext.configure(state='normal')
-          try:
-            self.PLOT.XLABEL.set(self.VEC[ii].U.nc.variables[self.VEC[ii].U.icdf.xname].getncattr('long_name'))
-          except:
-            self.PLOT.XLABEL.set(self.VEC[ii].U.icdf.xname)
-          try:
-            self.PLOT.YLABEL.set(self.VEC[ii].U.nc.variables[self.VEC[ii].U.icdf.yname].getncattr('long_name'))
-          except:
-            self.PLOT.YLABEL.set(self.VEC[ii].U.icdf.yname)
-          self.SEQUENCES[-1].set(True)
+          self.PLOT.TLABEL.set(self.DATE[self.L.get()])
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
-        else:
-          ntime = len(self.DATE)
-          same  = True
-          if len(self.VEC[ii].DATE) == ntime:
-            toconsola('Same number of time records',wid=self.cons)
-            for i in range(ntime):
-              if self.DATE[i] != self.VEC[ii].DATE[i]:
-                same = False
-            self.SEQUENCES[-1].set(same)
+
+#          if nt == 1:
+#          #if self.SEQNTIMES[ii] == 1:
+#            self.lbox.configure(state='disabled')
+#          else:
+#            self.lbox.configure(state='!disabled')
+#            self.lbox['values'] = self.L_LIST
+#          self.DATE = self.VEC[ii].DATE.copy()
+#          self.TIME = self.VEC[ii].TIME.copy()
+#          
+#          self.PLOT.TLABEL.set(self.VEC[ii].DATE[self.L.get()])
+#          if len(self.DATE) > 1:
+#            self.bnext.configure(state='normal')
+#
+#          # CAROUSEL MANAGEMENT - VECTOR
+#          #if self.SEQNTIMES[-1] > 1:
+#          n = self.LAYERS.n
+#          if nt > 1:
+#            toconsola('Vector initiates SEQUENCE list',wid=self.cons)
+#            self.LAYERS.nsequence = 1
+#            self.LAYERS.INSEQUENCE[n].set(True)
+#            self.LAYERS.SEQUENCER[n].set(True)
+#            self.LAYERS.leader = n
+#
+#            #self.nsequence = 1
+#            #self.SEQUENCES[-1].set(True)
+#            #self.SEQLEADER[-1].set(True)   # Is the first field
+#            #self.SEQLEADER_INDX = self.nfiles
+#            self.DATE = self.VEC[ii].DATE.copy()
+#            self.TIME = self.VEC[ii].TIME.copy()
+#            self.L.set(self.VEC[ii].L.get())
+#            self.L_LIST = list(range(nt))
+#            self.NL = nt
+#            self.lbox.configure(state='normal')
+#            self.lbox['values'] = self.L_LIST
+#            self.DATE = self.VEC[ii].DATE.copy()
+#            self.TIME = self.VEC[ii].TIME.copy()
+#            if self.L.get() < self.NL-1:
+#              self.bnext.configure(state='normal')
+#            if self.L.get() > 0:
+#              self.bprev.configure(state='normal')
+#        else:
+
+        # Is this field member of the SEQUENCE?
+        # Is this field a member of the SEQUENCE?
+        print('Test, nt = ', nt)
+        if nt > 1:
+          if self.LAYERS.nsequence == 0:
+            toconsola('Vector initiates SEQUENCE list',wid=self.cons)
+            self.LAYERS.nsequence = 1
+            self.LAYERS.INSEQUENCE[n-1].set(True)
+            self.LAYERS.SEQUENCER[n-1].set(True)
+            self.LAYERS.leader = n-1
+            self.LAYERS.seqlen = nt
+#              self.SEQUENCES[-1].set(True)
+#              self.SEQLEADER[-1].set(True)
+#              self.SEQLEADER_INDX = self.nfiles
+            self.DATE = self.VEC[ii].DATE.copy()
+            self.TIME = self.VEC[ii].TIME.copy()
+            self.L.set(self.VEC[ii].L.get())
+            self.L_LIST = list(range(nt))
+            self.NL = nt
+            self.lbox.configure(state='normal')
+            self.lbox['values'] = self.L_LIST
+            if self.L.get() < self.NL-1:
+              self.bnext.configure(state='normal')
+            if self.L.get() > 0:
+              self.bprev.configure(state='normal')
+          else:
+            print('Test, sequence exists !')
+            if nt == self.LAYERS.seqlen:
+              toconsola('Adding vector to SEQUENCE list',wid=self.cons)
+              self.LAYERS.nsequence += 1
+              self.LAYERS.INSEQUENCE[n-1].set(True)
+              self.LAYERS.SEQUENCER[n-1].set(False)
+#                self.nsequence += 1
+#                self.SEQUENCES[-1].set(True)
+#                self.SEQLEADER[-1].set(False)
+              self.VEC[ii].L.set(self.L.get())  #Synchronize records
 
         _refill(ii)
         self.Window_currents_sel.destroy()
         self.Window_currents_sel = None
+        self.LAYERS.print()
 
       def _arakawa():
       # =============
@@ -2239,24 +2758,6 @@ class CosmoDrawing():
         vaxesid = tools.WinGeoaxes(VEC.V.icdf,VEC.V.nc,FV)
         FV.grid(row=1,column=0,columnspan=5)
 
-        #vaxesid.FILENAME.set(VEC.VFILENAME.get())
-        #vaxesid.Ibox['values'] = VEC.V.icdf.DIM_MENU
-        #vaxesid.Jbox['values'] = VEC.V.icdf.DIM_MENU
-        #vaxesid.Kbox['values'] = VEC.V.icdf.DIM_MENU
-        #vaxesid.Lbox['values'] = VEC.V.icdf.DIM_MENU
-        #vaxesid.Xbox['values'] = VEC.V.icdf.VAR_MENU
-        #vaxesid.Ybox['values'] = VEC.V.icdf.VAR_MENU
-        #vaxesid.Zbox['values'] = VEC.V.icdf.VAR_MENU
-        #vaxesid.Tbox['values'] = VEC.V.icdf.VAR_MENU
-        #vaxesid.Ibox.bind('<<ComboboxSelected>>',lambda e: vaxesid.iselection(VEC.V.icdf))
-        #vaxesid.Jbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.jselection(VEC.V.icdf))
-        #vaxesid.Kbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.kselection(VEC.V.icdf))
-        #vaxesid.Lbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.lselection(VEC.V.icdf))
-        #vaxesid.Xbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.xselection(VEC.V.icdf))
-        #vaxesid.Ybox.bind('<<ComboboxSelected>>',lambda e: vaxesid.yselection(VEC.V.icdf))
-        #vaxesid.Zbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.zselection(VEC.V.icdf))
-        #vaxesid.Tbox.bind('<<ComboboxSelected>>',lambda e: vaxesid.tselection(VEC.V.icdf))
-        #vaxesid.Bncdump.bind('<Button-1>',lambda e: vaxesid.ncdump(VEC.V.nc))
         Vsel['values'] = VEC.V.icdf.VAR_MENU
         Vsel.bind('<<ComboboxSelected>>',lambda e: vaxesid.selected_var(VEC.V.icdf,VEC.V.nc,Vsel))
 
@@ -2287,8 +2788,12 @@ class CosmoDrawing():
         aa = get_remote()
         filename = aa.filename()
       else:
-        ii = self.CDF_INDX.get()
-        filename = self.CDF[ii].FILENAME.get()
+        if self.ncdf <= 0:
+          messagebox.showinfo(message='No Contour file opened yet')
+          return
+        else:
+          jj = self.CDF_INDX.get()
+          filename = self.CDF[jj].FILENAME.get()
     
       if empty(filename):
         return
@@ -2299,7 +2804,6 @@ class CosmoDrawing():
       and the second one for the V information. Once the grid information
       has been filled, we merge the V-information of the second object
       into the first one '''
-      VEC = VECTOR()
 
       #VEC = cdf_parameters()
       VEC.UFILENAME.set(filename)
@@ -2331,7 +2835,7 @@ class CosmoDrawing():
 
       if self.Window_currents_sel is None:
         self.Window_currents_sel = tk.Toplevel(self.master)
-        self.Window_currents_sel.title('SELECT VARIABLES')
+        self.Window_currents_sel.title('SELECT VELOCITY COMPONENTS')
         self.Window_currents_sel.protocol('WM_DELETE_WINDOW',self.Window_currents_sel.destroy)
       #else:
       #  self.Window_currents_sel.lift()
@@ -2448,6 +2952,12 @@ class CosmoDrawing():
         self.VEC[ii].V.varname = None
         self.VEC[ii].V.varid = -1
 
+    def _save():
+    # ================
+      ii = self.VEC_INDX.get()
+      print('Saving ',ii)
+      self.VEC[ii].save()
+
     # Main Window
     # ============
     if self.Window_currents is None:
@@ -2506,19 +3016,25 @@ class CosmoDrawing():
     _zbox.grid(row=3,column=3,columnspan=2,sticky='w')
 
     # Time:
-    ttk.Label(F0,text='Time').grid(row=4,column=1,padx=3,pady=3)
-    _lbox = ttk.Combobox(F0,width=5)
-    _lbox.grid(row=4,column=2)
-    _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
-    _dbox = ttk.Label(F0,width=20)
-    _dbox.grid(row=4,column=3,columnspan=2,sticky='w')
+    #ttk.Label(F0,text='Time').grid(row=4,column=1,padx=3,pady=3)
+    #_lbox = ttk.Combobox(F0,width=5)
+    #_lbox.grid(row=4,column=2)
+    #_lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
+    #_dbox = ttk.Label(F0,width=20)
+    #_dbox.grid(row=4,column=3,columnspan=2,sticky='w')
+
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=5,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=5,column=2,columnspan=2,sticky='w')
 
     if ii == -1:
       _wsel.configure(state='disabled')
       _uvar.configure(state='disabled')
       _vvar.configure(state='disabled')
       _kbox.configure(state='disabled')
-      _lbox.configure(state='disabled')
+      #_lbox.configure(state='disabled')
+      _aent.configure(state='disabled')
     else:
       _went['textvariable'] = self.VEC[ii].UFILENAME
       _went2['textvariable'] = self.VEC[ii].VFILENAME
@@ -2528,32 +3044,39 @@ class CosmoDrawing():
       _vvar['values'] = self.VEC[ii].V.icdf.VAR_MENU
       _kbox['textvariable'] = self.VEC[ii].K
       _kbox['values'] = self.VEC[ii].K_LIST
+      _aent['textvariable'] = self.VEC[ii].ALIAS
       if self.VEC[ii].U.icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-      if self.VEC[ii].U.icdf.idl < 0:
-        _lbox.configure(state='disabled')
-        _dbox['text']='--'
-      else:
-        _lbox['textvariable'] = self.VEC[ii].L
-        _lbox['values'] = self.VEC[ii].L_LIST
-        _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
+      #if self.VEC[ii].U.icdf.idl < 0:
+      #  _lbox.configure(state='disabled')
+      #  _dbox['text']='--'
+      #else:
+      #  _lbox['textvariable'] = self.VEC[ii].L
+      #  _lbox['values'] = self.VEC[ii].L_LIST
+      #  _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
 
     F0.grid(row=0,column=0)
 
     F1 = ttk.Frame(self.Window_currents,padding=5)
+    _wsav = ttk.Button(F1,text='Save data',command=_save)
+    _wsav.grid(row=1,column=0,padx=3,sticky='w')
     if ii == -1:
       _show = ttk.Checkbutton(F1,text='Show')
+      _wsav.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show')
       _show['variable']=self.VEC[ii].show
       _show.configure(command=self.make_plot)
+      _wsav.configure(state='normal')
     _show.grid(row=1,column=5)
     ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
     ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
     ttk.Button(F1,text='Plot',command=_done).grid(row=1,column=8,padx=3)
+    ttk.Label(F1,text='   ',width=8).grid(row=1,column=1,padx=3,sticky='w')
+    ttk.Label(F1,text='   ',width=8).grid(row=1,column=2,padx=3,sticky='w')
     F1.grid(row=1,column=0)
 
   # =============================
@@ -2633,64 +3156,181 @@ class CosmoDrawing():
    
     #Main Window
     # =========
-    if self.nfiles == 0:
-      toconsola('No files opened yet',wid=self.cons)
+    if self.LAYERS.n == 0:
+      toconsola('No layers added yet',wid=self.cons)
       return
 
     if self.Window_files is None:
-      self.Window_files = tk.Toplevel(self.master)
+      self.Window_files = tk.Toplevel(self.master,width=80)
       self.Window_files.title('Plot layers')
-      self.Window_files.resizable(width=True,height=True)
+      self.Window_files.resizable(width=True,height=False)
       self.Window_files.protocol('WM_DELETE_WINDOW',_close)
     else:
       self.Window_files.lift()
       return
 
-    F0 = ttk.Frame(self.Window_files,borderwidth=5,padding=5)
-    ttk.Label(F0,text='SHOW').grid(row=0,column=0)
-    ttk.Label(F0,text='TYPE').grid(row=0,column=1)
-    ttk.Label(F0,text='NAME').grid(row=0,column=2,sticky='we')
+    Fh = ttk.Frame(self.Window_files,borderwidth=5,padding=5)
+    txt1 = 'Number layers: %d' % self.LAYERS.n
+    ttk.Label(Fh,text=txt1).grid(row=0,column=0,padx=3,sticky='w')
+    Fh.grid(sticky='w')
+
+    F0 = ttk.Frame(self.Window_files,width=80,borderwidth=5,padding=5)
+
+    ttk.Label(F0,text='SHOW').grid(row=0,column=0,padx=3,sticky='we')
+    ttk.Label(F0,text='TYPE').grid(row=0,column=1,padx=3,sticky='we')
+    ttk.Label(F0,text='SOURCE',width=10).grid(row=0,column=2,padx=3,sticky='we')
+    ttk.Label(F0,text='ZORDER').grid(row=0,column=3,padx=3,sticky='we')
+    ttk.Label(F0,text='ALPHA').grid(row=0,column=4,padx=3,sticky='we')
+    ttk.Label(F0,text='SEQUENCE').grid(row=0,column=5,padx=3,sticky='we')
+    ttk.Label(F0,text='SEQ LEADER').grid(row=0,column=6,padx=3,sticky='we')
+    ttk.Label(F0,text='ALIAS',width=12).grid(row=0,column=7,padx=3,sticky='we')
+    ttk.Label(F0,text='FILENAME').grid(row=0,column=8,sticky='we')
 
     nvec = -1
     nfld = -1
     nflo = -1
-    for i in range(self.nfiles):
-      #ttk.Label(F0,text='%s'%(i), \
-      #             justify='right').grid(row=i+1,column=0,padx=5)
-      if self.FILETYPES[i] == 'VEC':
-        nvec += 1
-        ttk.Checkbutton(F0,variable=self.VEC[nvec].show,\
+    i    = 0
+    for i in range(self.LAYERS.n):
+
+      TYPE = self.LAYERS.TYPE[i]
+      ii   = self.LAYERS.TYPE_INDEX[i]
+      noseq = False
+
+      if TYPE == 'VEC':
+
+        ttk.Checkbutton(F0,variable=self.VEC[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+
+        ttk.Label(F0,text=self.VEC[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.VEC[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.VEC[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.VEC[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        
+      if TYPE == 'FLD':
+
+        ttk.Checkbutton(F0,variable=self.CDF[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.CDF[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.CDF[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.CDF[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.CDF[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        
+      if TYPE == 'FLOAT':
+
+        ttk.Checkbutton(F0,variable=self.FLOAT[ii].SHOW,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
         
-      if self.FILETYPES[i] == 'FLD':
-        nfld += 1
-        ttk.Checkbutton(F0,variable=self.CDF[nfld].show,\
-                 command=self.make_plot). \
-                 grid(row=i+1,column=0,padx=3)
-        
-      if self.FILETYPES[i] == 'FLOAT':
-        nflo += 1
-        ttk.Checkbutton(F0,variable=self.FLOAT[nflo].SHOW,\
-                 command=self.make_plot). \
-                 grid(row=i+1,column=0,padx=3)
-        
-      if self.FILETYPES[i] == 'SAIDIN':
+      if TYPE == 'SAIDIN':
         ttk.Checkbutton(F0,variable=self.SAIDIN.show,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.SAIDIN.SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.SAIDIN.PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.SAIDIN.PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.SAIDIN.ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
         
-      ttk.Label(F0,text=self.FILETYPES[i], \
+      # Show, Zorder
+      if TYPE == 'MARKER':
+        ttk.Checkbutton(F0,variable=self.MARKER[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.MARKER[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.MARKER[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.MARKER[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.MARKER[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
+
+      if TYPE == 'SHAPE':
+        ttk.Checkbutton(F0,variable=self.SHAPE[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.SHAPE[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.SHAPE[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.SHAPE[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.SHAPE[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
+
+      if TYPE == 'ELLIPSE':
+        ttk.Checkbutton(F0,variable=self.ELLIPSE[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.ELLIPSE[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.ELLIPSE[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.ELLIPSE[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.ELLIPSE[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
+
+      if TYPE == 'PATCH':
+        ttk.Checkbutton(F0,variable=self.PATCH[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.PATCH[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.PATCH[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.PATCH[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.PATCH[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
+
+
+      # Type
+      ttk.Label(F0,text=TYPE, \
                    width=7,justify='left').grid(row=i+1, \
                                                  column=1, \
+                                                 columnspan=1,padx=3,sticky='we')
+
+      # Sequence
+      cc = ttk.Checkbutton(F0,variable=self.LAYERS.INSEQUENCE[i])
+      cc.grid(row=i+1,column=5,padx=3)
+
+
+      # Sequence leader
+      bb = ttk.Checkbutton(F0,variable=self.LAYERS.SEQUENCER[i])
+      bb.grid(row=i+1,column=6,padx=3)
+
+      if self.LAYERS.NREC[i] <= 1 or noseq:
+        cc.configure(state='disabled')
+        bb.configure(state='disabled')
+
+      # Filename
+      ttk.Label(F0,text=self.LAYERS.FILENAME[i], \
+                   width=40,justify='left').grid(row=i+1, \
+                                                 column=8, \
                                                  columnspan=1,padx=3)
-      ttk.Label(F0,text=self.FILENAMES[i], \
-                   width=80,justify='left').grid(row=i+1, \
-                                                 column=2, \
-                                                 columnspan=8,padx=3)
+
     F0.grid()
-    for i in range(self.nfiles):
-      toconsola('%s as %s' % (self.FILENAMES[i],self.FILETYPES[i]),wid=self.cons)
+    for i in range(self.LAYERS.n):
+      toconsola('%s as %s' % (self.LAYERS.FILENAME[i],self.LAYERS.TYPE[i]),wid=self.cons)
 
   # ===========================
   def configuration_file(self):
@@ -2824,40 +3464,38 @@ class CosmoDrawing():
     # Add the FILES (SAIDIN; CONTOURS, VECTORS, TRAJECTORIES):
     # Types: VEC, FLD, SAIDIN, FLOAT
     # ZZZ
-    for i in range(self.nfiles):
+    for i in range(self.LAYERS.n):
 
-      ii = self.FILEORDER[i]
+      TYPE = self.LAYERS.TYPE[i]
+      ii = self.LAYERS.TYPE_INDEX[i]
 
       conf = {}
-      conf['FILENAME'] = self.FILENAMES[i]
-      conf['TYPE']     = self.FILETYPES[i]
-      conf['SEQUENCE'] = self.SEQUENCES[i].get()
-      if self.FILETYPES[i] == 'FLD':
+      conf['FILENAME'] = self.LAYERS.FILENAME[i]
+      conf['TYPE'] = TYPE
+      conf['INSEQUENCE'] = self.LAYERS.INSEQUENCE[i].get()
+      conf['SEQUENCER'] = self.LAYERS.SEQUENCER[i].get()
+      conf['NREC'] = self.LAYERS.NREC[i]
+
+      if TYPE == 'FLD':
         conf['CDF'] = self.CDF[ii].conf_get()
-      elif self.FILETYPES[i] == 'VEC':
+      elif TYPE == 'VEC':
         conf['VEC'] = self.VEC[ii].conf_get()
-      elif self.FILETYPES[i] == 'SAIDIN':
+      elif TYPE == 'SAIDIN':
         conf['SAIDIN'] = self.SAIDIN.conf_get()
-      elif self.FILETYPES[i] == 'FLOAT':
+      elif TYPE == 'FLOAT':
         conf['FLOAT'] = self.FLOAT[ii].conf_get()
+      elif TYPE == 'MARKER':
+        conf['MARKER'] = self.MARKER[ii].conf_get()
+      elif TYPE == 'SHAPE':
+        conf['SHAPE'] = self.SHAPE[ii].conf_get()
+      elif TYPE == 'ELLIPSE':
+        conf['ELLIPSE'] = self.ELLIPSE[ii].conf_get()
+      elif TYPE == 'PATCH':
+        conf['PATCH'] = self.PATCH[ii].conf_get()
       else:
-        toconsola('Unknown file type',wid=self.cons)
+        toconsola('Unknown layer type',wid=self.cons)
         return
 
-      CONF.append(conf)
-
-    for i in range(self.nfeatures):
-
-      ii = self.FEATORDER[i]
-
-      conf = {}
-      conf['FILENAME'] = self.FEATNAMES[i]
-      conf['TYPE']     = self.FEATTYPES[i]
-      if self.FEATTYPES[i] == 'MARKER':
-        conf['MARKER'] = self.MARKER[ii].conf_get()
-      elif self.FEATTYPES[i] == 'SHAPE':
-        conf['SHAPE'] = self.SHAPE[ii].conf_get()
-        
       CONF.append(conf)
 
     # Request output configuration filename:
@@ -2873,6 +3511,9 @@ class CosmoDrawing():
     # Write JSON file:
     #
     self.save_conf(CONF,nn)
+
+    toconsola('done !',wid=self.cons)
+
 
   # ==================================
   def figure_read(self,filename=None):
@@ -2896,6 +3537,10 @@ class CosmoDrawing():
     # The PLOT:
     #
     self.PLOT.conf_set(CONF[0])
+
+    if self.PLOT.ISOBAT_cropped:
+      self.isobath_crop()
+
 
     # Initialize matplotlib
     #
@@ -2923,18 +3568,13 @@ class CosmoDrawing():
         # Initialize contour class:
         CDF = CONTOUR(filename)
         CDF.FLD.open(filename,wid=self.cons)
-
-        # Initialize classes:
-        #
-        #CDF = cdf_parameters()
-        #CDF.FIELD = fld_parameters()
-        #CDF.FILENAME.set(filename)
-        #CDF.ncid = Dataset(filename)
-        #CDF.icdf = tools.geocdf(filename, wid=self.cons)
+        nt = CDF.FLD.icdf.nt         # Save the number of time records
 
         # Update from CONF attributes:
         #
         CDF.conf_set(CONF[ii]['CDF'])
+        print('CDF.FLD.varname: ', CDF.FLD.varname)
+        print('CDF.FLD.varid: ', CDF.FLD.varid)
 
         if self.first:
           self.K.set(CDF.K.get())
@@ -2948,7 +3588,15 @@ class CosmoDrawing():
         #self.DepthandDate(CDF)
         CDF.FLD.get_grid()
         self.DepthandDate(CDF)
-        CDF.read(update_lims=False,wid=self.cons)
+
+        if CDF.SOURCE == 'FILE':
+          CDF.read(update_lims=False,wid=self.cons)
+        elif CDF.SOURCE == 'MEAN':
+          CDF.FLD.mean(nt,self.K.get(),wid=self.cons)
+        elif CDF.SOURCE == 'VARIANCE':
+          print('going to calculate the variance ...')
+          CDF.FLD.variance(nt,self.K.get(),wid=self.cons)
+
         #self.read_CDF(CDF,update_lims=False)
 
         #print(CDF.PLOT.CONTOUR_MIN.get())
@@ -2961,11 +3609,20 @@ class CosmoDrawing():
         self.CDF_INDX.set(self.ncdf-1)
         self.CDF_LIST = list(range(self.ncdf))
 
-        self.nfiles += 1
-        self.FILENAMES.append(filename)
-        self.FILETYPES.append('FLD')
-        self.FILEORDER.append(self.ncdf-1)
-        self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCE']))
+        nt = CONF[ii]['NREC']
+        self.LAYERS.add(TYPE='FLD',Filename=filename,N=nt,wid=self.cons)
+        nm = self.LAYERS.n - 1
+        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        self.LAYERS.print()
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(filename)
+        #self.FILETYPES.append('FLD')
+        #self.FILEORDER.append(self.ncdf-1)
+        #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
+        #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
+        #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
         if self.first:
           #self.TFILE = '%d' % self.nfiles
@@ -2997,6 +3654,7 @@ class CosmoDrawing():
         VEC.UFILENAME.set(filename)
         VEC.U.nc = Dataset(filename)
         VEC.U.icdf = tools.geocdf(filename, wid=self.cons)
+        nt = VEC.U.icdf.nt         # Save the number of time records
 
         # Vheck the Arakawa's grid type and read, if required, the VFILENAME
         #
@@ -3033,6 +3691,8 @@ class CosmoDrawing():
 
           if VEC.grid_type.get() == 'C':
 
+            VEC.U.icdf.grid2d = True
+            VEC.V.icdf.grid2d = True
             # X-center
             xmu0 = 0.5*(VEC.U.xx[:,:-1]+VEC.U.xx[:,1:])
             xmv0 = VEC.V.xx[:,1:-1]
@@ -3044,13 +3704,35 @@ class CosmoDrawing():
             VEC.V.yy = 0.5*(ymv0[:-1,:]+ymv0[1:,:])
             VEC.U.yy = ymu0[1:-1,:]
 
+            aa = VEC.U.xx.shape
+            print('New shape sizes: ', aa)
+            print('----------------------------')
+
         VEC.K_LIST = list(range(VEC.U.icdf.nz))
         VEC.L_LIST = list(range(VEC.U.icdf.nt))
         VEC.Z_LIST = VEC.U.get_zlist()
         VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
 
-        VEC.read(wid=self.cons)
-        #self.read_UV(VEC)
+        if VEC.SOURCE == 'FILE':
+          VEC.read(wid=self.cons)
+        elif VEC.SOURCE == 'MEAN':
+          VEC.U.mean(nt,self.K.get(),wid=self.cons)
+          VEC.V.mean(nt,self.K.get(),wid=self.cons)
+          # Make sure that the missing value is NaN:
+          _u = VEC.U.data.filled(fill_value=np.nan)
+          _v = VEC.V.data.filled(fill_value=np.nan)
+          u = np.ma.masked_equal(_u,np.nan); del _u
+          v = np.ma.masked_equal(_v,np.nan); del _v
+
+          if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+            toconsola("Velocities in a A-grid",wid=self.cons)
+            VEC.U.data = u.copy()
+            VEC.V.data = v.copy()
+          elif VEC.grid_type.get() == 'C':
+            toconsola("Regrid C-grid velocities",wid=self.cons)
+            VEC.U.data = 0.5*(u[1:-1,:-1]+u[1:-1,1:])
+            VEC.V.data = 0.5*(v[:-1,1:-1]+v[1:,1:-1])
+
 
         if self.first:
           self.K.set(VEC.K.get())
@@ -3063,11 +3745,20 @@ class CosmoDrawing():
         self.VEC_INDX.set(self.nvec-1)
         self.VEC_LIST = list(range(self.nvec))
 
-        self.nfiles += 1
-        self.FILENAMES.append(filename)
-        self.FILETYPES.append('VEC')
-        self.FILEORDER.append(self.nvec-1)
-        self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCE']))
+        nt = CONF[ii]['NREC']
+        self.LAYERS.add(TYPE='VEC',Filename=filename,N=nt,wid=self.cons)
+        nm = self.LAYERS.n - 1
+        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        self.LAYERS.print()
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(filename)
+        #self.FILETYPES.append('VEC')
+        #self.FILEORDER.append(self.nvec-1)
+        #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
+        #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
+        #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
         if self.first:
           #self.TFILE = '%d' % self.nfiles
@@ -3193,11 +3884,20 @@ class CosmoDrawing():
           self.FLOAT_INDX.set(self.nfloat-1)
           self.FLOAT_LIST = list(range(self.nfloat))
 
-          self.nfiles += 1
-          self.FILENAMES.append(filename)
-          self.FILETYPES.append('FLOAT')
-          self.FILEORDER.append(self.nfloat-1)
-          self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCE']))
+          nt = CONF[ii]['NREC']
+          self.LAYERS.add(TYPE='FLOAT',Filename=filename,N=nt,wid=self.cons)
+          nm = self.LAYERS.n - 1
+          self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+          self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+          self.LAYERS.print()
+
+          #self.nfiles += 1
+          #self.FILENAMES.append(filename)
+          #self.FILETYPES.append('FLOAT')
+          #self.FILEORDER.append(self.nfloat-1)
+          #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
+          #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
+          #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
       if CONF[ii]['TYPE'] == 'SAIDIN':
 
@@ -3219,12 +3919,27 @@ class CosmoDrawing():
         self.SAIDIN.FLD.data = self.SAIDIN.FLD.nc.variables[self.SAIDIN.FLD.varname][0,:,:].squeeze()
         self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy = np.meshgrid(self.SAIDIN.FLD.x,self.SAIDIN.FLD.y)
         self.DepthandDate(self.SAIDIN)
+        if self.SAIDIN.landmask.get():
+          toconsola('Applying land/sea mask ...',wid=self.cons)
+          _a  = self.SAIDIN.FLD.data.copy()
+          tmp  = self.SAIDIN.FLD.nc.variables['lsmask'][0,:,:].squeeze()
+          msk = ma.masked_where(tmp==1,tmp)
+          self.SAIDIN.FLD.data = ma.array(_a,mask=msk).copy()
 
-        self.nfiles += 1
-        self.FILENAMES.append(filename)
-        self.FILETYPES.append('SAIDIN')
-        self.FILEORDER.append(0)
-        self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCE']))
+        nt = CONF[ii]['NREC']
+        self.LAYERS.add(TYPE='SAIDIN',Filename=filename,N=nt,wid=self.cons)
+        nm = self.LAYERS.n - 1
+        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        self.LAYERS.print()
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(filename)
+        #self.FILETYPES.append('SAIDIN')
+        #self.FILEORDER.append(0)
+        #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
+        #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
+        #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
         if self.first:
           self.DATE = self.SAIDIN.DATE.copy()
@@ -3236,7 +3951,11 @@ class CosmoDrawing():
         # Initialize classes:
         #
         MARKER = geomarker.parameters()
-        MARKER.Read(filename)
+
+        if filename is None:
+          toconsola('MARKER data from configuration file',wid=self.cons)
+        else:
+          MARKER.Read(filename)
 
         # Update from CONF attributes:
         #
@@ -3247,10 +3966,12 @@ class CosmoDrawing():
         self.MARKER_INDX.set(self.nmarker-1)
         self.MARKER_LIST = list(range(self.nmarker))
 
-        self.nfeatures += 1
-        self.FEATNAMES.append(filename)
-        self.FEATTYPES.append('MARKER')
-        self.FEATORDER.append(self.nfeatures-1)
+        self.LAYERS.add(TYPE='MARKER',Filename=filename,N=len(MARKER.lon),wid=self.cons)
+
+        #self.nfeatures += 1
+        #self.FEATNAMES.append(filename)
+        #self.FEATTYPES.append('MARKER')
+        #self.FEATORDER.append(self.nmarker-1)
 
       if CONF[ii]['TYPE'] == 'SHAPE':
 
@@ -3263,15 +3984,66 @@ class CosmoDrawing():
         #
         SHAPE.conf_set(CONF[ii]['SHAPE'])
 
+        if not empty(SHAPE.LABEL_KEY.get()):
+          SHAPE.get_name()
+
         self.nshape += 1
         self.SHAPE.append(SHAPE)
-        self.SHAPE.set(self.nshape-1)
+        self.SHAPE_INDX.set(self.nshape-1)
         self.SHAPE_LIST = list(range(self.nshape))
 
-        self.nfeatures += 1
-        self.FEATNAMES.append(filename)
-        self.FEATTYPES.append('SHAPE')
-        self.FEATORDER.append(self.nfeatures-1)
+        self.LAYERS.add(TYPE='SHAPE',Filename=filename,N=len(SHAPE.lon),wid=self.cons)
+        self.LAYERS.print()
+        #self.nfeatures += 1
+        #self.FEATNAMES.append(filename)
+        #self.FEATTYPES.append('SHAPE')
+        #self.FEATORDER.append(self.nshape-1)
+
+      if CONF[ii]['TYPE'] == 'ELLIPSE':
+
+        # Initialize classes:
+        #
+        ELLIPSE = ellipse.ELLIPSE()
+
+        # Update from CONF attributes:
+        #
+        ELLIPSE.conf_set(CONF[ii]['ELLIPSE'])
+
+        if ELLIPSE.SOURCE == 'VIEWER':
+          toconsola('ELLIPSE data from configuration file',wid=self.cons)
+        else:
+          ELLIPSE.Read(filename)
+
+
+        self.nellipse += 1
+        self.ELLIPSE.append(ELLIPSE)
+        self.ELLIPSE_INDX.set(self.nellipse-1)
+        self.ELLIPSE_LIST = list(range(self.nellipse))
+
+        self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=ELLIPSE.n,wid=self.cons)
+        self.LAYERS.print()
+
+      if CONF[ii]['TYPE'] == 'PATCH':
+
+        # Initialize classes:
+        #
+        PATCH = patch.PATCH()
+
+        # Update from CONF attributes:
+        #
+        PATCH.conf_set(CONF[ii]['PATCH'])
+
+        self.npatch += 1
+        self.PATCH.append(PATCH)
+        self.PATCH_INDX.set(self.npatch-1)
+        self.PATCH_LIST = list(range(self.npatch))
+
+        self.LAYERS.add(TYPE='PATCH',Filename=None,N=1,wid=self.cons)
+        self.LAYERS.print()
+        #self.nfeatures += 1
+        #self.FEATNAMES.append('')
+        #self.FEATTYPES.append('PATCH')
+        #self.FEATORDER.append(self.npatch-1)
 
     self.make_plot()
 
@@ -3304,7 +4076,7 @@ class CosmoDrawing():
   def saveas(self):
   # ===============
       '''Get the output filename and the save the plot'''
-      filetypes = [('PNG file','.png'),('JPG file','.jpg'),('PDF file','.pdf')]
+      filetypes = [('PNG file','.png'),('EPS file','.eps'),('PDF file','.pdf')]
       nn = tk.filedialog.asksaveasfilename(title='Save',
                                            initialdir='./',
                                            filetypes=filetypes,
@@ -3448,7 +4220,7 @@ class CosmoDrawing():
         self.PLOT.ISOBAT_DATA[i]['lon'] = xo
         self.PLOT.ISOBAT_DATA[i]['lat'] = yo
     toconsola('done',wid=self.cons)
-    self.PLOT.ISOBATH_crop = True
+    self.PLOT.ISOBAT_cropped = True
 
   # ======================
   def legend_config(self):
@@ -3497,17 +4269,17 @@ class CosmoDrawing():
       self.Window_legendconfig.tk.call(self.Window_legendconfig, "config", "-menu", menubar)
  
     # Define tabs
-    maptabs = ttk.Notebook(self.Window_legendconfig)
-    page1 = ttk.Frame(maptabs)
-    page2 = ttk.Frame(maptabs)
+    self.legendtabs = ttk.Notebook(self.Window_legendconfig)
+    page1 = ttk.Frame(self.legendtabs)
+    page2 = ttk.Frame(self.legendtabs)
 
-    maptabs.add(page1,text='Isobaths')
-    maptabs.add(page2,text='Markers')
+    self.legendtabs.add(page1,text='Isobaths')
+    self.legendtabs.add(page2,text='Markers')
 
     self.PLOT.ISOBAT_LEGEND.Winconfig(page1)
     self.PLOT.LEGEND.Winconfig(page2)
 
-    maptabs.grid()
+    self.legendtabs.grid()
 
     frame5 = ttk.Frame(self.Window_legendconfig,borderwidth=5,padding=5)
     ttk.Button(frame5,text='Apply',command=_apply).grid(row=0,column=5,padx=3)
@@ -3849,8 +4621,8 @@ class CosmoDrawing():
               "sweep_axis":self.PLOT.MAP_PROJ_SWEEP_AXIS.get()}
     
     var_proj = [self.PLOT.MAP_PROJ_LAT_0, self.PLOT.MAP_PROJ_LON_0, 
-              self.PLOT.MAP_PROJ_MIN_LAT, self.PLOT.MAP_PROJ_MAX_LAT,
               self.PLOT.MAP_PROJ_F_EAST, self.PLOT.MAP_PROJ_F_NORTH,
+              self.PLOT.MAP_PROJ_MIN_LAT, self.PLOT.MAP_PROJ_MAX_LAT,
               self.PLOT.MAP_PROJ_LAT_T_SCA, self.PLOT.MAP_PROJ_T_SCA_LAT,  
               self.PLOT.MAP_PROJ_SCA_FAC, self.PLOT.MAP_PROJ_SWEEP_AXIS,
               self.PLOT.MAP_PROJ_SATELLITE_HEIGHT]
@@ -4083,7 +4855,7 @@ class CosmoDrawing():
     ttk.Button(f4c,text='Select',command=icselection).grid(row=0,column=7)
 
     wls = ttk.Checkbutton(f4c,variable=self.PLOT.ISOBAT_LABEL_SHOW)
-    wls.grid(row=1, column=5, sticky='e')
+    wls.grid(row=1, column=6, sticky='e')
     
     # ....................
     def cgrad():
@@ -4151,7 +4923,7 @@ class CosmoDrawing():
     ttk.Label(f5,text='Character Size').grid(row=11,column=1,sticky='w')
     ttk.Entry(f5,textvariable=self.PLOT.GRID_SIZE,justify='left',width=8) \
         .grid(row=11,column=2)
-    ttk.Label(f5,text='Line Color').grid(row=12,column=1,sticky='w')
+    ttk.Label(f5,text='Font Color').grid(row=12,column=1,sticky='w')
     self.Glabel = ttk.Label(f5,textvariable=self.PLOT.GRID_COLOR,style="sgrid.TLabel",width=8)
     self.Glabel.grid(row=12,column=2,padx=3)
     ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_COLOR, \
@@ -4169,10 +4941,10 @@ class CosmoDrawing():
     ttk.Label(f5,text='Line alpha').grid(row=15,column=1,sticky='w')
     ttk.Entry(f5,textvariable=self.PLOT.GRID_ALPHA,justify='left',width=8) \
         .grid(row=15,column=2)
-    ttk.Label(f5,text='Font color').grid(row=16,column=1,sticky='w')
+    ttk.Label(f5,text='Line color').grid(row=16,column=1,sticky='w')
     self.GFlabel = ttk.Label(f5,textvariable=self.PLOT.GRID_FONTCOLOR,style="sfgrid.TLabel",width=8)
     self.GFlabel.grid(row=16,column=2,padx=3)
-    ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_COLOR, \
+    ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_FONTCOLOR, \
             self.sgrid,self.GFlabel,"sfgrid.TLabel",master=self.Window_mapconfig)). \
             grid(row=16,column=3,padx=3)   
     f5.grid()
@@ -4596,11 +5368,17 @@ class CosmoDrawing():
         self.FLOAT_INDX.set(self.nfloat-1)
         self.FLOAT_LIST = list(range(self.nfloat))
 
-        self.nfiles += 1
-        self.FILENAMES.append(FLT.FILENAME.get())
-        self.FILETYPES.append('FLOAT')
-        self.SEQUENCES.append(tk.BooleanVar(value=False))
-        self.FILEORDER.append(self.nfloat-1)
+        nt = len(FLT.TIME)
+        self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
+        self.LAYERS.print()
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(FLT.FILENAME.get())
+        #self.FILETYPES.append('FLOAT')
+        #self.SEQUENCES.append(tk.BooleanVar(value=False))
+        #self.SEQLEADER.append(tk.BooleanVar(value=False))
+        #self.SEQNTIMES.append(0)
+        #self.FILEORDER.append(self.nfloat-1)
 
         self.make_plot()
       else:
@@ -4798,11 +5576,16 @@ class CosmoDrawing():
         self.FLOAT_INDX.set(self.nfloat-1)
         self.FLOAT_LIST = list(range(self.nfloat))
 
-        self.nfiles += 1
-        self.FILENAMES.append(FLT.FILENAME.get())
-        self.FILETYPES.append('FLOAT')
-        self.SEQUENCES.append(tk.BooleanVar(value=False))
-        self.FILEORDER.append(self.nfloat-1)
+        nt = len(FLT.TIME)
+        self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(FLT.FILENAME.get())
+        #self.FILETYPES.append('FLOAT')
+        #self.SEQUENCES.append(tk.BooleanVar(value=False))
+        #self.SEQLEADER.append(tk.BooleanVar(value=False))
+        #self.SEQNTIMES.append(0)
+        #self.FILEORDER.append(self.nfloat-1)
 
         self.make_plot()
       else:
@@ -4998,15 +5781,17 @@ class CosmoDrawing():
         for L in range(self.PLOT.VIDEO_L1.get(),self.PLOT.VIDEO_L2.get()+1):
           self.L.set(L)
           self.PLOT.TLABEL.set(self.DATE[L])
-          for i in range(self.nfiles):
-            if self.SEQUENCES[i].get():
-              if self.FILETYPES[i] == 'VEC':
-                self.VEC[self.FILEORDER[i]].L.set(L)
-                self.read_UV(self.VEC[self.FILEORDER[i]])
-              elif self.FILETYPES[i] == 'FLD':
-                self.CDF[self.FILEORDER[i]].L.set(L)
-                #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
-                self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
+
+          for i in range(self.LAYERS.n):
+            TYPE = self.LAYERS.TYPE[i]
+            ii   = self.LAYERS.TYPE_INDEX[i]
+            if self.LAYERS.INSEQUENCE[i].get():
+              if TYPE == 'VEC':
+                self.VEC[ii].L.set(L)
+                self.VEC[ii].read(wid=self.cons)
+              elif TYPE == 'FLD':
+                self.CDF[ii].L.set(L)
+                self.CDF[ii].read(update_lims=False,wid=self.cons)
               else:
                 toconsola("Something wrong",wid=self.cons)
                 #print('Something wrong')
@@ -5052,8 +5837,8 @@ class CosmoDrawing():
 
     # Main
     # ----
-    if self.nfiles == 0:
-      messagebox.showinfo(message='No data files have been uploaded')
+    if self.LAYERS.n == 0:
+      messagebox.showinfo(message='No layers have been added')
       return
 
     if self.Window_anim is not None:
@@ -5147,7 +5932,7 @@ class CosmoDrawing():
       wrk = CDF.FLD.nc.variables[CDF.FLD.icdf.tname][:]
       CDF.T_LIST = list(wrk)
       try:
-        for i in range(CDF.icdf.nt):
+        for i in range(CDF.FLD.icdf.nt):
           CDF.DATE.append(num2date(CDF.T_LIST[i],       \
                           units=CDF.FLD.icdf.time_units,    \
                           calendar=CDF.FLD.icdf.time_calendar))
@@ -5351,57 +6136,30 @@ class CosmoDrawing():
     def _done():
     # ===========
       ii = self.CDF_INDX.get()
-      #self.CDF[ii].FLD.read(self.CDF[ii].K.get(),self.CDF[ii].L.get(),wid=self.cons)
-      self.CDF[ii].read(wid=self.cons)
-      #self.read_CDF(self.CDF[ii])
-      #self.read_Field(self.CDF[ii].FIELD,   \
-      #                self.CDF[ii].ncid,    \
-      #                self.CDF[ii].icdf,    \
-      #                self.CDF[ii].varid,   \
-      #                self.CDF[ii].K.get(), \
-      #                self.CDF[ii].L.get())
+      
+      if self.CDF[ii].SOURCE == 'FILE':
+        self.CDF[ii].read(wid=self.cons)
 
-
-      # Set the contour levels
-      #try:
-      #  self.CDF[ii].PLOT.CONTOUR_MIN.set(myround(self.CDF[ii].FLD.minval))
-      #except:
-      #  self.CDF[ii].PLOT.CONTOUR_MIN.set(self.CDF[ii].FLD.minval)
-      #try:
-      #  self.CDF[ii].PLOT.CONTOUR_MAX.set(myround(self.CDF[ii].FLD.maxval))
-      #except:
-      #  self.CDF[ii].PLOT.CONTOUR_MAX.set(self.CDF[ii].FLD.maxval)
-#
-#      dd = self.CDF[ii].PLOT.CONTOUR_MAX.get() - self.CDF[ii].PLOT.CONTOUR_MIN.get()
+#      # The date of the data
 #      try:
-#        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+#        nodate = empty(self.DATE[0])
 #      except:
-#        self.CDF[ii].PLOT.CONTOUR_INTERVAL.set(0.1*dd)
-
-      # The date of the data
-      try:
-        nodate = empty(self.DATE[0])
-      except:
-        nodate = False
-      try:
-        nodatetime = empty(self.DATETIME)
-      except:
-        nodatetime = False
-
-      if not nodatetime:
-        if nodate:
-          self.DATE[0] = self.DATETIME
-        else:
-          if len(self.DATE[0]) == 1:
-            a = self.DATE[0].__str__()
-            b = self.CDF[ii].DATE[0].__str__()
-            if a == b:
-              self.DATE[0] = self.DATETIME
-        self.CDF[ii].DATE[0] = self.DATETIME
-
-      #self.CDF[ii].FIELD.F = interpolate.interp2d(self.CDF[ii].lon, \
-      #                                           self.CDF[ii].lat, \
-      #                                           self.CDF[ii].FIELD.data)
+#        nodate = False
+#      try:
+#        nodatetime = empty(self.DATETIME)
+#      except:
+#        nodatetime = False
+#
+#      if not nodatetime:
+#        if nodate:
+#          self.DATE[0] = self.DATETIME
+#        else:
+#          if len(self.DATE[0]) == 1:
+#            a = self.DATE[0].__str__()
+#            b = self.CDF[ii].DATE[0].__str__()
+#            if a == b:
+#              self.DATE[0] = self.DATETIME
+#        self.CDF[ii].DATE[0] = self.DATETIME
 
       _close()
       self.make_plot()
@@ -5415,23 +6173,36 @@ class CosmoDrawing():
       if self.ncdf == 0:
         return
 
+      # When erasing, we must erase two kinds of informations, the
+      # information in the LAYER structure and the VECTOR information
+      # Attention, if erasing the SEQUENCE leader, we need to update the 
+      # DATE and TIMES of the SEQUENCE
+
       ii = self.CDF_INDX.get()
-      toconsola('Erasing record '+str(ii),wid=self.cons)
+
+      self.LAYERS.erase('FLD',ii,wid=self.cons)
+      self.LAYERS.print()
+
+      toconsola('Erasing data field '+str(ii),wid=self.cons)
       #print('Erasing record '+str(ii))
-
-      for i in range(self.nfiles):
-        if self.FILETYPES[i] == 'FLD' and self.FILEORDER[i] == ii:
-          del self.FILENAMES[i]
-          del self.FILETYPES[i]
-          del self.FILEORDER[i]
-          del self.SEQUENCES[i]
-      self.nfiles -= 1
-
       del self.CDF[ii]
       self.ncdf -= 1
       ii = self.ncdf-1 if ii >= self.ncdf else ii
       self.CDF_INDX.set(ii)
       _refill(ii)
+
+      if self.LAYERS.update:
+        toconsola('Updating TIME and DATE values of SEQUENCE',wid=self.cons)
+        LEADER_TYPE = self.LAYERS.TYPE[self.LAYERS.leader]
+        jj = self.LAYERS.TYPE_INDEX[self.LAYERS.leader]
+        if LEADER_TYPE == 'VEC':
+          self.DATE = self.VEC[jj].DATE.copy()
+          self.TIME = self.VEC[jj].TIME.copy()
+        elif LEADER_TYPE == 'FLD':
+          self.DATE = self.FLD[jj].DATE.copy()
+          self.TIME = self.FLD[jj].TIME.copy()
+        self.PLOT.TLABEL.set(self.DATE[self.L.get()])
+
       self.make_plot()
 
     def _reget():
@@ -5453,22 +6224,24 @@ class CosmoDrawing():
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.CDF[ii].K
         _kbox['values'] = self.CDF[ii].K_LIST
-        _lbox.configure(state='!disabled')
-        _lbox['textvariable'] = self.CDF[ii].L
-        _lbox['values'] = self.CDF[ii].L_LIST
+        #_lbox.configure(state='!disabled')
+        #_lbox['textvariable'] = self.CDF[ii].L
+        #_lbox['values'] = self.CDF[ii].L_LIST
+        _aent.configure(state='!disabled')
+        _aent['textvariable'] = self.CDF[ii].ALIAS
         if self.CDF[ii].FLD.icdf.idk < 0:
           _kbox.configure(state='disabled')
           _zbox['text']='--'
         else:
           _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-        if self.CDF[ii].FLD.icdf.idl < 0:
-          _lbox.configure(state='disabled')
-          _dbox['text']='--'
-        else:
-          _lbox['textvariable'] = self.CDF[ii].L
-          _lbox['values'] = self.CDF[ii].L_LIST
-          _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
-        _show['variable'] = self.CDF[ii].show
+        #if self.CDF[ii].FLD.icdf.idl < 0:
+        #  _lbox.configure(state='disabled')
+        #  _dbox['text']='--'
+        #else:
+        #  _lbox['textvariable'] = self.CDF[ii].L
+        #  _lbox['values'] = self.CDF[ii].L_LIST
+        #  _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+        #_show['variable'] = self.CDF[ii].show
 
       else:
         self.CDF         = []
@@ -5479,7 +6252,8 @@ class CosmoDrawing():
         _wsel.configure(state='disabled')
         _wvar.configure(state='disabled')
         _kbox.configure(state='disabled')
-        _lbox.configure(state='disabled')
+        #_lbox.configure(state='disabled')
+        _aent.configure(state='disabled')
         _wsel['values'] = self.CDF_LIST
         _went['textvariable'] = ''
         _wvar['textvariable'] = ''
@@ -5488,16 +6262,18 @@ class CosmoDrawing():
         _kbox['textvariable'] = ''
         _kbox['values'] = ['']
         _zbox['text'] = '--'
-        _lbox['text'] = ''
-        _lbox['values'] = ['']
-        _lbox['textvariable'] = ''
-        _lbox['values'] = ['']
-        _dbox['text'] = ['--']
+        #_lbox['text'] = ''
+        #_lbox['values'] = ['']
+        #_lbox['textvariable'] = ''
+        #_lbox['values'] = ['']
+        #_dbox['text'] = ['--']
+        _wsav.configure(state='disabled')
 
     def _add(SOURCE):
     # ===============
 
       global Window_select
+      CDF = CONTOUR()
 
       def _cancel():
       # ============
@@ -5514,35 +6290,53 @@ class CosmoDrawing():
           messagebox.showinfo(parent=Window_select,message='Select variable')
           return
           
+        toconsola('2D-grid axes : '+'%s'%CDF.FLD.icdf.grid2d,wid=self.cons)
+
         # Seems the suitable place where to put this:
         CDF.FLD.varname = CDF.varname.get()
         CDF.FLD.varid = CDF.FLD.icdf.vname.index(CDF.FLD.varname)
         CDF.FLD.ndims = CDF.FLD.icdf.ndims[CDF.FLD.varid]
         CDF.FLD.get_info(wid=self.cons)
-
         CDF.FLD.get_grid()
+
         #self.read_lonlat(CDF,CDF.FLD.icdf.xname,CDF.FLD.icdf.yname)
-        self.DepthandDate(CDF)
+        CDF.K_LIST   = list(range(CDF.FLD.icdf.nz))
+        CDF.L_LIST   = list(range(CDF.FLD.icdf.nt))
+
+        CDF.Z_LIST = CDF.FLD.get_zlist()
+        CDF.T_LIST, CDF.DATE, CDF.TIME = CDF.FLD.get_tlist()
+
+        #self.DepthandDate(CDF)
         CDF.show.set(True)
 
-        if empty(CDF.DATE[0].__str__()):
-          _dsel.configure(state='enabled')
+        #if empty(CDF.DATE[0].__str__()):
+        #  _dsel.configure(state='enabled')
+
+
+        # Adding the CONTOUR to the Drawing class
+        #
+        nt = CDF.FLD.icdf.nt
+        self.LAYERS.add(TYPE='FLD',Filename=CDF.FILENAME.get(),N=nt,wid=self.cons)
 
         self.ncdf += 1
         self.CDF.append(CDF)
         self.CDF_INDX.set(self.ncdf-1)
         self.CDF_LIST = list(range(self.ncdf))
 
-        self.nfiles += 1
-        self.FILENAMES.append(CDF.FILENAME.get())
-        self.FILETYPES.append('FLD')
-        self.FILEORDER.append(self.ncdf-1)
-        self.SEQUENCES.append(tk.BooleanVar(value=False))
+        n = self.LAYERS.n
+
+        #self.nfiles += 1
+        #self.FILENAMES.append(CDF.FILENAME.get())
+        #self.FILETYPES.append('FLD')
+        #self.FILEORDER.append(self.ncdf-1)
+        #self.SEQUENCES.append(tk.BooleanVar(value=False)) #By default, not attached
+        #self.SEQLEADER.append(tk.BooleanVar(value=False))
+        #self.SEQNTIMES.append(CDF.FLD.icdf.nt)
 
         ii = self.CDF_INDX.get()
 
-        if not empty(self.DATETIME):
-          self.CDF[ii].DATE.append(self.DATETIME)
+        #if not empty(self.DATETIME):
+        #  self.CDF[ii].DATE.append(self.DATETIME)
 
         if self.first:
           if self.drawmap is None:
@@ -5551,43 +6345,60 @@ class CosmoDrawing():
             self.PLOT.SOUTH.set(self.CDF[ii].FLD.ymin)
             self.PLOT.NORTH.set(self.CDF[ii].FLD.ymax)
             self.plot_initialize()
-          self.L.set(self.CDF[ii].L.get())
-          self.L_LIST = list(range(self.CDF[ii].FLD.icdf.nt))
-          self.NL = len(self.L_LIST)
-          self.lbox.configure(state='!disabled')
-          self.lbox['values'] = self.L_LIST
+
+          try:
+            self.PLOT.XLABEL.set(self.CDF[ii].FLD.icdf.xname)
+          except:
+            self.PLOT.XLABEL.set('Longitude')
+          try:
+            self.PLOT.YLABEL.set(self.CDF[ii].FLD.icdf.yname)
+          except:
+            self.PLOT.YLABEL.set('Latitude')
           self.DATE = self.CDF[ii].DATE.copy()
           self.TIME = self.CDF[ii].TIME.copy()
-          #self.TFILE = '%d' % self.nfiles
           self.PLOT.TLABEL.set(self.CDF[ii].DATE[self.CDF[ii].L.get()])
-          if len(self.DATE) > 1:
-            self.bnext.configure(state='normal')
-          try:
-            self.PLOT.XLABEL.set(self.CDF[ii].FLD.nc.variables[self.CDF[ii].FLD.icdf.xname].getncattr('long_name'))
-          except:
-            self.PLOT.XLABEL.set(self.CDF[ii].FLD.icdf.xname)
-          try:
-            self.PLOT.YLABEL.set(self.CDF[ii].FLD.nc.variables[self.CDF[ii].FLD.icdf.yname].getncattr('long_name'))
-          except:
-            self.PLOT.YLABEL.set(self.CDF[ii].FLD.icdf.yname)
-          self.SEQUENCES[-1].set(True)
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
-        else:
-          ntime = len(self.DATE)
-          same  = True
-          if len(self.CDF[ii].DATE) == ntime:
-            toconsola('Same number of time records',wid=self.cons)
-            #print('Same number of time records')
-            for i in range(ntime):
-              if self.DATE[i] != self.CDF[ii].DATE[i]:
-                same = False
-            self.SEQUENCES[-1].set(same)
-                       
+
+          # Is this the field member of the SEQUENCE?
+
+          # CAROUSEL MANAGEMENT - CONTOUR
+        if nt > 1:
+          if self.LAYERS.nsequence == 0:
+            toconsola('Contour initiates SEQUENCE list',wid=self.cons)
+            self.LAYERS.nsequence = 1
+            self.LAYERS.INSEQUENCE[n-1].set(True)
+            self.LAYERS.SEQUENCER[n-1].set(True)
+            self.LAYERS.leader = n-1
+            self.LAYERS.seqlen = nt
+#            self.SEQUENCES[-1].set(True)
+#            self.SEQLEADER[-1].set(True)   # Is the first field
+#            self.SEQLEADER_INDX = self.nfiles
+            self.DATE = self.CDF[ii].DATE.copy()
+            self.TIME = self.CDF[ii].TIME.copy()
+            self.L.set(self.CDF[ii].L.get())
+            self.L_LIST = list(range(self.CDF[ii].FLD.icdf.nt))
+            self.NL = len(self.L_LIST)
+            self.lbox.configure(state='normal')
+            self.lbox['values'] = self.L_LIST
+            if self.L.get() < self.NL-1:
+              self.bnext.configure(state='normal')
+            if self.L.get() > 0:
+              self.bprev.configure(state='normal')
+          else:
+            if nt == self.LAYERS.seqlen:
+              toconsola('Adding Contour to SEQUENCE list',wid=self.cons)
+              self.LAYERS.nsequence += 1
+              self.LAYERS.INSEQUENCE[n-1].set(True)
+              self.LAYERS.SEQUENCER[n-1].set(False)
+              self.CDF[ii].L.set(self.L.get())  #Synchronize records
+
         _refill(ii)
         Window_select.destroy()
         Window_select = None
         self.DATETIME = ''
+        self.LAYERS.print()
+
 
       ISOURCE = self.CONTOUR_OPTIONS.index(SOURCE)
       if ISOURCE == 0:
@@ -5612,13 +6423,13 @@ class CosmoDrawing():
           return
         else:
           jj = self.VEC_INDX.get()
-          filename = self.VEC[ii].FILENAME.get()
+          filename = self.VEC[jj].UFILENAME.get()
 
       if empty(filename):
         return
 
       # Initialize contour class:
-      CDF = CONTOUR(filename)
+      CDF.FILENAME.set(filename)
       CDF.FLD.open(filename,wid=self.cons)
 
 
@@ -5689,6 +6500,12 @@ class CosmoDrawing():
       except:
         self.CDF[ii].FLD.varid = -1
 
+    def _save():
+    # ================
+      ii = self.CDF_INDX.get()
+      toconsola('Saving '+str(ii),wid=self.cons)
+      self.CDF[ii].save()
+
     def _date():
     # ==========
       ''' Manually select a date'''
@@ -5748,65 +6565,78 @@ class CosmoDrawing():
     _zbox.grid(row=2,column=3,columnspan=2,sticky='w')
 
     # Time:
-    ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
-    _lbox = ttk.Combobox(F0,width=5)
-    _lbox.grid(row=3,column=2)
-    _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
-    _dbox = ttk.Label(F0,width=20)
-    _dbox.grid(row=3,column=3,columnspan=2,sticky='w')
+    #ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
+    #_lbox = ttk.Combobox(F0,width=5)
+    #_lbox.grid(row=3,column=2)
+    #_lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
+    #_dbox = ttk.Label(F0,width=20)
+    #_dbox.grid(row=3,column=3,columnspan=2,sticky='w')
 
-    _dsel = ttk.Button(F0,text='Select date',command=_date)
-    _dsel.grid(row=3,column=5,sticky='w')
+    #_dsel = ttk.Button(F0,text='Select date',command=_date)
+    #_dsel.grid(row=3,column=5,sticky='w')
+
+    # Alias
+    ttk.Label(F0,text='Alias').grid(row=4,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=4,column=2,columnspan=2,sticky='w')
 
     if ii == -1:
       _wsel.configure(state='disabled')
       _wvar.configure(state='disabled')
       _kbox.configure(state='disabled')
-      _lbox.configure(state='disabled')
-      _dsel.configure(state='disabled')
+      #_lbox.configure(state='disabled')
+      #_dsel.configure(state='disabled')
+      _aent.configure(state='disabled')
     else:
       _went['textvariable'] = self.CDF[ii].FILENAME
       _wvar['textvariable'] = self.CDF[ii].varname
       _wvar['values'] = self.CDF[ii].FLD.icdf.VAR_MENU
       _kbox['textvariable'] = self.CDF[ii].K
       _kbox['values'] = self.CDF[ii].K_LIST
+      _aent['textvariable'] = self.CDF[ii].ALIAS
       if self.CDF[ii].FLD.icdf.idk < 0:
         _kbox.configure(state='disabled')
         _zbox['text']='--'
       else:
         _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-      if self.CDF[ii].FLD.icdf.idl < 0:
-        _lbox.configure(state='disabled')
-        _dsel.configure(state='enabled')
-        try:
-          nodate = empty(sefl.CDF[ii].DATE[0])
-        except:
-          nodate = False
-        if nodate:
-          _dbox['text']='--'
-        else:
-          _dbox['text']=self.CDF[ii].DATE[0]
-
-      else:
-        _lbox['textvariable'] = self.CDF[ii].L
-        _lbox['values'] = self.CDF[ii].L_LIST
-        _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
-        _dsel.configure(state='disabled')
+      #if self.CDF[ii].FLD.icdf.idl < 0:
+      #  _lbox.configure(state='disabled')
+      #  _dsel.configure(state='enabled')
+      #  try:
+      #    nodate = empty(sefl.CDF[ii].DATE[0])
+      #  except:
+      #    nodate = False
+      #  if nodate:
+      #    _dbox['text']='--'
+      #  else:
+      #    _dbox['text']=self.CDF[ii].DATE[0]
+      #
+      #else:
+      #  _lbox['textvariable'] = self.CDF[ii].L
+      #  _lbox['values'] = self.CDF[ii].L_LIST
+      #  _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+      #  _dsel.configure(state='disabled')
 
     F0.grid(row=0,column=0)
 
     F1 = ttk.Frame(self.Window_ncdf,padding=5)
+    _wsav = ttk.Button(F1,text='Save data',command=_save)
+    _wsav.grid(row=1,column=0,padx=3,sticky='w')
     if ii == -1:
       _show = ttk.Checkbutton(F1,text='Show')
       _show.configure(state='disabled')
+      _wsav.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
       _show['variable']=self.CDF[ii].show
       _show.configure(command=self.make_plot)
+      _wsav.configure(state='normal')
     _show.grid(row=1,column=5)
     ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
     ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
     ttk.Button(F1,text='Plot',command=_done).grid(row=1,column=8,padx=3)
+    ttk.Label(F1,text='   ',width=8).grid(row=1,column=1,padx=3,sticky='w')
+    ttk.Label(F1,text='   ',width=8).grid(row=1,column=2,padx=3,sticky='w')
     F1.grid(row=1,column=0)
 
   #====================
@@ -5838,11 +6668,15 @@ class CosmoDrawing():
       self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy = np.meshgrid(self.SAIDIN.FLD.x,self.SAIDIN.FLD.y)
       self.DepthandDate(self.SAIDIN)
 
-      self.nfiles += 1
-      self.FILENAMES.append(self.SAIDIN.FILENAME.get())
-      self.FILETYPES.append('SAIDIN')
-      self.FILEORDER.append(0)
-      self.SEQUENCES.append(tk.BooleanVar())
+      self.LAYERS.add(TYPE='SAIDIN',Filename=self.SAIDIN.FILENAME.get(),N=1,wid=self.cons)
+
+      #self.nfiles += 1
+      #self.FILENAMES.append(self.SAIDIN.FILENAME.get())
+      #self.FILETYPES.append('SAIDIN')
+      #self.FILEORDER.append(0)
+      #self.SEQUENCES.append(tk.BooleanVar(value=False))
+      #self.SEQLEADER.append(tk.BooleanVar(value=False))
+      #self.SEQNTIMES.append(1)
 
       if self.first:
         if self.drawmap is None:
@@ -5854,16 +6688,8 @@ class CosmoDrawing():
         self.L.set(self.SAIDIN.L.get())
         self.DATE = self.SAIDIN.DATE.copy()
         self.TIME = self.SAIDIN.TIME.copy()
-        try:
-          self.PLOT.XLABEL.set(self.SAIDIN.FLD.nc.variables[self.SAIDIN.icdf.xname]. \
-                                                                          getncattr('long_name'))
-        except:
-          self.PLOT.XLABEL.set(self.SAIDIN.FLD.icdf.xname)
-        try:
-          self.PLOT.YLABEL.set(self.SAIDIN.FLD.nc.variables[self.SAIDIN.icdf.yname] \
-                                                                          .getncattr('long_name'))
-        except:
-          self.PLOT.YLABEL.set(self.SAIDIN.FLD.icdf.yname)
+        self.PLOT.XLABEL.set('Longitude')
+        self.PLOT.YLABEL.set('Latitude')
         self.first = False
 
       self.SAIDIN.FLD.get_info(wid=self.cons)
@@ -5976,12 +6802,15 @@ class CosmoDrawing():
 
       ii = self.MARKER_INDX.get()
 
-      for i in range(self.nfeatures):
-        if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
-          del self.FEATNAMES[i]
-          del self.FEATTYPES[i]
-          del self.FEATORDER[i]
-      self.nfeatures -= 1
+      self.LAYERS.erase('MARKER',ii,wid=self.cons)
+      self.LAYERS.print()
+
+      #for i in range(self.nfeatures):
+      #  if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
+      #    del self.FEATNAMES[i]
+      #    del self.FEATTYPES[i]
+      #    del self.FEATORDER[i]
+      #self.nfeatures -= 1
 
       toconsola('Erasing marker '+str(ii),wid=self.cons)
       del self.MARKER[ii]
@@ -6010,6 +6839,9 @@ class CosmoDrawing():
         _wsel.configure(state='!disabled')
         _wlab['state'] = '!disabled'
         _wlab['textvariable'] = self.MARKER[ii].LABEL
+        _show['variable'] = self.MARKER[ii].show
+        _aent.configure(state='normal')
+        _aent['textvariable'] = self.MARKER[ii].ALIAS
       else:
         self.MARKER         = []
         self.MARKER_LIST    = ['0']
@@ -6021,6 +6853,9 @@ class CosmoDrawing():
         _wsel.configure(state='disabled')
         _wlab['textvariable'] = ''
         _wlab.configure(state='disabled')
+        _aent.configure(state='disabled')
+        _show.configure(state='disabled')
+
 
     def _add():
     # ========
@@ -6048,10 +6883,12 @@ class CosmoDrawing():
       self.MARKER_INDX.set(self.nmarker-1)
       self.MARKER_LIST = list(range(self.nmarker))
 
-      self.nfeatures += 1
-      self.FEATNAMES.append(MARKER.FILENAME.get())
-      self.FEATTYPES.append('MARKER')
-      self.FEATORDER.append(self.nfeatures-1)
+      self.LAYERS.add(TYPE='MARKER',Filename=MARKER.FILENAME.get(),N=len(MARKER.lon),wid=self.cons)
+      self.LAYERS.print()
+      #self.nfeatures += 1
+      #self.FEATNAMES.append(MARKER.FILENAME.get())
+      #self.FEATTYPES.append('MARKER')
+      #self.FEATORDER.append(self.nmarker-1)
 
       ii = self.MARKER_INDX.get()
       _refill(ii)
@@ -6107,11 +6944,26 @@ class CosmoDrawing():
     else:
       _wlab['textvariable'] = self.MARKER[ii].LABEL
 
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=3,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=3,column=2,columnspan=2,sticky='w')
+
     F0.grid(row=0,column=0)
 
     F1 = ttk.Frame(self.Window_marker,padding=5)
-    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=6,padx=3)
-    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=7,padx=3)
+    if ii == -1:
+      _show = ttk.Checkbutton(F1,text='Show')
+      _aent.configure(state='disabled')
+    else:
+      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
+      _show['variable']=self.MARKER[ii].show
+      _aent['textvariable'] = self.MARKER[ii].ALIAS
+
+    _show.grid(row=1,column=5,padx=3)
+    ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=6,padx=3)
+    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
+    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=8,padx=3)
     F1.grid(row=1,column=0)
 
   # ======================
@@ -6142,12 +6994,14 @@ class CosmoDrawing():
 
       ii = self.SHAPE_INDX.get()
 
-      for i in range(self.nfeatures):
-        if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
-          del self.FEATNAMES[i]
-          del self.FEATTYPES[i]
-          del self.FEATORDER[i]
-      self.nfeatures -= 1
+      self.LAYERS.erase('SHAPE',ii,wid=self.cons)
+      self.LAYERS.print()
+      #for i in range(self.nfeatures):
+      #  if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
+      #    del self.FEATNAMES[i]
+      #    del self.FEATTYPES[i]
+      #    del self.FEATORDER[i]
+      #self.nfeatures -= 1
 
       toconsola('Erasing marker '+str(ii),wid=self.cons)
       del self.SHAPE[ii]
@@ -6176,6 +7030,9 @@ class CosmoDrawing():
         _wsel.configure(state='!disabled')
         _wlab['state'] = '!disabled'
         _wlab['textvariable'] = self.SHAPE[ii].LABEL
+        _show['variable'] = self.SHAPE[ii].show
+        _aent.configure(state='normal')
+        _aent['textvariable'] = self.SHAPE[ii].ALIAS
       else:
         self.SHAPE         = []
         self.SHAPE_LIST    = ['0']
@@ -6187,6 +7044,8 @@ class CosmoDrawing():
         _wsel.configure(state='disabled')
         _wlab['textvariable'] = ''
         _wlab.configure(state='disabled')
+        _aent.configure(state='disabled')
+        _show.configure(state='disabled')
 
     def _add():
     # ========
@@ -6211,13 +7070,14 @@ class CosmoDrawing():
       self.SHAPE_INDX.set(self.nshape-1)
       self.SHAPE_LIST = list(range(self.nshape))
 
-      self.nfeatures += 1
-      self.FEATNAMES.append(SHAPE.FILENAME.get())
-      self.FEATTYPES.append('SHAPE')
-      self.FEATORDER.append(self.nfeatures-1)
+      self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=len(SHAPE.lon),wid=self.cons)
+      self.LAYERS.print()
+      #self.nfeatures += 1
+      #self.FEATNAMES.append(SHAPE.FILENAME.get())
+      #self.FEATTYPES.append('SHAPE')
+      #self.FEATORDER.append(self.nshape-1)
 
       ii = self.SHAPE_INDX.get()
-      
       _refill(ii)
 
     # Main window:
@@ -6269,9 +7129,23 @@ class CosmoDrawing():
     else:
       _wlab['textvariable'] = self.SHAPE[ii].LABEL
 
+    ttk.Label(F0,text='Alias').grid(row=3,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=18,justify='left')
+    _aent.grid(row=3,column=2,columnspan=2,padx=3,sticky='w')
+
     F0.grid(row=0,column=0)
 
     F1 = ttk.Frame(self.Window_shapefile,padding=5)
+
+    if ii == -1:
+      _show = ttk.Checkbutton(F1,text='Show')
+      _aent.configure(state='disabled')
+    else:
+      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
+      _show['variable']=self.SHAPE[ii].show
+      _aent['textvariable'] = self.SHAPE[ii].ALIAS
+
+    _show.grid(row=1,column=5,padx=3)
     ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=6,padx=3)
     ttk.Button(F1,text='Done',command=_done).grid(row=1,column=7,padx=3)
     F1.grid(row=1,column=0)
@@ -6560,7 +7434,7 @@ class CosmoDrawing():
       page3 = ttk.Frame(self.Mnb)
       self.Mnb.add(page0,text='Label Aspect')
       self.Mnb.add(page1,text='Geometry Aspect')
-      self.Mnb.add(page2,text='Geometry Text',state="disabled")
+      self.Mnb.add(page2,text='Text Aspect')
       self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
       self.Mnb.grid()
       self.Mnb.select(itab)
@@ -6574,6 +7448,13 @@ class CosmoDrawing():
               grid(row=1,column=0,padx=3,sticky='e')
       ttk.Entry(page0,textvariable=self.SHAPE[ii].LABEL). \
               grid(row=1,column=1,padx=3,sticky='w')
+      ttk.Label(page0, text='Label key',padding=3). \
+              grid(row=2,column=0,padx=3,sticky='e')
+      _ksel = ttk.Combobox(page0,textvariable=self.SHAPE[ii].LABEL_KEY,
+                           values=self.SHAPE[ii].KEY_LIST,width=12)
+      _ksel.grid(row=2,column=1,sticky='w',padx=3)
+      _ksel.bind('<<ComboboxSelected>>',lambda e:self.SHAPE[ii].get_name())
+
                
       # Page 1
       geoplot.Configuration(page1,self.SHAPE[ii].PLOT)
@@ -6699,7 +7580,7 @@ class CosmoDrawing():
     page3 = ttk.Frame(self.Mnb)
     self.Mnb.add(page0,text='Label Aspect')
     self.Mnb.add(page1,text='Geometry Aspect')
-    self.Mnb.add(page2,text='Label Text',state="disabled")
+    self.Mnb.add(page2,text='Text Aspect')
     self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
     self.Mnb.grid()
 
@@ -6712,6 +7593,12 @@ class CosmoDrawing():
               grid(row=1,column=0,padx=3,sticky='e')
     ttk.Entry(page0,textvariable=self.SHAPE[ii].LABEL).\
               grid(row=1, column=1,padx=3, sticky='w')
+    ttk.Label(page0, text='Label key',padding=3). \
+              grid(row=2,column=0,padx=3,sticky='e')
+    _ksel = ttk.Combobox(page0,textvariable=self.SHAPE[ii].LABEL_KEY,
+                         values=self.SHAPE[ii].KEY_LIST,width=12)
+    _ksel.grid(row=2,column=1,sticky='w',padx=3)
+    _ksel.bind('<<ComboboxSelected>>',lambda e:self.SHAPE[ii].get_name())
               
     # Page 1
     geoplot.Configuration(page1,self.SHAPE[ii].PLOT)
@@ -6762,15 +7649,20 @@ class CosmoDrawing():
 
       ii = self.FLOAT_INDX.get()
 
-      for i in range(self.nfiles):
-        if self.FILETYPES[i] == 'FLOAT' and self.FILEORDER[i] == ii:
-          del self.FILENAMES[i]
-          del self.FILETYPES[i]
-          del self.FILEORDER[i]
-          del self.SEQUENCES[i]
-      self.nfiles -= 1
+      self.LAYERS.erase('FLOAT',ii,wid=self.cons)
+      self.LAYERS.print()
 
-      if self.nfiles == 0:
+      #for i in range(self.nfiles):
+      #  if self.FILETYPES[i] == 'FLOAT' and self.FILEORDER[i] == ii:
+      #    del self.FILENAMES[i]
+      #    del self.FILETYPES[i]
+      #    del self.FILEORDER[i]
+      #    del self.SEQUENCES[i]
+      #    del self.SEQLEADER[i]
+      #    del self.SEQNTIMES[i]
+      #self.nfiles -= 1
+
+      if self.LAYERS.n == 0:
         self.TIME = []
         self.DATE = []
         self.L.set(0)
@@ -6944,11 +7836,18 @@ class CosmoDrawing():
       self.FLOAT_INDX.set(self.nfloat-1)
       self.FLOAT_LIST = list(range(self.nfloat))
 
-      self.nfiles += 1
-      self.FILENAMES.append(FLT.FILENAME.get())
-      self.FILETYPES.append('FLOAT')
-      self.SEQUENCES.append(tk.BooleanVar(value=False))
-      self.FILEORDER.append(self.nfloat-1)
+      # Adding a FLOAT in the Drawing class
+      #
+      nt = len(FLT.TIME)
+      self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
+
+      #self.nfiles += 1
+      #self.FILENAMES.append(FLT.FILENAME.get())
+      #self.FILETYPES.append('FLOAT')
+      #self.SEQUENCES.append(tk.BooleanVar(value=False))
+      #self.SEQLEADER.append(tk.BooleanVar(value=False))
+      #self.SEQNTIMES.append(1)
+      #self.FILEORDER.append(self.nfloat-1)
 
       if self.first:
         # Set the plot limits according to the sata'''
@@ -7694,16 +8593,15 @@ class CosmoDrawing():
     else:
       self.bnext.configure(state='normal')
 
-    for i in range(self.nfiles):
-      if self.SEQUENCES[i].get():
-        if self.FILETYPES[i] == 'VEC':
-          self.VEC[self.FILEORDER[i]].L.set(L)
-          self.VEC[self.FILEORDER[i]].read(wid=self.cons)
-          #self.read_UV(self.VEC[self.FILEORDER[i]])
+    for i in range(self.LAYERS.n):
+      if self.LAYERS.INSEQUENCE[i].get():
+        jj = self.LAYERS.TYPE_INDEX[i]
+        if self.LAYERS.TYPE[i] == 'VEC':
+          self.VEC[jj].L.set(L)
+          self.VEC[jj].read(wid=self.cons)
         elif self.FILETYPES[i] == 'FLD':
-          self.CDF[self.FILEORDER[i]].L.set(L)
-          self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
-          #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+          self.CDF[jj].L.set(L)
+          self.CDF[jj].read(update_lims=False,wid=self.cons)
     self.make_plot()
 
   # ==============
@@ -7717,20 +8615,19 @@ class CosmoDrawing():
         self.bprev.configure(state='disabled')
       if self.L.get() < self.NL - 1:
         self.bnext.configure(state='normal')
-      for i in range(self.nfiles):
-        if self.SEQUENCES[i].get():
-          if self.FILETYPES[i] == 'VEC':
-            L  = self.VEC[self.FILEORDER[i]].L.get()
-            Lm = self.VEC[self.FILEORDER[i]].L.get() - 1
-            self.VEC[self.FILEORDER[i]].L.set(Lm)
-            self.VEC[self.FILEORDER[i]].read(wid=self.cons)
-            #self.read_UV(self.VEC[self.FILEORDER[i]])
-          elif self.FILETYPES[i] == 'FLD':
-            L  = self.CDF[self.FILEORDER[i]].L.get()
-            Lm = self.CDF[self.FILEORDER[i]].L.get() - 1
-            self.CDF[self.FILEORDER[i]].L.set(Lm)
-            self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
-            #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
+      for i in range(self.LAYERS.n):
+        if self.LAYERS.INSEQUENCE[i].get():
+          jj = self.LAYERS.TYPE_INDEX[i]
+          if self.LAYERS.TYPE[i] == 'VEC':
+            L  = self.VEC[jj].L.get()
+            Lm = self.VEC[jj].L.get() - 1
+            self.VEC[jj].L.set(Lm)
+            self.VEC[jj].read(wid=self.cons)
+          elif self.LAYERS.TYPE[i] == 'FLD':
+            L  = self.CDF[jj].L.get()
+            Lm = self.CDF[jj].L.get() - 1
+            self.CDF[jj].L.set(Lm)
+            self.CDF[jj].read(update_lims=False,wid=self.cons)
       self.make_plot()
     else:
       return
@@ -7749,35 +8646,32 @@ class CosmoDrawing():
       if self.L.get() > 0:
         self.bprev.configure(state='normal')
 
-      for i in range(self.nfiles):
-        if self.SEQUENCES[i].get():
-          if self.FILETYPES[i] == 'VEC':
-            L  = self.VEC[self.FILEORDER[i]].L.get()
-            Lp = self.VEC[self.FILEORDER[i]].L.get() + 1
-            self.VEC[self.FILEORDER[i]].L.set(Lp)
-            self.VEC[self.FILEORDER[i]].read(wid=self.cons)
-            #self.read_UV(self.VEC[self.FILEORDER[i]])
-          elif self.FILETYPES[i] == 'FLD':
-            L  = self.CDF[self.FILEORDER[i]].L.get()
-            Lp = self.CDF[self.FILEORDER[i]].L.get() + 1
-            self.CDF[self.FILEORDER[i]].L.set(Lp)
-            self.CDF[self.FILEORDER[i]].read(update_lims=False,wid=self.cons)
-            #self.read_CDF(self.CDF[self.FILEORDER[i]],update_lims=False)
-      toconsola("EG Drawing next.................",wid=self.cons)
-      #print("EG Drawing next.................")
+      for i in range(self.LAYERS.n):
+        if self.LAYERS.INSEQUENCE[i].get():
+          jj = self.LAYERS.TYPE_INDEX[i]
+          if self.LAYERS.TYPE[i] == 'VEC':
+            L  = self.VEC[jj].L.get()
+            Lp = self.VEC[jj].L.get() + 1
+            self.VEC[jj].L.set(Lp)
+            self.VEC[jj].read(wid=self.cons)
+          elif self.LAYERS.TYPE[i] == 'FLD':
+            L  = self.CDF[jj].L.get()
+            Lp = self.CDF[jj].L.get() + 1
+            self.CDF[jj].L.set(Lp)
+            self.CDF[jj].read(update_lims=False,wid=self.cons)
+      #toconsola("EG Drawing next.................",wid=self.cons)
       self.make_plot()
-      toconsola("EG next DOne",wid=self.cons)
-      #print("EG next DOne")
+      #toconsola("EG next DOne",wid=self.cons)
     else:
       return
 
-  # ====================
-  def data_update(self):
-  # ====================
-    '''Makes the new plot according to the user selections. It call self.read to get the new data'''
-    self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
-    self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
-    self.make_plot()
+#  # ====================
+#  def data_update(self):
+#  # ====================
+#    '''Makes the new plot according to the user selections. It call self.read to get the new data'''
+#    self.read_UV(self.FLD.ncid,self.FLD.icdf,self.FLD.uid,self.FLD.vid)
+#    self.read_S(self.FLD.ncid,self.FLD.icdf,self.FLD.sid)
+#    self.make_plot()
 
   # ===========================
   def get_date(self,ncid,icdf):
@@ -7806,16 +8700,16 @@ class CosmoDrawing():
       tmp1 = np.rint(tmp1)
     self.PLOT.MERIDIAN_INT.set(tmp1)
 
-    self.PLOT.MERIDIAN_INI.set(np.trunc(self.PLOT.WEST.get()/tmp1 - 1)*tmp1)
-    self.PLOT.MERIDIAN_FIN.set(np.trunc(self.PLOT.EAST.get()/tmp1 + 1)*tmp1)
+    self.PLOT.MERIDIAN_INI.set(np.trunc(self.PLOT.WEST.get()/tmp1 - 2)*tmp1)
+    self.PLOT.MERIDIAN_FIN.set(np.trunc(self.PLOT.EAST.get()/tmp1 + 2)*tmp1)
     tmp1 = None
 
     tmp2 = np.trunc(100*(self.PLOT.NORTH.get() - self.PLOT.SOUTH.get())/4)/100
     if tmp2 > 1:
       tmp2 = np.rint(tmp2)
     self.PLOT.PARALLEL_INT.set(tmp2)
-    self.PLOT.PARALLEL_INI.set(np.trunc(self.PLOT.SOUTH.get()/tmp2 - 1)*tmp2)
-    self.PLOT.PARALLEL_FIN.set(np.trunc(self.PLOT.NORTH.get()/tmp2 + 1)*tmp2)
+    self.PLOT.PARALLEL_INI.set(np.trunc(self.PLOT.SOUTH.get()/tmp2 - 2)*tmp2)
+    self.PLOT.PARALLEL_FIN.set(np.trunc(self.PLOT.NORTH.get()/tmp2 + 2)*tmp2)
     tmp2 = None
 
   # ==================
@@ -7920,6 +8814,9 @@ class CosmoDrawing():
     proj = map_proj(self.PLOT.MAP_PROJECTION.get())
     self.ax.clear()
 
+    font_family = self.PLOT.MAP_FONT_TYPE.get()    # Lets see ...
+    font_size   = self.PLOT.LABEL_SIZE.get()
+
     # EPSG
     # EG Not necessary
     # epsg = int(self.PLOT.EPSG.get())
@@ -8008,11 +8905,16 @@ class CosmoDrawing():
 
     # Draw markers:
     #
+    mrklines = []
+    mrklabls = []
     if self.nmarker > 0:
       toconsola("EG plot markers",wid=self.cons)
       for ii in range(self.nmarker): 
         #EG Added projection argument, reference map and fig dropped
-        geomarker.drawing(self.ax, proj['proj'], self.MARKER[ii])
+        lmrk = geomarker.drawing(self.ax, proj['proj'], self.MARKER[ii])
+        mrklines.append(lmrk)
+        mrklabls.append(self.MARKER[ii].LABEL.get())
+
         
     # Draw SHAPES:
     #
@@ -8021,7 +8923,10 @@ class CosmoDrawing():
       for ii in range(self.nshape):	
         toconsola("\tSHAPE"+str(ii),wid=self.cons)
         #EG Added projection argument, reference map and fig 
-        shape.drawing(self.ax, proj['proj'], self.SHAPE[ii])
+        lmrk = shape.drawing(self.ax, proj['proj'], self.SHAPE[ii])
+        if lmrk is not None:
+          mrklines.append(lmrk)
+          mrklabls.append(self.SHAPE[ii].LABEL.get())
 
     # Draw Ellipses:
     #
@@ -8029,8 +8934,14 @@ class CosmoDrawing():
       for ii in range(self.nellipse):
         ellipse.drawing(self.ax, proj['proj'], self.ELLIPSE[ii])
 
+    #Add Patches:
+    #
+    if self.npatch > 0:
+      for ii in range(self.npatch):
+        patch.drawing(self.ax, proj['proj'], self.PATCH[ii])
+
     #EG Coastlines
-    toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
+    #toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
     if self.PLOT.COASTLINE_SHOW.get():
       if self.PLOT.COASTLINE_SOURCE.get() == 1:
         emodnet="coastlines"
@@ -8039,7 +8950,7 @@ class CosmoDrawing():
         except:
           toconsola("\t WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
       else:
-        toconsola("\t EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        toconsola("\t EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
         self.ax.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
 							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
 
@@ -8066,9 +8977,11 @@ class CosmoDrawing():
               isox[i], isoy[i] = np.nan, np.nan
             
           isbt, = self.ax.plot(isox,isoy,marker=None, 
-                                linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
-                                linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
-                                color=color)
+                               linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
+                               linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
+                               #transform=proj['proj'],
+                               transform=ccrs.PlateCarree(),
+                               color=color)
           lines.append(isbt)
           labels.append(label)
             
@@ -8083,9 +8996,17 @@ class CosmoDrawing():
             if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
               try: pass
               except: pass
-      self.ax.legend(lines,labels, \
-                     title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
-                     title_fontsize=24,
+
+            # Anchor BBOX:
+            if self.PLOT.ISOBAT_LEGEND.USE_BB.get():
+              bb = [self.PLOT.ISOBAT_LEGEND.BBx.get(),
+                    self.PLOT.ISOBAT_LEGEND.BBy.get()]
+            else:
+              bb = None
+
+            Ilegend = self.ax.legend(lines,labels, \
+                     #title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                     #title_fontsize=24,
                      loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
                      ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
                      fontsize=fontsize,
@@ -8094,6 +9015,7 @@ class CosmoDrawing():
                      shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
                      framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
                      mode=mode,
+                     bbox_to_anchor=bb,
                      facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
                      edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
                      markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
@@ -8101,27 +9023,34 @@ class CosmoDrawing():
                      handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
                      borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
                      labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
+            if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
+              Ilegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                                 prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
+
 
     if self.PLOT.WATER_COLOR.get() != 'None':
-      toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
+      #toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
 					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
     if self.PLOT.LAND_COLOR.get() != 'None': 
-      toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
+      #toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
 					self.PLOT.MAP_RESOLUTION.get(), \
 					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
     if self.PLOT.COUNTRYLINE_SHOW.get():
-      toconsola("PLOT.COUNTRYLINE",wid=self.cons)
+      #toconsola("PLOT.COUNTRYLINE",wid=self.cons)
       self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
 							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
     if self.PLOT.RIVERS_SHOW.get(): 
-      toconsola("PLOT.RIVERS",wid=self.cons)
+      #toconsola("PLOT.RIVERS",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
 			self.PLOT.MAP_RESOLUTION.get(), \
 			linewidth=self.PLOT.RIVERS_WIDTH.get(),
 			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
+
+    #self.ax.coastlines(resolution='110m')
+    #self.ax.gridlines()
 
     if self.PLOT.GRID_SHOW.get():
       toconsola("EG PLOT.GRID"+self.PLOT.GRID_LINESTYLE.get(),wid=self.cons)
@@ -8138,7 +9067,8 @@ class CosmoDrawing():
                              self.PLOT.PARALLEL_INT.get())
       lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
       lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
-      gl = self.ax.gridlines(crs=proj['proj'],draw_labels=True,
+      #gl = self.ax.gridlines(crs=proj['proj'],draw_labels=True,
+      gl = self.ax.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,
 						linewidth=self.PLOT.GRID_LINEWIDTH.get(),
 						color=self.PLOT.GRID_FONTCOLOR.get(),
 						alpha=self.PLOT.GRID_ALPHA.get(),
@@ -8161,24 +9091,26 @@ class CosmoDrawing():
       gl.xformatter = LONGITUDE_FORMATTER
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
-    else:
-      # Default: no labels, no grid just Latitude and Longitude
-      toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+" - "+self.PLOT.YLABEL.get(),wid=self.cons)
-      font_family = self.PLOT.MAP_FONT_TYPE.get()
-      font_size   = self.PLOT.LABEL_SIZE.get()
-      font_weight = 'normal'
-      font = {'family' : font_family, 'weight' : font_weight,
-              'color'  : self.PLOT.TEXT_COLOR.get(),
-              'size'   : font_size}
+
+    #else:
+    #  # Default: no labels, no grid just Latitude and Longitude
+    #  toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+" - "+self.PLOT.YLABEL.get(),wid=self.cons)
+    #  font_family = self.PLOT.MAP_FONT_TYPE.get()
+    #  font_size   = self.PLOT.LABEL_SIZE.get()
+    font_weight = 'normal'
+    font = {'family' : font_family, 'weight' : font_weight,
+            'color'  : self.PLOT.TEXT_COLOR.get(),
+            'size'   : font_size}
       
-      # -0.07
-      self.ax.text(-self.PLOT.YLABEL_PAD.get(), 0.55, self.PLOT.YLABEL.get(), va="bottom", \
-					ha="center", rotation="vertical", rotation_mode="anchor",
-					transform=self.ax.transAxes,fontdict=font)
-      # -0.2
-      self.ax.text(0.5, -self.PLOT.XLABEL_PAD.get(), self.PLOT.XLABEL.get(), va="bottom", \
-					ha="center", rotation="horizontal", rotation_mode="anchor",
-					transform=self.ax.transAxes,fontdict=font)
+    # -0.07
+    self.ax.text(-self.PLOT.YLABEL_PAD.get(), 0.55, self.PLOT.YLABEL.get(), va="bottom", \
+			ha="center", rotation="vertical", rotation_mode="anchor",
+			transform=self.ax.transAxes,fontdict=font)
+    # -0.2
+    self.ax.text(0.5, -self.PLOT.XLABEL_PAD.get(), self.PLOT.XLABEL.get(), va="bottom", \
+			ha="center", rotation="horizontal", rotation_mode="anchor",
+			transform=self.ax.transAxes,fontdict=font)
+
     # Title
     toconsola("Plot Title: "+self.PLOT.TITLE.get(),wid=self.cons)
     self.ax.set_title(self.PLOT.TITLE.get(),fontproperties=self.PLOT.TITLEFONT)                  
@@ -8225,17 +9157,18 @@ class CosmoDrawing():
     if len(self.DATE) > 0:
       toconsola("EG Time stamp: len(self.DATE) > 0", wid=self.cons)
       if self.PLOT.TIMESTAMP_SHOW.get():
-        toconsola("EG Time stamp: "+self.DATE[self.L.get()], wid=self.cons)
+        toconsola("EG Time stamp: "+str(self.DATE[self.L.get()]), wid=self.cons)
         font_weight = 'normal'
         if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
    
-        self.ax.annotate(self.DATE[self.L.get()], \
-					xy=(self.PLOT.TIMESTAMP_X.get(), \
-					   self.PLOT.TIMESTAMP_Y.get()), \
-					xycoords='figure fraction', \
-					color=self.PLOT.TIMESTAMP_COLOR.get(), \
+        self.ax.annotate(str(self.DATE[self.L.get()]), \
+					xy=(self.PLOT.TIMESTAMP_X.get(),         \
+					   self.PLOT.TIMESTAMP_Y.get()),         \
+					xycoords='figure fraction',              \
+					color=self.PLOT.TIMESTAMP_COLOR.get(),   \
 					fontsize=self.PLOT.TIMESTAMP_SIZE.get(), \
-					fontfamily=font_family, fontweight=font_weight, \
+					fontfamily=font_family,                  \
+                                        fontweight=font_weight,                  \
 					annotation_clip=False)
     
     if self.PLOT.LOGO_DISPLAY.get() == 1: self.plot_logo()
@@ -8243,7 +9176,7 @@ class CosmoDrawing():
     self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
     self.ax.callbacks.connect('ylim_changed', self.on_ylims_change)
 
-    if self.nmarker > 0 and self.PLOT.LEGEND.SHOW.get():
+    if len(mrklines) > 0 and self.PLOT.LEGEND.SHOW.get():
       toconsola("EG self.nmarker ?",wid=self.cons)
       fontsize = self.PLOT.LEGEND.FONTSIZE.get()
       mode = None
@@ -8251,9 +9184,17 @@ class CosmoDrawing():
       if self.PLOT.LEGEND.FONTSIZE.get() < 1: fontsize = None
       if self.PLOT.LEGEND.MODE.get() == 1: mode = 'expand'
 
-      try:
-        toconsola("EG ax.legend",wid=self.cons)
-        legend = self.ax.legend(loc=self.PLOT.LEGEND.LOC.get(), 
+      # Anchor BBOX:
+      if self.PLOT.LEGEND.USE_BB.get():
+        bb = [self.PLOT.LEGEND.BBx.get(),
+              self.PLOT.LEGEND.BBy.get()]
+      else:
+        bb = None
+
+      #try:
+      toconsola("EG ax.legend",wid=self.cons)
+      legend = self.ax.legend(mrklines,mrklabls,
+                        loc=self.PLOT.LEGEND.LOC.get(), 
                         ncol=self.PLOT.LEGEND.NCOL.get(),
                         fontsize=fontsize,
                         frameon=self.PLOT.LEGEND.FRAMEON.get(),
@@ -8261,6 +9202,7 @@ class CosmoDrawing():
                         shadow=self.PLOT.LEGEND.SHADOW.get(),
                         framealpha=self.PLOT.LEGEND.ALPHA.get(),
                         mode=mode,
+                        bbox_to_anchor=bb,
                         facecolor=self.PLOT.LEGEND.COLOR.get(),
                         edgecolor=self.PLOT.LEGEND.EDGECOLOR.get(),
                         markerscale=self.PLOT.LEGEND.MARKERSCALE.get(),
@@ -8268,7 +9210,11 @@ class CosmoDrawing():
                         handletextpad=self.PLOT.LEGEND.HANDLETEXTPAD.get(),
                         borderaxespad=self.PLOT.LEGEND.BORDERAXESPAD.get(),
                         labelspacing=self.PLOT.LEGEND.LABELSPACING.get())
-      except: pass
+      #except: pass
+      try:
+        self.ax.add_artist(Ilegend)
+      except:
+        pass
 
       if not empty(self.PLOT.LEGEND.TITLE.get()):
         try:
@@ -8681,28 +9627,27 @@ class CosmoDrawing():
       return
 
     ii = self.CDF_INDX.get()
+    if self.CDF[ii].PARENT is None:
+      toconsola('Calculating mean of current CONTOUR field')
+    else:
+      ii = self.CDF[ii].PARENT
+      toconsola('Calculating mean of PARENT CONTOUR field, ii=',ii)
+
     K  = self.CDF[ii].K.get()
     L  = self.CDF[ii].L.get()
     nt = self.CDF[ii].FLD.icdf.nt
 
     for L in range(0,nt):
       data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
-      #ny, nx = data.shape
-      #data = data.reshape((1,ny,nx))
-      #if L==0:
-      #  num = data.copy()
-      #else:
-      #  num = np.ma.concatenate([num,data])
       if L==0:
         num = data.copy()
       else:
         num = num + data
 
-    #data = num.var(axis=0)
-
     CDF = CONTOUR()
 
-    #CDF.FLD.data = num.mean(axis=0)
+    CDF.SOURCE = 'MEAN'
+    CDF.PARENT = ii                    #  The index to PARENT data
     CDF.FLD.data = num / nt
     CDF.FLD.minval = float(data.min())
     CDF.FLD.maxval = float(data.max())
@@ -8715,27 +9660,48 @@ class CosmoDrawing():
       CDF.K_LIST = [K]
       CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
 
+    # Middle of the time segment
+    t2 = 0.5*(self.CDF[ii].T_LIST[0]+self.CDF[ii].T_LIST[-1])
+
     CDF.L.set(0)
     CDF.L_LIST = [0]
-    CDF.T_LIST = [0]
-    CDF.DATE   = [self.CDF[ii].DATE[0]]
+    CDF.T_LIST = [t2]
+    try:
+      CDF.DATE = [num2date(t2,       \
+                      units=self.CDF[ii].FLD.icdf.time_units,    \
+                      calendar=self.CDF[ii].FLD.icdf.time_calendar)]
+    except:
+      CDF.DATE = [0.5*(self.CDF[ii].FLD.icdf.nt-1)]
 
-    CDF.ALIAS       = 'Mean field'
-    CDF.FLD.x       = self.CDF[ii].FLD.x
-    CDF.FLD.y       = self.CDF[ii].FLD.y
-    CDF.FLD.xx      = self.CDF[ii].FLD.xx
-    CDF.FLD.yy      = self.CDF[ii].FLD.yy
-    CDF.FLD.units   = self.CDF[ii].FLD.units
-    CDF.FLD.missing = self.CDF[ii].FLD.missing
-    CDF.FLD.varname = self.CDF[ii].FLD.varname
+
+    CDF.ALIAS.set('Average')
+    CDF.FLD.x         = self.CDF[ii].FLD.x
+    CDF.FLD.y         = self.CDF[ii].FLD.y
+    CDF.FLD.xx        = self.CDF[ii].FLD.xx
+    CDF.FLD.yy        = self.CDF[ii].FLD.yy
+    CDF.FLD.ndims     = self.CDF[ii].FLD.ndims
+    CDF.FLD.with_axes = self.CDF[ii].FLD.with_axes
+    CDF.FLD.units     = self.CDF[ii].FLD.units
+    CDF.FLD.missing   = self.CDF[ii].FLD.missing
+    CDF.FLD.varname   = self.CDF[ii].FLD.varname
+    CDF.FLD.varid     = self.CDF[ii].FLD.varid
+    CDF.FLD.xmin      = self.CDF[ii].FLD.xmin
+    CDF.FLD.xmax      = self.CDF[ii].FLD.xmax
+    CDF.FLD.ymin      = self.CDF[ii].FLD.ymin
+    CDF.FLD.ymax      = self.CDF[ii].FLD.ymax
+
     CDF.FILENAME.set(self.CDF[ii].FILENAME.get())
     CDF.varname.set(CDF.FLD.varname)
 
+    CDF.FLD.nc   = Dataset(self.CDF[ii].FILENAME.get())
     CDF.FLD.icdf = tools.geocdf(wid=self.cons)
 
+    # We copy the original icdf information
     conf = self.CDF[ii].FLD.icdf.conf_get()
     CDF.FLD.icdf.conf_set(conf)
     CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+    # Add the appropriate changes
+    CDF.FLD.icdf.nt = 1
 
     conf = self.CDF[ii].PLOT.conf_get()
     CDF.PLOT.conf_set(conf)
@@ -8748,11 +9714,17 @@ class CosmoDrawing():
     self.CDF_INDX.set(self.ncdf-1)
     self.CDF_LIST = list(range(self.ncdf))
 
-    self.nfiles += 1
-    self.FILENAMES.append(self.CDF[ii].FILENAME.get())
-    self.FILETYPES.append('FLD')
-    self.FILEORDER.append(self.ncdf-1)
-    self.SEQUENCES.append(tk.BooleanVar(value=False))
+    # Adding a VECTOR in the Drawing class
+    #
+    self.LAYERS.add(TYPE='FLD',Filename=self.CDF[ii].FILENAME.get(),N=1,wid=self.cons)
+
+    #self.nfiles += 1
+    #self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+    #self.FILETYPES.append('FLD')
+    #self.FILEORDER.append(self.ncdf-1)
+    #self.SEQUENCES.append(tk.BooleanVar(value=False))
+    #self.SEQLEADER.append(tk.BooleanVar(value=False))
+    #self.SEQNTIMES.append(1)
 
     self.make_plot()
 
@@ -8765,6 +9737,12 @@ class CosmoDrawing():
       return
 
     ii = self.CDF_INDX.get()
+    if self.CDF[ii].PARENT is None:
+      toconsola('Calculating variance of current CONTOUR field')
+    else:
+      ii = self.CDF[ii].PARENT
+      toconsola('Calculating variance of PARENT CONTOUR field, ii=',ii)
+
     K  = self.CDF[ii].K.get()
     L  = self.CDF[ii].L.get()
     nt = self.CDF[ii].FLD.icdf.nt
@@ -8775,50 +9753,91 @@ class CosmoDrawing():
 
     for L in range(0,nt):
       data = self.CDF[ii].FLD.read(K=K,L=L,wid=self.cons)
-      ny, nx = data.shape
-      data = data.reshape((1,ny,nx))
       if L==0:
-        num = data.copy()
+        num1 = data.copy()
+        num2 = np.square(data)
       else:
-        num = np.ma.concatenate([num,data])
+        num1 += data
+        num2 += np.square(data)
 
-    #data = num.var(axis=0)
+    #data = num2/nt - np.square(num1/nt)
+    data = num2/(nt-1) - np.square(num1)/(nt*(nt-1))
 
     CDF = CONTOUR()
-
-    CDF.FLD.data = num.var(axis=0)
+    CDF.SOURCE = 'VARIANCE'
+    CDF.PARENT = ii
+    CDF.FLD.data = data.copy()
     CDF.FLD.minval = float(data.min())
     CDF.FLD.maxval = float(data.max())
 
-    toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
-    toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+    toconsola('Variance Min val = '+str(CDF.FLD.minval),wid=self.cons)
+    toconsola('Variance Max val = '+str(CDF.FLD.maxval),wid=self.cons)
+
+
+    # Middle of the time segment
+    t2 = 0.5*(self.CDF[ii].T_LIST[0]+self.CDF[ii].T_LIST[-1])
 
     CDF.K.set(K)
     CDF.L.set(0)
     CDF.K_LIST = [K]
     CDF.L_LIST = [0]
     CDF.Z_LIST = [self.CDF[ii].Z_LIST[K]]
-    CDF.T_LIST = [0]
-    CDF.DATE   = [self.CDF[ii].DATE[0]]
+    CDF.T_LIST = [t2]
+    try:
+      CDF.DATE = [num2date(t2,       \
+                      units=self.CDF[ii].FLD.icdf.time_units,    \
+                      calendar=self.CDF[ii].FLD.icdf.time_calendar)]
+    except:
+      CDF.DATE = [0.5*(self.CDF[ii].FLD.icdf.nt-1)]
 
-    CDF.ALIAS       = 'Variance field'
-    CDF.FLD.x       = self.CDF[ii].FLD.x
-    CDF.FLD.y       = self.CDF[ii].FLD.y
-    CDF.FLD.xx      = self.CDF[ii].FLD.xx
-    CDF.FLD.yy      = self.CDF[ii].FLD.yy
-    CDF.FLD.units   = self.CDF[ii].FLD.units
-    CDF.FLD.missing = self.CDF[ii].FLD.missing
-    CDF.FLD.varname = self.CDF[ii].FLD.varname
+
+    CDF.ALIAS.set('Variance')
+    CDF.FLD.x         = self.CDF[ii].FLD.x
+    CDF.FLD.y         = self.CDF[ii].FLD.y
+    CDF.FLD.xx        = self.CDF[ii].FLD.xx
+    CDF.FLD.yy        = self.CDF[ii].FLD.yy
+    CDF.FLD.ndims     = self.CDF[ii].FLD.ndims
+    CDF.FLD.with_axes = self.CDF[ii].FLD.with_axes
+    CDF.FLD.units     = self.CDF[ii].FLD.units
+    CDF.FLD.missing   = self.CDF[ii].FLD.missing
+    CDF.FLD.varname   = self.CDF[ii].FLD.varname
+    CDF.FLD.varid     = self.CDF[ii].FLD.varid  
+    CDF.FLD.xmin      = self.CDF[ii].FLD.xmin   
+    CDF.FLD.xmax      = self.CDF[ii].FLD.xmax   
+    CDF.FLD.ymin      = self.CDF[ii].FLD.ymin   
+    CDF.FLD.ymax      = self.CDF[ii].FLD.ymax   
+
+    CDF.FILENAME.set(self.CDF[ii].FILENAME.get())
     CDF.varname.set(CDF.FLD.varname)
 
+    CDF.FLD.nc   = Dataset(self.CDF[ii].FILENAME.get())
     CDF.FLD.icdf = tools.geocdf(wid=self.cons)
 
+    # We copy the original icdf information
     conf = self.CDF[ii].FLD.icdf.conf_get()
     CDF.FLD.icdf.conf_set(conf)
+    # Add the appropriate changes
     CDF.FLD.icdf.VAR_MENU = [CDF.FLD.varname]
+    CDF.FLD.icdf.nt = 1
 
     conf = self.CDF[ii].PLOT.conf_get()
     CDF.PLOT.conf_set(conf)
+
+    toconsola('Setting contour intervals ...',wid=self.cons)
+    try:
+      CDF.PLOT.CONTOUR_MIN.set(myround(CDF.FLD.minval))
+    except:
+      CDF.PLOT.CONTOUR_MIN.set(CDF.FLD.minval)
+    try:
+      CDF.PLOT.CONTOUR_MAX.set(myround(CDF.FLD.maxval))
+    except:
+      CDF.PLOT.CONTOUR_MAX.set(CDF.FLD.maxval)
+
+    dd = CDF.PLOT.CONTOUR_MAX.get() - CDF.PLOT.CONTOUR_MIN.get()
+    try:
+      CDF.PLOT.CONTOUR_INTERVAL.set(myround(0.1*dd,0))
+    except:
+      CDF.PLOT.CONTOUR_INTERVAL.set(0.1*dd)
 
     CDF.show.set(True)
     self.CDF[ii].show.set(False)
@@ -8828,11 +9847,14 @@ class CosmoDrawing():
     self.CDF_INDX.set(self.ncdf-1)
     self.CDF_LIST = list(range(self.ncdf))
 
-    self.nfiles += 1
-    self.FILENAMES.append(self.CDF[ii].FILENAME.get())
-    self.FILETYPES.append('FLD')
-    self.FILEORDER.append(self.ncdf-1)
-    self.SEQUENCES.append(tk.BooleanVar(value=False))
+    self.LAYERS.add(TYPE='FLD',Filename=self.CDF[ii].FILENAME.get(),N=1,wid=self.cons)
+    #self.nfiles += 1
+    #self.FILENAMES.append(self.CDF[ii].FILENAME.get())
+    #self.FILETYPES.append('FLD')
+    #self.FILEORDER.append(self.ncdf-1)
+    #self.SEQUENCES.append(tk.BooleanVar(value=False))
+    #self.SEQLEADER.append(tk.BooleanVar(value=False))
+    #self.SEQNTIMES.append(1)
 
     self.make_plot()
 
@@ -8944,6 +9966,11 @@ class CosmoDrawing():
       return
 
     ii = self.VEC_INDX.get()
+    if self.VEC[ii].PARENT is None:
+      pass
+    else:
+      ii = self.VEC[ii].PARENT
+
     K  = self.VEC[ii].K.get()
     L  = self.VEC[ii].L.get()
     nt = self.VEC[ii].U.icdf.nt
@@ -8973,6 +10000,8 @@ class CosmoDrawing():
     # Make sure that the missing value is NaN:
     #udata = unum.mean(axis=0)
     #vdata = vnum.mean(axis=0)
+    VEC.SOURCE = 'MEAN'
+    VEC.PARENT = ii
     udata = unum / nt
     vdata = vnum / nt
     _u = udata.filled(fill_value=np.nan)
@@ -8990,33 +10019,66 @@ class CosmoDrawing():
 
     VEC.L.set(0)
     VEC.L_LIST = [0]
-    VEC.T_LIST = [0]
-    VEC.DATE   = [self.VEC[ii].DATE[0]]
 
-    VEC.ALIAS       = 'Mean field'
-    VEC.U.x       = self.VEC[ii].U.x
-    VEC.U.y       = self.VEC[ii].U.y
-    VEC.U.xx      = self.VEC[ii].U.xx
-    VEC.U.yy      = self.VEC[ii].U.yy
-    VEC.U.units   = self.VEC[ii].U.units
-    VEC.U.missing = self.VEC[ii].U.missing
-    VEC.U.varname = self.VEC[ii].U.varname
-    VEC.V.varname = self.VEC[ii].V.varname
+    # Middle of the time segment
+    t2 = 0.5*(self.VEC[ii].T_LIST[0]+self.VEC[ii].T_LIST[-1])
+
+    VEC.T_LIST = [t2]
+    try:
+      VEC.DATE = [num2date(t2,       \
+                      units=self.CDF[ii].FLD.icdf.time_units,    \
+                      calendar=self.CDF[ii].FLD.icdf.time_calendar)]
+    except:
+      VEC.DATE = [0.5*(self.VEC[ii].U.icdf.nt-1)]
+
+
+    VEC.grid_type.set(VEC.grid_type.get())
+    VEC.ALIAS.set('Average')
+    VEC.U.x         = self.VEC[ii].U.x
+    VEC.U.y         = self.VEC[ii].U.y
+    VEC.U.xx        = self.VEC[ii].U.xx
+    VEC.U.yy        = self.VEC[ii].U.yy
+    VEC.U.ndims     = self.VEC[ii].U.ndims
+    VEC.U.with_axes = self.VEC[ii].U.with_axes
+    VEC.U.units     = self.VEC[ii].U.units
+    VEC.U.missing   = self.VEC[ii].U.missing
+    VEC.U.varname   = self.VEC[ii].U.varname
+    VEC.U.varid     = self.VEC[ii].U.varid  
+    VEC.U.xmin      = self.VEC[ii].U.xmin  
+    VEC.U.xmax      = self.VEC[ii].U.xmax  
+
+    VEC.V.x         = self.VEC[ii].V.x
+    VEC.V.y         = self.VEC[ii].V.y
+    VEC.V.xx        = self.VEC[ii].V.xx
+    VEC.V.yy        = self.VEC[ii].V.yy
+    VEC.V.ndims     = self.VEC[ii].V.ndims
+    VEC.V.with_axes = self.VEC[ii].V.with_axes
+    VEC.V.units     = self.VEC[ii].V.units
+    VEC.V.missing   = self.VEC[ii].V.missing
+    VEC.V.varname   = self.VEC[ii].V.varname
+    VEC.V.varid     = self.VEC[ii].V.varid  
+    VEC.V.xmin      = self.VEC[ii].V.xmin  
+    VEC.V.xmax      = self.VEC[ii].V.xmax  
+
     VEC.UFILENAME.set(self.VEC[ii].UFILENAME.get())
     VEC.VFILENAME.set(self.VEC[ii].VFILENAME.get())
     VEC.uname.set(VEC.U.varname)
     VEC.vname.set(VEC.V.varname)
 
+    VEC.U.nc   = Dataset(self.VEC[ii].UFILENAME.get())
+    VEC.V.nc   = Dataset(self.VEC[ii].VFILENAME.get())
     VEC.U.icdf = tools.geocdf(wid=self.cons)
     VEC.V.icdf = tools.geocdf(wid=self.cons)
 
     conf = self.VEC[ii].U.icdf.conf_get()
     VEC.U.icdf.conf_set(conf)
     VEC.U.icdf.VAR_MENU = [VEC.U.varname]
+    VEC.U.icdf.nt = 1
 
     conf = self.VEC[ii].V.icdf.conf_get()
     VEC.V.icdf.conf_set(conf)
     VEC.V.icdf.VAR_MENU = [VEC.V.varname]
+    VEC.V.icdf.nt = 1
 
     conf = self.VEC[ii].PLOT.conf_get()
     VEC.PLOT.conf_set(conf)
@@ -9029,11 +10091,1189 @@ class CosmoDrawing():
     self.VEC_INDX.set(self.nvec-1)
     self.VEC_LIST = list(range(self.nvec))
 
-    self.nfiles += 1
-    self.FILENAMES.append(self.VEC[ii].UFILENAME.get())
-    self.FILETYPES.append('VEC')
-    self.FILEORDER.append(self.nvec-1)
-    self.SEQUENCES.append(tk.BooleanVar(value=False))
+    self.LAYERS.add(TYPE='VEC',Filename=self.VEC[ii].UFILENAME.get(),N=1,wid=self.cons)
+    #self.nfiles += 1
+    #self.FILENAMES.append(self.VEC[ii].UFILENAME.get())
+    #self.FILETYPES.append('VEC')
+    #self.FILEORDER.append(self.nvec-1)
+    #self.SEQUENCES.append(tk.BooleanVar(value=False))
+    #self.SEQLEADER.append(tk.BooleanVar(value=False))
+    #self.SEQNTIMES.append(1)
 
     self.make_plot()
+
+  def marker_editor(self):
+  # ====================
+
+    MARKER = geomarker.parameters()
+    marklabel = tk.StringVar()
+
+    # Map projection
+    #
+    proj = map_proj(self.PLOT.MAP_PROJECTION.get())
+
+    def _close():
+    # -----------
+      self.CAPTURE_POINT = False
+      self.Window_markered.destroy()
+      self.Window_markered = None
+
+    def _done():
+    # -----------
+      _close()
+
+      MARKER.SOURCE = 'VIEWER'
+      MARKER.FILENAME.set(None)
+
+      self.nmarker += 1
+      self.MARKER.append(MARKER)
+      self.MARKER_INDX.set(self.nmarker-1)
+      self.MARKER_LIST = list(range(self.nmarker))
+
+      self.LAYERS.add(TYPE='MARKER',Filename=None,N=len(MARKER.lon),wid=self.cons)
+      self.LAYERS.print()
+
+      #self.nfeatures += 1
+      #self.FEATNAMES.append(MARKER.FILENAME.get())
+      #self.FEATTYPES.append('MARKER')
+      #self.FEATORDER.append(self.nmarker-1)
+
+      ii = self.MARKER_INDX.get()
+      self.make_plot()
+
+
+    def _clear():
+    # -----------
+      global log
+      log.delete('1.0','end')
+      marklabel.set('')
+
+    def _add():
+    # ---------
+      ''' Add the new mark '''
+      #string = '\t {} {} {} \n'.format(self.pxo.get(),self.pyo.get(),marklabel.get())
+      string = '%9.4f, %9.4f, %s\n' %(self.pxo.get(),self.pyo.get(),marklabel.get())
+      print('string = ', string)
+      log.insert('end',string)
+
+      MARKER.lon.append(self.pxo.get())
+      MARKER.lat.append(self.pyo.get())
+      MARKER.label.append(marklabel.get())
+      MARKER.n = len(MARKER.lon)
+
+      geomarker.drawing(self.ax, proj['proj'], MARKER)
+      self.canvas.draw()
+
+      marklabel.set('')
+
+
+    def _load():
+    # ---------
+      global log
+      ''' Load an existent marker filek '''
+      nn = filedialog.askopenfilename(filetypes=[('CSV','*.csv'),
+                                                 ('TXT','*.txt'),
+                                                 ('ALL','*')],
+                                       initialdir='./',
+                                       parent=self.Window_marker)
+      if len(nn) == 0:
+        return
+      else:
+        filename = '%s' % nn
+
+      # Not empty filename:
+      MARKER.Read(filename)
+      if MARKER.n == 0:
+        return
+
+      for l in range(MARKER.n):
+        string = '%9.4f, %9.4f, %s\n' %(MARKER.lon[l],     \
+                                        MARKER.lat[l],
+                                        MARKER.label[l])
+        log.insert('end',string)
+
+    def _save():
+    # ---------
+
+      global log
+      aa = log.get("1.0","end-1c")
+
+      ''' Save markers onto file '''
+      filetypes = [('Text file','.txt')]
+      nn = filedialog.asksaveasfilename(title='Save marker file',
+                             initialdir='./',
+                             filetypes=filetypes,
+                             confirmoverwrite=True)
+      if nn is None or len(nn) == 0:
+        return
+      filename = '%s' %nn
+      toconsola('Saving entries to file ' +filename,wid=self.cons)
+      f = open(filename,'w')
+      f.write(aa)
+      f.close()
+
+
+    if self.Window_markered is None:
+      self.CAPTURE_POINT = True
+      self.Window_markered = tk.Toplevel(self.master)
+      self.Window_markered.title('Marker editor')
+      self.Window_markered.resizable(width=False,height=False)
+      self.Window_markered.protocol('WM_DELETE_WINDOW',_close)
+
+      F0 = ttk.Frame(self.Window_markered,padding=5,borderwidth=5)
+      ttk.Label(F0,text='Enter or select a point in the map ...').grid(row=0,column=0,columnspan=6,sticky='we',pady=10)
+      ttk.Label(F0,text='x',width=12).grid(row=1,column=0,columnspan=6,sticky='we',pady=10)
+      ttk.Label(F0,text='y').grid(row=1,column=1,columnspan=6,sticky='we',pady=10)
+      ttk.Label(F0,text='Label').grid(row=1,column=2,columnspan=6,sticky='we',pady=10)
+      ttk.Entry(F0,textvariable=self.pxo,width=12).grid(row=2,column=0,columnspan=1,sticky='ew',pady=5)
+      ttk.Entry(F0,textvariable=self.pyo,width=12).grid(row=2,column=1,columnspan=1,sticky='ew',pady=5)
+      ttk.Entry(F0,textvariable=marklabel,width=12).grid(row=2,column=2,columnspan=1,sticky='ew',pady=5)
+      ttk.Button(F0,text='Add',command=_add).grid(row=2,column=3,sticky='ew',pady=5)
+
+      global log
+      log = tk.Text(F0,height=5)
+      log.grid(row=3,column=0,columnspan=4,padx=10,pady=10,sticky='nsew')
+      #log.configure(state='disabled')
+
+      # Scrollbar
+      scrollb = tk.Scrollbar(F0,command=log.yview)
+      scrollb.grid(row=3,column=4,sticky='nsew',padx=2,pady=2)
+      log['yscrollcommand'] = scrollb.set
+
+      ttk.Button(F0,text='Clear',command=_clear).grid(row=4,column=0,sticky='e',padx=5)
+      ttk.Button(F0,text='Load',command=_load).grid(row=4,column=1,sticky='e',padx=5)
+      ttk.Button(F0,text='Save',command=_save).grid(row=4,column=2,sticky='e',padx=5)
+      ttk.Button(F0,text='Done',command=_done).grid(row=4,column=3,sticky='e',padx=5)
+
+      F0.grid()
+
+  # ====================
+  def get_ellipse(self):
+  # ====================
+    ''' Widget to read Ellipses '''
+
+    self.ESOURCE = tk.StringVar()
+    ELLIPSE = ellipse.ELLIPSE()
+    self.ESOURCE.set(self.ELLIPSE_OPTIONS[0])
+
+    def _cancel():
+    # ===========
+      self.Window_gellipse.destroy()
+      self.Window_gellipse = None
+
+    def _close():
+    # ===========
+      self.Window_gellipse.destroy()
+      self.Window_gellipse = None
+      self.make_plot()
+      if self.Window_cellipse is not None:
+        self.Window_cellipse.destroy()
+        self.Window_cellipse = None
+
+
+    def _done():
+    # ===========
+      _close()
+
+
+    def _clear():
+    # ===========
+      if self.nellipse == 0:
+        return
+
+      ii = self.ELLIPSE_INDX.get()
+      self.LAYERS.erase('ELLIPSE',ii,wid=self.cons)
+      self.LAYERS.print()
+
+      #for i in range(self.nfiles):
+      #  if self.FILETYPES[i] == 'ELLIPSE' and self.FILEORDER[i] == ii:
+      #    del self.FILENAMES[i]
+      #    del self.FILETYPES[i]
+      #    del self.FILEORDER[i]
+      #    del self.SEQUENCES[i]
+      #    del self.SEQLEADER[i]
+      #    del self.SEQNTIMES[i]
+      #    self.nfiles -= 1
+      if self.LAYERS.n == 0:
+        self.TIME = []
+        self.DATE = []
+        self.L.set(0)
+        self.L_LIST = []
+        self.NL = 0
+        self.bnext.configure(state='disabled')
+        self.bprev.configure(state='disabled')
+        self.PLOT.TLABEL.set('')
+        self.lbox['values'] = self.L_LIST
+        self.lbox.configure(state='disabled')
+        self.first = True
+
+      toconsola('Erasing record '+str(ii),wid=self.cons)
+      del self.ELLIPSE[ii]
+      self.nellipse -= 1
+
+      ii = self.nellipse-1 if ii >= self.nellipse else ii
+      toconsola('New ellipse = '+str(ii),wid=self.cons)
+      self.ELLIPSE_INDX.set(ii)
+      _refill(ii)
+
+    def _reget():
+    # ===========
+      self.ELLIPSE_INDEX.set(_wsel.get())
+      ii = self.FLOAT_INDX.get()
+      _refill(ii)
+
+    def _refill(ii):
+    # ============
+      if ii >= 0:
+        self.ELLIPSE_LIST = list(range(self.nellipse))
+        _wsel['values'] = self.ELLIPSE_LIST
+        _went['textvariable'] = self.ELLIPSE[ii].FILENAME
+        _wstat['text'] = 'Number ellipses = '+str(self.ELLIPSE[ii].n)
+        _wsel.configure(state='normal')
+        _show['variable'] = self.ELLIPSE[ii].show
+        _aent.configure(state='normal')
+        _aent['textvariable'] = self.ELLIPSE[ii].ALIAS
+      else:
+        self.ELLIPSE = []
+        self.ELLIPSE_LIST = ['0']
+        self.ELLIPSE_INDX.set(0)
+        #_wsel['values'] = self.ELLIPSE_LIST
+        _wsel['values'] = None
+        _went['textvariable'] = None
+        _wstat['text'] = ''
+        _wsel.configure(state='disabled')
+        _aent.configure(state='disabled')
+        _show.configure(state='disabled')
+        self.make_plot()
+
+    def _add():
+    # ===========
+      ISOURCE = self.ELLIPSE_OPTIONS.index(self.ESOURCE.get())
+
+      types=[('TXT','*.txt'),('ALL','*')]
+      nn = filedialog.askopenfilename(parent=self.Window_gellipse, \
+                                    filetypes=types)
+      if len(nn) == 0:
+        return
+
+      filename = '%s' % nn
+      toconsola('Reading ELLIPSE file '+filename,wid=self.cons)
+
+      ELLIPSE.Read(filename)
+
+      if ELLIPSE.n == 0:
+        return
+
+      self.nellipse += 1
+      self.ELLIPSE.append(ELLIPSE)
+      self.ELLIPSE_INDX.set(self.nellipse-1)
+      self.ELLIPSE_LIST = list(range(self.nellipse))
+
+      self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=ELLIPSE.n,wid=self.cons)
+      self.LAYERS.print()
+
+      #self.nfeatures += 1
+      #self.FEATNAMES.append(filename)
+      #self.FEATTYPES.append('ELLIPSE')
+      #self.FEATORDER.append(self.nellipse-1)
+
+      ii = self.ELLIPSE_INDX.get()
+      _refill(ii)
+
+
+    # Main Window ...
+    # ================
+
+    if self.Window_gellipse is None:
+      self.Window_gellipse = tk.Toplevel(self.master)
+      self.Window_gellipse.title('Variance ellipses')
+      self.Window_gellipse.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_gellipse.lift()
+
+    if self.nellipse > 0:
+      ii = self.ELLIPSE_INDX.get()
+    else:
+      ii = -1
+
+    F0 = ttk.Frame(self.Window_gellipse,padding=5)
+
+    #Add
+    ttk.Combobox(F0,textvariable=self.ESOURCE, \
+                 values=self.ELLIPSE_OPTIONS).grid(row=0,column=0,padx=3)
+    ttk.Button(F0,text='Import',command=_add).grid(row=1,column=0,padx=3)
+
+    # Filename:
+    ttk.Label(F0,text='Ellipse file').grid(row=0,column=1,padx=3)
+
+    _wsel = ttk.Combobox(F0,textvariable=self.ELLIPSE_INDX, \
+                                  values=self.ELLIPSE_LIST,width=5)
+    _wsel.grid(row=0,column=2)
+    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+
+    if ii == -1:
+      _wstat = ttk.Label(F0,text='',width=50,justify='left')
+      _wsel.configure(state='disabled')
+    else:
+      _wstat = ttk.Label(F0,text=' Ellipses in the file= '+str(self.ELLIPSE[ii].n),width=50,justify='left')
+      _went['textvariable'] = self.ELLIPSE[ii].FILENAME
+
+    _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
+
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=2,column=2,columnspan=2,sticky='w')
+
+
+    F0.grid(row=0,column=0)
+
+    F1 = ttk.Frame(self.Window_gellipse,padding=5)
+    if ii == -1:
+      _show = ttk.Checkbutton(F1,text='Show')
+      _aent.configure(state='disabled')
+    else:
+      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
+      _show['variable']=self.ELLIPSE[ii].show
+      _aent['textvariable'] = self.ELLIPSE[ii].ALIAS
+
+    _show.grid(row=1,column=5,padx=3)
+    ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)
+    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
+    ttk.Button(F1,text='Plot',command=_close).grid(row=1,column=8,padx=3)
+    F1.grid(row=1,column=0)
+
+
+  # ====================
+  def calc_ellipse(self):
+  # ====================
+    ''' Widget to calculate ellipse from velocity field '''
+
+    if self.nvec == 0:
+      messagebox.showinfo(message='No currents file opened yet')
+      return
+
+    ii = self.VEC_INDX.get()
+    if self.VEC[ii].PARENT is None:
+      toconsola('Calculating mean of current VECTOR field')
+    else:
+      ii = self.VEC[ii].PARENT
+      toconsola('Calculating mean of PARENT VECTOR field, ii=',ii)
+
+    K     = self.VEC[ii].K.get()
+    nt    = self.VEC[ii].U.icdf.nt
+    ndims = self.VEC[ii].U.ndims
+
+    ELLIPSE = ellipse.ELLIPSE()
+    ELLIPSE.SOURCE = 'VIEWER'
+    ELLIPSE.FILENAME.set(None)
+
+    # Map projection
+    #
+    proj = map_proj(self.PLOT.MAP_PROJECTION.get())
+
+    try:
+      self.pzo.set(self.VEC[ii].Z_LIST[K])
+    except:
+      self.pzo.set(0)
+
+    SUM   = tk.DoubleVar()
+    SVM   = tk.DoubleVar()
+    SUM   = tk.DoubleVar()
+    SPM   = tk.DoubleVar()
+    SAA   = tk.DoubleVar()
+    SBB   = tk.DoubleVar()
+    SPP   = tk.DoubleVar()
+    SXO   = tk.DoubleVar()
+    SYO   = tk.DoubleVar()
+
+    if nt == 1:
+      messagebox.showinfo(message='Single time step. No variance ellipses')
+      return
+
+
+    def _close():
+    # -----------
+      self.CAPTURE_POINT = False
+      self.Window_cellipse.destroy()
+      self.Window_cellipse = None
+
+    def _cancel():
+    # -----------
+      global log
+      ELLIPSE = ellipse.ELLIPSE()
+      log.delete('1.0','end')
+      self.make_plot()
+
+    def _done():
+    # -----------
+
+      filename = self.VEC[ii].UFILENAME.get()
+      ELLIPSE.SOURCE = 'VIEWER'
+      ELLIPSE.PARENT = ii
+
+      self.nellipse += 1
+      self.ELLIPSE.append(ELLIPSE)
+      self.ELLIPSE_INDX.set(self.nellipse-1)
+      self.ELLIPSE_LIST = list(range(self.nellipse))
+
+      self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=len(ELLIPSE.xo),wid=self.cons)
+      self.LAYERS.print()
+
+      #self.nfeatures += 1
+      #self.FEATNAMES.append(filename)
+      #self.FEATTYPES.append('ELLIPSE')
+      #self.FEATORDER.append(self.nellipse-1)
+
+      _close()
+      self.make_plot()
+
+    def _calc():
+    # ---------
+
+      dis = (self.pxo.get()-self.VEC[ii].U.xx)**2 + (self.pyo.get()-self.VEC[ii].U.yy)**2
+      ind = np.unravel_index(dis.argmin(), dis.shape)
+
+      io = ind[1]
+      jo = ind[0]
+      self.VEC[ii].jo.set(jo)
+      self.VEC[ii].io.set(io)
+
+      toconsola('Vector selected point: '+str(io)+', '+str(jo),wid=self.cons)
+
+      if ndims == 3:
+        if self.VEC[ii].U.icdf.ppl[self.VEC[ii].U.varid] > -1:
+          u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,jo,io].squeeze()
+          v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,jo,io].squeeze()
+        else:
+          toconsola('Invalid file!',wid=wid)
+          return
+      elif ndims == 4:
+        u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,K,jo,io].squeeze()
+        v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,K,jo,io].squeeze()
+      else:
+        toconsola("Invalid number of dimensions, "+str(ndims),wid=wid)
+
+      _u = u.filled(fill_value=np.nan)
+      _v = v.filled(fill_value=np.nan)
+      u = np.ma.masked_equal(_u,np.nan); del _u
+      v = np.ma.masked_equal(_v,np.nan); del _v
+
+      mu = np.mean(u)
+      mv = np.mean(v)
+      mphi = np.angle(mu+1j*mv)
+      print('Angle mean current = ', mphi, 180*mphi/np.pi)
+      u = u - np.mean(u)
+      v = v - np.mean(v)
+      suu = np.dot(u,u)
+      svv = np.dot(v,v)
+      suv = np.dot(u,v)
+      Tra = suu + svv
+      Det = suu*svv - suv*suv
+      a2  = 0.5*(Tra + np.sqrt(Tra*Tra - 4*Det))
+      b2  = 0.5*(Tra - np.sqrt(Tra*Tra - 4*Det))
+      aphi = 0.5*np.arctan2(2*suv,suu-svv)
+      print('Test: ',2*suv/(suu-svv), np.tan(2*aphi))
+      print('Eddy kinetic energy: ', 0.5*Tra)
+      print('Total eddy variance: ', a2 + b2, Tra)
+      print('Directional eddy variance: ', a2 - b2)
+      print('Isotropic eddy variance: ', 2*b2)
+      print('Polarization factor: ', (a2-b2)/(a2+b2))
+      print('Variance angle: ', aphi, 180*aphi/np.pi)
+
+      SXO.set(self.pxo.get())
+      SYO.set(self.pyo.get())
+      SUM.set(mu)
+      SVM.set(mv)
+      SPM.set(180*mphi/np.pi)
+      SAA.set(np.sqrt(a2))
+      SBB.set(np.sqrt(b2))
+      SPP.set(180*aphi/np.pi)
+
+    def _add():
+    # ---------
+
+      global log
+
+      ELLIPSE.n += 1
+      ELLIPSE.xo.append(SXO.get())
+      ELLIPSE.yo.append(SYO.get())
+      ELLIPSE.zo.append(self.pzo.get())
+      ELLIPSE.a.append(SAA.get())
+      ELLIPSE.b.append(SBB.get())
+      ELLIPSE.phim.append(SPM.get())
+      ELLIPSE.phia.append(SPP.get())
+
+      _wnn['text'] = 'n = %d' % ELLIPSE.n
+
+      i = -1
+      string = '%8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f\n' % (ELLIPSE.xo[i],    \
+                                                                      ELLIPSE.yo[i],    \
+                                                                      ELLIPSE.zo[i],    \
+                                                                      ELLIPSE.phim[i],  \
+                                                                      ELLIPSE.phia[i],  \
+                                                                      ELLIPSE.a[i],     \
+                                                                      ELLIPSE.b[i])
+      log.insert('end',string)
+      SUM.set(None)
+      SVM.set(None)
+      SPM.set(None)
+      SAA.set(None)
+      SBB.set(None)
+      SPP.set(None)
+
+      ellipse.drawing(self.ax, proj['proj'], ELLIPSE)
+      self.canvas.draw()
+
+
+    def _save():
+    # ---------
+      ''' Save ellipses onto file '''
+
+      filetypes = [('Text file','.txt')]
+      nn = filedialog.asksaveasfilename(title='Save Ellipse file',
+                             initialdir='./',
+                             filetypes=filetypes,
+                             confirmoverwrite=True)
+      if nn is None or len(nn) == 0:
+        return
+      filename = '%s' %nn
+      toconsola('Saving entries to file ' +filename,wid=self.cons)
+
+      f = open(filename,'w')
+      for i in range(len(ELLIPSE.xo)):
+        string = '%8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f\n' % (ELLIPSE.xo[i],    \
+                                                                        ELLIPSE.yo[i],    \
+                                                                        ELLIPSE.zo[i],    \
+                                                                        ELLIPSE.phim[i],  \
+                                                                        ELLIPSE.phia[i],  \
+                                                                        ELLIPSE.a[i],     \
+                                                                        ELLIPSE.b[i])
+        f.write(string)
+      f.close()
+
+    def _load():
+    # ---------
+      ''' Loads ellipses position from file, 
+      and calculateis ellipse parameters using current vector data '''
+
+      global log
+
+      nn = filedialog.askopenfilename(title='Load ellipse data',
+                                      parent=self.Window_cellipse,
+                                      initialdir='./')
+      if len(nn) == 0:
+        return
+      filename = '%s' % nn
+      with open(filename) as datafile:
+        for line in datafile.readlines():
+          line = line.strip()
+          columns = line.split(',')
+
+          ELLIPSE.xo.append(float(columns[0]))
+          ELLIPSE.yo.append(float(columns[1]))
+          ELLIPSE.zo.append(float(columns[2]))
+
+          dis = (ELLIPSE.xo[-1]-self.VEC[ii].U.xx)**2 + (ELLIPSE.yo[-1]-self.VEC[ii].U.yy)**2
+          ind = np.unravel_index(dis.argmin(), dis.shape)
+          io = ind[1]
+          jo = ind[0]
+
+          # Read the data
+          if ndims == 3:
+            if self.VEC[ii].U.icdf.ppl[self.VEC[ii].U.varid] > -1:
+              u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,jo,io].squeeze()
+              v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,jo,io].squeeze()
+            else:
+              toconsola('Invalid file!',wid=wid)
+              return
+          elif ndims == 4:
+            u = self.VEC[ii].U.nc.variables[self.VEC[ii].U.varname][:,K,jo,io].squeeze()
+            v = self.VEC[ii].V.nc.variables[self.VEC[ii].V.varname][:,K,jo,io].squeeze()
+          else:
+            toconsola("Invalid number of dimensions, "+str(ndims),wid=wid)
+
+          mu = np.mean(u)
+          mv = np.mean(v)
+          mphi = np.angle(mu+1j*mv)
+          u = u - np.mean(u)
+          v = v - np.mean(v)
+          suu = np.dot(u,u)
+          svv = np.dot(v,v)
+          suv = np.dot(u,v)
+          Tra = suu + svv
+          Det = suu*svv - suv*suv
+          a2  = 0.5*(Tra + np.sqrt(Tra*Tra - 4*Det))
+          b2  = 0.5*(Tra - np.sqrt(Tra*Tra - 4*Det))
+          aphi = 0.5*np.arctan2(2*suv,suu-svv)
+
+          ELLIPSE.phim.append(180*mphi/np.pi)
+          ELLIPSE.a.append(np.sqrt(a2))
+          ELLIPSE.b.append(np.sqrt(b2))
+          ELLIPSE.phia.append(180*aphi/np.pi)
+          ELLIPSE.n += 1
+          _wnn['text'] = 'n = %d' % ELLIPSE.n
+
+          i = -1
+          string = '%8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f, %8.4f\n' % (ELLIPSE.xo[i],    \
+                    ELLIPSE.yo[i], ELLIPSE.zo[i], ELLIPSE.phim[i],  ELLIPSE.phia[i],  \
+                    ELLIPSE.a[i],  ELLIPSE.b[i])
+          log.insert('end',string)
+
+      SUM.set(None)
+      SVM.set(None)
+      SPM.set(None)
+      SAA.set(None)
+      SBB.set(None)
+      SPP.set(None)
+
+      ellipse.drawing(self.ax, proj['proj'], ELLIPSE)
+      self.canvas.draw()
+
+
+    # Main widget
+    # -----------
+    if self.Window_cellipse is not None:
+      self.Window_cellipse.lift()
+      return
+
+    self.CAPTURE_POINT = True
+    self.Window_cellipse = tk.Toplevel(self.master)
+    self.Window_cellipse.title('Ellipse calculator')
+    self.Window_cellipse.resizable(width=False,height=False)
+    self.Window_cellipse.protocol('WM_DELETE_WINDOW',_close)
+
+    Fm = ttk.Frame(self.Window_cellipse,padding=5,borderwidth=5)
+    ttk.Label(Fm,text='Enter or select a point in the map ...').grid(row=0,column=0,columnspan=6,sticky='we')
+    Fm.grid()
+
+    F0 = ttk.Frame(self.Window_cellipse,padding=5,borderwidth=5)
+
+    ttk.Label(F0,text='x').grid(row=1,column=0,sticky='we',padx=6)
+    _wsx = ttk.Entry(F0,textvariable=self.pxo,width=15,justify='left')
+    _wsx.grid(row=1,column=1,sticky='ew',padx=6)
+    ttk.Label(F0,text='y').grid(row=1,column=2,sticky='we',padx=6)
+    _wsy = ttk.Entry(F0,textvariable=self.pyo,width=15,justify='left')
+    _wsy.grid(row=1,column=3,sticky='ew',padx=6)
+    ttk.Label(F0,text='z').grid(row=1,column=4,sticky='we',padx=6)
+    _wsz = ttk.Entry(F0,textvariable=self.pzo,width=15,justify='left',state='readonly')
+    _wsz.grid(row=1,column=5,sticky='ew',padx=6)
+
+    ttk.Button(F0,text='Get Ellipse',command=_calc).grid(row=1,column=6,sticky='ew',pady=5,padx=6)
+    F0.grid()
+
+    F1 = ttk.Frame(self.Window_cellipse,padding=5,borderwidth=5)
+
+    ttk.Label(F1,text='U mean',width=9).grid(row=1,column=0,sticky='e',padx=3)
+    _wum = ttk.Entry(F1,textvariable=SUM,width=15,justify='left',state='readonly')
+    _wum.grid(row=1,column=1,sticky='ew',padx=3)
+    ttk.Label(F1,text='V mean',width=9).grid(row=1,column=2,sticky='e',padx=3)
+    _wvm = ttk.Entry(F1,textvariable=SVM,width=15,justify='left',state='readonly')
+    _wvm.grid(row=1,column=3,sticky='ew',padx=3)
+    ttk.Label(F1,text='Mean angle',width=9).grid(row=1,column=4,sticky='e',padx=3)
+    _wpm = ttk.Entry(F1,textvariable=SPM,width=15,justify='left',state='readonly')
+    _wpm.grid(row=1,column=5,sticky='ew',padx=3)
+
+    ttk.Label(F1,text='a',width=9,justify='right').grid(row=2,column=0,sticky='e',padx=3)
+    _waa = ttk.Entry(F1,textvariable=SAA,width=15,justify='left',state='readonly')
+    _waa.grid(row=2,column=1,sticky='ew',padx=3)
+    ttk.Label(F1,text='b',width=9).grid(row=2,column=2,sticky='e',padx=3)
+    _wbb = ttk.Entry(F1,textvariable=SBB,width=15,justify='left',state='readonly')
+    _wbb.grid(row=2,column=3,sticky='ew',padx=3)
+    ttk.Label(F1,text='Anom angle',width=9).grid(row=2,column=4,sticky='e',padx=3)
+    _wpp = ttk.Entry(F1,textvariable=SPP,width=15,justify='left',state='readonly')
+    _wpp.grid(row=2,column=5,sticky='ew',padx=3)
+
+    F1.grid()
+
+    F2 = ttk.Frame(self.Window_cellipse,padding=5,borderwidth=5)
+    global log
+
+    _wnn = ttk.Label(F2,text='n = 0',width=6)
+    _wnn.grid(row=0,column=0,sticky='ew',padx=3)
+    log = tk.Text(F2,height=5)
+    log.grid(row=3,column=0,columnspan=5,padx=10,pady=10,sticky='nsew')
+
+    # Scrollbar
+    scrollb = tk.Scrollbar(F2,command=log.yview)
+    scrollb.grid(row=3,column=5,sticky='nsew',padx=2,pady=2)
+    log['yscrollcommand'] = scrollb.set
+    F2.grid()
+
+    #SUM   = tk.DoubleVar()
+    #SVM   = tk.DoubleVar()
+    #SUM   = tk.DoubleVar()
+    #SPM   = tk.DoubleVar()
+    #SAA   = tk.DoubleVar()
+    #SBB   = tk.DoubleVar()
+    #SPP   = tk.DoubleVar()
+
+    F3 = ttk.Frame(self.Window_cellipse,padding=5,borderwidth=5)
+    ttk.Button(F3,text='Clear',command=_cancel).grid(row=4,column=0,sticky='e',padx=5)
+    ttk.Button(F3,text='Load',command=_load).grid(row=4,column=1,sticky='e',padx=5)
+    ttk.Button(F3,text='Save',command=_save).grid(row=4,column=2,sticky='e',padx=5)
+    ttk.Button(F3,text='Add',command=_add).grid(row=4,column=3,sticky='e',padx=5)
+    ttk.Button(F3,text='Done',command=_done).grid(row=4,column=4,sticky='e',padx=5)
+    F3.grid()
+
+
+  def ellipse_config(self):
+  # =======================
+
+    if self.nellipse == 0:
+      messagebox.showinfo(message='No ellipse variance specified yet')
+      return
+
+    ii = self.ELLIPSE_INDX.get()
+    global eshow
+
+    def _cancel():
+    # ============
+      self.Window_ellipseconfig.destroy()
+      self.Window_ellipseconfig = None
+
+    def _apply():
+    # ===========
+      self.make_plot()
+
+    def _done():
+    # ==========
+      self.Window_ellipseconfig.destroy()
+      self.Window_ellipseconfig = None
+      self.make_plot()
+
+    def _loadconf():
+    # =============
+      '''Load ellipse configuration'''
+      toconsola('Restoring ellipse configuration from '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.ELLIPSE[ii].PLOT.load(self.ELLIPSE[ii].PLOT.FILECONF)
+        self.make_plot()
+      except:
+        toconsola('Error: Unable to load file '+
+              self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+
+    def _saveconf():
+    # =============
+      '''Load ellipse configuration'''
+      toconsola('Saving ellipse configuration to '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.ELLIPSE[ii].PLOT.save(FF.PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+
+    def _loadfromconf():
+    # ==================
+      '''Load ellipse configuration from a file'''
+      nn = filedialog.askopenfilename(title='Load ellipse configuration',
+                                      parent=self.Window_ellipseconfig,
+                                      initialdir=COSMO_CONF)
+      if len(nn) == 0:
+        return
+
+      self.ELLIPSE[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Restoring ellipse configuration from '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.ELLIPSE[ii].PLOT.load(self.ELLIPSE[ii].PLOT.FILECONF)
+        self.make_plot()
+      except:
+        toconsola('Error: Unable to load file '+
+              self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+
+
+    def _saveasconf():
+    # ================
+      '''Load ellipse configuration'''
+      nn = filedialog.asksaveasfilename(title='Save ellipse configuration',
+                                        parent=self.Window_ellipseconfig,
+                                        initialdir=COSMO_CONF,
+                                        confirmoverwrite=True)
+      if nn is None or len(nn) == 0:
+        return
+
+
+      self.ELLIPSE[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Saving ellipse configuration to '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.ELLIPSE[ii].PLOT.save(self.ELLIPSE[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+
+            self.ELLIPSE[ii].PLOT.FILECONF,wid=self.cons)
+
+    if self.Window_ellipseconfig is not None:
+      self.Window_ellipseconfig.lift()
+      return
+
+    def _selected():
+    # ===============
+ 
+      global eshow
+      eshow.destroy()
+
+      ii = self.ELLIPSE_INDX.get()
+      eshow = ttk.Frame(self.Window_ellipseconfig,padding=10)
+
+      ellipse.Configuration2(eshow,self.ELLIPSE[ii])
+
+      f0 = ttk.Frame(eshow,padding=5)
+      ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+          grid(row=0,column=1,padx=3)
+      ttk.Button(f0,text='Close',command=_done,padding=5).     \
+          grid(row=0,column=2,padx=3)
+      f0.grid(sticky='ew',columnspan=3)
+      eshow.grid()
+
+
+    # Main window
+    # ============
+
+    self.Window_ellipseconfig = tk.Toplevel(self.master)
+    self.Window_ellipseconfig.title('Ellipse plot configuration')
+    self.Window_ellipseconfig.resizable(width=True,height=True)
+    self.Window_ellipseconfig.protocol('WM_DELETE_WINDOW',_cancel)
+
+    menubar = tk.Menu(self.Window_ellipseconfig)
+    menu = tk.Menu(menubar,tearoff=0)
+    menubar.add_cascade(label='Configuration',menu=menu)
+    menu.add_command(label='Restore',command=_loadconf)
+    menu.add_command(label='Restore from',command=_loadfromconf)
+    menu.add_command(label='Save',command=_saveconf)
+    menu.add_command(label='Save as',command=_saveasconf)
+    try:
+      self.Window_ellipseconfig.config(menu=menubar)
+    except AttributeError:
+      # master is a toplevel window (Python 2.4/Tkinter 1.63)
+      master.tk.call(Window_ellipseconfig, "config", "-menu", menubar)
+
+    fsel = ttk.Frame(self.Window_ellipseconfig,padding=10)
+    ttk.Label(fsel,text="File: ").grid(row=0,column=0,sticky='e',padx=3)
+    _wsel = ttk.Combobox(fsel,textvariable=self.ELLIPSE_INDX,
+                              values=self.ELLIPSE_LIST,width=5)
+    _wsel.grid(row=0,column=1,sticky='w',padx=3)
+    _wsel.bind('<<ComboboxSelected>>',lambda e:_selected())
+    _went = ttk.Entry(fsel,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=2,columnspan=5,padx=3,sticky='w')
+    _went = ttk.Entry(fsel,justify='left',width=80,state='readonly')
+    _went.grid(row=0,column=2,columnspan=8,padx=3,sticky='w')
+    fsel.grid()
+
+    _went ['textvariable'] = self.ELLIPSE[ii].FILENAME
+
+    eshow = ttk.Frame(self.Window_ellipseconfig,padding=10)
+
+    ellipse.Configuration2(eshow,self.ELLIPSE[ii])
+
+    f0 = ttk.Frame(eshow,padding=5)
+    ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+        grid(row=0,column=1,padx=3)
+    ttk.Button(f0,text='Close',command=_done,padding=5).     \
+        grid(row=0,column=2,padx=3)
+    f0.grid(sticky='ew',columnspan=3)
+    eshow.grid()
+
+  # ====================
+  def get_patch(self):
+  # ====================
+    ''' Widget to add patches '''
+
+    global _wcx,_wcy,_wcr,_wxw,_wxe,_wys,_wyn
+    PATCH = patch.PATCH()
+    PATCH.SOURCE = 'VIEWER'
+
+    def _close():
+    # ===========
+      self.Window_patch.destroy()
+      self.Window_patch = None
+
+    def _cancel():
+    # ===========
+      PATCH = patch.PATCH()
+      _close()
+
+    def _done():
+    # ===========
+      if PATCH.TYPE.get() == 'Rectangle':
+        xo = float(_wxw.get())
+        x1 = float(_wxe.get())
+        yo = float(_wys.get())
+        y1 = float(_wyn.get())
+        PATCH.xo.set(xo)
+        PATCH.yo.set(yo)
+        PATCH.dx.set(x1-xo)
+        PATCH.dy.set(y1-yo)
+        PATCH.show.set(True)
+      if PATCH.TYPE.get() == 'Circle':
+        xo = float(_wcx.get())
+        yo = float(_wcy.get())
+        rr = float(_wcr.get())
+        PATCH.xo.set(xo)
+        PATCH.yo.set(yo)
+        PATCH.dx.set(np.abs(rr))
+        PATCH.dy.set(np.abs(rr))
+        PATCH.show.set(True)
+
+      self.npatch += 1
+      self.PATCH.append(PATCH)
+      self.PATCH_INDX.set(self.npatch-1)
+      self.PATCH_LIST = list(range(self.npatch))
+
+      self.LAYERS.add(TYPE='PATCH',Filename=None,N=1,wid=self.cons)
+      self.LAYERS.print()
+      #self.nfeatures += 1
+      #self.FEATNAMES.append('')
+      #self.FEATTYPES.append('PATCH')
+      #self.FEATORDER.append(self.npatch-1)
+
+      _close()
+      self.make_plot()
+
+
+    def _sel():
+    # =========
+
+      if PATCH.TYPE.get() == 'Rectangle':
+        _wxw.configure(state='normal')
+        _wxe.configure(state='normal')
+        _wys.configure(state='normal')
+        _wyn.configure(state='normal')
+        _wcx.configure(state='disabled')
+        _wcy.configure(state='disabled')
+        _wcr.configure(state='disabled')
+      elif PATCH.TYPE.get() == 'Circle':
+        _wxw.configure(state='disabled')
+        _wxe.configure(state='disabled')
+        _wys.configure(state='disabled')
+        _wyn.configure(state='disabled')
+        _wcx.configure(state='normal')
+        _wcy.configure(state='normal')
+        _wcr.configure(state='normal')
+
+    # Main Window ...
+    # ================
+
+    if self.Window_patch is None:
+      self.Window_patch = tk.Toplevel(self.master)
+      self.Window_patch.title('Add/configura Patch')
+      self.Window_patch.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_patch.lift()
+
+
+    F0 = ttk.Frame(self.Window_patch,padding=5)
+    # Add
+    ttk.Radiobutton(F0,text='Rectangle',variable=PATCH.TYPE,value='Rectangle',command=_sel).grid(row=0,column=0,sticky='w',padx=3)
+    ttk.Radiobutton(F0,text='Circle',variable=PATCH.TYPE,value='Circle',command=_sel).grid(row=1,column=0,sticky='w',padx=3)
+
+    _wxw = ttk.Entry(F0,width=8,justify='left')
+    _wxw.grid(row=0,column=1,padx=3)
+    _wxe = ttk.Entry(F0,width=8,justify='left')
+    _wxe.grid(row=0,column=2,padx=3)
+    _wys = ttk.Entry(F0,width=8,justify='left')
+    _wys.grid(row=0,column=3,padx=3)
+    _wyn = ttk.Entry(F0,width=8,justify='left')
+    _wyn.grid(row=0,column=4,padx=3)
+    ttk.Label(F0,text='West, East, South, Nord').grid(row=0,column=5,padx=3,sticky='w')
+
+    _wcx = ttk.Entry(F0,width=8,justify='left')
+    _wcx.grid(row=1,column=1,padx=3)
+    _wcy = ttk.Entry(F0,width=8,justify='left')
+    _wcy.grid(row=1,column=2,padx=3)
+    _wcr = ttk.Entry(F0,width=8,justify='left')
+    _wcr.grid(row=1,column=3,padx=3)
+    ttk.Label(F0,text='X, Y, Radius').grid(row=1,column=5,padx=3,sticky='w')
+
+    _wxw.configure(state='disabled')
+    _wxe.configure(state='disabled')
+    _wys.configure(state='disabled')
+    _wyn.configure(state='disabled')
+    _wcx.configure(state='disabled')
+    _wcy.configure(state='disabled')
+    _wcr.configure(state='disabled')
+
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=2,column=0,padx=3,pady=3)
+    _aent = ttk.Entry(F0,textvariable=PATCH.ALIAS,width=17,justify='left')
+    _aent.grid(row=2,column=1,columnspan=2,sticky='w')
+#
+
+    F0.grid(row=0,column=0)
+
+    if self.nellipse > 0:
+      ii = self.ELLIPSE_INDX.get()
+    else:
+      ii = -1
+
+    F1 = ttk.Frame(self.Window_patch,padding=5)
+    ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=2,padx=3)
+    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=3,padx=3)
+    F1.grid(row=1,column=0)
+
+
+
+  def patch_config(self):
+  # =======================
+
+    if self.npatch == 0:
+      messagebox.showinfo(message='No patch added yet')
+      return
+
+    ii = self.PATCH_INDX.get()
+    global pshow
+
+    def _cancel():
+    # ============
+      self.Window_patchconfig.destroy()
+      self.Window_patchconfig = None
+
+    def _apply():
+    # ===========
+      self.make_plot()
+
+    def _done():
+    # ==========
+      self.Window_patchconfig.destroy()
+      self.Window_patchconfig = None
+      self.make_plot()
+
+    def _loadconf():
+    # =============
+      '''Load patch configuration'''
+      toconsola('Restoring patch configuration from '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.PATCH[ii].PLOT.load(self.PATCH[ii].PLOT.FILECONF)
+        self.make_plot()
+      except:
+        toconsola('Error: Unable to load file '+
+              self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+
+    def _saveconf():
+    # =============
+      '''Load patch configuration'''
+      toconsola('Saving patch configuration to '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.PATCH[ii].PLOT.save(FF.PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+
+    def _loadfromconf():
+    # ==================
+      '''Load patch configuration from a file'''
+      nn = filedialog.askopenfilename(title='Load patch configuration',
+                                      parent=self.Window_patchconfig,
+                                      initialdir=COSMO_CONF)
+      if len(nn) == 0:
+        return
+
+      self.PATCH[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Restoring patch configuration from '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.PATCH[ii].PLOT.load(self.PATCH[ii].PLOT.FILECONF)
+        self.make_plot()
+      except:
+        toconsola('Error: Unable to load file '+
+              self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+
+
+    def _saveasconf():
+    # ================
+      '''Load patch configuration'''
+      nn = filedialog.asksaveasfilename(title='Save patch configuration',
+                                        parent=self.Window_patchconfig,
+                                        initialdir=COSMO_CONF,
+                                        confirmoverwrite=True)
+      if nn is None or len(nn) == 0:
+        return
+
+
+      self.PATCH[ii].PLOT.FILECONF = '%s' % nn
+      toconsola('Saving patch configuration to '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+      try:
+        self.PATCH[ii].PLOT.save(self.PATCH[ii].PLOT.FILECONF)
+      except:
+        toconsola('Error: Unable to write file '+
+            self.PATCH[ii].PLOT.FILECONF,wid=self.cons)
+
+    if self.Window_patchconfig is not None:
+      self.Window_patchconfig.lift()
+      return
+
+    def _selected():
+    # ==============
+    
+      ii = self.FLOAT_INDX.get()
+
+      global pshow
+      pshow.destroy()
+
+      pshow = ttk.Frame(self.Window_patchconfig,padding=10)
+
+      patch.Configuration(pshow,self.PATCH[ii])
+
+      f0 = ttk.Frame(pshow,padding=5)
+      ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+          grid(row=0,column=1,padx=3)
+      ttk.Button(f0,text='Close',command=_done,padding=5).     \
+          grid(row=0,column=2,padx=3)
+      f0.grid(sticky='ew',columnspan=3)
+      pshow.grid()
+
+
+    # Main window
+    # ============
+
+    self.Window_patchconfig = tk.Toplevel(self.master)
+    self.Window_patchconfig.title('Patch configuration')
+    self.Window_patchconfig.resizable(width=True,height=True)
+    self.Window_patchconfig.protocol('WM_DELETE_WINDOW',_cancel)
+
+    menubar = tk.Menu(self.Window_patchconfig)
+    menu = tk.Menu(menubar,tearoff=0)
+    menubar.add_cascade(label='Configuration',menu=menu)
+    menu.add_command(label='Restore',command=_loadconf)
+    menu.add_command(label='Restore from',command=_loadfromconf)
+    menu.add_command(label='Save',command=_saveconf)
+    menu.add_command(label='Save as',command=_saveasconf)
+    try:
+      self.Window_patchconfig.config(menu=menubar)
+    except AttributeError:
+      # master is a toplevel window (Python 2.4/Tkinter 1.63)
+      master.tk.call(Window_patchconfig, "config", "-menu", menubar)
+
+    fsel = ttk.Frame(self.Window_patchconfig,padding=10)
+    ttk.Label(fsel,text="Patch: ").grid(row=0,column=0,sticky='e',padx=3)
+    _wsel = ttk.Combobox(fsel,textvariable=self.PATCH_INDX,
+                              values=self.PATCH_LIST,width=5)
+    _wsel.grid(row=0,column=1,sticky='w',padx=3)
+    _wsel.bind('<<ComboboxSelected>>',lambda e:_selected())
+    #_went = ttk.Entry(fsel,justify='left',width=50,state='readonly')
+    #_went.grid(row=0,column=2,columnspan=5,padx=3,sticky='w')
+    #_went = ttk.Entry(fsel,justify='left',width=80,state='readonly')
+    #_went.grid(row=0,column=2,columnspan=8,padx=3,sticky='w')
+    fsel.grid()
+
+    #_went ['textvariable'] = self.PATCH[ii].FILENAME
+
+    pshow = ttk.Frame(self.Window_patchconfig,padding=10)
+
+    patch.Configuration(pshow,self.PATCH[ii])
+
+    f0 = ttk.Frame(pshow,padding=5)
+    ttk.Button(f0,text='Apply',command=_apply,padding=5).   \
+        grid(row=0,column=1,padx=3)
+    ttk.Button(f0,text='Close',command=_done,padding=5).     \
+        grid(row=0,column=2,padx=3)
+    f0.grid(sticky='ew',columnspan=3)
+    pshow.grid()
 

@@ -73,6 +73,12 @@ class parameters():
     self.WEIGHT            = tk.StringVar()
     self.ZORDER            = tk.IntVar()
     self.TSIZE             = tk.DoubleVar()
+    self.ANGLE             = tk.DoubleVar()
+    self.XPAD              = tk.DoubleVar()
+    self.YPAD              = tk.DoubleVar()
+    self.BBOX              = tk.BooleanVar()
+    self.BBOX_FACECOLOR    = tk.StringVar()
+    self.BBOX_ALPHA        = tk.DoubleVar()
 
     # Default attribute values:
     #
@@ -92,6 +98,12 @@ class parameters():
     self.WEIGHT.set('bold')
     self.ZORDER.set(1)
     self.TSIZE.set(10)
+    self.ANGLE.set(0)
+    self.XPAD.set(0.1)
+    self.YPAD.set(0)
+    self.BBOX.set(False)
+    self.BBOX_FACECOLOR.set('white')
+    self.BBOX_ALPHA.set(0.5)
 
     # If configuration file exists, it is read and
     # the default values are overrided. If the configuration
@@ -132,6 +144,12 @@ class parameters():
     conf['WEIGHT'] = self.WEIGHT.get()
     conf['ZORDER'] = self.ZORDER.get()
     conf['TSIZE'] = self.TSIZE.get()
+    conf['ANGLE'] = self.ANGLE.get()
+    conf['XPAD'] = self.XPAD.get()
+    conf['YPAD'] = self.YPAD.get()
+    conf['BBOX'] = self.BBOX.get()
+    conf['BBOX_FACECOLOR'] = self.BBOX_FACECOLOR.get()
+    conf['BBOX_ALPHA'] = self.BBOX_ALPHA.get()
     return conf
 
   def conf_set(self,conf):
@@ -143,9 +161,9 @@ class parameters():
     self.SYMBOL.set(conf['SYMBOL'])
     self.COLOR.set(conf['COLOR'])
     self.ALPHA.set(conf['ALPHA'])
-    self.EDGECOLOR.get(conf['EDGECOLOR'])
-    self.FACECOLOR.get(conf['FACECOLOR'])
-    self.LINEWIDTH.get(conf['LINEWIDTH'])
+    self.EDGECOLOR.set(conf['EDGECOLOR'])
+    self.FACECOLOR.set(conf['FACECOLOR'])
+    self.LINEWIDTH.set(conf['LINEWIDTH'])
     self.HA.set(conf['HA'])
     self.VA.set(conf['VA'])
     self.WRAP.set(conf['WRAP'])
@@ -154,6 +172,13 @@ class parameters():
     self.WEIGHT.set(conf['WEIGHT'])
     self.ZORDER.set(conf['ZORDER'])
     self.TSIZE.set(conf['TSIZE'])
+    self.ANGLE.set(conf['ANGLE'])
+    self.XPAD.set(conf['XPAD'])
+    self.YPAD.set(conf['YPAD'])
+    self.BBOX.set(conf['BBOX'])
+    self.BBOX_FACECOLOR.set(conf['BBOX_FACECOLOR'])
+    self.BBOX_ALPHA.set(conf['BBOX_ALPHA'])
+
 
   def conf_load(self,filename):
   # ============================

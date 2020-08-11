@@ -5,11 +5,13 @@ BINDIR = $(COSMO)/bin
 LIBDIR = $(COSMO)/lib
 INCDIR = $(COSMO)/include
 
+#FFLAGS = -fno-range-check -fbounds-check
+
 
 TARGET = blm
 
-OBJ = hinterpol.o floats.o \
-      fillcoast.o mod_out.o clm.o help.o udf.o main.o
+OBJ = hinterpol.o floats.o grids.o \
+      fillcoast.o mod_out.o rhs.o clm.o help.o udf.o main.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< -I../../include $(CDFINC)

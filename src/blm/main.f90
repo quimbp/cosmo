@@ -33,17 +33,19 @@ use cosmo
 use clm
 use mod_floats
 use mod_out
+use grids
+use mrhs
 
 implicit none
 
 character(len=*), parameter             :: version = 'v0.2'
 character(len=*), parameter             :: author = 'Quim Ballabrera'
 
-type(floater)                           :: FLT
-type(cdf_vgrid)                         :: UCDF
-type(cdf_vgrid)                         :: VCDF
-type(cdf_vgrid)                         :: WCDF
-type(cdf_tgrid)                         :: TCDF
+!type(floater)                           :: FLT
+!type(cdf_vgrid)                         :: UCDF
+!type(cdf_vgrid)                         :: VCDF
+!type(cdf_vgrid)                         :: WCDF
+!type(cdf_tgrid)                         :: TCDF
 
 
 ! ... I/O flags and options
@@ -313,7 +315,8 @@ endif
 
 call floats_ini(FLT,UCDF%x,UCDF%y,UCDF%land(:,:,1))
 
-call clm_ini (UCDF,VCDF,WCDF,TCDF)
+!call clm_ini (UCDF,VCDF,WCDF,TCDF)
+call clm_ini ()
 
 ! ... Open trajectory file:
 ! ...
@@ -328,7 +331,8 @@ endif
 
 ! ... Run the trajectory integrator
 ! ...
-call clm_run (UCDF,VCDF,WCDF,TCDF,FLT)
+!call clm_run (UCDF,VCDF,WCDF,TCDF,FLT)
+call clm_run ()
 
 ! ... Write exit mode:
 ! ...

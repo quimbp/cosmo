@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 import numpy as np
 from netCDF4 import Dataset,num2date
 
@@ -143,6 +144,12 @@ class fld_parameters():
       data = self.nc.variables[self.varname][L,K,:,:].squeeze()
 
 
+    # Eliminate NaN values in field:
+    fill_value = data.fill_value
+    a = data.filled()
+    a[np.isnan(a)] = fill_value
+    data = np.ma.masked_equal(a,fill_value)
+
     # Check if the returned arrays is Masked Array:
     #if isinstance(data,np.ma.MaskedArray):
     #  pass
@@ -158,6 +165,65 @@ class fld_parameters():
     #tools.toconsola('Max val = '+str(self.maxval),wid=wid)
 
     return data
+
+  def mean(self,nt,K=0,**args):
+  # ============================
+    ''' Computes the time mean of 2D field from netcdf file and returns the data array'''
+
+    #print('In FIELD MEAN ....', K)
+    #print('varname: ', self.varname)
+    #print('varid: ', self.varid)
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    for L in range(0,nt):
+      print('L = ', L)
+      data = self.read(K=K,L=L,wid=wid)
+      print(type(data))
+      if L==0:
+        num = data.copy()
+      else:
+        num = num + data
+
+    self.data = num / nt
+    self.minval = float(self.data.min())
+    self.maxval = float(self.data.max())
+
+
+  def variance(self,nt,K=0,**args):
+  # ===============================
+    ''' Computes the time variance of 2D field from netcdf file and returns the data array'''
+
+    print('In FIELD VARIANCE ....', K)
+    print('varname: ', self.varname)
+    print('varid: ', self.varid)
+    try:
+      wid = args["wid"]
+    except:
+      wid = None
+
+    print('nt = ', nt)
+
+    for L in range(0,nt):
+      print('L = ', L)
+      data = self.read(K=K,L=L,wid=wid)
+      print(type(data))
+      if L==0:
+        num1 = data.copy()
+        num2 = np.square(data)
+      else:
+        num1 += data
+        num2 += np.square(data)
+
+    data = num2/nt - np.square(num1/nt)
+
+    self.data = data.copy()
+    self.minval = float(self.data.min())
+    self.maxval = float(self.data.max())
+
+
 
   def get_info(self,**args):
   # ========================
@@ -254,6 +320,22 @@ class fld_parameters():
   #============================
     ''' Sets the T_LIST, DATE and TIME selector values '''
 
+    answer = tk.StringVar()
+
+    def _yes():
+    # ---------
+      global ww
+      ww.destroy()
+      ww = None
+      answer.set('Y')
+
+    def _no():
+    # ---------
+      global ww
+      ww.destroy()
+      ww = None
+      answer.set('N')
+
     try:
       wid = args["wid"]
     except:
@@ -263,8 +345,50 @@ class fld_parameters():
 
       # T_LIST
       if self.icdf.withT:
+
+        # ... Read the time axis
+        # ...
         wrk = self.nc.variables[self.icdf.tname][:]
-        T_LIST = list(wrk)
+
+        # ... Verify that all values are valid,
+        # ... If not, raise an alarm !
+        # ...
+        if np.ma.is_masked(wrk):          # Not good
+
+          wrk2 = wrk.copy()
+          wrk2.mask = False
+
+          global ww
+          ww = tk.Toplevel()
+          ww.title('Time values')
+          ww.resizable(width=False,height=False)
+          ww.protocol('WM_DELETE_WINDOW',_no)
+          ttk.Label(ww,text='Error').grid(row=0,column=0,sticky='w')
+          ttk.Label(ww,text='Time axis has masked values').grid(row=1,column=0,sticky='w')
+          ttk.Label(ww,text='List of values in NetCDF file:').grid(row=2,column=0,sticky='ew')
+          log = tk.Text(ww,height=5)
+          log.grid(row=3,column=0,columnspan=3,padx=10,pady=10,sticky='nsew')
+
+          # Scrollbar
+          scrollb = tk.Scrollbar(ww,command=log.yview)
+          scrollb.grid(row=3,column=3,sticky='nsew',padx=2,pady=2)
+          log['yscrollcommand'] = scrollb.set
+
+          for i in range(len(wrk2)):
+            string = '\t {};\n'.format(wrk2[i])
+            log.insert('end',string)
+          log.configure(state='disabled')
+          ttk.Label(ww,text='Accept values?').grid(row=8,column=0)
+          ttk.Button(ww,text='Yes',command=_yes).grid(row=8,column=1)
+          ttk.Button(ww,text='No',command=_no).grid(row=8,column=2)
+          ww.wait_window()
+
+          if answer.get() == 'Y':
+            T_LIST = list(wrk2)
+          else:
+            T_LIST = np.arange(self.icdf.nt)
+        else:
+          T_LIST = list(wrk)
       else:
         T_LIST = np.arange(self.icdf.nt)
 

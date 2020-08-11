@@ -85,8 +85,6 @@ class parameters():
     self.CURRENT_HEADLENGTH= tk.IntVar()
     self.CURRENT_HEADWIDTH = tk.IntVar()
     self.CURRENT_COLOR     = tk.StringVar()
-    self.CURRENT_ALPHA     = tk.DoubleVar()
-    self.CURRENT_ZORDER    = tk.IntVar()
 
     self.BARB_LENGTH       = tk.IntVar()
     self.BARB_PIVOT        = tk.StringVar()
@@ -99,16 +97,15 @@ class parameters():
     self.BARB_HALF         = tk.IntVar()
     self.BARB_FULL         = tk.IntVar()
     self.BARB_FLAG         = tk.IntVar()
-    self.BARB_ALPHA        = tk.DoubleVar()
     self.BARB_LINEWIDTH    = tk.DoubleVar()
-    self.BARB_ZORDER       = tk.IntVar()
     self.BARB_SCALE        = tk.DoubleVar()
 
     self.STREAM_DENSITY    = tk.DoubleVar()
     self.STREAM_WIDTH      = tk.DoubleVar()
     self.STREAM_COLOR      = tk.StringVar()
-    self.STREAM_ZORDER     = tk.IntVar()
 
+    self.ALPHA             = tk.DoubleVar()
+    self.ZORDER            = tk.IntVar()
     self.COLOR_BY_SPEED    = tk.BooleanVar()
 
     self.KEY_SHOW  = tk.BooleanVar()
@@ -137,15 +134,13 @@ class parameters():
     self.CURRENT_HEADLENGTH.set(5)
     self.CURRENT_HEADWIDTH.set(3)
     self.CURRENT_COLOR.set('black')
-    self.CURRENT_ALPHA.set(1.0)
-    self.CURRENT_ZORDER.set(3)
+    self.ALPHA.set(1.0)
+    self.ZORDER.set(3)
     self.BARB_PIVOT.set('middle')
     self.BARB_LENGTH.set(7)
     self.BARB_BARBCOLOR.set('black')
     self.BARB_FLAGCOLOR.set('black')
     self.BARB_LINEWIDTH.set(1.0)
-    self.BARB_ALPHA.set(1.0)
-    self.BARB_ZORDER.set(3)
     self.BARB_SCALE.set(1.9438445)
     self.BARB_HALF.set(5)
     self.BARB_FULL.set(10)
@@ -157,13 +152,12 @@ class parameters():
     self.STREAM_WIDTH.set(2)
     self.STREAM_DENSITY.set(1)
     self.STREAM_COLOR.set('black')
-    self.STREAM_ZORDER.set(3)
     self.COLOR_BY_SPEED.set(False)
     self.KEY_SHOW.set(True)
     self.KEY_VALUE.set(1)
     self.KEY_LABEL.set('m/s')
     self.KEY_X.set(0.85)
-    self.KEY_Y.set(0.12)
+    self.KEY_Y.set(0.10)
     self.KEY_POS.set('E')
     self.KEY_COLOR.set('black')
     self.KEY_SIZE.set(12)
@@ -200,8 +194,8 @@ class parameters():
     conf['CURRENT_HEADLENGTH'] = self.CURRENT_HEADLENGTH.get()
     conf['CURRENT_HEADWIDTH'] = self.CURRENT_HEADWIDTH.get()
     conf['CURRENT_COLOR'] = self.CURRENT_COLOR.get()
-    conf['CURRENT_ALPHA'] = self.CURRENT_ALPHA.get()
-    conf['CURRENT_ZORDER'] = self.CURRENT_ZORDER.get()
+    conf['ALPHA'] = self.ALPHA.get()
+    conf['ZORDER'] = self.ZORDER.get()
 
     conf['BARB_LENGTH'] = self.BARB_LENGTH.get()
     conf['BARB_PIVOT'] = self.BARB_PIVOT.get()
@@ -214,15 +208,12 @@ class parameters():
     conf['BARB_HALF'] = self.BARB_HALF.get()
     conf['BARB_FULL'] = self.BARB_FULL.get()
     conf['BARB_FLAG'] = self.BARB_FLAG.get()
-    conf['BARB_ALPHA'] = self.BARB_ALPHA.get()
     conf['BARB_LINEWIDTH'] = self.BARB_LINEWIDTH.get()
-    conf['BARB_ZORDER'] = self.BARB_ZORDER.get()
     conf['BARB_SCALE'] = self.BARB_SCALE.get()
 
     conf['STREAM_DENSITY'] = self.STREAM_DENSITY.get()
     conf['STREAM_WIDTH'] = self.STREAM_WIDTH.get()
     conf['STREAM_COLOR'] = self.STREAM_COLOR.get()
-    conf['STREAM_ZORDER'] = self.STREAM_ZORDER.get()
 
     conf['COLOR_BY_SPEED'] = self.COLOR_BY_SPEED.get()
     conf['KEY_SHOW'] = self.KEY_SHOW.get()
@@ -251,8 +242,8 @@ class parameters():
     self.CURRENT_HEADLENGTH.set(conf['CURRENT_HEADLENGTH'])
     self.CURRENT_HEADWIDTH.set(conf['CURRENT_HEADWIDTH'])
     self.CURRENT_COLOR.set(conf['CURRENT_COLOR'])
-    self.CURRENT_ALPHA.set(conf['CURRENT_ALPHA'])
-    self.CURRENT_ZORDER.set(conf['CURRENT_ZORDER'])
+    self.ALPHA.set(conf['ALPHA'])
+    self.ZORDER.set(conf['ZORDER'])
 
     self.BARB_LENGTH.set(conf['BARB_LENGTH'])
     self.BARB_PIVOT.set(conf['BARB_PIVOT'])
@@ -265,15 +256,12 @@ class parameters():
     self.BARB_HALF.set(conf['BARB_HALF'])
     self.BARB_FULL.set(conf['BARB_FULL'])
     self.BARB_FLAG.set(conf['BARB_FLAG'])
-    self.BARB_ALPHA.set(conf['BARB_ALPHA'])
     self.BARB_LINEWIDTH.set(conf['BARB_LINEWIDTH'])
-    self.BARB_ZORDER.set(conf['BARB_ZORDER'])
     self.BARB_SCALE.set(conf['BARB_SCALE'])
 
     self.STREAM_DENSITY.set(conf['STREAM_DENSITY'])
     self.STREAM_WIDTH.set(conf['STREAM_WIDTH'])
     self.STREAM_COLOR.set(conf['STREAM_COLOR'])
-    self.STREAM_ZORDER.set(conf['STREAM_ZORDER'])
     self.COLOR_BY_SPEED.set(conf['COLOR_BY_SPEED'])
     self.KEY_SHOW.set(conf['KEY_SHOW'])
     self.KEY_VALUE.set(conf['KEY_VALUE'])
@@ -458,13 +446,13 @@ def Configuration(parent,PLOT):
   ttk.Label(frame1,
             text='Alpha').grid(row=7,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_ALPHA,
+            textvariable=PLOT.ALPHA,
             justify='left',
             width=8).grid(row=7,column=1,sticky='w')
   ttk.Label(frame1,
             text='Zorder').grid(row=8,column=0,columnspan=1,sticky='w')
   ttk.Entry(frame1,
-            textvariable=PLOT.CURRENT_ZORDER,
+            textvariable=PLOT.ZORDER,
             justify='left',width=8). \
             grid(row=8,column=1,sticky='w')
   frame1.grid()
@@ -594,12 +582,12 @@ def Configuration(parent,PLOT):
   ttk.Label(frame5,
             text='Alpha').grid(row=16,column=0,sticky='w')
   ttk.Entry(frame5,
-            textvariable=PLOT.BARB_ALPHA,
+            textvariable=PLOT.ALPHA,
             width=7).grid(row=16,column=1,sticky='w')
   ttk.Label(frame5,
             text='Zorder').grid(row=17,column=0,sticky='w')
   ttk.Entry(frame5,
-            textvariable=PLOT.BARB_ZORDER,
+            textvariable=PLOT.ZORDER,
             width=7).grid(row=17,column=1,sticky='w')
   ttk.Label(frame5,
             text='Scale factor').grid(row=18,column=0,sticky='w')
@@ -639,7 +627,7 @@ def Configuration(parent,PLOT):
   ttk.Label(frame3,
             text='Zorder').grid(row=5,column=0,sticky='w')
   ttk.Entry(frame3,
-            textvariable=PLOT.STREAM_ZORDER,
+            textvariable=PLOT.ZORDER,
             width=7).grid(row=5,column=1,sticky='w')
   frame3.grid()
 
@@ -686,7 +674,7 @@ def drawing(ax,proj,CFIELD):
                    color=CFIELD.PLOT.STREAM_COLOR.get(),      \
                    linewidth=CFIELD.PLOT.STREAM_WIDTH.get(),  \
                    density=CFIELD.PLOT.STREAM_DENSITY.get(),  \
-                   zorder=CFIELD.PLOT.STREAM_ZORDER.get(),    \
+                   zorder=CFIELD.PLOT.ZORDER.get(),    \
                    transform=proj)
     else:
      CFIELD.PLOT.MESSAGE += 'VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection'
@@ -729,8 +717,8 @@ def drawing(ax,proj,CFIELD):
                       headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
                       headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
                       scale=CFIELD.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.PLOT.CURRENT_ZORDER.get())
+                      alpha=CFIELD.PLOT.ALPHA.get(),
+                      zorder=CFIELD.PLOT.ZORDER.get())
       else:
         quiver = ax.quiver(xplt,yplt,uplt,vplt,  \
                       transform=proj, \
@@ -739,8 +727,8 @@ def drawing(ax,proj,CFIELD):
                       headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
                       headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
                       scale=CFIELD.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.PLOT.CURRENT_ALPHA.get(),
-                      zorder=CFIELD.PLOT.CURRENT_ZORDER.get())
+                      alpha=CFIELD.PLOT.ALPHA.get(),
+                      zorder=CFIELD.PLOT.ZORDER.get())
                       
       if CFIELD.PLOT.KEY_SHOW.get():
         CFIELD.PLOT.KEY_OBJ = ax.quiverkey(quiver,
@@ -777,8 +765,8 @@ def drawing(ax,proj,CFIELD):
                         barb_increments=barb_increments,
                         sizes=sizes,
                         transform=proj, 
-                        alpha=CFIELD.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.PLOT.BARB_ZORDER.get())  
+                        alpha=CFIELD.PLOT.ALPHA.get(),
+                        zorder=CFIELD.PLOT.ZORDER.get())  
       else:
         barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,
                         pivot=CFIELD.PLOT.BARB_PIVOT.get(),
@@ -789,5 +777,5 @@ def drawing(ax,proj,CFIELD):
                         barb_increments=barb_increments,
                         sizes=sizes,
                         transform=proj, 
-                        alpha=CFIELD.PLOT.BARB_ALPHA.get(),
-                        zorder=CFIELD.PLOT.BARB_ZORDER.get())
+                        alpha=CFIELD.PLOT.ALPHA.get(),
+                        zorder=CFIELD.PLOT.ZORDER.get())
