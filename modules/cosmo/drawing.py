@@ -3225,9 +3225,17 @@ class CosmoDrawing():
         
       if TYPE == 'FLOAT':
 
-        ttk.Checkbutton(F0,variable=self.FLOAT[ii].SHOW,\
+        ttk.Checkbutton(F0,variable=self.FLOAT[ii].show,\
                  command=self.make_plot). \
                  grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.FLOAT[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.FLOAT[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.FLOAT[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.FLOAT[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
         
       if TYPE == 'SAIDIN':
         ttk.Checkbutton(F0,variable=self.SAIDIN.show,\
@@ -7697,7 +7705,10 @@ class CosmoDrawing():
         _went['textvariable'] = self.FLOAT[ii].FILENAME
         _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
         _wsel.configure(state='!disabled')
-        _show['variable']=self.FLOAT[ii].SHOW
+        _show['variable']=self.FLOAT[ii].show
+        _aent.configure(state='normal')
+        _aent['textvariable'] = self.FLOAT[ii].ALIAS
+
       else:
         self.FLOAT         = []
         self.FLOAT_LIST    = ['0']
@@ -7707,6 +7718,9 @@ class CosmoDrawing():
         _went['textvariable'] = ''
         _wstat['text'] = ''
         _wsel.configure(state='disabled')
+        _aent.configure(state='disabled')
+        _show.configure(state='disabled')
+
 
     def _add():
     # ========
@@ -7915,14 +7929,22 @@ class CosmoDrawing():
 
     _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
 
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=2,column=2,columnspan=2,sticky='w')
+
     F0.grid(row=0,column=0)
 
     F1 = ttk.Frame(self.Window_float,padding=5)
     if ii == -1:
       _show = ttk.Checkbutton(F1,text='Show')
+      _aent.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
-      _show['variable']=self.FLOAT[ii].SHOW
+      _show['variable']=self.FLOAT[ii].show
+      _aent['textvariable'] = self.FLOAT[ii].ALIAS
+
     _show.grid(row=1,column=5,padx=3)
     ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)
     ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)

@@ -71,6 +71,8 @@ class parameters():
     self.ONMAP_STYLE       = tk.StringVar()
     self.ONMAP_SIZE        = tk.IntVar()
     self.ONMAP_COLOR       = tk.StringVar()
+    self.ZORDER            = tk.IntVar()
+    self.ALPHA             = tk.DoubleVar()
 
     # Default attribute values
     #
@@ -93,6 +95,9 @@ class parameters():
     self.ONMAP_STYLE.set('o')
     self.ONMAP_COLOR.set('red')
     self.ONMAP_SIZE.set(4)
+
+    self.ZORDER.set(4)
+    self.ALPHA.set(1.0)
 
     # If configuration file exists, it is read and
     # the default values are overrided. If the configuration
@@ -133,6 +138,8 @@ class parameters():
     conf['ONMAP_STYLE'] = self.ONMAP_STYLE.get()
     conf['ONMAP_COLOR'] = self.ONMAP_COLOR.get()
     conf['ONMAP_SIZE'] = self.ONMAP_SIZE.get()
+    conf['ZORDER'] = self.ZORDER.get()
+    conf['ALPHA'] = self.ALPHA.get()
     return conf
 
   def conf_set(self,conf):
@@ -155,6 +162,8 @@ class parameters():
     self.ONMAP_STYLE.set(conf['ONMAP_STYLE'])
     self.ONMAP_COLOR.set(conf['ONMAP_COLOR'])
     self.ONMAP_SIZE.set(conf['ONMAP_SIZE'])
+    self.ZORDER.set(conf['ZORDER'])
+    self.ALPHA.set(conf['ALPHA'])
 
   def conf_load(self,filename):
   # ============================
@@ -228,6 +237,14 @@ def Configuration(parent,PLOT):
             grid(row=3,column=2,sticky='w')
   F0.grid(row=0,column=0,padx=20,pady=10,ipadx=20,ipady=10)
 
+  F3 = tk.LabelFrame(parent,text='Other options',borderwidth=5,font=font_bold)
+  ttk.Label(F3,text='Alpha').grid(row=0,column=0,padx=10,sticky='w')
+  ttk.Entry(F3,textvariable=PLOT.ALPHA,width=8,justify="center").grid(row=0,column=1,sticky='w')
+  ttk.Label(F3,text='Zorder').grid(row=1,column=0,padx=10,sticky='w')
+  ttk.Entry(F3,textvariable=PLOT.ZORDER,width=8,justify="center").grid(row=1,column=1,sticky='w')
+  F3.grid(row=0,column=1,padx=20,pady=10,ipadx=20,ipady=10)
+
+
   F1 = tk.LabelFrame(parent,text='Marker options',borderwidth=5,font=font_bold)
   ttk.Checkbutton(F1,text='Marker show',variable=PLOT.MARKER_SHOW, \
             style="fcbold.TCheckbutton").grid(row=0,column=0,columnspan=2,pady=10,sticky='e')
@@ -269,14 +286,25 @@ def Configuration_OnMap(parent,PLOT,LL):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
+  sfline, ssmarker = ttk.Style(), ttk.Style()
+  global LLabel
+
   def iselection():
+    global Llabel
     '''Select floater'''
-    cbox['text'] = LL.FLOAT_COLOR[LL.I.get()]
+    #cbox['text'] = LL.FLOAT_COLOR[LL.I.get()]
+    LLabel['textvariable'] = LL.FLOAT_COLOR[LL.I.get()]
+    _ifshow['variable'] = LL.FLOAT_SHOW[LL.I.get()]
+    _ifzord['textvariable'] = LL.FLOAT_ZORDER[LL.I.get()]
+    sfline.configure("sfline.TLabel",background=LL.FLOAT_COLOR[LL.I.get()].get(),anchor="center")
+    #LLabel.configure(style="sfline.Tlabel")
+
 
   def cselection():
     '''Select floater'''
-    print(cbox.get())
+    #print(cbox.get())
     LL.FLOAT_COLOR[LL.I.get()].set(cbox.get())
+    LLabel['textvariable'] = LL.FLOAT_COLOR[LL.I.get()]
 
   def default_color():
     for i in range(LL.nfloats):
@@ -307,9 +335,10 @@ def Configuration_OnMap(parent,PLOT,LL):
   # Styles
   font_bold = tkfont.Font(font='TkDefaultFont').copy()
   font_bold['weight']='bold'
-  sline, ssmarker = ttk.Style(), ttk.Style()
+
   ssmarker.configure("ssmarker.TLabel",background=PLOT.ONMAP_COLOR.get(),anchor="center")
-  sline.configure("sline.TLabel",background=LL.FLOAT_COLOR[LL.I.get()].get(),anchor="center")
+  sfline.configure("sfline.TLabel",background=LL.FLOAT_COLOR[LL.I.get()].get(),anchor="center")
+
   fcbold=ttk.Style()
   fcbold.configure("fcbold.TCheckbutton",font=font_bold)
  
@@ -338,21 +367,30 @@ def Configuration_OnMap(parent,PLOT,LL):
   ttk.Entry(F1,textvariable=LL.L2,justify='left',width=8).grid(row=2,column=1,sticky='w')
   F1.grid(row=1,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='ew')
 
-  F2 = tk.LabelFrame(parent,text='Individual Float Color',borderwidth=5,font=font_bold)
-  ttk.Checkbutton(F2,text='Individual colors',variable=LL.SEPARATED_COLOR, \
+  F2 = tk.LabelFrame(parent,text='Individual Float options',borderwidth=5,font=font_bold)
+  ttk.Checkbutton(F2,text='Use individual options',variable=LL.SEPARATED_COLOR, \
             style="fcbold.TCheckbutton").grid(row=0,column=1,columnspan=2)
+
   ttk.Label(F2,text='Floater:').grid(row=1,column=0,padx=3)
   ibox = ttk.Combobox(F2,textvariable=LL.I,width=5)
   ibox.grid(row=1,column=1,sticky='w')
   ibox.bind('<<ComboboxSelected>>',lambda e: iselection())
   ibox['values'] = list(range(LL.nfloats))
-  ttk.Label(F2,text='Line Color').grid(row=1,column=2,padx=10,sticky='w')
-  LLabel = ttk.Label(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],width=8,style="sline.TLabel")
-  LLabel.grid(row=1,column=3,sticky='w')
+
+  _ifshow = ttk.Checkbutton(F2,text='Show',variable=LL.FLOAT_SHOW[LL.I.get()])
+  _ifshow.grid(row=1,column=2,padx=3,sticky='we')
+
+  ttk.Label(F2,text='Zorder').grid(row=1,column=3,padx=10,sticky='w')
+  _ifzord = ttk.Entry(F2,textvariable=LL.FLOAT_ZORDER[LL.I.get()],justify='left',width=8)
+  _ifzord.grid(row=1,column=4,sticky='w')
+
+  ttk.Label(F2,text='Color').grid(row=1,column=5,padx=10,sticky='w')
+  LLabel = ttk.Label(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],width=8,style="sfline.TLabel")
+  LLabel.grid(row=1,column=6,sticky='w')
   LLabel.bind('<Return>',lambda e: cselection())
   ttk.Button(F2,text='Select',command=lambda:colsel(LL.FLOAT_COLOR[LL.I.get()], \
-            sline,LLabel,"sline.TLabel",master=parent)). \
-            grid(row=1,column=4,sticky='w')
+            sfline,LLabel,"sfline.TLabel",master=parent)). \
+            grid(row=1,column=7,sticky='w')
             
   ''' OJO NO SE SI ESCORRECTO
   cbox = ttk.Entry(F2,textvariable=LL.FLOAT_COLOR[LL.I.get()],justify='left',width=10)
@@ -361,7 +399,7 @@ def Configuration_OnMap(parent,PLOT,LL):
   '''
   # AAA
   #ttk.Button(F2,text='Select',command=line_color).grid(row=1,column=4,padx=3,sticky='ew')
-  ttk.Button(F2,text='Default',command=default_color).grid(row=1,column=5,padx=3,sticky='w')
+  ttk.Button(F2,text='Default',command=default_color).grid(row=1,column=8,padx=3,sticky='w')
   F2.grid(row=2,column=0,padx=20,pady=10,ipadx=20,ipady=10,sticky='w')
 
 # ======================================================

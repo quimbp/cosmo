@@ -71,8 +71,9 @@ class parameters():
     self.FILECONF        = COSMO_CONF + 'trajectory.conf'
 
     self.FILENAME        = tk.StringVar()
-    self.SOURCE          = ''
-    self.SHOW            = tk.BooleanVar()
+    self.SOURCE          = 'FILE'
+    self.ALIAS           = tk.StringVar()
+    self.show            = tk.BooleanVar()
     self.I               = tk.IntVar()
     self.L               = tk.IntVar()
     self.L1              = tk.IntVar()
@@ -80,6 +81,7 @@ class parameters():
     self.SEPARATED_COLOR = tk.BooleanVar()
     self.FLOAT_COLOR     = []
     self.FLOAT_SHOW      = []
+    self.FLOAT_ZORDER    = []
 
     self.PLOT            = lineplot.parameters()
     
@@ -91,12 +93,13 @@ class parameters():
     self.lat             = []
     self.date            = []
     self.speed           = []
-    self.SOURCE          = 'blm'
+    self.SOURCE          = 'FILE'
     self.I.set(0)
     self.L.set(0)
     self.PLOT.LINE_COLOR.set('blue')
     self.SEPARATED_COLOR.set(False)
-    self.SHOW.set(True)
+    self.show.set(True)
+    self.ALIAS.set('')
 
     #if exists(self.FILECONF):
     #  print('Reading Lagrangian configuration file '+self.FILECONF)
@@ -119,22 +122,29 @@ class parameters():
     conf = {}
     conf['NFLOATS'] = self.nfloats
     conf['SOURCE']  = self.SOURCE
-    conf['SHOW']  = self.SHOW.get()
+    conf['ALIAS']  = self.ALIAS.get()
+    conf['SHOW']  = self.show.get()
     conf['I']  = self.I.get()
     conf['L']  = self.L.get()
     conf['L1'] = self.L1.get()
     conf['L2'] = self.L2.get()
     conf['SEPARATED_COLOR']  = self.SEPARATED_COLOR.get()
-    FLOAT_COLOR = []
-    FLOAT_SHOW  = []
+    FLOAT_COLOR  = []
+    FLOAT_SHOW   = []
+    FLOAT_ZORDER = []
     try:
       for i in range(self.nfloats):
         FLOAT_COLOR.append(self.FLOAT_COLOR[i].get())
-        FLOAT_SHOW.append(self.FLOAT_SHOW.get())
+        FLOAT_SHOW.append(self.FLOAT_SHOW[i].get())
+        FLOAT_ZORDER.append(self.FLOAT_ZORDER[i].get())
     except:
-      pass
+      for i in range(self.nfloats):
+        FLOAT_COLOR.append(self.PLOT.LINE_COLOR.get())
+        FLOAT_SHOW.append(self.show.get())
+        FLOAT_ZORDER.append(self.PLOT.ZORDER.get())
     conf['FLOAT_COLOR'] = FLOAT_COLOR.copy()
     conf['FLOAT_SHOW']  = FLOAT_SHOW.copy()
+    conf['FLOAT_ZORDER']  = FLOAT_ZORDER.copy()
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -144,19 +154,27 @@ class parameters():
 
     self.nfloats = conf['NFLOATS']
     self.SOURCE = conf['SOURCE']
-    self.SHOW.set(conf['SHOW'])
+    self.ALIAS.set(conf['ALIAS'])
+    self.show.set(conf['SHOW'])
     self.I.set(conf['I'])
     self.L.set(conf['L'])
     self.L1.set(conf['L1'])
     self.L2.set(conf['L2'])
     self.SEPARATED_COLOR.set(conf['SEPARATED_COLOR'])
+    self.PLOT.conf_set(conf['PLOT'])
+    self.FLOAT_COLOR = []
+    self.FLOAT_SHOW = []
+    self.FLOAT_ZORDER = []
     try:
       for i in range(self.nfloats):
-        self.FLOAT_COLOR[i].set(conf['FLOAT_COLOR'][i])
-        self.FLOAT_SHOW[i].set(conf['FLOAT_SHOW'][i])
+        self.FLOAT_COLOR.append(tk.StringVar(value=conf['FLOAT_COLOR'][i]))
+        self.FLOAT_SHOW.append(tk.BooleanVar(value=conf['FLOAT_SHOW'][i]))
+        self.FLOAT_ZORDER.append(tk.IntVar(value=conf['FLOAT_ZORDER'][i]))
     except:
-      pass
-    self.PLOT.conf_set(conf['PLOT'])
+      for i in range(self.nfloats):
+        self.FLOAT_COLOR.append(tk.StringVar(value=self.PLOT.LINE_COLOR.get()))
+        self.FLOAT_SHOW.append(tk.BooleanVar(value=self.show.get()))
+        self.FLOAT_ZORDER.append(tk.IntVar(value=self.PLOT.ZORDER.get()))
 
   def conf_load(self,filename):
   # ===========================
@@ -420,15 +438,13 @@ class parameters():
     self.L.set(0)
     self.L1.set(0)
     self.L2.set(self.nrecords-1)
-    self.FLOAT_COLOR = []
-    self.FLOAT_SHOW  = []
+    self.FLOAT_COLOR  = []
+    self.FLOAT_SHOW   = []
+    self.FLOAT_ZORDER = []
     for i in range(self.nfloats):
-      a = tk.StringVar()
-      b = tk.BooleanVar()
-      a.set(self.PLOT.LINE_COLOR.get())
-      b.set(True)
-      self.FLOAT_COLOR.append(a)
-      self.FLOAT_SHOW.append(b)
+      self.FLOAT_COLOR.append(tk.StringVar(value=self.PLOT.LINE_COLOR.get()))
+      self.FLOAT_SHOW.append(tk.BooleanVar(value=True))
+      self.FLOAT_ZORDER.append(tk.IntVar(value=self.PLOT.ZORDER.get()))
 
 # =======================
 def drawing(ax,proj,FLT):
@@ -439,7 +455,7 @@ def drawing(ax,proj,FLT):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
-  if not FLT.SHOW.get():
+  if not FLT.show.get():
     return
 
   #EG recover the cartopy projection
@@ -452,38 +468,54 @@ def drawing(ax,proj,FLT):
     for i in range(FLT.nfloats):       # Loop over buoys
       if FLT.SEPARATED_COLOR.get():
         color = FLT.FLOAT_COLOR[i].get()
+        visible = FLT.FLOAT_SHOW[i].get()
+        zorder  = FLT.FLOAT_ZORDER[i].get()
       else:
         color = FLT.PLOT.LINE_COLOR.get()
+        visible = FLT.show.get()
+        zorder  = FLT.PLOT.ZORDER.get()
 
       #EG xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
       xx, yy =  FLT.lon[r1:r2,i],FLT.lat[r1:r2,i]
       if FLT.PLOT.LINE_SHOW.get():
-        ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
-               linewidth=FLT.PLOT.LINE_WIDTH.get(), \
-               transform=proj, \
+        ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),      \
+               linewidth=FLT.PLOT.LINE_WIDTH.get(),   \
+               transform=proj,                        \
+               alpha=FLT.PLOT.ALPHA.get(),            \
+               zorder=zorder,                         \
+               visible=visible,                       \
                color=color)
                
       if FLT.PLOT.MARKER_SHOW.get():
         ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
-               ms=FLT.PLOT.INITIAL_SIZE.get(), \
-               transform=proj, \
+               ms=FLT.PLOT.INITIAL_SIZE.get(),       \
+               transform=proj,                       \
+               alpha=FLT.PLOT.ALPHA.get(),           \
+               zorder=zorder,                        \
+               visible=visible,                      \
                color=FLT.PLOT.MARKER_COLOR.get())
                
       if FLT.PLOT.INITIAL_SHOW.get():
-        ax.plot(xx[r1],yy[r1],                    \
-               FLT.PLOT.INITIAL_STYLE.get(),  \
-               ms=FLT.PLOT.INITIAL_SIZE.get(), \
-               transform=proj, \
+        ax.plot(xx[r1],yy[r1],                  \
+               FLT.PLOT.INITIAL_STYLE.get(),    \
+               ms=FLT.PLOT.INITIAL_SIZE.get(),  \
+               transform=proj,                  \
+               alpha=FLT.PLOT.ALPHA.get(),      \
+               zorder=zorder,                   \
+               visible=visible,                 \
                color=FLT.PLOT.INITIAL_COLOR.get())
                
       if FLT.PLOT.ONMAP_SHOW.get():
         L = FLT.L.get()
         #EG xx,yy = m(FLT.MAPX[L][i],FLT.MAPY[L][i])
         xx,yy = FLT.MAPX[L][i], FLT.MAPY[L][i]
-        ax.plot(xx,yy,  \
-               FLT.PLOT.ONMAP_STYLE.get(),     \
+        ax.plot(xx,yy,                          \
+               FLT.PLOT.ONMAP_STYLE.get(),      \
                ms=FLT.PLOT.ONMAP_SIZE.get(),    \
-               transform=proj, \
+               transform=proj,                  \
+               alpha=FLT.PLOT.ALPHA.get(),      \
+               zorder=zorder,                   \
+               visible=visible,                 \
                color=FLT.PLOT.ONMAP_COLOR.get())
   else:
     #EG xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
@@ -494,28 +526,40 @@ def drawing(ax,proj,FLT):
       color = FLT.PLOT.LINE_COLOR.get()
     if FLT.PLOT.LINE_SHOW.get():
       ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
-             linewidth=FLT.PLOT.LINE_WIDTH.get(), \
-             transform=proj, \
+             linewidth=FLT.PLOT.LINE_WIDTH.get(),  \
+             transform=proj,                       \
+             alpha=FLT.PLOT.ALPHA.get(),           \
+             zorder=zorder,                        \
+               visible=visible,                    \
              color=color)
     if FLT.PLOT.MARKER_SHOW.get():
       ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
-             ms=FLT.PLOT.INITIAL_SIZE.get(), \
-             transform=proj, \
+             ms=FLT.PLOT.INITIAL_SIZE.get(),       \
+             transform=proj,                       \
+             alpha=FLT.PLOT.ALPHA.get(),           \
+             zorder=zorder,                        \
+               visible=visible,                    \
              color=FLT.PLOT.LINE_COLOR.get())
     if FLT.PLOT.INITIAL_SHOW.get():
       ax.plot(xx[r1],yy[r1],                    \
-             FLT.PLOT.INITIAL_STYLE.get(),  \
-             ms=FLT.PLOT.INITIAL_SIZE.get(), \
-             transform=proj, \
+             FLT.PLOT.INITIAL_STYLE.get(),      \
+             ms=FLT.PLOT.INITIAL_SIZE.get(),    \
+             transform=proj,                    \
+             alpha=FLT.PLOT.ALPHA.get(),        \
+             zorder=zorder,                     \
+             visible=visible,                   \
              color=FLT.PLOT.INITIAL_COLOR.get())
     if FLT.PLOT.ONMAP_SHOW.get():
       L = FLT.L.get()
       #EG xx,yy = m(FLT.MAPX[L],FLT.MAPY[L])
       xx,yy = FLT.MAPX[L], FLT.MAPY[L]
-      ax.plot(xx,yy,  \
+      ax.plot(xx,yy,                         \
              FLT.PLOT.ONMAP_STYLE.get(),     \
-             ms=FLT.PLOT.ONMAP_SIZE.get(),    \
-             transform=proj, \
+             ms=FLT.PLOT.ONMAP_SIZE.get(),   \
+             transform=proj,                 \
+             alpha=FLT.PLOT.ALPHA.get(),     \
+             zorder=zorder,                  \
+             visible=visible,                \
              color=FLT.PLOT.ONMAP_COLOR.get())
 
 # =======================
