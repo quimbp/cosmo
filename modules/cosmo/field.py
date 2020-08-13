@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 from netCDF4 import Dataset,num2date
+import datetime
 
 from cosmo import tools
 
@@ -392,23 +393,30 @@ class fld_parameters():
       else:
         T_LIST = np.arange(self.icdf.nt)
 
-      # DATE
-      try:
-        DATE = []
-        for i in range(self.icdf.nt):
-          DATE.append(num2date(T_LIST[i],       \
-                      units=self.icdf.time_units,    \
-                      calendar=self.icdf.time_calendar))
-      except:
-        DATE = np.arange(self.icdf.nt)
+      # DATE and TIME
+      # Convert from NCTIME to DATETIME obsject:
+      DATE = []
+      TIME = []
+      for i in range(self.icdf.nt):
+        tmp = num2date(T_LIST[i],       \
+                   units=self.icdf.time_units,    \
+                   calendar=self.icdf.time_calendar)
+        s = tmp.strftime('%Y-%m-%d %H:%M:%S')
+        d = datetime.datetime.strptime(s,'%Y-%m-%d %H:%M:%S')
+        DATE.append(d)
+        TIME.append(d.timestamp())
 
-      # TIME
-      try:
-        TIME = np.array([(DATE[i]-DATE[0]).total_seconds() \
-                           for i in range(self.icdf.nt)])
-      except:
-        TIME = np.array([(DATE[i]-DATE[0]) \
-                           for i in range(self.icdf.nt)])
+          #DATE.append(num2date(T_LIST[i],       \
+          #            units=self.icdf.time_units,    \
+          #            calendar=self.icdf.time_calendar))
+
+#      # TIME
+#      try:
+#        TIME = np.array([(DATE[i]-DATE[0]).total_seconds() \
+#                           for i in range(self.icdf.nt)])
+#      except:
+#        TIME = np.array([(DATE[i]-DATE[0]) \
+#                           for i in range(self.icdf.nt)])
 
     else:
       T_LIST = []

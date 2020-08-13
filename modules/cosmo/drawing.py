@@ -2414,7 +2414,7 @@ class CosmoDrawing():
           self.TIME = self.VEC[jj].TIME.copy()
         elif LEADER_TYPE == 'FLD':
           self.DATE = self.FLD[jj].DATE.copy()
-          self.TIME = self.FLD[jj].TIME.copy()
+        self.TIME = self.DATE.toordinal()
         self.PLOT.TLABEL.set(self.DATE[self.L.get()])
 
       self.make_plot()
@@ -2570,6 +2570,7 @@ class CosmoDrawing():
 
         #VEC.L.set(0)
         VEC.T_LIST, VEC.DATE, VEC.TIME = VEC.U.get_tlist()
+
 
 
         #self.DepthandDate(VEC)
@@ -5513,11 +5514,12 @@ class CosmoDrawing():
       self.MLM.do.set(string.replace(' ','T'))
     except:
       pass
-    self.MLM.to.set(self.TIME[self.L.get()])
+    self.MLM.to.set(self.TIME[self.L.get()]-self.TIME[0])
     self.MLM.record.set(self.L.get()+1)
 
     self.Window_mlm = tk.Toplevel(self.master)
     self.Window_mlm.title('COSMO M Lagrangian Model options')
+    self.Window_mlm.resizable(width=True,height=True)
     self.Window_mlm.protocol('WM_DELETE_WINDOW',_close)
 
     mlm.WinConfig(self.Window_mlm,self.MLM)
@@ -5744,7 +5746,7 @@ class CosmoDrawing():
       self.BLM.do.set(string.replace(' ','T'))
     except:
       pass
-    self.BLM.to.set(self.TIME[self.L.get()])
+    self.BLM.to.set(self.TIME[self.L.get()]-self.TIME[0])
     self.BLM.record.set(self.L.get()+1)
 
     self.Window_blm = tk.Toplevel(self.master)
@@ -7640,6 +7642,56 @@ class CosmoDrawing():
 
     def _close():
     # ===========
+
+      ii = self.FLOAT_INDX.get()
+      if self.FLOAT[ii].CROP.get():
+        toconsola('Cropping Lagrangian data',wid=self.cons)
+        print('Cropping .... !!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(self.DATE[0])
+        print(self.DATE[-1])
+        nt = self.FLOAT[ii].nrecords
+        ppi = [i for i in range(nt) if self.FLOAT[ii].date[i] >= self.DATE[0]]
+        ppf = [i for i in range(nt) if self.FLOAT[ii].date[i] >  self.DATE[-1]]
+
+        pi = ppi[0]
+        pf = ppf[0] - 1
+
+        print('Initial index : ', pi)
+        print('Final index   : ', pf)
+
+        print(self.FLOAT[ii].nfloats)
+        print(self.FLOAT[ii].nrecords)
+
+        if self.FLOAT[ii].nfloats > 1:
+           lon = self.FLOAT[ii].lon[pi:pf+1,:]
+           lat = self.FLOAT[ii].lat[pi:pf+1,:]
+           date = self.FLOAT[ii].date[pi:pf+1]
+           TIME = self.FLOAT[ii].TIME[pi:pf+1]
+           self.FLOAT[ii].lon = lon
+           self.FLOAT[ii].lat = lat
+           self.FLOAT[ii].date = date
+           self.FLOAT[ii].TIME = TIME
+        else:
+           lon = self.FLOAT[ii].lon[pi:pf+1]
+           lat = self.FLOAT[ii].lat[pi:pf+1]
+           date = self.FLOAT[ii].date[pi:pf+1]
+           TIME = self.FLOAT[ii].TIME[pi:pf+1]
+           self.FLOAT[ii].lon = lon
+           self.FLOAT[ii].lat = lat
+           self.FLOAT[ii].date = date
+           self.FLOAT[ii].TIME = TIME
+
+        self.FLOAT[ii].nrecords = len(date)
+        print('DATE[0] = ',self.FLOAT[ii].date[0])
+        print('DATE[n] = ',self.FLOAT[ii].date[-1])
+        print('TIME[0] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[0]))
+        print('TIME[n] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[-1]))
+
+        #print(self.FLOAT[ii].lon)
+        #print(self.FLOAT[ii].lat)
+        #print(self.FLOAT[ii].date)
+
+
       self.Window_float.destroy()
       self.Window_float = None
       self.make_plot()
@@ -7704,10 +7756,13 @@ class CosmoDrawing():
         _wsel['values'] = self.FLOAT_LIST
         _went['textvariable'] = self.FLOAT[ii].FILENAME
         _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
-        _wsel.configure(state='!disabled')
+        _wsel.configure(state='normal')
+        _show.configure(state='normal')
         _show['variable']=self.FLOAT[ii].show
         _aent.configure(state='normal')
         _aent['textvariable'] = self.FLOAT[ii].ALIAS
+        _wcrp.configure(state='normal')
+        _wcrp['variable']=self.FLOAT[ii].CROP
 
       else:
         self.FLOAT         = []
@@ -7720,6 +7775,7 @@ class CosmoDrawing():
         _wsel.configure(state='disabled')
         _aent.configure(state='disabled')
         _show.configure(state='disabled')
+        _wcrp.configure(state='disabled')
 
 
     def _add():
@@ -7779,78 +7835,82 @@ class CosmoDrawing():
       if FLT.nfloats is None or FLT.nfloats==0 or FLT.nrecords==0:
         return
 
-      if self.first:
-        # Set figure DATE and TIME references
-        if FLT.SOURCE == 'blm':
-          self.DATE = [FLT.date[i].replace(tzinfo=None) 
-                                     for i in range(FLT.nrecords)]
-          self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
-                                self.DATE[0]).total_seconds()       \
-                                     for i in range(FLT.nrecords)])
-
-        elif FLT.SOURCE == 'mlm':
-          #messagebox.showinfo(message='No field has been opened yet. '  + \
-          #'The TIME and DATE vectors will be the ones in this float file.' + \
-          #     'The FIRST of the floats is taken a reference')
-          self.DATE = [FLT.date[i][0].replace(tzinfo=None) 
-                                     for i in range(FLT.nrecords)]
-          self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-  \
-                               self.DATE[0]).total_seconds()           \
-                                     for i in range(FLT.nrecords)])
-
-      if FLT.SOURCE == 'blm':
-        # Set the values of TIME for the float:
-        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
-                             self.DATE[0]).total_seconds()       \
-                                           for i in range(FLT.nrecords)])
-        FLT.MAPX = []
-        FLT.MAPY = []
-        if FLT.nfloats > 1:
-          for i in range(FLT.nfloats):
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
-                                     bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX.append(list(f(self.TIME)))
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
-                                     bounds_error=False, fill_value=np.NaN)
-            FLT.MAPY.append(list(f(self.TIME)))
-          # Transpose FLT.MAPX and FLT.MAPY:
-          FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-          FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-        else:
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
+#      if self.first:
+#        # Set figure DATE and TIME references
+#        if FLT.SOURCE == 'blm':
+#          self.DATE = [FLT.date[i].replace(tzinfo=None) 
+#                                     for i in range(FLT.nrecords)]
+#          self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
+#                                self.DATE[0]).total_seconds()       \
+#                                     for i in range(FLT.nrecords)])
+#
+#        elif FLT.SOURCE == 'mlm':
+#          #messagebox.showinfo(message='No field has been opened yet. '  + \
+#          #'The TIME and DATE vectors will be the ones in this float file.' + \
+#          #     'The FIRST of the floats is taken a reference')
+#          self.DATE = [FLT.date[i][0].replace(tzinfo=None) 
+#                                     for i in range(FLT.nrecords)]
+#          self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-  \
+#                               self.DATE[0]).total_seconds()           \
+#                                     for i in range(FLT.nrecords)])
+#
+#      if FLT.SOURCE == 'blm':
+#        # Set the values of TIME for the float:
+#        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
+#                             self.DATE[0]).total_seconds()       \
+#                                           for i in range(FLT.nrecords)])
+      FLT.MAPX = []
+      FLT.MAPY = []
+      if FLT.nfloats > 1:
+        for i in range(FLT.nfloats):
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = list(f(self.TIME))
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
-                                   bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = list(f(self.TIME))
-
-      elif FLT.SOURCE == 'mlm':
-
-        FLT.TIME =  []
-        FLT.MAPX =  []
-        FLT.MAPY =  []
-        for j in range(FLT.nfloats):
-
-          FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
-          f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]), bounds_error=False, fill_value=np.NaN)
           FLT.MAPX.append(list(f(self.TIME)))
-          f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]), bounds_error=False, fill_value=np.NaN)
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
+                                   bounds_error=False, fill_value=np.NaN)
           FLT.MAPY.append(list(f(self.TIME)))
-          FLT.TIME.append(FTIME)
-
         # Transpose FLT.MAPX and FLT.MAPY:
         FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
         FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-        FLT.TIME = np.array(FLT.TIME).T.tolist() 
+      else:
+        f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
+                                 bounds_error=False, fill_value=np.NaN)
+        FLT.MAPX = list(f(self.TIME))
+        f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
+                                 bounds_error=False, fill_value=np.NaN)
+        FLT.MAPY = list(f(self.TIME))
+
+#      elif FLT.SOURCE == 'mlm':
+#
+#        FLT.TIME =  []
+#        FLT.MAPX =  []
+#        FLT.MAPY =  []
+#        for j in range(FLT.nfloats):
+#
+#          FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
+#          f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]), bounds_error=False, fill_value=np.NaN)
+#          FLT.MAPX.append(list(f(self.TIME)))
+#          f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]), bounds_error=False, fill_value=np.NaN)
+#          FLT.MAPY.append(list(f(self.TIME)))
+#          FLT.TIME.append(FTIME)
+#
+#        # Transpose FLT.MAPX and FLT.MAPY:
+#        FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
+#        FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
+#        FLT.TIME = np.array(FLT.TIME).T.tolist() 
       
+
+
       self.nfloat += 1
       self.FLOAT.append(FLT)
       self.FLOAT_INDX.set(self.nfloat-1)
       self.FLOAT_LIST = list(range(self.nfloat))
 
+      n = self.LAYERS.n
+
       # Adding a FLOAT in the Drawing class
       #
-      nt = len(FLT.TIME)
+      nt = len(FLT.lon)
       self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
 
       #self.nfiles += 1
@@ -7861,6 +7921,8 @@ class CosmoDrawing():
       #self.SEQNTIMES.append(1)
       #self.FILEORDER.append(self.nfloat-1)
 
+      ii = self.FLOAT_INDX.get()
+
       if self.first:
         # Set the plot limits according to the sata'''
         if self.drawmap is None:
@@ -7870,21 +7932,47 @@ class CosmoDrawing():
           self.PLOT.NORTH.set(np.nanmax(FLT.lat)+1)
           self.plot_initialize()
 
-        self.L.set(0)
-        self.L_LIST = list(range(len(FLT.date)))
-        self.NL = len(self.L_LIST)
-        self.lbox.configure(state='!disabled')
-        self.lbox['values'] = self.L_LIST
-        if len(self.DATE) > 0:
-          self.bnext.configure(state='normal')
+        self.PLOT.XLABEL.set('Longitude')
+        self.PLOT.YLABEL.set('Latitude')
+        self.DATE = FLT.date.copy()
+        self.TIME = FLT.TIME.copy()
         self.PLOT.TLABEL.set(self.DATE[self.L.get()])
-        if len(self.DATE) > 1:
-          self.bnext.configure(state='normal')
-
         self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
         self.first = False
-        
-      ii = self.FLOAT_INDX.get()
+
+      if nt > 1:
+        if self.LAYERS.nsequence == 0:
+          toconsola('Vector initiates SEQUENCE list',wid=self.cons)
+          self.LAYERS.nsequence = 1
+          self.LAYERS.INSEQUENCE[n-1].set(True)
+          self.LAYERS.SEQUENCER[n-1].set(True)
+          self.LAYERS.leader = n-1
+          self.LAYERS.seqlen = nt
+#              self.SEQUENCES[-1].set(True)
+#              self.SEQLEADER[-1].set(True)
+#              self.SEQLEADER_INDX = self.nfiles
+          self.DATE = self.FLOAT[ii].date.copy()
+          self.TIME = self.FLOAT[ii].TIME.copy()
+          self.L.set(self.FLOAT[ii].L.get())
+          self.L_LIST = list(range(nt))
+          self.NL = nt
+          self.lbox.configure(state='normal')
+          self.lbox['values'] = self.L_LIST
+          if self.L.get() < self.NL-1:
+            self.bnext.configure(state='normal')
+          if self.L.get() > 0:
+            self.bprev.configure(state='normal')
+        else:
+          if nt == self.LAYERS.seqlen:
+            toconsola('Adding vector to SEQUENCE list',wid=self.cons)
+            self.LAYERS.nsequence += 1
+            self.LAYERS.INSEQUENCE[n-1].set(True)
+            self.LAYERS.SEQUENCER[n-1].set(False)
+#              self.nsequence += 1
+#              self.SEQUENCES[-1].set(True)
+#              self.SEQLEADER[-1].set(False)
+            self.FLOAT[ii].L.set(self.L.get())  #Synchronize records
+
       _refill(ii)
 
 
@@ -7893,7 +7981,7 @@ class CosmoDrawing():
     if self.Window_float is None:
       self.Window_float = tk.Toplevel(self.master)
       self.Window_float.title("Lagrangian Trajectories")
-      self.Window_float.protocol('WM_DELETE_WINDOW',_close)
+      self.Window_float.protocol('WM_DELETE_WINDOW',_cancel)
     else:
       self.Window_float.lift()
 
@@ -7933,6 +8021,8 @@ class CosmoDrawing():
     ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
     _aent = ttk.Entry(F0,width=15,justify='left')
     _aent.grid(row=2,column=2,columnspan=2,sticky='w')
+    _wcrp = ttk.Checkbutton(F0,text='Crop')
+    _wcrp.grid(row=3,column=1,sticky='w')
 
     F0.grid(row=0,column=0)
 
@@ -7940,10 +8030,13 @@ class CosmoDrawing():
     if ii == -1:
       _show = ttk.Checkbutton(F1,text='Show')
       _aent.configure(state='disabled')
+      _wcrp.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
       _show['variable']=self.FLOAT[ii].show
       _aent['textvariable'] = self.FLOAT[ii].ALIAS
+      _wcrp['variable'] = self.FLOAT[ii].CROP
+
 
     _show.grid(row=1,column=5,padx=3)
     ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)

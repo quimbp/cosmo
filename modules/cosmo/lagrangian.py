@@ -82,6 +82,7 @@ class parameters():
     self.FLOAT_COLOR     = []
     self.FLOAT_SHOW      = []
     self.FLOAT_ZORDER    = []
+    self.CROP            = tk.BooleanVar()
 
     self.PLOT            = lineplot.parameters()
     
@@ -92,6 +93,7 @@ class parameters():
     self.lon             = []
     self.lat             = []
     self.date            = []
+    self.TIME            = []
     self.speed           = []
     self.SOURCE          = 'FILE'
     self.I.set(0)
@@ -100,6 +102,7 @@ class parameters():
     self.SEPARATED_COLOR.set(False)
     self.show.set(True)
     self.ALIAS.set('')
+    self.CROP.set(False)
 
     #if exists(self.FILECONF):
     #  print('Reading Lagrangian configuration file '+self.FILECONF)
@@ -145,6 +148,7 @@ class parameters():
     conf['FLOAT_COLOR'] = FLOAT_COLOR.copy()
     conf['FLOAT_SHOW']  = FLOAT_SHOW.copy()
     conf['FLOAT_ZORDER']  = FLOAT_ZORDER.copy()
+    conf['CROP'] = self.CROP.get()
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -161,7 +165,6 @@ class parameters():
     self.L1.set(conf['L1'])
     self.L2.set(conf['L2'])
     self.SEPARATED_COLOR.set(conf['SEPARATED_COLOR'])
-    self.PLOT.conf_set(conf['PLOT'])
     self.FLOAT_COLOR = []
     self.FLOAT_SHOW = []
     self.FLOAT_ZORDER = []
@@ -175,6 +178,8 @@ class parameters():
         self.FLOAT_COLOR.append(tk.StringVar(value=self.PLOT.LINE_COLOR.get()))
         self.FLOAT_SHOW.append(tk.BooleanVar(value=self.show.get()))
         self.FLOAT_ZORDER.append(tk.IntVar(value=self.PLOT.ZORDER.get()))
+    self.CROP.set(conf['CROP'])
+    self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
   # ===========================
@@ -432,6 +437,10 @@ class parameters():
       print('No data has been read')
       self = None
       return
+
+    self.TIME = []
+    for i in range(self.nrecords):
+      self.TIME.append(self.date[i].timestamp())
 
     # If we have data, we fill some fields to their default value.
     self.I.set(0)
