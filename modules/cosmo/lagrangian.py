@@ -455,6 +455,9 @@ def drawing(ax,proj,FLT):
   __author__  = "Quim Ballabrerera"
   __date__    = "January 2018"
 
+  if FLT.nfloats == 0:
+    return
+
   if not FLT.show.get():
     return
 
@@ -464,103 +467,67 @@ def drawing(ax,proj,FLT):
   r1 = FLT.L1.get()
   r2 = FLT.L2.get() + 1
 
-  if FLT.nfloats > 1:
-    for i in range(FLT.nfloats):       # Loop over buoys
-      if FLT.SEPARATED_COLOR.get():
-        color = FLT.FLOAT_COLOR[i].get()
-        visible = FLT.FLOAT_SHOW[i].get()
-        zorder  = FLT.FLOAT_ZORDER[i].get()
-      else:
-        color = FLT.PLOT.LINE_COLOR.get()
-        visible = FLT.show.get()
-        zorder  = FLT.PLOT.ZORDER.get()
+  for i in range(FLT.nfloats):       # Loop over buoys
 
-      #EG xx,yy = m(FLT.lon[r1:r2,i],FLT.lat[r1:r2,i])
-      xx, yy =  FLT.lon[r1:r2,i],FLT.lat[r1:r2,i]
-      if FLT.PLOT.LINE_SHOW.get():
-        ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),      \
-               linewidth=FLT.PLOT.LINE_WIDTH.get(),   \
-               transform=proj,                        \
-               alpha=FLT.PLOT.ALPHA.get(),            \
-               zorder=zorder,                         \
-               visible=visible,                       \
-               color=color)
-               
-      if FLT.PLOT.MARKER_SHOW.get():
-        ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
-               ms=FLT.PLOT.INITIAL_SIZE.get(),       \
-               transform=proj,                       \
-               alpha=FLT.PLOT.ALPHA.get(),           \
-               zorder=zorder,                        \
-               visible=visible,                      \
-               color=FLT.PLOT.MARKER_COLOR.get())
-               
-      if FLT.PLOT.INITIAL_SHOW.get():
-        ax.plot(xx[r1],yy[r1],                  \
-               FLT.PLOT.INITIAL_STYLE.get(),    \
-               ms=FLT.PLOT.INITIAL_SIZE.get(),  \
-               transform=proj,                  \
-               alpha=FLT.PLOT.ALPHA.get(),      \
-               zorder=zorder,                   \
-               visible=visible,                 \
-               color=FLT.PLOT.INITIAL_COLOR.get())
-               
-      if FLT.PLOT.ONMAP_SHOW.get():
-        L = FLT.L.get()
-        #EG xx,yy = m(FLT.MAPX[L][i],FLT.MAPY[L][i])
-        xx,yy = FLT.MAPX[L][i], FLT.MAPY[L][i]
-        ax.plot(xx,yy,                          \
-               FLT.PLOT.ONMAP_STYLE.get(),      \
-               ms=FLT.PLOT.ONMAP_SIZE.get(),    \
-               transform=proj,                  \
-               alpha=FLT.PLOT.ALPHA.get(),      \
-               zorder=zorder,                   \
-               visible=visible,                 \
-               color=FLT.PLOT.ONMAP_COLOR.get())
-  else:
-    #EG xx,yy = m(FLT.lon[r1:r2],FLT.lat[r1:r2])
-    xx,yy = FLT.lon[r1:r2], FLT.lat[r1:r2]
     if FLT.SEPARATED_COLOR.get():
-      color = FLT.FLOAT_COLOR[0].get()
+      color = FLT.FLOAT_COLOR[i].get()
+      visible = FLT.FLOAT_SHOW[i].get()
+      zorder  = FLT.FLOAT_ZORDER[i].get()
     else:
       color = FLT.PLOT.LINE_COLOR.get()
+      visible = FLT.show.get()
+      zorder  = FLT.PLOT.ZORDER.get()
+
+    if FLT.nfloats == 1:
+      xx, yy =  FLT.lon[r1:r2],FLT.lat[r1:r2]
+    else:
+      xx, yy =  FLT.lon[r1:r2,i],FLT.lat[r1:r2,i]
+
     if FLT.PLOT.LINE_SHOW.get():
-      ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),     \
-             linewidth=FLT.PLOT.LINE_WIDTH.get(),  \
-             transform=proj,                       \
-             alpha=FLT.PLOT.ALPHA.get(),           \
-             zorder=zorder,                        \
-               visible=visible,                    \
+      ax.plot(xx,yy,FLT.PLOT.LINE_STYLE.get(),      \
+             linewidth=FLT.PLOT.LINE_WIDTH.get(),   \
+             transform=proj,                        \
+             alpha=FLT.PLOT.ALPHA.get(),            \
+             zorder=zorder,                         \
+             visible=visible,                       \
              color=color)
+             
     if FLT.PLOT.MARKER_SHOW.get():
       ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
              ms=FLT.PLOT.INITIAL_SIZE.get(),       \
              transform=proj,                       \
              alpha=FLT.PLOT.ALPHA.get(),           \
              zorder=zorder,                        \
-               visible=visible,                    \
-             color=FLT.PLOT.LINE_COLOR.get())
+             visible=visible,                      \
+             color=FLT.PLOT.MARKER_COLOR.get())
+             
     if FLT.PLOT.INITIAL_SHOW.get():
-      ax.plot(xx[r1],yy[r1],                    \
-             FLT.PLOT.INITIAL_STYLE.get(),      \
-             ms=FLT.PLOT.INITIAL_SIZE.get(),    \
-             transform=proj,                    \
-             alpha=FLT.PLOT.ALPHA.get(),        \
-             zorder=zorder,                     \
-             visible=visible,                   \
+      ax.plot(xx[r1],yy[r1],                  \
+             FLT.PLOT.INITIAL_STYLE.get(),    \
+             ms=FLT.PLOT.INITIAL_SIZE.get(),  \
+             transform=proj,                  \
+             alpha=FLT.PLOT.ALPHA.get(),      \
+             zorder=zorder,                   \
+             visible=visible,                 \
              color=FLT.PLOT.INITIAL_COLOR.get())
+             
     if FLT.PLOT.ONMAP_SHOW.get():
       L = FLT.L.get()
-      #EG xx,yy = m(FLT.MAPX[L],FLT.MAPY[L])
-      xx,yy = FLT.MAPX[L], FLT.MAPY[L]
-      ax.plot(xx,yy,                         \
-             FLT.PLOT.ONMAP_STYLE.get(),     \
-             ms=FLT.PLOT.ONMAP_SIZE.get(),   \
-             transform=proj,                 \
-             alpha=FLT.PLOT.ALPHA.get(),     \
-             zorder=zorder,                  \
-             visible=visible,                \
+
+      if FLT.nfloats == 1:
+        xx,yy = FLT.MAPX[L], FLT.MAPY[L]
+      else:
+        xx,yy = FLT.MAPX[L][i], FLT.MAPY[L][i]
+
+      ax.plot(xx,yy,                          \
+             FLT.PLOT.ONMAP_STYLE.get(),      \
+             ms=FLT.PLOT.ONMAP_SIZE.get(),    \
+             transform=proj,                  \
+             alpha=FLT.PLOT.ALPHA.get(),      \
+             zorder=zorder,                   \
+             visible=visible,                 \
              color=FLT.PLOT.ONMAP_COLOR.get())
+
 
 # =======================
 def ShowData(master,LL):

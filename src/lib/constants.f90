@@ -11,12 +11,12 @@ use types, only: sp,dp
 
 implicit none
 
-private
-public True,False
-public pi,e_,nan,inf,deg2rad,rad2deg,i_,dpi,hpi
-public zero,one,half,quarter,two,ten,hundred
-public nan4,inf4
-public grav,Rearth,Omega
+!private
+!public True,False
+!public pi,e_,nan,inf,deg2rad,rad2deg,i_,dpi,hpi
+!public zero,one,half,quarter,two,ten,hundred
+!public nan4,inf4
+!public grav,Rearth,Omega
 
 ! ... Logical constants
 ! ...
@@ -28,6 +28,10 @@ logical, parameter     :: False   = .false.
 real(dp), parameter    :: zero    = 0.0_dp
 real(dp), parameter    :: one     = 1.0_dp
 real(dp), parameter    :: two     = 2.0_dp
+real(dp), parameter    :: three   = 3.0_dp
+real(dp), parameter    :: four    = 4.0_dp
+real(dp), parameter    :: five    = 5.0_dp
+real(dp), parameter    :: six     = 6.0_dp
 real(dp), parameter    :: half    = 0.5_dp
 real(dp), parameter    :: quarter = 0.25_dp
 real(dp), parameter    :: ten     = 10.0_dp

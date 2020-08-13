@@ -13,10 +13,10 @@ use constants, only: zero,one,two,nan,half,Rearth,deg2rad
 use utils, only: locate,stop_error
 
 implicit none
-private
-public identity,akima,dakima,arange,mean,indexx,interplin,haversine
-public d_interpol
-public grnn1
+!private
+!public identity,akima,dakima,arange,mean,indexx,interplin,haversine
+!public d_interpol
+!public grnn1
 !public norm2
 
 interface akima
@@ -397,6 +397,34 @@ end function mean
 ! ...
 ! ************************************************************************
 
+real(dp) pure function haversine_rad (x1,phi1,x2,phi2)
+
+! ... Haversine function: Input in radians
+
+implicit none
+
+real(dp), intent(in)          :: x1, phi1
+real(dp), intent(in)          :: x2, phi2
+
+! ... Local variables
+! ...
+real(dp) dlam,dphi
+real(dp) SINPHI,SINLAM,a,c
+
+dphi = (phi2 - phi1)
+dlam = (x2 - x1)
+
+SINPHI = sin(half*dphi)
+SINLAM = sin(half*dlam)
+
+a = SINPHI*SINPHI + cos(phi1)*cos(phi2)*SINLAM*SINLAM
+c = two * asin(sqrt(a))
+haversine_rad = Rearth * c
+
+end function haversine_rad
+! ...
+! =============================================================================
+! ...
 real(dp) pure function haversine (x1,y1,x2,y2)
 
 implicit none
@@ -406,7 +434,7 @@ real(dp), intent(in)          :: x2, y2
 
 ! ... Local variables
 ! ...
-real(dp) lam1,lam2,phi1,phi2
+real(dp) phi1,phi2
 real(dp) dlam,dphi
 real(dp) SINPHI,SINLAM,a,c
 
@@ -423,7 +451,6 @@ c = two * asin(sqrt(a))
 haversine = Rearth * c
 
 end function haversine
-
 ! ...
 ! =============================================================================
 ! ...
