@@ -3152,7 +3152,31 @@ class CosmoDrawing():
     # ===========
       self.Window_files.destroy()
       self.Window_files = None
-   
+  
+    def _tosequence():
+    # ================
+      if TYPE == 'FLT':
+        self.FLOAT[ii].MAPX = []
+        self.FLOAT[ii].MAPY = []
+        if self.FLOAT[ii].nfloats > 1:
+          for i in range(self.FLOAT[ii].nfloats):
+            f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon[:,i],
+                                     bounds_error=False, fill_value=np.NaN)
+            self.FLOAT[ii].MAPX.append(f(self.TIME))
+            f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat[:,i],
+                                     bounds_error=False, fill_value=np.NaN)
+            self.FLOAT[ii].MAPY.append(f(self.TIME))
+          # Transpose FLT.MAPX and FLT.MAPY:
+          self.FLOAT[ii].MAPX = np.array(self.FLOAT[ii].MAPX).T.tolist()
+          self.FLOAT[ii].MAPY = np.array(self.FLOAT[ii].MAPY).T.tolist()
+        else:
+          f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon,
+                                   bounds_error=False, fill_value=np.NaN)
+          self.FLOAT[ii].MAPX = f(self.TIME)
+          f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat,
+                                   bounds_error=False, fill_value=np.NaN)
+          self.FLOAT[ii].MAPY = f(self.TIME)
+
     #Main Window
     # =========
     if self.LAYERS.n == 0:
@@ -3317,8 +3341,10 @@ class CosmoDrawing():
                                                  columnspan=1,padx=3,sticky='we')
 
       # Sequence
-      cc = ttk.Checkbutton(F0,variable=self.LAYERS.INSEQUENCE[i])
+      cc = ttk.Checkbutton(F0,variable=self.LAYERS.INSEQUENCE[i],command=_tosequence)
       cc.grid(row=i+1,column=5,padx=3)
+      if self.LAYERS.NREC[ii] != self.LAYERS.NREC[self.LAYERS.leader]:
+        cc.configure(state='disabled')
 
 
       # Sequence leader
@@ -3794,6 +3820,7 @@ class CosmoDrawing():
         # Initialize classes:
         #
         FLT = lagrangian.parameters()
+        toconsola(FLT.MESSAGE, wid=self.cons)
         FLT.Read(filename)
 
         # Update from CONF attributes:
@@ -3801,25 +3828,45 @@ class CosmoDrawing():
 
         if self.first:
           # Set Figure DATA and TIME reference:
-          if FLT.SOURCE == 'blm':
-            self.DATE = [FLT.date[i].replace(tzinfo=None) for i in
-                                                  range(FLT.nrecords)]
-            self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
-                                   self.DATE[0]).total_seconds() 
-                                       for i in range(FLT.nrecords)])
-          elif FLT.SOURCE == 'mlm':
-            self.DATE = [FLT.date[i][0].replace(tzinfo=None)
-                              for i in range(FLT.nrecords)]
-            self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-
-                                   self.DATE[0]).total_seconds()
-                                       for i in range(FLT.nrecords)])
+          self.DATE = FLT.date.copy()
+          self.TIME = FLT.TIME.copy()
+          self.PLOT.TLABEL.set(self.DATE[self.L.get()])
+          self.L_LIST = list(range(len(FLT.date)))
+          self.NL = len(self.L_LIST)
+          self.lbox.configure(state='!disabled')
+          self.lbox['values'] = self.L_LIST
+          if self.L.get() == 0:
+            self.bprev.configure(state='disabled')
+          else:
+            self.bprev.configure(state='normal')
+          if self.L.get() == self.NL - 1:
+            self.bnext.configure(state='disabled')
+          else:
+            self.bnext.configure(state='normal')
+          self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+          self.first = False
 
-        # Set each FLOAT time values and interpolated positions.
+#          if FLT.SOURCE == 'blm':
+#            self.DATE = [FLT.date[i].replace(tzinfo=None) for i in
+#                                                  range(FLT.nrecords)]
+#            self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
+#                                   self.DATE[0]).total_seconds() 
+#                                       for i in range(FLT.nrecords)])
+#          elif FLT.SOURCE == 'mlm':
+#            self.DATE = [FLT.date[i][0].replace(tzinfo=None)
+#                              for i in range(FLT.nrecords)]
+#            self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-
+#                                   self.DATE[0]).total_seconds()
+#                                       for i in range(FLT.nrecords)])
+#
+#        # Set each FLOAT time values and interpolated positions.
 
-        if FLT.SOURCE == 'blm':
-          FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
-                                self.DATE[0]).total_seconds() 
-                                    for i in range(FLT.nrecords)])
+#        if FLT.SOURCE == 'blm':
+#          FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
+#                                self.DATE[0]).total_seconds() 
+#                                    for i in range(FLT.nrecords)])
+
+        if self.LAYERS.nsequence > 0:
           FLT.MAPX = []
           FLT.MAPY = []
           if FLT.nfloats > 1:
@@ -3834,69 +3881,52 @@ class CosmoDrawing():
             FLT.MAPX = np.array(FLT.MAPX).T.tolist()
             FLT.MAPY = np.array(FLT.MAPY).T.tolist()
           else:
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
+            f = interpolate.interp1d(FLT.TIME,FLT.lon,
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX = list(f(self.TIME))
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
+            FLT.MAPX = f(self.TIME)
+            f = interpolate.interp1d(FLT.TIME,FLT.lat,
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPY = list(f(self.TIME))
-          error = 0
-
-        elif FLT.SOURCE == 'mlm':
-          FLT.TIME = []
-          FLT.MAPX = []
-          FLT.MAPY = []
-          for j in range(FLT.nfloats):
-            FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-
-                               self.DATE[0]).total_seconds()
-                                   for i in range(FLT.nrecords)])
-            f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]),
-                                     bounds_error=False,fill_value=np.NaN)
-            FLT.MAPX.append(list(f(self.TIME)))
-            f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]),
-                                     bounds_error=False,fill_value=np.NaN)
-            FLT.MAPY.append(list(f(self.TIME)))
-            FLT.TIME.append(FTIME)
-
-          # Transpose FLT.MAPX and FLT.MAPY:
-          FLT.MAPX = np.array(FLT.MAPX).T.tolist()
-          FLT.MAPY = np.array(FLT.MAPY).T.tolist()
-          FLT.TIME = np.array(FLT.TIME).T.tolist()
-          error = 0
-        else:
-          messagebox.showinfo(message='FLOAT source not found')
-          error = 1
+            FLT.MAPY = f(self.TIME)
+#          error = 0
+#
+#        elif FLT.SOURCE == 'mlm':
+#          FLT.TIME = []
+#          FLT.MAPX = []
+#          FLT.MAPY = []
+#          for j in range(FLT.nfloats):
+#            FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-
+#                               self.DATE[0]).total_seconds()
+#                                   for i in range(FLT.nrecords)])
+#            f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]),
+#                                     bounds_error=False,fill_value=np.NaN)
+#            FLT.MAPX.append(list(f(self.TIME)))
+#            f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]),
+#                                     bounds_error=False,fill_value=np.NaN)
+#            FLT.MAPY.append(list(f(self.TIME)))
+#            FLT.TIME.append(FTIME)
+#
+#          # Transpose FLT.MAPX and FLT.MAPY:
+#          FLT.MAPX = np.array(FLT.MAPX).T.tolist()
+#          FLT.MAPY = np.array(FLT.MAPY).T.tolist()
+#          FLT.TIME = np.array(FLT.TIME).T.tolist()
+#          error = 0
+#        else:
+#          messagebox.showinfo(message='FLOAT source not found')
+#          error = 1
           
-        if error == 0:
+#        if error == 0:
 
-          if self.first:
-            self.PLOT.TLABEL.set(self.DATE[self.L.get()])
-            self.L_LIST = list(range(len(FLT.date)))
-            self.NL = len(self.L_LIST)
-            self.lbox.configure(state='!disabled')
-            self.lbox['values'] = self.L_LIST
-            if self.L.get() == 0:
-              self.bprev.configure(state='disabled')
-            else:
-              self.bprev.configure(state='normal')
-            if self.L.get() == self.NL - 1:
-              self.bnext.configure(state='disabled')
-            else:
-              self.bnext.configure(state='normal')
-            self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
-            self.first = False
+        self.nfloat += 1
+        self.FLOAT.append(FLT)
+        self.FLOAT_INDX.set(self.nfloat-1)
+        self.FLOAT_LIST = list(range(self.nfloat))
 
-          self.nfloat += 1
-          self.FLOAT.append(FLT)
-          self.FLOAT_INDX.set(self.nfloat-1)
-          self.FLOAT_LIST = list(range(self.nfloat))
-
-          nt = CONF[ii]['NREC']
-          self.LAYERS.add(TYPE='FLOAT',Filename=filename,N=nt,wid=self.cons)
-          nm = self.LAYERS.n - 1
-          self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-          self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
-          self.LAYERS.print()
+        nt = CONF[ii]['NREC']
+        self.LAYERS.add(TYPE='FLOAT',Filename=filename,N=nt,wid=self.cons)
+        nm = self.LAYERS.n - 1
+        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        self.LAYERS.print()
 
           #self.nfiles += 1
           #self.FILENAMES.append(filename)
@@ -5356,14 +5386,14 @@ class CosmoDrawing():
         FLT.MAPY = []
         for j in range(FLT.nfloats):
           FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
-          f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]), \
+          f = interpolate.interp1d(FTIME,FLT.lon[:,j], \
                                    bounds_error=False,  \
                                    fill_value=np.NaN)
-          FLT.MAPX.append(list(f(self.TIME)))
-          f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]), \
+          FLT.MAPX.append(f(self.TIME))
+          f = interpolate.interp1d(FTIME,FLT.lat[:,j], \
                                    bounds_error=False,  \
                                    fill_value=np.NaN)
-          FLT.MAPY.append(list(f(self.TIME)))
+          FLT.MAPY.append(f(self.TIME))
 
           FLT.TIME.append(FTIME)
         FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
@@ -5560,24 +5590,24 @@ class CosmoDrawing():
         if FLT is None:
           return
 
-        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-\
-                              self.DATE[0]).total_seconds() \
-                              for i in range(FLT.nrecords)])
+#        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-\
+#                              self.DATE[0]).total_seconds() \
+#                              for i in range(FLT.nrecords)])
         FLT.MAPX = []
         FLT.MAPY = []
         if FLT.nfloats > 1:
           for i in range(FLT.nfloats):
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]), bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX.append(list(f(self.TIME)))
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]), bounds_error=False, fill_value=np.NaN)
-            FLT.MAPY.append(list(f(self.TIME)))
+            f = interpolate.interp1d(FLT.TIME,FLT.lon[:,i], bounds_error=False, fill_value=np.NaN)
+            FLT.MAPX.append(f(self.TIME))
+            f = interpolate.interp1d(FLT.TIME,FLT.lat[:,i], bounds_error=False, fill_value=np.NaN)
+            FLT.MAPY.append(f(self.TIME))
           FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
           FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
         else:
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon), bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = list(f(self.TIME))
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat), bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = list(f(self.TIME))
+          f = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPX = f(self.TIME)
+          f = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPY = f(self.TIME)
 
         self.nfloat += 1
         self.FLOAT.append(FLT)
@@ -7864,22 +7894,24 @@ class CosmoDrawing():
         FLT.MAPY = []
         if FLT.nfloats > 1:
           for i in range(FLT.nfloats):
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
+            f = interpolate.interp1d(FLT.TIME,FLT.lon[:,i],
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX.append(list(f(self.TIME)))
-            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
+            FLT.MAPX.append(f(self.TIME))
+            f = interpolate.interp1d(FLT.TIME,FLT.lat[:,i],
                                      bounds_error=False, fill_value=np.NaN)
             FLT.MAPY.append(list(f(self.TIME)))
           # Transpose FLT.MAPX and FLT.MAPY:
-          FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-          FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
+          #FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
+          #FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
+          FLT.MAPX = np.array(FLT.MAPX).T
+          FLT.MAPY = np.array(FLT.MAPY).T
         else:
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
+          f = interpolate.interp1d(FLT.TIME,FLT.lon,
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = list(f(self.TIME))
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
+          FLT.MAPX = f(self.TIME)
+          f = interpolate.interp1d(FLT.TIME,FLT.lat,
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = list(f(self.TIME))
+          FLT.MAPY = f(self.TIME)
 
 #      elif FLT.SOURCE == 'mlm':
 #
@@ -7943,7 +7975,7 @@ class CosmoDrawing():
 
       if nt > 1:
         if self.LAYERS.nsequence == 0:
-          toconsola('Vector initiates SEQUENCE list',wid=self.cons)
+          toconsola('FLOAT initiates SEQUENCE list',wid=self.cons)
           self.LAYERS.nsequence = 1
           self.LAYERS.INSEQUENCE[n-1].set(True)
           self.LAYERS.SEQUENCER[n-1].set(True)
@@ -7952,6 +7984,8 @@ class CosmoDrawing():
 #              self.SEQUENCES[-1].set(True)
 #              self.SEQLEADER[-1].set(True)
 #              self.SEQLEADER_INDX = self.nfiles
+          self.FLOAT[ii].MAPX = self.FLOAT[ii].lon.copy()
+          self.FLOAT[ii].MAPY = self.FLOAT[ii].lat.copy()
           self.DATE = self.FLOAT[ii].date.copy()
           self.TIME = self.FLOAT[ii].TIME.copy()
           self.L.set(self.FLOAT[ii].L.get())
@@ -8713,7 +8747,7 @@ class CosmoDrawing():
         if self.LAYERS.TYPE[i] == 'VEC':
           self.VEC[jj].L.set(L)
           self.VEC[jj].read(wid=self.cons)
-        elif self.FILETYPES[i] == 'FLD':
+        elif self.LAYERS.TYPE[i] == 'FLD':
           self.CDF[jj].L.set(L)
           self.CDF[jj].read(update_lims=False,wid=self.cons)
     self.make_plot()

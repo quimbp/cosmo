@@ -316,7 +316,6 @@ class parameters():
         fileFormat = "Dated LineString"
       except:
         fileFormat = "Undated LineString"
-      print(fileFormat)
 
       self.lon = []
       self.lat = []
@@ -346,6 +345,8 @@ class parameters():
 
       self.nfloats  = 1
       self.nrecords = len(self.lon)
+      self.lon = np.array(self.lon)
+      self.lat = np.array(self.lat)
 
     # --------------------------------------
     def read_trajectory_txt(filename):
@@ -409,6 +410,8 @@ class parameters():
 
       self.nfloats  = 1
       self.nrecords = len(self.lon)
+      self.lon = np.array(self.lon)
+      self.lat = np.array(self.lat)
 
 
     filename = self.FILENAME.get()
@@ -441,6 +444,7 @@ class parameters():
     self.TIME = []
     for i in range(self.nrecords):
       self.TIME.append(self.date[i].timestamp())
+    self.TIME = np.array(self.TIME)
 
     # If we have data, we fill some fields to their default value.
     self.I.set(0)
