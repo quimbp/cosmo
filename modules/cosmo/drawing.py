@@ -7859,26 +7859,27 @@ class CosmoDrawing():
 #        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
 #                             self.DATE[0]).total_seconds()       \
 #                                           for i in range(FLT.nrecords)])
-      FLT.MAPX = []
-      FLT.MAPY = []
-      if FLT.nfloats > 1:
-        for i in range(FLT.nfloats):
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
+      if self.LAYERS.nsequence > 0:
+        FLT.MAPX = []
+        FLT.MAPY = []
+        if FLT.nfloats > 1:
+          for i in range(FLT.nfloats):
+            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
+                                     bounds_error=False, fill_value=np.NaN)
+            FLT.MAPX.append(list(f(self.TIME)))
+            f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
+                                     bounds_error=False, fill_value=np.NaN)
+            FLT.MAPY.append(list(f(self.TIME)))
+          # Transpose FLT.MAPX and FLT.MAPY:
+          FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
+          FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
+        else:
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX.append(list(f(self.TIME)))
-          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
+          FLT.MAPX = list(f(self.TIME))
+          f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY.append(list(f(self.TIME)))
-        # Transpose FLT.MAPX and FLT.MAPY:
-        FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-        FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-      else:
-        f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon),
-                                 bounds_error=False, fill_value=np.NaN)
-        FLT.MAPX = list(f(self.TIME))
-        f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat),
-                                 bounds_error=False, fill_value=np.NaN)
-        FLT.MAPY = list(f(self.TIME))
+          FLT.MAPY = list(f(self.TIME))
 
 #      elif FLT.SOURCE == 'mlm':
 #
