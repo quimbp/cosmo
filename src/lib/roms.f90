@@ -943,7 +943,10 @@ CONTAINS
     stop 'variable not found'
   endif
 
-  err = NF90_INQ_VAR_FILL(r%fid,ii,filled,spv)
+  !err = NF90_INQ_VAR_FILL(r%fid,ii,filled,spv)
+  err = NF90_GET_ATT(r%fid,ii,'_FillValue',spv)
+  call cdf_error(err,'No _FillValue attribute')
+
 
   return
 
