@@ -1,4 +1,4 @@
-ca://t /etc/centos-release
+cat /etc/centos-release
 
 sudo yum update -y
 sudo yum install xorg-x11-apps -y
@@ -28,6 +28,9 @@ sudo yum install git -y
 
 sudo yum install wget
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+
+echo 'You must log out and back in again ...'
 exit
 
 # After logging in ...
