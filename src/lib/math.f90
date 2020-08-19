@@ -526,4 +526,48 @@ end function grnn1
 ! ...
 ! =============================================================================
 ! ...
+function randn (m) result(ff)
+
+implicit none
+
+integer, intent(in)                        :: m
+real(dp), dimension(m)                     :: ff
+
+! ... Local variables
+! ...
+integer i
+real(dp), parameter                    :: s  =  0.449871D0
+real(dp), parameter                    :: t  = -0.386595D0
+real(dp), parameter                    :: a  =  0.19600D0
+real(dp), parameter                    :: b  =  0.25472D0
+real(dp), parameter                    :: r1 =  0.27597D0
+real(dp), parameter                    :: r2 =  0.27846D0
+real(dp) u,v,x,y,q
+
+do i=1,m
+
+  do
+    call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
+    call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
+    v = 1.7156D0 * (v - 0.5D0)
+
+    ! ... Evaluate the quadratic form
+    ! ...
+    x = u - s
+    y = ABS(v) - t
+    q = x**2 + y*(a*y - b*x)
+
+    if (q .lt. r1) exit
+    if (q .gt. r2) cycle
+    if (v**2 .LT. -4D0*LOG(u)*u**2) exit
+  enddo
+  ff(i) = v/u
+
+enddo
+
+end function randn
+
+! ...
+! =============================================================================
+! ...
 end module math
