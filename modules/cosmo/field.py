@@ -58,6 +58,7 @@ class fld_parameters():
     self.maxval     = None
     self.units      = None
     self.missing    = None
+    self.mask       = None
 
 
   def conf_get(self):
@@ -109,7 +110,7 @@ class fld_parameters():
 
 
   def read(self,K=0,L=0,**args):
-  # ====================
+  # =============================
     ''' Read 2D field from netcdf file and returns the data array'''
 
     try:

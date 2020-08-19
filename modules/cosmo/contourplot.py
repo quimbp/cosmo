@@ -375,7 +375,8 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
   if PLOT.CONTOUR_LOG.get():
     FIELD = np.log10(FIELD)
   
-  FIELD = ma.array(FIELD,mask=MASK)  
+  if MASK is not None:
+    FIELD = ma.array(FIELD,mask=MASK)  
 
   # Colormap: Direct or Reversed
   if PLOT.CONTOUR_REVERSE.get():

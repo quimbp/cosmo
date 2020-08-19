@@ -682,36 +682,61 @@ def drawing(ax,proj,CFIELD):
      #print('VECTORPLOT:  WARNING: Streamplot only works with Cylindircal Projection')   
   
   else:
-    if CFIELD.PLOT.GRID_MODE.get() == 0:
-      CFIELD.PLOT.MESSAGE += "EG VECTORS: original or decimated grid"	
-      #print("EG VECTORS: original or decimated grid")
-      dx = CFIELD.PLOT.CURRENT_DX.get()
-      dy = CFIELD.PLOT.CURRENT_DY.get()
-      xplt, yplt = CFIELD.U.xx[::dy,::dx], CFIELD.U.yy[::dy,::dx]    # Grid stored in U
-      uplt, vplt = CFIELD.U.data[::dy,::dx], CFIELD.V.data[::dy,::dx]
-    else:
-      CFIELD.PLOT.MESSAGE += "EG VECTORS: fixed grid"
-      #print("EG VECTORS: fixed grid")
-      #EG The method "linear" in interpol.griddata is mandatory. Other
-      #EG choices provides strange behaviour
-      lonmin, lonmax, latmin, latmax = ax.get_extent()
-      xplt = np.linspace(lonmin,lonmax,CFIELD.PLOT.CURRENT_NX.get())
-      yplt = np.linspace(latmin,latmax,CFIELD.PLOT.CURRENT_NY.get())
-      n_lon, n_lat = np.meshgrid(xplt,yplt)
 
-      uplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
-                CFIELD.U.data.flatten(),(n_lon,n_lat), method='linear')
-      vplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
-                CFIELD.V.data.flatten(),(n_lon,n_lat), method='linear')
+    # Check if reprocessing data is required:
+    if CFIELD.reprocess == False:
+      if CFIELD.PLOT.GRID_MODE.get()  != CFIELD.GRID_MODE_0: 
+        CFIELD.reprocess = True
+      if CFIELD.PLOT.CURRENT_DX.get() != CFIELD.CURRENT_DX_0: 
+        CFIELD.reprocess = True
+      if CFIELD.PLOT.CURRENT_DY.get() != CFIELD.CURRENT_DY_0: 
+        CFIELD.reprocess = True
+      if CFIELD.PLOT.CURRENT_NX.get() != CFIELD.CURRENT_NX_0: 
+        CFIELD.reprocess = True
+      if CFIELD.PLOT.CURRENT_NY.get() != CFIELD.CURRENT_NY_0: 
+        CFIELD.reprocess = True
       
-    speed = np.sqrt(uplt**2+vplt**2)
+
+    if CFIELD.reprocess:
+      CFIELD.PLOT.MESSAGE += 'VECTORPLOT: processing data\n'
+      CFIELD.reprocess = False
+      CFIELD.GRID_MODE_0  = CFIELD.PLOT.GRID_MODE.get()
+      CFIELD.CURRENT_DX_0 = CFIELD.PLOT.CURRENT_DX.get()
+      CFIELD.CURRENT_DY_0 = CFIELD.PLOT.CURRENT_DY.get()
+      CFIELD.CURRENT_NX_0 = CFIELD.PLOT.CURRENT_NX.get()
+      CFIELD.CURRENT_NY_0 = CFIELD.PLOT.CURRENT_NY.get()
+
+      if CFIELD.PLOT.GRID_MODE.get() == 0:
+        CFIELD.PLOT.MESSAGE += "EG VECTORS: original or decimated grid"	
+        #print("EG VECTORS: original or decimated grid")
+        dx = CFIELD.PLOT.CURRENT_DX.get()
+        dy = CFIELD.PLOT.CURRENT_DY.get()
+        CFIELD.xplt, CFIELD.yplt = CFIELD.U.xx[::dy,::dx],   CFIELD.U.yy[::dy,::dx]    # Grid stored in U
+        CFIELD.uplt, CFIELD.vplt = CFIELD.U.data[::dy,::dx], CFIELD.V.data[::dy,::dx]
+      else:
+        CFIELD.PLOT.MESSAGE += "EG VECTORS: fixed grid"
+        #print("EG VECTORS: fixed grid")
+        #EG The method "linear" in interpol.griddata is mandatory. Other
+        #EG choices provides strange behaviour
+        lonmin, lonmax, latmin, latmax = ax.get_extent()
+        CFIELD.xplt = np.linspace(lonmin,lonmax,CFIELD.PLOT.CURRENT_NX.get())
+        CFIELD.yplt = np.linspace(latmin,latmax,CFIELD.PLOT.CURRENT_NY.get())
+        n_lon, n_lat = np.meshgrid(CFIELD.xplt,CFIELD.yplt)
+
+        CFIELD.uplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
+                  CFIELD.U.data.flatten(),(n_lon,n_lat), method='linear')
+        CFIELD.vplt = interpol.griddata((CFIELD.U.xx.flatten(),CFIELD.U.yy.flatten()), \
+                  CFIELD.V.data.flatten(),(n_lon,n_lat), method='linear')
+      
+      CFIELD.speed = np.sqrt(CFIELD.uplt**2+CFIELD.vplt**2)
+      CFIELD.reprocess = False
     
     if CFIELD.PLOT.DRAWING_MODE.get() == 0:
     # -------------------------------------------- VECTORS
       CFIELD.PLOT.MESSAGE += "EG VECTORPLOT: Arrows"
       #print("EG VECTORPLOT: Arrows")
       if CFIELD.PLOT.COLOR_BY_SPEED.get():
-        quiver = ax.quiver(xplt,yplt,uplt,vplt,speed,                       \
+        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt,CFIELD.speed,                       \
                       transform=proj, \
                       color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
                       width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
@@ -721,7 +746,7 @@ def drawing(ax,proj,CFIELD):
                       alpha=CFIELD.PLOT.ALPHA.get(),
                       zorder=CFIELD.PLOT.ZORDER.get())
       else:
-        quiver = ax.quiver(xplt,yplt,uplt,vplt,  \
+        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt,  \
                       transform=proj, \
                       color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
                       width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
@@ -759,7 +784,7 @@ def drawing(ax,proj,CFIELD):
              
       if CFIELD.PLOT.COLOR_BY_SPEED.get():
         speedk = knots*speed
-        barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,speedk,
+        barbs = ax.barbs(CFIELD.xplt,CFIELD.yplt,knots*CFIELD.uplt,knots*CFIELD.vplt,speedk,
                         pivot=CFIELD.PLOT.BARB_PIVOT.get(),
                         length=CFIELD.PLOT.BARB_LENGTH.get(),
                         linewidth=CFIELD.PLOT.BARB_LINEWIDTH.get(),
@@ -769,7 +794,7 @@ def drawing(ax,proj,CFIELD):
                         alpha=CFIELD.PLOT.ALPHA.get(),
                         zorder=CFIELD.PLOT.ZORDER.get())  
       else:
-        barbs = ax.barbs(xplt,yplt,knots*uplt,knots*vplt,
+        barbs = ax.barbs(CFIELD.xplt,CFIELD.yplt,knots*CFIELD.uplt,knots*CFIELD.vplt,
                         pivot=CFIELD.PLOT.BARB_PIVOT.get(),
                         length=CFIELD.PLOT.BARB_LENGTH.get(),
                         barbcolor=CFIELD.PLOT.BARB_BARBCOLOR.get(),

@@ -452,6 +452,18 @@ class VECTOR():
     self.io        = tk.IntVar()
     self.jo        = tk.IntVar()
 
+    # Variables to plot
+    self.reprocess    = True
+    self.xplt         = None
+    self.yplt         = None
+    self.uplt         = None
+    self.vplt         = None
+    self.GRID_MODE_0  = -1
+    self.CURRENT_DX_0 = -1
+    self.CURRENT_DY_0 = -1
+    self.CURRENT_NX_0 = -1
+    self.CURRENT_NY_0 = -1
+
   def conf_get(self):
   # =================
     ''' Set class dictionary from class attributes '''
@@ -505,6 +517,7 @@ class VECTOR():
     L = self.L.get()
     self.SOURCE = 'FILE'
 
+    self.reprocess = True
     toconsola("Reading vector, K, L = "+str(K)+", "+str(L),wid=wid)
 
     if self.U.ndims == 2:
@@ -1763,7 +1776,7 @@ class CosmoDrawing():
   # ===============
   def close(self):
   # ===============
-    quit()    # DEBUG
+    #quit()    # DEBUG
     if self.LAYERS.n == 0:
       quit()
 
@@ -4034,7 +4047,7 @@ class CosmoDrawing():
 
         if SHAPE.CROP.get() and SHAPE.type == 'POINT':
           toconsola('Cropping shapefile type POINT',wid=self.cons)
-          np = SHAPE.n
+          nsp = SHAPE.n
           x = SHAPE.lon[:].copy()
           y = SHAPE.lat[:].copy()
           s = SHAPE.name[:].copy()
@@ -4047,7 +4060,7 @@ class CosmoDrawing():
           ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
           ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
 
-          for i in range(np):
+          for i in range(nsp):
             if x[i] > xmin:
               if x[i] < xmax:
                 if y[i] > ymin:
@@ -7058,7 +7071,7 @@ class CosmoDrawing():
 
         if self.SHAPE[ii].CROP.get() and self.SHAPE[ii].type == 'POINT':
           toconsola('Cropping shapefile type POINT',wid=self.cons)
-          np = self.SHAPE[ii].n
+          nsp = self.SHAPE[ii].n
           x = self.SHAPE[ii].lon[:].copy()
           y = self.SHAPE[ii].lat[:].copy()
           s = self.SHAPE[ii].name[:].copy()
@@ -7071,7 +7084,7 @@ class CosmoDrawing():
           ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
           ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
 
-          for i in range(np):
+          for i in range(nsp):
             if x[i] > xmin:
               if x[i] < xmax:
                 if y[i] > ymin:
@@ -8942,12 +8955,12 @@ class CosmoDrawing():
   # ==================
   def make_plot(self):
   # ==================
-    toconsola("EG make_plot:\n    PLOT.OUTPUT_FIGURE: "+str(self.PLOT.OUTPUT_FIGURE.get()),
-              wid=self.cons)
+    #toconsola("EG make_plot:\n    PLOT.OUTPUT_FIGURE: "+str(self.PLOT.OUTPUT_FIGURE.get()),
+    #          wid=self.cons)
       
     if self.PLOT.OUTPUT_FIGURE.get():
       if self.fig is None:
-        toconsola("\n    EGL creation", wid=self.cons)
+        #toconsola("\n    EGL creation", wid=self.cons)
         self.Window_mapa = tk.Toplevel(self.master)
         self.Window_mapa.title("COSMO-VIEW plotting tool")
         self.Window_mapa.resizable(width=True,height=True)
@@ -8969,7 +8982,7 @@ class CosmoDrawing():
         
         self.fig = Figure(figsize=self.PLOT.SIZE, \
            facecolor=self.PLOT.FIGURE_COLOR.get(),dpi=self.PLOT.DPI.get())
-        toconsola("    MAP_PLOT: Set projection parameters",wid=self.cons)
+        #toconsola("    MAP_PLOT: Set projection parameters",wid=self.cons)
         proj = map_proj(self.PLOT.MAP_PROJECTION.get(), params=self.params)
         self.ax = self.fig.add_subplot(111, projection=proj['proj'])
         self.canvas = FigureCanvasTkAgg(self.fig, master=top_panel)
