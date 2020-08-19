@@ -1188,6 +1188,9 @@ class DrawingConfig():
     self.LEGEND            = legend.LegendConfig()
     self.LEGEND.SHOW.set(False)
 
+    self.CROP_PAD           = tk.DoubleVar()
+    self.CROP_PAD.set(0.0)
+
     self.SIZE = [9,6]
     self.OUTPUT_FIGURE.set(True)
     self.OUTPUT_LEAFLET.set(False)
@@ -1546,6 +1549,7 @@ class DrawingConfig():
     conf['WINDOW_FONT_TYPE'] = self.WINDOW_FONT_TYPE.get()
     conf['WINDOW_FONT_SIZE'] = self.WINDOW_FONT_SIZE.get()
     conf['MAP_FONT_TYPE'] = self.MAP_FONT_TYPE.get()
+    conf['CROP_PAD'] = self.CROP_PAD.get()
     return conf
 
   def conf_set(self,conf):
@@ -1725,6 +1729,7 @@ class DrawingConfig():
     self.WINDOW_FONT_TYPE.set(conf['WINDOW_FONT_TYPE'])
     self.WINDOW_FONT_SIZE.set(conf['WINDOW_FONT_SIZE'])
     self.MAP_FONT_TYPE.set(conf['MAP_FONT_TYPE'])
+    self.CROP_PAD.set(conf['CROP_PAD'])
 
     # Derived variables:
     self.LOGO_IMAGE = image.imread(self.LOGO_FILE.get())
@@ -4024,6 +4029,33 @@ class CosmoDrawing():
         if not empty(SHAPE.LABEL_KEY.get()):
           SHAPE.get_name()
 
+        if SHAPE.CROP.get() and SHAPE.type == 'POINT':
+          toconsola('Cropping shapefile type POINT',wid=self.cons)
+          np = SHAPE.n
+          x = SHAPE.lon[:].copy()
+          y = SHAPE.lat[:].copy()
+          s = SHAPE.name[:].copy()
+          SHAPE.lon  = []
+          SHAPE.lat  = []
+          SHAPE.name = []
+
+          xmin = self.PLOT.WEST.get()  + self.PLOT.CROP_PAD.get()
+          xmax = self.PLOT.EAST.get()  - self.PLOT.CROP_PAD.get()
+          ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
+          ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
+
+          for i in range(np):
+            if x[i] > xmin:
+              if x[i] < xmax:
+                if y[i] > ymin:
+                  if y[i] < ymax:
+                    SHAPE.lon.append(x[i])
+                    SHAPE.lat.append(y[i])
+                    SHAPE.name.append(s[i])
+
+          SHAPE.n = len(SHAPE.lon)
+
+
         self.nshape += 1
         self.SHAPE.append(SHAPE)
         self.SHAPE_INDX.set(self.nshape-1)
@@ -5820,6 +5852,7 @@ class CosmoDrawing():
           self.L.set(L)
           self.PLOT.TLABEL.set(self.DATE[L])
 
+          print('L = ', L)
           for i in range(self.LAYERS.n):
             TYPE = self.LAYERS.TYPE[i]
             ii   = self.LAYERS.TYPE_INDEX[i]
@@ -5830,10 +5863,11 @@ class CosmoDrawing():
               elif TYPE == 'FLD':
                 self.CDF[ii].L.set(L)
                 self.CDF[ii].read(update_lims=False,wid=self.cons)
-              else:
-                toconsola("Something wrong",wid=self.cons)
-                #print('Something wrong')
-                quit()
+              #else:
+              #  toconsola("Something wrong",wid=self.cons)
+              #  #print('Something wrong')
+              #  quit()
+          print('to make_Mplot ...')
           self.make_Mplot()
           writer.grab_frame()
       messagebox.showinfo(parent=self.Window_anim,message='Movie has been saved')
@@ -7007,6 +7041,10 @@ class CosmoDrawing():
   # ======================
   def get_shapefile(self):
   # ==========================
+
+    SHAPE = shape.parameters()
+    toconsola(SHAPE.MESSAGE,wid=self.cons)      
+
     def _close():
       self.Window_shapefile.destroy()
       self.Window_shapefile = None
@@ -7014,6 +7052,33 @@ class CosmoDrawing():
     def _done():
       ii = self.SHAPE_INDX.get()
       if ii >= 0:
+
+        if self.SHAPE[ii].CROP.get() and self.SHAPE[ii].type == 'POINT':
+          toconsola('Cropping shapefile type POINT',wid=self.cons)
+          np = self.SHAPE[ii].n
+          x = self.SHAPE[ii].lon[:].copy()
+          y = self.SHAPE[ii].lat[:].copy()
+          s = self.SHAPE[ii].name[:].copy()
+          self.SHAPE[ii].lon  = []
+          self.SHAPE[ii].lat  = []
+          self.SHAPE[ii].name = []
+
+          xmin = self.PLOT.WEST.get()  + self.PLOT.CROP_PAD.get()
+          xmax = self.PLOT.EAST.get()  - self.PLOT.CROP_PAD.get()
+          ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
+          ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
+
+          for i in range(np):
+            if x[i] > xmin:
+              if x[i] < xmax:
+                if y[i] > ymin:
+                  if y[i] < ymax:
+                    self.SHAPE[ii].lon.append(x[i])
+                    self.SHAPE[ii].lat.append(y[i])
+                    self.SHAPE[ii].name.append(s[i])
+                
+          self.SHAPE[ii].n = len(self.SHAPE[ii].lon)
+
         self.SHAPE[ii].LABEL.set(_wlab.get())
         self.make_plot()
 
@@ -7071,6 +7136,9 @@ class CosmoDrawing():
         _show['variable'] = self.SHAPE[ii].show
         _aent.configure(state='normal')
         _aent['textvariable'] = self.SHAPE[ii].ALIAS
+        _wcrp['variable'] = self.SHAPE[ii].CROP
+        _wcrp.configure(state='normal')
+        _wpad.configure(state='normal')
       else:
         self.SHAPE         = []
         self.SHAPE_LIST    = ['0']
@@ -7084,6 +7152,8 @@ class CosmoDrawing():
         _wlab.configure(state='disabled')
         _aent.configure(state='disabled')
         _show.configure(state='disabled')
+        _wcrp.configure(state='disabled')
+        _wpad.configure(state='disabled')
 
     def _add():
     # ========
@@ -7096,8 +7166,6 @@ class CosmoDrawing():
         filename = '%s' % nn
 
       # Not empty filename:
-      SHAPE = shape.parameters()
-      toconsola(SHAPE.MESSAGE,wid=self.cons)      
       SHAPE.Read(filename)
       
       if SHAPE.n == 0:
@@ -7170,6 +7238,13 @@ class CosmoDrawing():
     ttk.Label(F0,text='Alias').grid(row=3,column=1,padx=3,pady=3)
     _aent = ttk.Entry(F0,width=18,justify='left')
     _aent.grid(row=3,column=2,columnspan=2,padx=3,sticky='w')
+    ttk.Label(F0,text='Crop').grid(row=4,column=1,padx=3)
+    _wpad = ttk.Entry(F0,textvariable=self.PLOT.CROP_PAD,width=9,justify='left')
+    _wpad.grid(row=4,column=2,sticky='w',padx=3)
+    _wcrp = ttk.Checkbutton(F0)
+    _wcrp.grid(row=4,column=3,sticky='w')
+    ttk.Label(F0,text='Set labels before cropping').grid(row=4,column=4,columnspan=4)
+
 
     F0.grid(row=0,column=0)
 
@@ -7178,10 +7253,15 @@ class CosmoDrawing():
     if ii == -1:
       _show = ttk.Checkbutton(F1,text='Show')
       _aent.configure(state='disabled')
+      _wcrp.configure(state='disabled')
+      _wpad.configure(state='disabled')
     else:
       _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
       _show['variable']=self.SHAPE[ii].show
       _aent['textvariable'] = self.SHAPE[ii].ALIAS
+      _wcrp['variable'] = self.SHAPE[ii].CROP
+      _wpad.configure(state='normal')
+      _wcrp.configure(state='normal')
 
     _show.grid(row=1,column=5,padx=3)
     ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=6,padx=3)
@@ -7675,10 +7755,6 @@ class CosmoDrawing():
 
       ii = self.FLOAT_INDX.get()
       if self.FLOAT[ii].CROP.get():
-        toconsola('Cropping Lagrangian data',wid=self.cons)
-        print('Cropping .... !!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(self.DATE[0])
-        print(self.DATE[-1])
         nt = self.FLOAT[ii].nrecords
         ppi = [i for i in range(nt) if self.FLOAT[ii].date[i] >= self.DATE[0]]
         ppf = [i for i in range(nt) if self.FLOAT[ii].date[i] >  self.DATE[-1]]
