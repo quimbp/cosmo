@@ -273,10 +273,13 @@ class CONTOUR():
     u = np.ma.masked_equal(_u,fill_value)
 
     # Min and max values
-    self.FLD.minval = float(u.min())
-    self.FLD.maxval = float(u.max())
+    #self.FLD.minval = float(u.min())
+    #self.FLD.maxval = float(u.max())
+    self.FLD.minval = np.nanmin(u)
+    self.FLD.maxval = np.nanmax(u)
     toconsola('Min val = '+str(self.FLD.minval),wid=wid)
     toconsola('Max val = '+str(self.FLD.maxval),wid=wid)
+    print(self.FLD.minval, self.FLD.maxval)
 
     # Make sure that the missing value is NaN:
     #_u = u.filled(fill_value=np.nan)
@@ -9874,8 +9877,8 @@ class CosmoDrawing():
     CDF.SOURCE = 'MEAN'
     CDF.PARENT = ii                    #  The index to PARENT data
     CDF.FLD.data = num / nt
-    CDF.FLD.minval = float(data.min())
-    CDF.FLD.maxval = float(data.max())
+    CDF.FLD.minval = np.nanmin(data)
+    CDF.FLD.maxval = np.nanmax(data)
 
     toconsola('Min val = '+str(CDF.FLD.minval),wid=self.cons)
     toconsola('Max val = '+str(CDF.FLD.maxval),wid=self.cons)
