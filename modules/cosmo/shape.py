@@ -72,9 +72,12 @@ class parameters():
     self.name            = []
     self.KEY_LIST        = []
     self.LABEL_KEY       = tk.StringVar() 
+    self.CROP            = tk.BooleanVar()
+
 
     self.LABEL_KEY.set('')
     self.SOURCE = 'FILE'
+    self.CROP.set(False)
     self.show.set(True)
     
     #EG We collect message ftom dotplot.parameters
@@ -97,7 +100,9 @@ class parameters():
     conf['SOURCE'] = self.SOURCE
     conf['SHOW'] = self.show.get()
     conf['TEXTMODE'] = self.textmode.get()
+    conf['LABEL'] = self.LABEL.get()
     conf['LABEL_KEY'] = self.LABEL_KEY.get()
+    conf['CROP'] = self.CROP.get()
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -110,7 +115,9 @@ class parameters():
     self.SOURCE = conf['SOURCE']
     self.show.set(conf['SHOW'])
     self.textmode.set(conf['TEXTMODE'])
+    self.LABEL.set(conf['LABEL'])
     self.LABEL_KEY.set(conf['LABEL_KEY'])
+    self.CROP.set(conf['CROP'])
     self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
@@ -158,8 +165,17 @@ class parameters():
     # --------------------------------------
       '''Read a shp file'''
       self.shp = Reader(filename)
-      self.lon = list(self.shp.geometries())
-              
+      points = list(self.shp.geometries())
+
+      self.lon = []
+      self.lat = []
+      self.name = []
+      for i in range(len(points)):
+        pp = points[i]
+        self.lon.append(pp.x)
+        self.lat.append(pp.y)
+        self.name.append('')
+
     self.FILENAME.set(filename)
     self.SOURCE = 'FILE'
 
@@ -169,6 +185,10 @@ class parameters():
     self.n = len(self.lon)
     self.geom = self.shp
     #self.type = self.shp.shapeType
+
+    geoms = list(self.geom.geometries())
+    self.type = type(geoms[0]).__name__.upper()
+    print('SHAPEFILE TYPE: ', self.type)
 
     # Label Key:
     records = list(self.shp.records())
@@ -270,12 +290,19 @@ def drawing(ax,proj,SHAPE):
 
   lshp = None
   if GTYPE[0:5] == 'POINT':
-    for i in range(len(records)):
-      poly = geoms[i]
-      name = '%s' % records[i].attributes['name']
-      if poly.x > xlim[0] and poly.x < xlim[1]:
-        if poly.y > ylim[0] and poly.y < ylim[1]:
-          lshp, = ax.plot(poly.x,poly.y,                                  \
+#    for i in range(len(records)):
+#      poly = geoms[i]
+#      name = '%s' % records[i].attributes['name']
+#      if poly.x > xlim[0] and poly.x < xlim[1]:
+#        if poly.y > ylim[0] and poly.y < ylim[1]:
+    for i in range(SHAPE.n):
+       
+      x = SHAPE.lon[i]
+      y = SHAPE.lat[i]
+      if x > xlim[0] and x < xlim[1]:
+        if y > ylim[0] and y < ylim[1]:
+#          lshp, = ax.plot(poly.x,poly.y,                                  \
+          lshp, = ax.plot(x,y,             \
                   linestyle='',                                   \
                   marker=marker_string(SHAPE.PLOT.SYMBOL.get()),  \
                   ms=SHAPE.PLOT.SIZE.get(),                       \
@@ -288,7 +315,8 @@ def drawing(ax,proj,SHAPE):
 
           if SHAPE.textmode.get():
             # Here, every marker is identified by its label
-            ax.text(xpad+poly.x,ypad+poly.y,SHAPE.name[i],
+#            ax.text(xpad+poly.x,ypad+poly.y,SHAPE.name[i],
+            ax.text(xpad+x,ypad+y,SHAPE.name[i],
                  ha=SHAPE.PLOT.HA.get(),
                  va=SHAPE.PLOT.VA.get(),
                  wrap=SHAPE.PLOT.WRAP.get(),
