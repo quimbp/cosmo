@@ -12,7 +12,7 @@ use utils, only: stop_error,compress,say
 
 implicit none
 
-integer, parameter                               :: hlp_maxoptions = 30
+integer, parameter                               :: hlp_maxoptions = 40
 integer                                          :: hlp_numoptions = 0
 
 character(len=80)                                :: hlp_progname = ''
@@ -111,7 +111,7 @@ character(len=*), intent(in)           :: option,description,default
 
 if (len_trim(option).EQ.0) return
 if (hlp_numoptions.eq.hlp_maxoptions) then
-  call stop_error(1,'Increase the value off hlp_maxoptions')
+  call stop_error(1,'Increase the value of hlp_maxoptions in COSMO_ROOT/src/lib/help.f90')
 endif
 
 ! ... New option
