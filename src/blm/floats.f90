@@ -97,6 +97,27 @@ x1 = maxval(x)
 y0 = minval(y)
 y1 = maxval(y)
 
+! ... First of all, oprn the floats file if it exists
+! ... If only one float has been specified, read it
+! ... and then use it as if the ffx and ffy options
+! ... where used.
+if (fre_in) then
+  if (filetype(release_file_in).eq.'asc') then
+    open(10,file=release_file_in,status='old')
+    ii = numlines(10)
+    if (ii.eq.1) then
+      read(10,*) fxo, fyo, fzo, fto
+      ffx = .True.
+      ffy = .True.
+      ffz = .True.
+      fft = .True.
+      fre_in = .False.
+    endif
+    close(10)
+  endif
+endif
+
+
 
 if (fre_in) then
   call floats_read(release_file_in,FLT)

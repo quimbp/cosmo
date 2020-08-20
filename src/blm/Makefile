@@ -11,7 +11,8 @@ INCDIR = $(COSMO)/include
 TARGET = blm
 
 OBJ = hinterpol.o floats.o grids.o \
-      fillcoast.o mod_out.o rhs.o clm.o help.o udf.o main.o
+      fillcoast.o mod_out.o rhs.o \
+      rk5.o clm.o help.o udf.o main.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< -I../../include $(CDFINC)

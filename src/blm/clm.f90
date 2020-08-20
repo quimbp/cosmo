@@ -831,24 +831,38 @@ write(*,*) 'North                = ', domain_north
 
 ! ... Passing from degrees to meters. The reference is the
 ! ... system center: (xcenter,ycenter):
+! ... Version 2.0: Just passing to radians !
 ! ...
-UCDF%xm = (UCDF%x-xcenter)*deg2m*coslat
-UCDF%ym = (UCDF%y-ycenter)*deg2m
-VCDF%xm = (VCDF%x-xcenter)*deg2m*coslat
-VCDF%ym = (VCDF%y-ycenter)*deg2m
+UCDF%xm = deg2rad*UCDF%x
+UCDF%ym = deg2rad*UCDF%y
+VCDF%xm = deg2rad*VCDF%x
+VCDF%ym = deg2rad*VCDF%y
 if (WCDF%defined) then
-  WCDF%xm = (WCDF%x-xcenter)*deg2m*coslat
-  WCDF%ym = (WCDF%y-ycenter)*deg2m
+  WCDF%xm = deg2rad*WCDF%x
+  WCDF%ym = deg2rad*WCDF%y
 endif
 if (TCDF%defined) then
-  TCDF%xm = (TCDF%x-xcenter)*deg2m*coslat
-  TCDF%ym = (TCDF%y-ycenter)*deg2m
+  TCDF%xm = deg2rad*TCDF%x
+  TCDF%ym = deg2rad*TCDF%y
 endif
 
-write(*,*)
-write(*,*) 'Coordinates of the central point'
-write(*,*) 'xcenter, ycenter     = ', xcenter, ycenter
-write(*,*) 'cos(ycenter)         = ', coslat
+!UCDF%xm = (UCDF%x-xcenter)*deg2m*coslat
+!UCDF%ym = (UCDF%y-ycenter)*deg2m
+!VCDF%xm = (VCDF%x-xcenter)*deg2m*coslat
+!VCDF%ym = (VCDF%y-ycenter)*deg2m
+!if (WCDF%defined) then
+!  WCDF%xm = (WCDF%x-xcenter)*deg2m*coslat
+!  WCDF%ym = (WCDF%y-ycenter)*deg2m
+!endif
+!if (TCDF%defined) then
+!  TCDF%xm = (TCDF%x-xcenter)*deg2m*coslat
+!  TCDF%ym = (TCDF%y-ycenter)*deg2m
+!endif
+
+!write(*,*)
+!write(*,*) 'Coordinates of the central point'
+!write(*,*) 'xcenter, ycenter     = ', xcenter, ycenter
+!write(*,*) 'cos(ycenter)         = ', coslat
 
 write(*,*)
 write(*,*) 'Time axis:'
@@ -1070,6 +1084,13 @@ type(date_type)                          :: system_date
 real(dp) hinterpol,udf
 external hinterpol,udf
 
+! ... Common variables (to communicate with rk5.f90):
+! ...
+real(dp)                                :: velocity_factor
+real(dp)                                :: noise_ampl
+real(dp)                                :: noise_frac
+common/noise/velocity_factor,noise_ampl,noise_frac
+
 !common/internals/internal_time,internal_dt_common
 
 external RHS
@@ -1121,6 +1142,14 @@ write(*,*)
 write(*,*)
 write(*,*) '==              CLM simulation               =='
 write(*,*) '==============================================='
+
+write(*,*)
+write(*,*) '     USED_VELOCITY = (FACTOR + MNA*Normal(0,1))*VELOCITY_ORIG + ANA*Normal(0,1)'
+write(*,*)
+write(*,*) 'Velocity factor, FACTOR  = ', velocity_factor
+write(*,*) 'Additive noise amplitude, ANA = ', noise_ampl
+write(*,*) 'Multiplicative noise amplitude, MNA = ', noise_frac
+write(*,*)
 
 if (FLT%n.eq.0) call stop_error(1,'No floats defined')
 
@@ -1181,8 +1210,8 @@ do external_step=1,external_nsteps
       do flo=1,FLT%n
         FLT%time(flo) = zero
         if (FLT%released(flo)) then
-          vp(1) = (FLT%lon(flo)-xcenter)*deg2m*coslat
-          vp(2) = (FLT%lat(flo)-ycenter)*deg2m
+          vp(1) = FLT%lon(flo)
+          vp(2) = FLT%lat(flo)
           if (TCDF%idtemp.gt.0) then
             FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
                                       trhs(:,:,1,1),vp(1),vp(2))
@@ -1240,23 +1269,26 @@ do external_step=1,external_nsteps
           ! ... The float position in meters:
           ! ... Reference (xcenter,ycenter)
           ! ...
-          vp(1) = (FLT%lon(flo)-xcenter)*deg2m*coslat
-          vp(2) = (FLT%lat(flo)-ycenter)*deg2m
+          vp(1) = FLT%lon(flo)*deg2rad
+          vp(2) = FLT%lat(flo)*deg2rad
 
           ! ... Advance the location of the float from the time t to
           ! ... the time t+dt:
           ! ...
-          call rk5(2,vp,internal_time,internal_dt,vn,RHS)
+          !print*, 'Before rk5: ', FLT%lon(flo), FLT%lat(flo)
+          !print*, 'Before rk5: ', vp
+          call spherical_rk5(2,vp,internal_time,internal_dt,vn,RHS)
+          !print*, 'After rk5: ', vn
 
           ! ... Update travelled distance:
           ! ...
-          FLT%dist(flo) = FLT%dist(flo) + norm2(vn-vp)/1000._dp
+          FLT%dist(flo) = FLT%dist(flo) + haversine_rad(vp(1),vp(2),vn(1),vn(2))
 
           ! ... Update float position
           ! ...
           vp(:)         = vn(:)
-          FLT%lon(flo)  = xcenter + m2deg*vp(1)/coslat
-          FLT%lat(flo)  = ycenter + m2deg*vp(2)
+          FLT%lon(flo)  = vp(1)*rad2deg
+          FLT%lat(flo)  = vp(2)*rad2deg
 
           FLT%stranded(flo) = beaching(FLT%lon(flo),FLT%lat(flo))
           FLT%outside(flo)  = outside(FLT%lon(flo),FLT%lat(flo))

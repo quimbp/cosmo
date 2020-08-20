@@ -29,7 +29,7 @@ call help_summary('Reads the zonal and meridional velocity components &
   &number and position of the floats may be read from an ASCII file &
   &(LON, LAT, DEPTH, RELEASE_TIME [,...]) or passed though command line &
   &using options -xo and -yo (and optionally -to or -do). In the later case, &
-  &a cloud of NFLOATS may also be generated using the option -cloud. &
+  &a random cloud of NFLOATS may also be generated using the option -rand. &
   &The number of internal time steps can be modified using the &
   &option -idt, that specifies the time step of the internal loop. &
   &The program writes a trajectory file (NetCDF) and the final position of &
@@ -52,6 +52,9 @@ call help_option ('-idt        DT (in seconds)','Option to select the &
 call help_option ('-missing    MISSING_VALUE','Missing value in input velocity field','Read from input NetCDF U file')
 call help_option ('-nfloats    NFLOATS','Number of floats to be randomly &
  &generated if the positions file is not provided.','10')
+call help_option ('-noise_ampl NAMP','Amplitude of gaussian additive noise.','0')
+call help_option ('-noise_frac NFRA','Amplitude of gaussian multiplicative noise.','0')
+call help_option ('-rand       NFLOATS','Option to request a simulation with NFLOATS randomly generated floats.','')
 call help_option ('-record     RECORD','Option to start the trajectories &
  &from the specified record. In case of streamlines, use the selected record &
  &in the file','1')
@@ -64,10 +67,10 @@ call help_option ('-Rt      RADIUS_T','If options -xo and -yo are used, the &
  &time period is [0, RADIUS_T]. Otherwise the time period is [TO-RADIUS_T/2, &
  &TO+RADIUS_T/2].','0')
 call help_option ('-Rx      RADIUS_X','If options -xo and -yo are used, the &
- &-Rx option allows setting a cloud of NFLOATS floats randomly distributed &
+ &-Rx option allows setting a random cloud of NFLOATS floats randomly distributed &
  &in a RADIUS_X x RADIUS_Y region centered at the (XO,YO) position.','0.1')
 call help_option ('-Ry      RADIUS_Y','If options -xo and -yo are used, the &
- &-Rx option allows setting a cloud of NFLOATS floats randomly distributed &
+ &-Rx option allows setting a random cloud of NFLOATS floats randomly distributed &
  &in a RADIUS_X x RADIUS_Y region centered at the (XO,YO) position.','0.1')
 call help_option ('-seed       INTEGER','Option to modify the random number generator','')
 call help_option ('-stationary','Option to calculate streamlines from a given &
@@ -80,6 +83,7 @@ call help_option ('-time_sim  Time_length (in days)','Option to select the &
 call help_option ('-trajectory filename ','Output trajectory file name','out.nc')
 call help_option ('-to         TO','Optional value of the float initial &
  &release time (seconds after initial simulation time)','0')
+call help_option ('-vel_factor VEL_FACTOR','Option to sclae the input velocity field','1')
 call help_option ('-xo         XO','Optional value of the float initial &
  &position','')
 call help_option ('-yo         YO','Optional value of the float initial &

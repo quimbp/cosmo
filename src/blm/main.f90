@@ -61,6 +61,10 @@ logical                                 :: hlp = .false.  ! Flag for help
 logical                                 :: frs = .false.  ! Flag Rand seed
 logical                                 :: fcl = .false.  ! Flag rand cloud rel.
 
+logical                                 :: vfr = .false.  ! Flag for velocity factor
+logical                                 :: fna = .false.  ! Flag for adding noise
+logical                                 :: fnf = .false.  ! Flag for multiplicative noise
+
 integer                                 :: iseed
 integer, dimension(:), allocatable      :: rseed
 
@@ -77,6 +81,13 @@ character(len=4000)                     :: Ulist=''
 character(len=4000)                     :: Vlist=''
 character(len=4000)                     :: Wlist=''
 character(len=4000)                     :: Tlist=''
+
+! ... Common variables (to communicate with rk5.f90):
+! ...
+real(dp)                                :: velocity_factor
+real(dp)                                :: noise_ampl
+real(dp)                                :: noise_frac
+common/noise/velocity_factor,noise_ampl,noise_frac
 
 ! ... Fill in the help information
 ! ...
@@ -95,6 +106,10 @@ else
   call header()
 endif
 
+velocity_factor = one
+noise_ampl = zero
+noise_frac = zero
+
 call argstr('-traj',out,ofile)
 call argstr('-out',out,ofile)
 call argstr('-rel',fre_in,release_file_in)
@@ -111,7 +126,6 @@ call argdbl('-miss',fmv,missing)
 call argdbl('-time_scal',tscale_flag,tscale)
 call argstr('-cal',fcal,calendar)
 call argflg('-stat',stationary)
-call argflg('-cl',fcl)
 call argint('-rec',fvc,record)
 call argdbl('-time_sim',ftimesim,simulation_length)
 call argint('-steps',fent,external_nsteps)
@@ -131,13 +145,25 @@ call argdbl('-to',fft,fto)
 call argdbl('-time_rel',fft,fto)
 call argstr('-do',ffd,fdo)
 call argint('-nf',fnp,Nfloats)
-call argint('-Nf',fnp,Nfloats)
+call argint('-N',fnp,Nfloats)
+call argint('-rand',fcl,Nfloats)
+
+call argdbl('-vel',vfr,velocity_factor)
+call argdbl('-noise_a',fna,noise_ampl)
+call argdbl('-noise_f',fnf,noise_frac)
 
 ! ... Not yet implemented
 !call argdbl('-so',fso,south)
 !call argdbl('-no',fno,north)
 !call argdbl('-we',fwe,west)
 !call argdbl('-ea',fea,east)
+
+noise_ampl = abs(noise_ampl)
+noise_frac = abs(noise_frac)
+
+print*, 'Velocity factor: ', velocity_factor
+print*, 'Noise amplitude: ', noise_ampl
+print*, 'Noise fraction : ', noise_frac
 
 if (count((/fuu,fvv/)).ne.2) &
    call stop_error(1,'Error. Options -U and -V required')
