@@ -3377,10 +3377,11 @@ class CosmoDrawing():
         bb.configure(state='disabled')
 
       # Filename
-      ttk.Label(F0,text=self.LAYERS.FILENAME[i], \
-                   width=40,justify='left').grid(row=i+1, \
+      base = os.path.basename(self.LAYERS.FILENAME[i])
+      ttk.Label(F0,text=base, \
+                   width=60,justify='left').grid(row=i+1, \
                                                  column=8, \
-                                                 columnspan=1,padx=3)
+                                                 columnspan=2,padx=3)
 
     F0.grid()
     for i in range(self.LAYERS.n):
