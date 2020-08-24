@@ -1228,7 +1228,7 @@ class DrawingConfig():
     
     self.MAP_RESOLUTION.set('50m')
     self.EPSG.set(4326)
-    
+   
     #EG self.MAP_PROJECTION.set('cyl')
     #EG self.MAP_RESOLUTION.set('l')
     
@@ -1928,6 +1928,21 @@ class CosmoDrawing():
     # Initialize MLM command:
     self.MLM = mlm.parameters()
 
+    # Skill - related variables
+    self.time_sampling = tk.DoubleVar()
+    self.index_s       = tk.DoubleVar()
+    self.index_n       = tk.DoubleVar()
+    self.release_file  = tk.StringVar()
+    self.blm_idt       = tk.IntVar()
+    self.out_file      = tk.StringVar()
+
+    self.time_sampling.set(1)                # hours
+    self.index_n.set(1)                      # 
+    self.release_file.set('skill_ini.dat')
+    self.out_file.set('skill_out.nc')
+    self.blm_idt.set(1200)
+
+
     tmp = matplotlib.font_manager.get_fontconfig_fonts()
     if type(tmp) is dict:
       flist = list(tmp)
@@ -2084,6 +2099,7 @@ class CosmoDrawing():
     self.Window_ellipseconfig = None
     self.Window_patch         = None
     self.Window_patchconfig   = None
+    self.Window_skill         = None
     
     self.legendtabs           = None
     self.Window_mapa          = None
@@ -2294,6 +2310,8 @@ class CosmoDrawing():
 
     toolmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Tools',menu=toolmenu)
+    toolmenu.add_command(label='Trajectory model evaluation',
+                         command=self.skill_Liu)
     toolmenu.add_command(label='Vector series',
                          command=self.vector_series)
     toolmenu.add_command(label='Vector mean',
@@ -3191,12 +3209,12 @@ class CosmoDrawing():
           self.FLOAT[ii].MAPX = np.array(self.FLOAT[ii].MAPX).T.tolist()
           self.FLOAT[ii].MAPY = np.array(self.FLOAT[ii].MAPY).T.tolist()
         else:
-          f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon,
+          self.FLOAT[ii].Fx = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon,
                                    bounds_error=False, fill_value=np.NaN)
-          self.FLOAT[ii].MAPX = f(self.TIME)
-          f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat,
+          self.FLOAT[ii].MAPX = self.FLOAT[ii].Fx(self.TIME)
+          self.FLOAT[ii].Fy = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat,
                                    bounds_error=False, fill_value=np.NaN)
-          self.FLOAT[ii].MAPY = f(self.TIME)
+          self.FLOAT[ii].MAPY = self.FLOAT[ii].Fy(self.TIME)
 
     #Main Window
     # =========
@@ -3850,10 +3868,10 @@ class CosmoDrawing():
 
         if self.first:
           # Set Figure DATA and TIME reference:
-          self.DATE = FLT.date.copy()
+          self.DATE = FLT.DATE.copy()
           self.TIME = FLT.TIME.copy()
           self.PLOT.TLABEL.set(self.DATE[self.L.get()])
-          self.L_LIST = list(range(len(FLT.date)))
+          self.L_LIST = list(range(len(FLT.DATE)))
           self.NL = len(self.L_LIST)
           self.lbox.configure(state='!disabled')
           self.lbox['values'] = self.L_LIST
@@ -3888,27 +3906,71 @@ class CosmoDrawing():
 #                                self.DATE[0]).total_seconds() 
 #                                    for i in range(FLT.nrecords)])
 
-        if self.LAYERS.nsequence > 0:
+        if len(self.TIME) > 0:
+
+          if FLT.CROP.get():
+            print('Cropping ...')
+            nt = FLT.nrecords
+            ppi = [i for i in range(nt) if FLT.DATE[i] >= self.DATE[0]]
+            ppf = [i for i in range(nt) if FLT.DATE[i] >  self.DATE[-1]]
+
+            pi = ppi[0]
+            pf = ppf[0] - 1
+
+            print('Initial index : ', pi)
+            print('Final index   : ', pf)
+
+            print(FLT.nfloats)
+            print(FLT.nrecords)
+
+            if FLT.nfloats > 1:
+               lon = FLT.lon[pi:pf+1,:]
+               lat = FLT.lat[pi:pf+1,:]
+               date = FLT.DATE[pi:pf+1]
+               TIME = FLT.TIME[pi:pf+1]
+               FLT.lon = lon
+               FLT.lat = lat
+               FLT.DATE = date
+               FLT.TIME = TIME
+            else:
+               lon = FLT.lon[pi:pf+1]
+               lat = FLT.lat[pi:pf+1]
+               date = FLT.DATE[pi:pf+1]
+               TIME = FLT.TIME[pi:pf+1]
+               FLT.lon = lon
+               FLT.lat = lat
+               FLT.DATE = date
+               FLT.TIME = TIME
+
+            FLT.nrecords = len(date)
+
+          print('Setting MAPX and MAPY ...')
           FLT.MAPX = []
           FLT.MAPY = []
+          FLT.Fx   = []
+          FLT.Fy   = []
           if FLT.nfloats > 1:
             for i in range(FLT.nfloats):
-              f = interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
-                                       bounds_error=False, fill_value=np.NaN)
-              FLT.MAPX.append(list(f(self.TIME)))
-              f = interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
-                                       bounds_error=False, fill_value=np.NaN)
-              FLT.MAPY.append(list(f(self.TIME)))
+              FLT.Fx.append(interpolate.interp1d(FLT.TIME,np.array(FLT.lon[:,i]),
+                                       bounds_error=False, fill_value=np.NaN))
+              FLT.MAPX.append(list(FLT.Fx[-1](self.TIME)))
+              FLT.Fy.append(interpolate.interp1d(FLT.TIME,np.array(FLT.lat[:,i]),
+                                       bounds_error=False, fill_value=np.NaN))
+              FLT.MAPY.append(list(FLT.Fy[-1](self.TIME)))
             # Transpose FLT.MAPX and FLT.MAPY:
             FLT.MAPX = np.array(FLT.MAPX).T.tolist()
             FLT.MAPY = np.array(FLT.MAPY).T.tolist()
           else:
-            f = interpolate.interp1d(FLT.TIME,FLT.lon,
+            FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon,
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX = f(self.TIME)
-            f = interpolate.interp1d(FLT.TIME,FLT.lat,
+            FLT.MAPX = FLT.Fx(self.TIME)
+            FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat,
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPY = f(self.TIME)
+            FLT.MAPY = FLT.Fy(self.TIME)
+
+
+
+
 #          error = 0
 #
 #        elif FLT.SOURCE == 'mlm':
@@ -5434,7 +5496,7 @@ class CosmoDrawing():
         FLT.MAPX = []
         FLT.MAPY = []
         for j in range(FLT.nfloats):
-          FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
+          FTIME = np.array([(FLT.DATE[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
           f = interpolate.interp1d(FTIME,FLT.lon[:,j], \
                                    bounds_error=False,  \
                                    fill_value=np.NaN)
@@ -5653,10 +5715,10 @@ class CosmoDrawing():
           FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
           FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
         else:
-          f = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = f(self.TIME)
-          f = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = f(self.TIME)
+          FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPX = FLT.Fx(self.TIME)
+          FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPY = FLT.Fy(self.TIME)
 
         self.nfloat += 1
         self.FLOAT.append(FLT)
@@ -7773,8 +7835,8 @@ class CosmoDrawing():
       ii = self.FLOAT_INDX.get()
       if self.FLOAT[ii].CROP.get():
         nt = self.FLOAT[ii].nrecords
-        ppi = [i for i in range(nt) if self.FLOAT[ii].date[i] >= self.DATE[0]]
-        ppf = [i for i in range(nt) if self.FLOAT[ii].date[i] >  self.DATE[-1]]
+        ppi = [i for i in range(nt) if self.FLOAT[ii].DATE[i] >= self.DATE[0]]
+        ppf = [i for i in range(nt) if self.FLOAT[ii].DATE[i] >  self.DATE[-1]]
 
         pi = ppi[0]
         pf = ppf[0] - 1
@@ -7788,25 +7850,25 @@ class CosmoDrawing():
         if self.FLOAT[ii].nfloats > 1:
            lon = self.FLOAT[ii].lon[pi:pf+1,:]
            lat = self.FLOAT[ii].lat[pi:pf+1,:]
-           date = self.FLOAT[ii].date[pi:pf+1]
+           date = self.FLOAT[ii].DATE[pi:pf+1]
            TIME = self.FLOAT[ii].TIME[pi:pf+1]
            self.FLOAT[ii].lon = lon
            self.FLOAT[ii].lat = lat
-           self.FLOAT[ii].date = date
+           self.FLOAT[ii].DATE = date
            self.FLOAT[ii].TIME = TIME
         else:
            lon = self.FLOAT[ii].lon[pi:pf+1]
            lat = self.FLOAT[ii].lat[pi:pf+1]
-           date = self.FLOAT[ii].date[pi:pf+1]
+           date = self.FLOAT[ii].DATE[pi:pf+1]
            TIME = self.FLOAT[ii].TIME[pi:pf+1]
            self.FLOAT[ii].lon = lon
            self.FLOAT[ii].lat = lat
-           self.FLOAT[ii].date = date
+           self.FLOAT[ii].DATE = date
            self.FLOAT[ii].TIME = TIME
 
         self.FLOAT[ii].nrecords = len(date)
-        print('DATE[0] = ',self.FLOAT[ii].date[0])
-        print('DATE[n] = ',self.FLOAT[ii].date[-1])
+        print('DATE[0] = ',self.FLOAT[ii].DATE[0])
+        print('DATE[n] = ',self.FLOAT[ii].DATE[-1])
         print('TIME[0] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[0]))
         print('TIME[n] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[-1]))
 
@@ -7999,12 +8061,12 @@ class CosmoDrawing():
           FLT.MAPX = np.array(FLT.MAPX).T
           FLT.MAPY = np.array(FLT.MAPY).T
         else:
-          f = interpolate.interp1d(FLT.TIME,FLT.lon,
+          FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon,
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = f(self.TIME)
-          f = interpolate.interp1d(FLT.TIME,FLT.lat,
+          FLT.MAPX = FLT.Fx(self.TIME)
+          FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat,
                                    bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = f(self.TIME)
+          FLT.MAPY = FLT.Fy(self.TIME)
 
 #      elif FLT.SOURCE == 'mlm':
 #
@@ -8060,7 +8122,7 @@ class CosmoDrawing():
 
         self.PLOT.XLABEL.set('Longitude')
         self.PLOT.YLABEL.set('Latitude')
-        self.DATE = FLT.date.copy()
+        self.DATE = FLT.DATE.copy()
         self.TIME = FLT.TIME.copy()
         self.PLOT.TLABEL.set(self.DATE[self.L.get()])
         self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
@@ -8079,7 +8141,7 @@ class CosmoDrawing():
 #              self.SEQLEADER_INDX = self.nfiles
           self.FLOAT[ii].MAPX = self.FLOAT[ii].lon.copy()
           self.FLOAT[ii].MAPY = self.FLOAT[ii].lat.copy()
-          self.DATE = self.FLOAT[ii].date.copy()
+          self.DATE = self.FLOAT[ii].DATE.copy()
           self.TIME = self.FLOAT[ii].TIME.copy()
           self.L.set(self.FLOAT[ii].L.get())
           self.L_LIST = list(range(nt))
@@ -11518,4 +11580,411 @@ class CosmoDrawing():
         grid(row=0,column=2,padx=3)
     f0.grid(sticky='ew',columnspan=3)
     pshow.grid()
+
+
+  # =======================================================
+  def skill_Liu(self):
+  # =======================================================
+
+    if self.nvec == 0:
+      messagebox.showinfo(message='No currents file opened yet')
+      return
+
+    if self.nfloat == 0:
+      messagebox.showinfo(message='No Lagrangian file opened yet')
+      return
+
+    ii = self.VEC_INDX.get()
+    jj = self.FLOAT_INDX.get()
+
+    print(self.FLOAT[jj].lon[0])
+    print(self.FLOAT[jj].lat[0])
+    print(self.FLOAT[jj].DATE[0])
+    res = tools.initial_position(self.VEC[ii],self.FLOAT[jj],wid=self.cons)
+    print('res = ', res)
+    xo = res[0]
+    yo = res[1]
+    zo = res[2]
+    to = res[3]
+    txo = tk.DoubleVar()
+    tyo = tk.DoubleVar()
+    tzo = tk.DoubleVar()
+    tto = tk.DoubleVar()
+    PERIOD = tk.IntVar()
+    PERIOD_LIST = []
+    _wlst    = None
+    global have_run, NT
+    have_run = False
+    NT       = None
+
+
+    # ===================
+    class buoy():
+    # ===================
+
+      def __init__(self):
+      # =================
+      # Define the structure
+
+        self.lon  = []
+        self.lat  = []
+        self.date = []         # Date as datetime structure
+        self.time = []         # Date as a number
+
+    def _close():
+    # ===========
+      self.Window_skill.destroy()
+      self.Window_skill = None
+
+    def _done():
+    # ==========
+
+      global have_run, NT
+      global separation_mod_obs,displacement_buoy,displacement_model,B,M,model_color
+
+      if not have_run:
+
+        with open(self.release_file.get(),'w') as f:
+          for i in range(len(xo)):
+            ss = "%9.3f, %9.3f, %9.3f, %9.0f\n" % (xo[i], yo[i], zo[i], to[i])
+            f.write(ss)
+
+        BLM = blm.parameters()
+
+        command = BLM.PATH.get() + BLM.BIN.get()
+
+        options  = ' -U file='+self.VEC[ii].UFILENAME.get() 
+
+        options += ' x='+self.VEC[ii].U.icdf.xname 
+        options += ' y='+self.VEC[ii].U.icdf.yname
+        if self.VEC[ii].U.icdf.idz >= 0:
+          options += ' z='+self.VEC[ii].U.icdf.zname
+        options += ' t='+self.VEC[ii].U.icdf.tname
+        options += ' u='+self.VEC[ii].uname.get()
+        options += ' -V file='+self.VEC[ii].VFILENAME.get() 
+        options += ' x='+self.VEC[ii].V.icdf.xname 
+        options += ' y='+self.VEC[ii].V.icdf.yname
+        if self.VEC[ii].V.icdf.idz >= 0:
+          options += ' z='+self.VEC[ii].V.icdf.zname
+        options += ' t='+self.VEC[ii].V.icdf.tname
+        options += ' v='+self.VEC[ii].vname.get()
+        options += ' -release ' + self.release_file.get()
+        options += ' -idt %d ' % self.blm_idt.get()
+        options += ' -out '+ self.out_file.get()
+
+        command += options
+        toconsola(command,wid=self.cons)
+        os.system(command)
+
+        if os.path.isfile(self.out_file.get()):
+          FLT = lagrangian.parameters()
+          toconsola(FLT.MESSAGE,wid=self.cons)
+          FLT.Read(self.out_file.get())
+          if FLT is None:
+            return
+          have_run = True
+        else:
+          have_run = False
+
+        if not have_run:
+          return
+
+        FLT.MAPX = []
+        FLT.MAPY = []
+        FLT.Fx   = []
+        FLT.Fy   = []
+        if FLT.nfloats > 1:
+          for i in range(FLT.nfloats):
+            FLT.Fx.append(interpolate.interp1d(FLT.TIME,FLT.lon[:,i], bounds_error=False, fill_value=np.NaN))
+            FLT.MAPX.append(FLT.Fx[i](self.TIME))
+            FLT.Fy.append(interpolate.interp1d(FLT.TIME,FLT.lat[:,i], bounds_error=False, fill_value=np.NaN))
+            FLT.MAPY.append(FLT.Fy[i](self.TIME))
+          FLT.MAPX = np.array(FLT.MAPX).T.tolist()
+          FLT.MAPY = np.array(FLT.MAPY).T.tolist()
+        else:
+          FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPX = FLT.Fx(self.TIME)
+          FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
+          FLT.MAPY = FLT.Fy(self.TIME)
+
+        FLT.SOURCE = 'blm'
+        FLT.PLOT.LINE_COLOR.set(self.VEC[ii].PLOT.CURRENT_COLOR.get())
+
+        self.nfloat += 1
+        self.FLOAT.append(FLT)
+        self.FLOAT_INDX.set(self.nfloat-1)
+        self.FLOAT_LIST = list(range(self.nfloat))
+        model_color = self.FLOAT[-1].PLOT.LINE_COLOR.get()
+
+        nt = len(FLT.TIME)
+        self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
+
+        self.make_plot()
+
+        # Clean model and buoy:
+        ind = []
+        for i in range(len(FLT.lon)):
+          if np.isnan(FLT.lon[i]) or np.isnan(FLT.lat[i]):
+            ind.append(i)
+
+        if len(ind)>0:
+          aa = np.delete(FLT.lon,ind)
+          FLT.lon = aa
+          aa = np.delete(FLT.lat,ind)
+          FLT.lat = aa
+          aa = np.delete(FLT.DATE,ind)
+          FLT.DATE = aa
+          aa = np.delete(FLT.TIME,ind)
+          FLT.TIME = aa
+          FLT.nrecords = len(FLT.DATE)
+
+        # Model simulation length:
+        # 
+        duration_hours = (FLT.TIME[-1] - FLT.TIME[0])/3600
+        print(self.time_sampling.get())
+        nt = int(duration_hours/self.time_sampling.get())
+
+        dd = []
+        tt = []
+        rr = FLT.DATE[0] + datetime.timedelta(hours=-self.time_sampling.get())
+        for i in range(nt):
+          rr += datetime.timedelta(hours=self.time_sampling.get())
+          dd.append(rr)                      # Date, every time_sampling hours
+          tt.append(rr.timestamp())          # Ordinal time, every time_sampling hours
+        dd = np.array(dd)
+        tt = np.array(tt)
+        tt[0]  += 1
+        tt[-1] -= 1
+
+        # Interpolate the geojson onto the constructed time axis
+
+        print('jj = ',jj)
+        B = buoy()
+        B.lon = self.FLOAT[jj].Fx(tt)
+        B.lat = self.FLOAT[jj].Fy(tt)
+        B.date = dd[:]
+        B.time = tt[:]
+        #print(B.time)
+        #print(B.lon)
+
+        # Interpolate the model
+
+        M = buoy()
+        M.lon = FLT.Fx(tt)
+        M.lat = FLT.Fy(tt)
+        M.date = dd[:]
+        M.time = tt[:]
+
+        d = len(M.lon)
+        a = np.arange(12,d,12)
+
+        if np.remainder(d-1,12) == 0:
+          PERIOD_LIST = list(a)
+        else:
+          PERIOD_LIST = list(np.append(a,d))
+  
+        _wlst['values'] = PERIOD_LIST
+        _wlst.configure(state='normal')
+        _wlst.set(PERIOD_LIST[-1])
+  
+        # Displacement of the model (not used in any calculation):
+        dl = [0]
+        for i in range(1,len(M.lon)):
+          dl.append(tools.haversine((M.lon[i-1],M.lat[i-1]),(M.lon[i],M.lat[i])))
+        displacement_model = np.array(dl)
+        print('Model displacement: ', displacement_model)
+
+        # Displacement of the buoy:
+        dl = [0]
+        for i in range(1,len(B.lon)):
+          dl.append(tools.haversine((B.lon[i-1],B.lat[i-1]),(B.lon[i],B.lat[i])))
+        displacement_buoy = np.array(dl)
+        print('Buoy displacement: ', displacement_buoy)
+
+        # Separation buoys - model:
+        dl = []
+        for i in range(len(B.lon)):
+          dl.append(tools.haversine((B.lon[i],B.lat[i]),(M.lon[i],M.lat[i])))
+        separation_mod_obs = np.array(dl)
+        print('Separation : ', separation_mod_obs)
+
+        NT = len(B.lon)
+        print('NT = ', NT)
+
+
+      #final_separation = separation_mod_obs[-1]
+      #print('final separation ', final_separation)
+
+      final_separation = separation_mod_obs[NT-1]
+      print('final separation ', final_separation)
+      index_s = []
+
+      #num = np.sum(separation_mod_obs[1:])   #  d_1 + d_2 + d_3 + ...
+      num = np.sum(separation_mod_obs[1:NT])   #  d_1 + d_2 + d_3 + ...
+      #print('len(separation) = ',len(separation_mod_obs))
+      #print(np.sum(separation_mod_obs[1:NT]), '  versus ', num)
+
+      #l_n = []
+      #for i in range(len(B.lon)-1):
+      #  l_n.append(np.sum(displacement_buoy[0:i+1]))
+      #den = np.sum(np.array(l_n))    # Denominator: l_1 + l_2 + l_3 + ...
+
+
+      l_n = []
+      for i in range(NT-1):
+        l_n.append(np.sum(displacement_buoy[0:i+1]))
+      den = np.sum(np.array(l_n))    # Denominator: l_1 + l_2 + l_3 + ...
+
+      index_s = num/den
+
+      print('')
+      print('((%.3f, %.3f) , (%.3f, %.3f)) ' % (B.lon[0], B.lat[0], M.lon[0], M.lat[0]))
+      for i in range(1,NT):
+        print('((%.3f, %.3f) , (%.3f, %.3f)): %6d  %6d' % (B.lon[i], B.lat[i], M.lon[i], M.lat[i], displacement_buoy[i],separation_mod_obs[i]))
+
+
+      if index_s < self.index_n.get(): 
+        ss = 1 - index_s/self.index_n.get()
+      else:
+        ss = 0
+      print('Index s : ', index_s)
+      print('Skill score, ss = ', ss)
+
+       
+      # COSMO index:
+      # We define it as a product of a geometric index and an arithmetic index to
+      # account both for the direction and the normalized closeness of the
+      # predicted and observed positions:
+
+      # Buoy bearing:
+      buoy_bearing = tools.initial_bearing((B.lon[0],B.lat[0]),(B.lon[NT-1],B.lat[NT-1]))
+      model_bearing = tools.initial_bearing((M.lon[0],M.lat[0]),(M.lon[NT-1],M.lat[NT-1]))
+      print('Buoy  bearing: ', buoy_bearing)
+      print('Model bearing: ', model_bearing)
+      theta = tools.angle_diff(buoy_bearing,model_bearing)
+      direction_factor = np.cos(np.pi*theta/180)
+      if direction_factor < 0:
+        direction_factor = 0
+
+      distance_factor = 1/(1+final_separation/l_n[NT-2])
+      print('Bearing angle difference:' , theta)
+      print('Direction factor (max(0,cos(theta)):' , direction_factor)
+      print('buoy model prediction distance: ', final_separation)
+      print('Buoy travelled distance): ', l_n[-1])
+      print('Distance factor : ', distance_factor)
+
+      cosmo_index = direction_factor * distance_factor
+      print('COSMO index : ', cosmo_index)
+
+
+
+      fig = plt.figure()
+      ax  = plt.axes([0.15,0.10,0.80,0.66])
+
+      ax.set_xlabel('Longitude')
+      ax.set_ylabel('Latitude')
+      ax.grid(True)
+  
+      ax.plot(B.lon[0],B.lat[0],'or',ms=8)
+      ax.plot(B.lon[0:NT],B.lat[0:NT],'+r',ms=3)
+      ax.plot(B.lon[0:NT],B.lat[0:NT],'-',color=self.FLOAT[jj].PLOT.LINE_COLOR.get(),linewidth=2,label='Buoy')
+  
+      ax.plot(M.lon[0:NT],M.lat[0:NT],'+b',ms=3)
+      ax.plot(M.lon[0:NT],M.lat[0:NT],'-',color=model_color,linewidth=2,label='Model')
+ 
+      #for k in range(len(B.lon)):
+      for k in range(NT):
+        ax.plot([B.lon[k],M.lon[k]], \
+                [B.lat[k],M.lat[k]], \
+                '--k',linewidth=0.5)
+  
+      ax.legend()
+      string = 'Initial point and date: (%.3f,%.3f) %s ' % (B.lon[0], B.lat[0], B.date[0])
+      ax.text(0.2,0.98,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'Simulation length %.1f hours, i.e. %.2f days ' % ((M.time[NT-1]-M.time[0])/3600 ,(M.time[NT-1]-M.time[0])/86400 ) 
+      ax.text(0.2,0.95,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'Displacement: Buoy = %d km; Model = %d km' % (np.sum(displacement_buoy[0:NT-1])/1000, np.sum(displacement_model[0:NT-1])/1000)
+      ax.text(0.2,0.92,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'Final distance between model and buoy = %d km' % (final_separation/1000) 
+      ax.text(0.2,0.89,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'LW2011 Index s = %.2f, n = %.2f.             Skill score = %.2f' % (index_s, self.index_n.get(), ss) 
+      ax.text(0.2,0.86,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'Bearing: Buoy = %d; Model = %d. Difference = %d ' % (buoy_bearing, model_bearing, theta)
+      ax.text(0.2,0.83,string,ha='left',va='top',transform=fig.transFigure)
+      string = 'Factor: Direction = %.2f; Distance = %.2f. Combined = %.2f ' % (direction_factor, distance_factor, cosmo_index)
+      ax.text(0.2,0.80,string,ha='left',va='top',transform=fig.transFigure)
+
+      plt.show()
+
+    def _lselection():
+    # =================
+      global NT
+      NT = PERIOD.get() + 1
+      print('NT = ', NT)
+
+    # Main window:
+
+    if self.Window_skill is None:
+      self.Window_skill = tk.Toplevel(self.master)
+      self.Window_skill.title('Trajectory model evaluation')
+      self.Window_skill.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_skill.lift()
+
+    F0 = ttk.Frame(self.Window_skill,padding=5)
+    #ttk.Label(F0,text='Model initial date  : '+str(self.VEC[ii].DATE[0])).grid(row=0,column=0,columnspan=3,padx=3,stick='w')
+    #ttk.Label(F0,text='Trajectory initial date: '+str(self.FLOAT[jj].date[0])).grid(row=1,column=0,columnspan=3,padx=3,stick='w')
+
+    tk.Label(F0,text='Model initial date:').grid(row=0,column=0,padx=3,stick='w')
+    e = tk.Entry(F0)
+    e.grid(row=0,column=1,padx=3,stick='w')
+    e.insert(0,str(self.VEC[ii].DATE[0]))
+    e.configure(state='readonly')
+
+    tk.Label(F0,text='Buoy initial date:').grid(row=1,column=0,padx=3,stick='w')
+    e = tk.Entry(F0)
+    e.grid(row=1,column=1,padx=3,stick='w')
+    e.insert(0,str(self.FLOAT[jj].DATE[0]))
+    e.configure(state='readonly')
+
+    ttk.Label(F0,text='Initial point (xo, yo, zo, to): ').grid(row=2,column=0,columnspan=3,padx=3,stick='w')
+    F0.grid()
+
+    F2 = ttk.Frame(self.Window_skill)
+    for i in range(min(len(xo),5)):
+      txo.set(xo[i][0])
+      tyo.set(yo[i][0])
+      tzo.set(zo[i])
+      tto.set(to[i][0])
+      tk.Entry(F2,textvariable=txo,justify='left',width=12,state='readonly').grid(row=i,column=0,padx=3,sticky='ew')
+      tk.Entry(F2,textvariable=tyo,justify='left',width=12,state='readonly').grid(row=i,column=1,padx=3,sticky='ew')
+      tk.Entry(F2,textvariable=tzo,justify='left',width=12,state='readonly').grid(row=i,column=2,padx=3,sticky='ew')
+      tk.Entry(F2,textvariable=tto,justify='left',width=12,state='readonly').grid(row=i,column=3,padx=3,sticky='ew')
+    F2.grid()
+
+    F3 = ttk.Frame(self.Window_skill)
+    tk.Label(F3,text='Release filename:').grid(row=0,column=0,padx=3,sticky='w')
+    tk.Entry(F3,textvariable=self.release_file,justify='left',width=40).grid(row=0,column=1,padx=3,sticky='w')
+    tk.Label(F3,text='Trajectory filename:').grid(row=1,column=0,padx=3,sticky='w')
+    tk.Entry(F3,textvariable=self.out_file,justify='left',width=40).grid(row=1,column=1,padx=3,sticky='w')
+    tk.Label(F3,text='blm option -idt:').grid(row=2,column=0,padx=3,sticky='w')
+    tk.Entry(F3,textvariable=self.blm_idt,justify='left',width=40).grid(row=2,column=1,padx=3,sticky='w')
+    tk.Label(F3,text='Normalization factor, n:').grid(row=3,column=0,padx=3,sticky='w')
+    tk.Entry(F3,textvariable=self.index_n,justify='left',width=40).grid(row=3,column=1,padx=3,sticky='w')
+    tk.Label(F3,text='Target prediction:').grid(row=4,column=0,padx=3,sticky='w')
+    _wlst = ttk.Combobox(F3,textvariable=PERIOD,width=5)
+    _wlst.grid(row=4,column=1,padx=3,sticky='w')
+    _wlst.configure(state='disabled')
+    _wlst.bind('<<ComboboxSelected>>',lambda e: _lselection())
+
+
+    F3.grid()
+
+
+    F1 = ttk.Frame(self.Window_skill,padding=5)
+    ttk.Button(F1,text='Cancel',command=_close).grid(row=1,column=2,padx=3)
+    ttk.Button(F1,text='Done',command=_done).grid(row=1,column=3,padx=3)
+    F1.grid()
+
+
 

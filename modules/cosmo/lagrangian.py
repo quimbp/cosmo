@@ -92,7 +92,7 @@ class parameters():
     self.nrecords        = 0
     self.lon             = []
     self.lat             = []
-    self.date            = []
+    self.DATE            = []
     self.TIME            = []
     self.speed           = []
     self.SOURCE          = 'FILE'
@@ -103,6 +103,8 @@ class parameters():
     self.show.set(True)
     self.ALIAS.set('')
     self.CROP.set(False)
+    self.Fx              = None
+    self.Fy              = None
 
     #if exists(self.FILECONF):
     #  print('Reading Lagrangian configuration file '+self.FILECONF)
@@ -262,16 +264,16 @@ class parameters():
       if self.SOURCE == 'blm':
       # ------------------------
         Time_jd = ncid.variables['time'][:]
-        self.date = []
+        self.DATE = []
         for i in range(self.nrecords):
           a = caldat(Time_jd[i])
-          self.date.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
+          self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
       elif self.SOURCE == 'mlm':
       # ------------------------
         Time_jd = ncid.variables['time'][:,:]
         Time_jd[Time_jd>1e10] = np.nan
 
-        self.date = []
+        self.DATE = []
         for j in range(ncid.variables['time'].shape[0]):
           tmpdate = []
           for i in range(self.nfloats):
@@ -280,7 +282,7 @@ class parameters():
               tmpdate.append(datetime.datetime(6050,1,1,12,0,0))
             else:
               tmpdate.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
-          self.date.append(tmpdate)
+          self.DATE.append(tmpdate)
 
     # --------------------------------------
     def read_trajectory_json(filename):
@@ -319,7 +321,7 @@ class parameters():
 
       self.lon = []
       self.lat = []
-      self.date = []
+      self.DATE = []
 
       if fileFormat == "Undated LineString":
         for i in range(nfeatures):
@@ -328,7 +330,7 @@ class parameters():
             b = DATA["features"][i]["properties"]["time"]
             self.lon.append(a[0])
             self.lat.append(a[1])
-            self.date.append(datetime.datetime.strptime(b, \
+            self.DATE.append(datetime.datetime.strptime(b, \
                              '%Y-%m-%dT%H:%M:%SZ'))
 
       elif fileFormat == "Dated LineString":
@@ -337,7 +339,7 @@ class parameters():
         for i in range(len(DATES)):
           self.lon.append(POINTS[i][0])
           self.lat.append(POINTS[i][1])
-          self.date.append(datetime.datetime.strptime(DATES[i], \
+          self.DATE.append(datetime.datetime.strptime(DATES[i], \
                            '%Y-%m-%dT%H:%M:%SZ'))
 
       else:
@@ -366,7 +368,7 @@ class parameters():
       self.nrecords = None
       self.lon  = []
       self.lat  = []
-      self.date = []
+      self.DATE = []
       if Axes.lon is None:
         return
       if Axes.lat is None:
@@ -395,13 +397,13 @@ class parameters():
               second = 0
             else:
               second = int(columns[Axes.second])
-            self.date.append(datetime.datetime(year,month,day, \
+            self.DATE.append(datetime.datetime(year,month,day, \
                                                hour,minute,second))
           elif Axes.type == 1:
-            self.date.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
+            self.DATE.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
 
           elif Axes.type == 2:
-            self.date.append(datetime.datetime.strptime(columns[Axes.date]+'T'+columns[Axes.time],Axes.fmt))
+            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+'T'+columns[Axes.time],Axes.fmt))
 
           else:
             print('unknown ASCII file format')
@@ -443,8 +445,10 @@ class parameters():
 
     self.TIME = []
     for i in range(self.nrecords):
-      self.TIME.append(self.date[i].timestamp())
+      self.TIME.append(self.DATE[i].timestamp())
     self.TIME = np.array(self.TIME)
+
+    self.DATE = np.array(self.DATE)
 
     # If we have data, we fill some fields to their default value.
     self.I.set(0)
@@ -569,7 +573,7 @@ def ShowData(master,LL):
           string = '\t {} \t {: 7.3f} \t {: 7.3f} \t {} \n'.format(l, \
                                                      LL.lon[l],     \
                                                      LL.lat[l],     \
-                                                     LL.date[l])
+                                                     LL.DATE[l])
           log.insert('end',string)
       else:
         i = int(LL.I.get())
@@ -577,7 +581,7 @@ def ShowData(master,LL):
           string = '\t {} \t {: 7.3f} \t {: 7.3f} \t {} \n'.format(l, \
                                                    LL.lon[l][i],  \
                                                    LL.lat[l][i],  \
-                                                   LL.date[l])
+                                                   LL.DATE[l])
           log.insert('end',string)
     elif LL.SOURCE == 'mlm':
         i = int(LL.I.get())
@@ -585,7 +589,7 @@ def ShowData(master,LL):
           string = '\t {} \t {: 7.3f} \t {: 7.3f} \t {} \n'.format(l, \
                                                    LL.lon[l][i],  \
                                                    LL.lat[l][i],  \
-                                                   LL.date[l][i])
+                                                   LL.DATE[l][i])
           log.insert('end',string)
 
 
@@ -615,7 +619,7 @@ def editor(LL):
 
   BACKUP_lon = LL.lon.copy()
   BACKUP_lat = LL.lat.copy()
-  BACKUP_date = LL.date.copy()
+  BACKUP_date = LL.DATE.copy()
 
   REJECT = []
   for i in range(LL.nrecords):
@@ -626,8 +630,8 @@ def editor(LL):
   Station_pointer = tk.IntVar() 
   NRECORDS = tk.IntVar() 
 
-  Deploy_date.set(LL.date[0].__str__())
-  Recover_date.set(LL.date[LL.nrecords-1].__str__())
+  Deploy_date.set(LL.DATE[0].__str__())
+  Recover_date.set(LL.DATE[LL.nrecords-1].__str__())
   Station_pointer.set(0)
   NRECORDS.set(LL.nrecords)
 
@@ -639,7 +643,7 @@ def editor(LL):
   # ===========
     LL.lon = BACKUP_lon.copy()
     LL.lat = BACKUP_lat.copy()
-    LL.date = BACKUP_date.copy()
+    LL.DATE = BACKUP_date.copy()
     win.destroy()
 
   def _deploytime():
@@ -648,7 +652,7 @@ def editor(LL):
     print('In deploy date: ', Deploy_date.get())
     t0 = dparser.parse(Deploy_date.get())
     for i in range(LL.nrecords):
-      if LL.date[i] < t0:
+      if LL.DATE[i] < t0:
         REJECT[i].set(True)
 
   def _recovertime():
@@ -657,7 +661,7 @@ def editor(LL):
     print('In recover date: ', Recover_date.get())
     t0 = dparser.parse(Recover_date.get())
     for i in range(LL.nrecords):
-      if LL.date[i] > t0:
+      if LL.DATE[i] > t0:
         REJECT[i].set(True)
 
   def _purge():

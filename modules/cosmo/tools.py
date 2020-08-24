@@ -2327,6 +2327,54 @@ def haversine(point1,point2):
   h = 2 * AVG_EARTH_RADIUS * asin(sqrt(d))
   return h * 1000  # in meters
 
+def initial_bearing(point1,point2):
+# ===================================
+  ''' Calculate the initial bearing between two points
+       on the earth given as couples of decimal degrees (LON, LAT)
+
+    The formulae used is the following:
+        θ = atan2(sin(Δlong).cos(lat2),
+                  cos(lat1).sin(lat2) − sin(lat1).cos(lat2).cos(Δlong))
+    :Parameters:
+      - point1: The tuple representing the (LON,LAT) for the first point.
+      - point2: The tuple representing the (LON,LAT) for the second point.
+                Longitudes and latitudes must be in decimal degrees.
+    :Returns:
+      The bearing in degrees
+    :Returns Type:
+      float
+    '''
+  if (type(point1) != tuple) or (type(point2) != tuple):
+      raise TypeError("Only tuples are supported as arguments")
+
+  lat1 = math.radians(point1[1])
+  lat2 = math.radians(point2[1])
+
+  diffLong = math.radians(point2[0] - point1[0])
+
+  x = math.sin(diffLong) * math.cos(lat2)
+  y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1)
+            * math.cos(lat2) * math.cos(diffLong))
+
+  initial_bearing = math.atan2(x, y)
+
+  # Now we have the initial bearing but math.atan2 return values
+  # from -180° to + 180° which is not what we want for a compass bearing
+  # The solution is to normalize the initial bearing as shown below
+  initial_bearing = math.degrees(initial_bearing)
+  compass_bearing = (initial_bearing + 360) % 360
+
+  return compass_bearing
+
+def angle_diff (a,b):
+# ===================
+  ''' Calculates the smallest difference between angles a and b'''
+
+  dif = a - b
+  dif = (dif + 180) % 360 - 180
+  return dif
+
+
 def simple_form(Title,Label,value=''):
 # =======================================
 
@@ -2853,4 +2901,80 @@ def toconsola(message, tag="", wid=None):
     wid.see(tk.END)
   else:
     print(message)
+
+# =============================================
+def initial_position(VEC,FLOAT,**args):
+# =============================================
+  ''' Calculate the initial position of the float position
+      intersecting the model domain and time period. 
+      If there is no common location, None values are 
+      returned '''
+
+  # VEC class:
+  # --------------
+  # VEC.DATE
+  # VEC.TIME
+  # VEC.Z_LIST
+  # VEC.K
+  #
+  # FLOAT class:
+  # --------------
+  # FLOAT.nfloats
+  # FLOAT.nrecords
+  # FLOAT.lon
+  # FLOAT.lat
+  # FLOAT.DATE
+  # FLOAT.TIME
+
+  # Identify the first buoy record within the model simulation period:
+  #
+  xo = []
+  yo = []
+  zo = []
+  to = []
+  for flo in range(FLOAT.nfloats):
+
+    if FLOAT.nfloats == 1:
+      buoy_lon = FLOAT.lon[:]
+      buoy_lat = FLOAT.lat[:]
+    else:
+      buoy_lon = FLOAT.lon[:][flo]
+      buoy_lat = FLOAT.lat[:][flo]
+
+    if len(FLOAT.DATE.shape) == 1:
+      buoy_date = FLOAT.DATE[:].copy()
+      buoy_time = FLOAT.TIME[:]
+    else:
+      buoy_date = FLOAT.DATE[:][flo].copy()
+      buoy_time = FLOAT.TIME[:][flo]
+
+
+    do = None
+    for dd in reversed(buoy_date):
+      if dd >= VEC.DATE[0] and dd < VEC.DATE[-1]:
+        do = dd
+
+    if do is None:
+      print('ERROR: No match between model and buoy')
+      return None, None, None, None
+  
+    #ko = buoy_date.index(do)
+    ko = np.where(buoy_date == do)
+    print('do : ', do)
+    print('ko : ', ko)
+
+  # Time difference between the first record and the initial model time:
+
+
+    xo.append(buoy_lon[ko])
+    yo.append(buoy_lat[ko])
+    try:
+      zo.append(VEC.Z_LIST[VEC.K.get()])
+    except:
+      zo.append(0)
+    to.append(buoy_time[ko] - VEC.TIME[0])
+
+    #print("%9.3f, %9.3f, %9.3f, %9.0f" % (xo[-1], yo[-1], zo[-1], to[-1]))
+
+  return xo, yo, zo, to
 
