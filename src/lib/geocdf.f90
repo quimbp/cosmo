@@ -479,7 +479,7 @@ LOGICAL fdi,fdj,fdk,fdl,fvx,fvy,fvz,fvt,nemo
 integer idi,idj,idk,idl,idx,idy,idz,idt
 integer fid,ndims,nvars,natts,unlimid,dim,var
 integer ntype,dimids(10)
-character(LEN=80) word
+character(LEN=80) word,axis
 
 !cdf%iname = ''; cdf%jname = ''; cdf%kname = ''; cdf%lname = '' 
 !cdf%xname = ''; cdf%yname = ''; cdf%zname = ''; cdf%tname = ''
@@ -590,9 +590,12 @@ else
   do var=1,nvars
     word = ''
     err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
-    word = uppercase(word)
-    if (idz.LT.0.AND.word(1:1).eq.'Z')       idz = var
-    if (idz.LT.0.AND.word(1:3).eq.'DEP')     idz = var
+    err = NF90_GET_ATT(fid,var,'axis',axis)
+    axis = uppercase(axis)
+    if (axis.eq.'Z') idz = var
+!    word = uppercase(word)
+!    if (idz.LT.0.AND.word(1:1).eq.'Z')       idz = var
+!    if (idz.LT.0.AND.word(1:3).eq.'DEP')     idz = var
   enddo
   if (idz.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idz,name=cdf%zname)
 endif
