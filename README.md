@@ -9,9 +9,45 @@ The code has been developed under Centos, using the GNU Fortran (GCC)
 Purpose: Build a fortran utilities library and a Lagrangian trajectory integrator (COSMO Lagrangian Model).
 Requirements: **Fortran compiler** and the **NetCDF F90 library** version 4.3.X.X
 
+## Dependencies
+
+To have access to all the capabilities of the codes, both a fortran compiler and a Python 3 interpreter are necessary. In addition, the following libraries, utilities and python modules are required:
+
+### Utilities
+
+* FFmpeg: a collection of libraries and programs for handling video and multimedia (Required by cosmo-view to create animations).
+
+### Libraries
+
+* NetCDF-Fortran library for running the Lagrangian model (written in Fortran).
+* GEOS
+* PROJ
+* Shapely
+
+### Python3 modules
+
+* tkinter
+* PIL
+* numpy
+* scipy
+* matplotlib
+* netcdf4
+* Beautiful Soup
+* wget
+* psycopg2
+* cartopy
+* future
+* requests
+* tkcolorpicker
+* shapely
+
+
+Some of these packages may already be installed in your operational system. Other might need to be installed. Be aware that the actual names of these packages and the commands required for their installation will vary from one system to another. **Windows 10** users are strongly encouraged to install a _Windows Subsystem for Linux_ (WSL) that will allow installing a **Ubuntu 20.04 LTS** environment running directly under windows.
+
+
 ## Installing
 
-To install the code, use:
+Once all dependencies have been installed, the cosmo code can be retrieved through **git**:
 
 ```
 $ git clone https://github.com/quimbp/cosmo.git
