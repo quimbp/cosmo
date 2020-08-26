@@ -3,9 +3,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-import psycopg2
 
-import wget
 from os.path import isfile, join
 from cosmo.tools import simple_form
 from cosmo.tools import empty
@@ -19,6 +17,7 @@ def conectadb():
     #    db =
     #    postgresql.open("pq://"+user+":"+passwd+"@"+server+"/"+datab)
     #    db.connect()
+    import psycopg2
     params = {'database': 'dof',
               'user': 'dof_read',
               'password': 'eU9Za2ofNGfGUGe8',
@@ -78,6 +77,7 @@ def select_exp():
 
   def _get():
   # ===========
+    import wget
     out = tk.filedialog.askdirectory(parent=win,title='Target folder')
 
     #out = simple_form('Output folder for download files','path','./')
