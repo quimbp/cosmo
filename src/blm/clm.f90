@@ -1070,12 +1070,13 @@ use mrhs
 
 ! ... Local variables:
 ! ...
-logical init
+logical init,fractional
 integer flo,kout,nfloating,nstranded,noutside
 integer                                  :: external_step
 real(dp)                                 :: external_time
 !real(dp)                                 :: internal_time
 real(dp)                                 :: initial_time
+real(dp)                                 :: fractional_dt
 real(dp), dimension(2)                   :: vp,vn
 
 real(dp)                                 :: system_time
@@ -1170,6 +1171,53 @@ do flo=1,FLT%n
 enddo
 
 
+! ... Save initial conditions:
+! ...
+do flo=1,FLT%n
+  FLT%time(flo) = zero
+  if (FLT%released(flo)) then
+    vp(1) = FLT%lon(flo)
+    vp(2) = FLT%lat(flo)
+    if (TCDF%idtemp.gt.0) then
+      FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                trhs(:,:,1,1),vp(1),vp(2))
+    else
+      FLT%temp(flo) = missing
+    endif
+    if (TCDF%idsalt.gt.0) then
+      FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                srhs(:,:,1,1),vp(1),vp(2))
+    else
+      FLT%salt(flo) = missing
+    endif
+    if (TCDF%iddens.gt.0) then
+      FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
+                                rrhs(:,:,1,1),vp(1),vp(2))
+    else
+      if (TCDF%idtemp.gt.0.and.TCDF%idsalt.gt.0) then
+        FLT%dens(flo) = sigma0(FLT%temp(flo),FLT%salt(flo))
+      else
+        FLT%dens(flo) = missing
+      endif
+    endif
+    FLT%UDF(flo)  = udf(2,(/FLT%lon(flo),FLT%lat(flo)/))
+  else
+    FLT%temp(flo) = missing
+    FLT%salt(flo) = missing
+    FLT%dens(flo) = missing
+    FLT%UDF(flo)  = missing
+  endif
+  FLT%dist(flo) = zero
+enddo
+
+kout = 1
+FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
+system_time = UCDF%time_ref + (tscale*UCDF%t(1)+internal_time)/86400.0_dp
+FLT%date = jd2date(system_time)
+call out_save(FLT,kout,file_time,system_time)
+
+
+
 
 do external_step=1,external_nsteps
 ! ---
@@ -1191,66 +1239,10 @@ do external_step=1,external_nsteps
   ! ...
   call clm_coeffs
 
-  ! ... Flag to save the initial conditions:
-  ! ...
-  if (external_step.eq.1) init = .true.
-
   internal_time = external_time
-
   do internal_step=1,internal_nsteps
 
     call clm_rhs
-
-    ! ... Save initial conditions:
-    ! ...
-    if (init) then
-      write(*,*) 'Saving the initial conditions'
-      init = .false.
-
-      do flo=1,FLT%n
-        FLT%time(flo) = zero
-        if (FLT%released(flo)) then
-          vp(1) = FLT%lon(flo)
-          vp(2) = FLT%lat(flo)
-          if (TCDF%idtemp.gt.0) then
-            FLT%temp(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
-                                      trhs(:,:,1,1),vp(1),vp(2))
-          else
-            FLT%temp(flo) = missing
-          endif
-          if (TCDF%idsalt.gt.0) then
-            FLT%salt(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
-                                      srhs(:,:,1,1),vp(1),vp(2))
-          else
-            FLT%salt(flo) = missing
-          endif
-          if (TCDF%iddens.gt.0) then
-            FLT%dens(flo) = hinterpol(nx,ny,TCDF%xm(:),TCDF%ym(:), &
-                                      rrhs(:,:,1,1),vp(1),vp(2))
-          else
-            if (TCDF%idtemp.gt.0.and.TCDF%idsalt.gt.0) then
-              FLT%dens(flo) = sigma0(FLT%temp(flo),FLT%salt(flo))
-            else
-              FLT%dens(flo) = missing
-            endif
-          endif
-          FLT%UDF(flo)  = udf(2,(/FLT%lon(flo),FLT%lat(flo)/))
-        else
-          FLT%temp(flo) = missing
-          FLT%salt(flo) = missing
-          FLT%dens(flo) = missing
-          FLT%UDF(flo)  = missing
-        endif
-        FLT%dist(flo) = zero
-      enddo
-
-      kout = 1
-      FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
-      system_time = UCDF%time_ref + (tscale*UCDF%t(1)+internal_time)/86400.0_dp
-      FLT%date = jd2date(system_time)
-      call out_save(FLT,kout,file_time,system_time)
-    endif
-
 
     ! ... Loop over floaters
     ! ...
@@ -1258,8 +1250,16 @@ do external_step=1,external_nsteps
 
       ! ... First, check the float has been released:
       ! ...
-      if (FLT%release_time(flo).le.internal_time-initial_time) &
-                                                 FLT%released(flo) = .true.
+      fractional = .false.
+      if (FLT%release_time(flo).le.internal_time-initial_time) then
+        FLT%released(flo) = .true.
+      else if (FLT%release_time(flo).lt.internal_time+internal_dt-internal_time) then
+        write(*,*) 'Floater ', flo, ' released in the middle of a time interval'
+        fractional = .true.
+        FLT%released(flo) = .true.
+        fractional_dt = internal_dt - (FLT%release_time(flo)-internal_time) 
+        write(*,*) 'Fractional time interval set to ', fractional_dt
+      endif
 
       if (FLT%released(flo)) then
         ! ... Now, check if the device is floating
@@ -1275,10 +1275,11 @@ do external_step=1,external_nsteps
           ! ... Advance the location of the float from the time t to
           ! ... the time t+dt:
           ! ...
-          !print*, 'Before rk5: ', FLT%lon(flo), FLT%lat(flo)
-          !print*, 'Before rk5: ', vp
-          call spherical_rk5(2,vp,internal_time,internal_dt,vn,RHS)
-          !print*, 'After rk5: ', vn
+          if (fractional) then
+            call spherical_rk5(2,vp,FLT%release_time(flo),fractional_dt,vn,RHS)
+          else
+            call spherical_rk5(2,vp,internal_time,internal_dt,vn,RHS)
+          endif
 
           ! ... Update travelled distance:
           ! ...
