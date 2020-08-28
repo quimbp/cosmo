@@ -1339,10 +1339,31 @@ do external_step=1,external_nsteps
 
     enddo     ! End loop over floats
 
+!    do flo=1,FLT%n
+!      if (FLT%released(flo)) then
+!        if (FLT%floating(flo)) then
+!          nfloating = nfloating + 1
+!        endif
+!        if (FLT%stranded(flo)) then
+!          nstranded = nstranded + 1
+!        endif
+!        if (FLT%outside(flo)) then
+!          noutside = noutside + 1
+!        endif
+!      endif
+!    enddo
+
+    internal_time = internal_time + internal_dt
+    FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
+
     nfloating = 0
     nstranded = 0
-    noutside = 0
+    noutside  = 0
     do flo=1,FLT%n
+      ! ... Check if status of the float needs to be changed before writing down
+      if (FLT%release_time(flo).le.internal_time-initial_time) then
+        FLT%released(flo) = .true.
+      endif
       if (FLT%released(flo)) then
         if (FLT%floating(flo)) then
           nfloating = nfloating + 1
@@ -1355,12 +1376,9 @@ do external_step=1,external_nsteps
         endif
       endif
     enddo
-
     write(*,'("Step: ",I4.4,". Floats released: ",I4.4,", floating: ",I4.4,", stranded: ",I4.4,", outside: ", I4.4)') &
        internal_step, count(FLT%released), nfloating, nstranded, noutside
 
-    internal_time = internal_time + internal_dt
-    FLT%time(:) = internal_time - initial_time - FLT%release_time(:)
 
     system_time = UCDF%time_ref + (tscale*UCDF%t(1)+internal_time)/86400.0_dp
     FLT%date = jd2date(system_time)
