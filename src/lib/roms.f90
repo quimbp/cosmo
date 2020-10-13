@@ -32,6 +32,9 @@ TYPE MHgrid
   integer                             :: eta_v   = -1
   integer                             :: xi_psi  = -1
   integer                             :: eta_psi = -1
+  character(1)                        :: spherical = "T"
+  real(dp)                            :: xl      = 0.0D0
+  real(dp)                            :: el      = 0.0D0
   real(dp), dimension(:,:), pointer   :: lon_rho
   real(dp), dimension(:,:), pointer   :: lat_rho
   real(dp), dimension(:,:), pointer   :: lon_u
@@ -40,6 +43,7 @@ TYPE MHgrid
   real(dp), dimension(:,:), pointer   :: lat_v
   real(dp), dimension(:,:), pointer   :: lon_psi
   real(dp), dimension(:,:), pointer   :: lat_psi
+  real(dp), dimension(:,:), pointer   :: angle
   real(dp), dimension(:,:), pointer   :: pm
   real(dp), dimension(:,:), pointer   :: pn
   real(dp), dimension(:,:), pointer   :: h
@@ -260,7 +264,36 @@ CONTAINS
   class(Mroms), intent(inout)         :: r
   integer                             :: err
 
-  err = NF90_CLOSE(r%fid)
+  err = NF90_CLOSE(r%fid) 
+  if (err.eq.0) then
+    nullify(r%hgrid%lon_rho)
+    nullify(r%hgrid%lat_rho)
+    nullify(r%hgrid%lon_u)
+    nullify(r%hgrid%lat_u)
+    nullify(r%hgrid%lon_v)
+    nullify(r%hgrid%lat_v)
+    nullify(r%hgrid%lon_psi)
+    nullify(r%hgrid%lat_psi)
+    nullify(r%hgrid%pm)
+    nullify(r%hgrid%pn)
+    nullify(r%hgrid%h)
+    nullify(r%hgrid%f)
+    nullify(r%hgrid%mask_rho)
+    nullify(r%hgrid%mask_u)
+    nullify(r%hgrid%mask_v)
+    nullify(r%hgrid%mask_psi)
+
+    nullify(r%vgrid%S%sc_r)
+    nullify(r%vgrid%S%sc_w)
+    nullify(r%vgrid%S%Cs_r)
+    nullify(r%vgrid%S%Cs_w)
+
+    nullify(r%vgrid%z0_r)
+    nullify(r%vgrid%z0_w)
+    nullify(r%vgrid%z_r)
+    nullify(r%vgrid%z_w)
+    nullify(r%vgrid%Hz)
+  endif
   
   end function roms_close
   ! ...
@@ -947,7 +980,6 @@ CONTAINS
   err = NF90_GET_ATT(r%fid,ii,'_FillValue',spv)
   call cdf_error(err,'No _FillValue attribute')
 
-
   return
 
   end function roms_missing
@@ -1231,6 +1263,99 @@ CONTAINS
   endif 
 
   end subroutine zdepth
+  ! ...
+  ! =========================================================================
+  ! ...
+  subroutine roms_create_grid (ifile,r)
+
+  implicit none
+
+  character(len=*), intent(in)        :: ifile
+  type(Mroms), intent(inout)          :: r
+
+  ! ... Local variables
+  ! ...
+  integer err
+  integer idir,idiu,idiv,idip,id1
+  integer idjr,idju,idjv,idjp
+  integer idxl,idel,iddmin,iddmax,idsph,idang,idh,idhraw,idf
+  integer idpm,idpn,iddndx,iddmde,idxr,idyr,idxu,idyu
+  integer idxv,idyv,idxp,idyp,idmr,idmu,idmv,idmp
+
+  ! ... Open file
+  ! ...
+  write(*,*) 'Creating Grid file ', trim(ifile)
+  err = NF90_CREATE(ifile,NF90_CLOBBER,r%fid)
+  if (err.NE.0) then
+    write(*,*) 'Unable to create grid file'
+    stop 'ERROR in roms_create_grid'
+  endif
+
+  err = NF90_DEF_DIM(r%fid,'xi_rho',r%hgrid%xi_rho,idir)
+  err = NF90_DEF_DIM(r%fid,'eta_rho',r%hgrid%eta_rho,idjr)
+
+  r%hgrid%xi_u    =  r%hgrid%xi_rho - 1
+  r%hgrid%eta_u   =  r%hgrid%eta_rho
+  r%hgrid%xi_v    =  r%hgrid%xi_rho
+  r%hgrid%eta_v   =  r%hgrid%eta_rho - 1
+  r%hgrid%xi_psi  =  r%hgrid%xi_rho  - 1
+  r%hgrid%eta_psi =  r%hgrid%eta_rho - 1
+
+  ! ... Dimensions:
+  ! ...
+  err = NF90_DEF_DIM(r%fid,'xi_u',r%hgrid%xi_u,idiu)
+  err = NF90_DEF_DIM(r%fid,'eta_u',r%hgrid%eta_u,idju)
+  err = NF90_DEF_DIM(r%fid,'xi_v',r%hgrid%xi_v,idiv)
+  err = NF90_DEF_DIM(r%fid,'eta_v',r%hgrid%eta_v,idjv)
+  err = NF90_DEF_DIM(r%fid,'xi_psi',r%hgrid%xi_psi,idip)
+  err = NF90_DEF_DIM(r%fid,'eta_psi',r%hgrid%eta_psi,idjp)
+  err = NF90_DEF_DIM(r%fid,'one',1,id1)
+
+  ! ... Variables:
+  ! ...
+  err = NF90_DEF_VAR(r%fid,'xl',NF90_DOUBLE,(/id1/),idxl)
+  err = NF90_DEF_VAR(r%fid,'el',NF90_DOUBLE,(/id1/),idel)
+  err = NF90_DEF_VAR(r%fid,'depthmin',NF90_DOUBLE,(/id1/),iddmin)
+  err = NF90_DEF_VAR(r%fid,'depthmax',NF90_DOUBLE,(/id1/),iddmax)
+  err = NF90_DEF_VAR(r%fid,'spherical',NF90_CHAR,(/id1/),idsph)
+  err = NF90_DEF_VAR(r%fid,'angle',NF90_DOUBLE,(/idir,idjr/),idang)
+  err = NF90_DEF_VAR(r%fid,'h',NF90_DOUBLE,(/idir,idjr/),idh)
+  err = NF90_DEF_VAR(r%fid,'hraw',NF90_DOUBLE,(/idir,idjr/),idhraw)
+  err = NF90_DEF_VAR(r%fid,'f',NF90_DOUBLE,(/idir,idjr/),idf)
+  err = NF90_DEF_VAR(r%fid,'pm',NF90_DOUBLE,(/idir,idjr/),idpm)
+  err = NF90_DEF_VAR(r%fid,'pn',NF90_DOUBLE,(/idir,idjr/),idpn)
+  err = NF90_DEF_VAR(r%fid,'dndx',NF90_DOUBLE,(/idir,idjr/),iddndx)
+  err = NF90_DEF_VAR(r%fid,'dmde',NF90_DOUBLE,(/idir,idjr/),iddndx)
+  err = NF90_DEF_VAR(r%fid,'lon_rho',NF90_DOUBLE,(/idir,idjr/),idxr)
+  err = NF90_DEF_VAR(r%fid,'lat_rho',NF90_DOUBLE,(/idir,idjr/),idyr)
+  err = NF90_DEF_VAR(r%fid,'lon_u',NF90_DOUBLE,(/idiu,idju/),idxu)
+  err = NF90_DEF_VAR(r%fid,'lat_u',NF90_DOUBLE,(/idiu,idju/),idyu)
+  err = NF90_DEF_VAR(r%fid,'lon_v',NF90_DOUBLE,(/idiv,idjv/),idxv)
+  err = NF90_DEF_VAR(r%fid,'lat_v',NF90_DOUBLE,(/idiv,idjv/),idyv)
+  err = NF90_DEF_VAR(r%fid,'lon_psi',NF90_DOUBLE,(/idip,idjp/),idxp)
+  err = NF90_DEF_VAR(r%fid,'lat_psi',NF90_DOUBLE,(/idip,idjp/),idyp)
+  err = NF90_DEF_VAR(r%fid,'mask_rho',NF90_DOUBLE,(/idir,idjr/),idmr)
+  err = NF90_DEF_VAR(r%fid,'mask_u',NF90_DOUBLE,(/idiu,idju/),idmu)
+  err = NF90_DEF_VAR(r%fid,'mask_v',NF90_DOUBLE,(/idiv,idjv/),idmv)
+  err = NF90_DEF_VAR(r%fid,'mask_psi',NF90_DOUBLE,(/idip,idjp/),idmp)
+
+
+  err = NF90_ENDDEF(r%fid)
+
+  !err = NF90_PUT_VAR(r%fid,idxl,[0.0d0])
+  err = NF90_PUT_VAR(r%fid,idxl,r%hgrid%xl)
+  err = NF90_PUT_VAR(r%fid,idel,r%hgrid%el)
+  err = NF90_PUT_VAR(r%fid,idsph,r%hgrid%spherical)
+  err = NF90_PUT_VAR(r%fid,idxr,r%hgrid%lon_rho)
+  err = NF90_PUT_VAR(r%fid,idyr,r%hgrid%lat_rho)
+  err = NF90_PUT_VAR(r%fid,idang,r%hgrid%angle)
+
+
+  err = NF90_CLOSE(r%fid)
+
+
+  return
+  end subroutine roms_create_grid
   ! ...
   ! =========================================================================
   ! ...

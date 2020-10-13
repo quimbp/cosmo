@@ -566,7 +566,59 @@ do i=1,m
 enddo
 
 end function randn
+! ...
+! =============================================================================
+! ...
+function percentile (x,p,METHOD)
 
+! ...
+! ... EXCEL method (default)
+! ... NIST method
+! ...
+
+IMPLICIT NONE
+
+REAL(KIND=8), DIMENSION(:), INTENT(in)   :: x
+REAL(KIND=8),               INTENT(in)   :: p
+REAL(KIND=8)                             :: percentile
+CHARACTER(LEN=*), OPTIONAL               :: METHOD
+
+LOGICAL excel, nist
+INTEGER                                  :: n
+INTEGER, DIMENSION(SIZE(x))              :: indx
+
+INTEGER i,kk
+REAL(KIND=8) rr,dd
+
+excel = .true.
+IF (PRESENT(METHOD)) THEN
+  IF ((METHOD(1:1).EQ.'N').OR.(METHOD(1:1).EQ.'n')) THEN
+    nist = .true.
+    excel = .false.
+  ENDIF
+ENDIF
+
+n  = SIZE(x)
+CALL indexx(x,indx)
+
+IF (excel) THEN
+  rr = p*(n-1.0D0)/100.0D0 + 1.0D0
+ELSE
+  rr = p*(n+1.0D0)/100.0D0
+ENDIF
+
+kk = FLOOR(rr)
+dd = rr - kk
+IF (kk.EQ.0) THEN
+  percentile = x(indx(1))
+ELSE IF (kk.EQ.n) THEN
+  percentile = x(indx(n))
+ELSE
+  percentile = x(indx(kk)) + dd*(x(indx(kk+1))-x(indx(kk)))
+ENDIF
+
+RETURN
+end function percentile
 ! ...
 ! =============================================================================
 ! ...
