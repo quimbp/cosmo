@@ -47,6 +47,7 @@ TYPE MHgrid
   real(dp), dimension(:,:), pointer   :: pm
   real(dp), dimension(:,:), pointer   :: pn
   real(dp), dimension(:,:), pointer   :: h
+  real(dp), dimension(:,:), pointer   :: hraw
   real(dp), dimension(:,:), pointer   :: f
   real(dp), dimension(:,:), pointer   :: mask_rho
   real(dp), dimension(:,:), pointer   :: mask_u
@@ -1052,8 +1053,20 @@ CONTAINS
   endif
   err = NF90_INQUIRE_DIMENSION(r%fid,ii,len=r%hgrid%eta_v)
 
-  err = NF90_INQ_DIMID(r%fid,'xi_psi',r%hgrid%xi_psi)
-  err = NF90_INQ_DIMID(r%fid,'eta_psi',r%hgrid%eta_psi)
+  err = NF90_INQ_DIMID(r%fid,'xi_psi',ii)
+  if (err.ne.NF90_NOERR) then
+    write(*,*) 'Dimension xi_psi not found'
+    return
+  endif
+  err = NF90_INQUIRE_DIMENSION(r%fid,ii,len=r%hgrid%xi_psi)
+
+  err = NF90_INQ_DIMID(r%fid,'eta_psi',ii)
+  if (err.ne.NF90_NOERR) then
+    write(*,*) 'Dimension eta_psi not found'
+    return
+  endif
+  err = NF90_INQUIRE_DIMENSION(r%fid,ii,len=r%hgrid%eta_psi)
+
 
   allocate(r%hgrid%lon_rho(r%hgrid%xi_rho, r%hgrid%eta_rho))
   allocate(r%hgrid%lat_rho(r%hgrid%xi_rho, r%hgrid%eta_rho))
@@ -1061,6 +1074,8 @@ CONTAINS
   allocate(r%hgrid%lat_u  (r%hgrid%xi_u,   r%hgrid%eta_u))
   allocate(r%hgrid%lon_v  (r%hgrid%xi_v,   r%hgrid%eta_v))
   allocate(r%hgrid%lat_v  (r%hgrid%xi_v,   r%hgrid%eta_v))
+  allocate(r%hgrid%lon_psi(r%hgrid%xi_psi, r%hgrid%eta_psi))
+  allocate(r%hgrid%lat_psi(r%hgrid%xi_psi, r%hgrid%eta_psi))
 
   err = NF90_INQ_VARID(r%fid,'lon_rho',ii)
   err = NF90_GET_VAR(r%fid,ii,r%hgrid%lon_rho)
@@ -1088,14 +1103,12 @@ CONTAINS
 
   err = NF90_INQ_VARID(r%fid,'lon_psi',ii)
   if (err.EQ.NF90_NOERR) then
-    allocate(r%hgrid%lon_psi(r%hgrid%xi_psi, r%hgrid%eta_psi))
     err = NF90_GET_VAR(r%fid,ii,r%hgrid%lon_psi)
     if (err.NE.NF90_NOERR) stop 'ERROR: Reading variable lon_psi'
   endif
 
   err = NF90_INQ_VARID(r%fid,'lat_psi',ii)
   if (err.EQ.NF90_NOERR) then
-    allocate(r%hgrid%lat_psi(r%hgrid%xi_psi, r%hgrid%eta_psi))
     err = NF90_GET_VAR(r%fid,ii,r%hgrid%lat_psi)
     if (err.NE.NF90_NOERR) stop 'ERROR: Reading variable lat_psi'
   endif
@@ -1115,7 +1128,7 @@ CONTAINS
   endif
 
 
-  ! ... Read h
+  ! ... Read h and hraw
   ! ...
   err = NF90_INQ_VARID(r%fid,'h',ii)
   if (err.NE.NF90_NOERR) then
@@ -1125,6 +1138,15 @@ CONTAINS
   allocate(r%hgrid%h(r%hgrid%xi_rho,r%hgrid%eta_rho))
   err = NF90_GET_VAR(r%fid,ii,r%hgrid%h)
   if (err.NE.NF90_NOERR) stop 'ERROR while reading h'
+
+  err = NF90_INQ_VARID(r%fid,'hraw',ii)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'ERROR: while loooking for variable hraw'
+    stop 'variable not found'
+  endif
+  allocate(r%hgrid%hraw(r%hgrid%xi_rho,r%hgrid%eta_rho))
+  err = NF90_GET_VAR(r%fid,ii,r%hgrid%hraw)
+  if (err.NE.NF90_NOERR) stop 'ERROR while reading hraw'
 
   ! ... masks
   ! ...
@@ -1346,9 +1368,20 @@ CONTAINS
   err = NF90_PUT_VAR(r%fid,idxl,r%hgrid%xl)
   err = NF90_PUT_VAR(r%fid,idel,r%hgrid%el)
   err = NF90_PUT_VAR(r%fid,idsph,r%hgrid%spherical)
+  err = NF90_PUT_VAR(r%fid,idang,r%hgrid%angle)
+  err = NF90_PUT_VAR(r%fid,idh,r%hgrid%h)
+  err = NF90_PUT_VAR(r%fid,idhraw,r%hgrid%hraw)
+  err = NF90_PUT_VAR(r%fid,idf,r%hgrid%f)
+  err = NF90_PUT_VAR(r%fid,idpm,r%hgrid%pm)
+  err = NF90_PUT_VAR(r%fid,idpn,r%hgrid%pn)
   err = NF90_PUT_VAR(r%fid,idxr,r%hgrid%lon_rho)
   err = NF90_PUT_VAR(r%fid,idyr,r%hgrid%lat_rho)
-  err = NF90_PUT_VAR(r%fid,idang,r%hgrid%angle)
+  err = NF90_PUT_VAR(r%fid,idxu,r%hgrid%lon_u)
+  err = NF90_PUT_VAR(r%fid,idyu,r%hgrid%lat_u)
+  err = NF90_PUT_VAR(r%fid,idxv,r%hgrid%lon_v)
+  err = NF90_PUT_VAR(r%fid,idyv,r%hgrid%lat_v)
+  err = NF90_PUT_VAR(r%fid,idxp,r%hgrid%lon_psi)
+  err = NF90_PUT_VAR(r%fid,idyp,r%hgrid%lat_psi)
 
 
   err = NF90_CLOSE(r%fid)
