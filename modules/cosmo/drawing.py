@@ -1935,12 +1935,20 @@ class CosmoDrawing():
     self.release_file  = tk.StringVar()
     self.blm_idt       = tk.IntVar()
     self.out_file      = tk.StringVar()
+    self.time_ini      = tk.IntVar()
+    self.Fp            = tk.IntVar()
+    self.skill_release_VALUES = ['Earliest model state','Earliest buoy location']
+    self.skill_release = tk.StringVar()
+    self.skill_release.set(self.skill_release_VALUES[0])
 
     self.time_sampling.set(1)                # hours
     self.index_n.set(1)                      # 
+    self.time_ini.set(0)                     # 0 - Model time; 1 - Buoy time
     self.release_file.set('skill_ini.dat')
     self.out_file.set('skill_out.nc')
-    self.blm_idt.set(1200)
+    self.blm_idt.set(1800)                   # 0.5 hours
+    self.Fp.set(0)
+    
 
 
     tmp = matplotlib.font_manager.get_fontconfig_fonts()
@@ -2100,6 +2108,7 @@ class CosmoDrawing():
     self.Window_patch         = None
     self.Window_patchconfig   = None
     self.Window_skill         = None
+    self.Window_converter     = None
     
     self.legendtabs           = None
     self.Window_mapa          = None
@@ -2334,6 +2343,11 @@ class CosmoDrawing():
                          command=self.blm)
     toolmenu.add_command(label='COSMO M Lagrangian Model (MLM)',
                          command=self.mlm)
+
+    calcmenu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label='Calculators',menu=calcmenu)
+    calcmenu.add_command(label='Coordinate converter',
+                         command=self.converter)
 
     helpmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Help',menu=helpmenu)
@@ -11282,6 +11296,7 @@ class CosmoDrawing():
     f0.grid(sticky='ew',columnspan=3)
     eshow.grid()
 
+
   # ====================
   def get_patch(self):
   # ====================
@@ -11421,6 +11436,7 @@ class CosmoDrawing():
 
 
 
+  # =======================
   def patch_config(self):
   # =======================
 
@@ -11594,28 +11610,82 @@ class CosmoDrawing():
       messagebox.showinfo(message='No Lagrangian file opened yet')
       return
 
+    def _get_release():
+    # =================
+
+      if self.time_ini.get() == 0:
+        # The release point is defined as the buoy position
+        # at the earliest model time step. It may be a missmatch
+        # between the actual release of the buoy and the location
+        # of the buoy at the model time step.
+        #
+        for i in range(len(T)):
+          if np.isnan(X[i]) or np.isnan(Y[i]):
+            pass
+          else:
+            ko = i
+            break
+        txo.set(X[ko])
+        tyo.set(Y[ko])
+        try:
+          tzo.set(self.VEC[ii].Z[0])
+        except:
+          tzo.set(0)
+        tdo.set(self.VEC[ii].DATE[ko])
+        tto.set(T[ko])
+        tdt.set(T[ko] - T[0])
+
+      else:
+        res = tools.initial_position(self.VEC[ii],self.FLOAT[jj],wid=self.cons)
+        if res is None:
+          messagebox.showinfo(message='No initial position has been found')
+          return
+        ko = res[0][self.Fp.get()]
+        txo.set(res[1][self.Fp.get()][0])
+        tyo.set(res[2][self.Fp.get()][0])
+        tzo.set(res[3][self.Fp.get()][0])
+        tdo.set(res[4][self.Fp.get()])
+        tto.set(res[5][self.Fp.get()][0])
+        tdt.set(res[6][self.Fp.get()][0])
+
+    
+
+
+
     ii = self.VEC_INDX.get()
     jj = self.FLOAT_INDX.get()
+    NFLOATS = self.FLOAT[jj].nfloats
+    FLOAT_LIST = []
+    for i in range(NFLOATS):
+      FLOAT_LIST.append(i)
 
-    print(self.FLOAT[jj].lon[0])
-    print(self.FLOAT[jj].lat[0])
-    print(self.FLOAT[jj].DATE[0])
-    res = tools.initial_position(self.VEC[ii],self.FLOAT[jj],wid=self.cons)
-    print('res = ', res)
-    xo = res[0]
-    yo = res[1]
-    zo = res[2]
-    to = res[3]
+    T = self.VEC[ii].TIME
+    X = self.FLOAT[jj].Fx(T)
+    Y = self.FLOAT[jj].Fy(T)
+
     txo = tk.DoubleVar()
     tyo = tk.DoubleVar()
     tzo = tk.DoubleVar()
+    tdo = tk.DoubleVar()
     tto = tk.DoubleVar()
+    tdt = tk.DoubleVar()
+
+    _get_release()
+
+    RELEASE_TIME = tto.get()
     PERIOD = tk.IntVar()
     PERIOD_LIST = []
     _wlst    = None
+
     global have_run, NT
     have_run = False
     NT       = None
+
+    FFx      = None
+    FFy      = None
+    global velocity_model
+    global velocity_buoy 
+
 
 
     # ===================
@@ -11645,9 +11715,8 @@ class CosmoDrawing():
       if not have_run:
 
         with open(self.release_file.get(),'w') as f:
-          for i in range(len(xo)):
-            ss = "%9.3f, %9.3f, %9.3f, %9.0f\n" % (xo[i], yo[i], zo[i], to[i])
-            f.write(ss)
+          ss = "%9.3f, %9.3f, %9.3f, %9.0f\n" % (txo.get(), tyo.get(), tzo.get(), tdt.get())
+          f.write(ss)
 
         BLM = blm.parameters()
 
@@ -11689,23 +11758,12 @@ class CosmoDrawing():
         if not have_run:
           return
 
-        FLT.MAPX = []
-        FLT.MAPY = []
-        FLT.Fx   = []
-        FLT.Fy   = []
-        if FLT.nfloats > 1:
-          for i in range(FLT.nfloats):
-            FLT.Fx.append(interpolate.interp1d(FLT.TIME,FLT.lon[:,i], bounds_error=False, fill_value=np.NaN))
-            FLT.MAPX.append(FLT.Fx[i](self.TIME))
-            FLT.Fy.append(interpolate.interp1d(FLT.TIME,FLT.lat[:,i], bounds_error=False, fill_value=np.NaN))
-            FLT.MAPY.append(FLT.Fy[i](self.TIME))
-          FLT.MAPX = np.array(FLT.MAPX).T.tolist()
-          FLT.MAPY = np.array(FLT.MAPY).T.tolist()
-        else:
-          FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
-          FLT.MAPX = FLT.Fx(self.TIME)
-          FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
-          FLT.MAPY = FLT.Fy(self.TIME)
+
+        # Add the Lagrangian simulation to the cosmo-view layers !!!
+        FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
+        FLT.MAPX = FLT.Fx(self.TIME)
+        FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
+        FLT.MAPY = FLT.Fy(self.TIME)
 
         FLT.SOURCE = 'blm'
         FLT.PLOT.LINE_COLOR.set(self.VEC[ii].PLOT.CURRENT_COLOR.get())
@@ -11720,6 +11778,7 @@ class CosmoDrawing():
         self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
 
         self.make_plot()
+
 
         # Clean model and buoy:
         ind = []
@@ -11738,14 +11797,35 @@ class CosmoDrawing():
           FLT.TIME = aa
           FLT.nrecords = len(FLT.DATE)
 
-        # Model simulation length:
-        # 
+        print('LON From the model: ', FLT.lon[0:5])
+        print('DATE From the model: ', FLT.DATE[0:5])
+
+        # Once cropped, check if the model has been able to explicitly save the
+        # RELEASE point:
+        #
+        if FLT.TIME[0] > RELEASE_TIME:
+          FLT.lon  = np.insert(FLT.lon,0,xo[0])
+          FLT.lat  = np.insert(FLT.lat,0,yo[0])
+          FLT.DATE = np.insert(FLT.DATE,0,do)
+          FLT.TIME = np.insert(FLT.TIME,0,to[0])
+
+        # New interpolation function:
+        #
+        FFx = interpolate.interp1d(FLT.TIME,FLT.lon, bounds_error=False, fill_value=np.NaN)
+        FFy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
+
+        # Subsampled time axis:
+        #
         duration_hours = (FLT.TIME[-1] - FLT.TIME[0])/3600
-        print(self.time_sampling.get())
         nt = int(duration_hours/self.time_sampling.get())
 
-        dd = []
-        tt = []
+        if FLT.TIME[0] > RELEASE_TIME:
+          print('Inserting release position at cropped model solution ...')
+          dd = [do]
+          tt = [do.timestamp()]
+        else:
+          dd = []
+          tt = []
         rr = FLT.DATE[0] + datetime.timedelta(hours=-self.time_sampling.get())
         for i in range(nt):
           rr += datetime.timedelta(hours=self.time_sampling.get())
@@ -11753,25 +11833,21 @@ class CosmoDrawing():
           tt.append(rr.timestamp())          # Ordinal time, every time_sampling hours
         dd = np.array(dd)
         tt = np.array(tt)
-        tt[0]  += 1
-        tt[-1] -= 1
+        nt = len(dd)
 
         # Interpolate the geojson onto the constructed time axis
-
-        print('jj = ',jj)
+        #
         B = buoy()
         B.lon = self.FLOAT[jj].Fx(tt)
         B.lat = self.FLOAT[jj].Fy(tt)
         B.date = dd[:]
         B.time = tt[:]
-        #print(B.time)
-        #print(B.lon)
 
         # Interpolate the model
-
+        #
         M = buoy()
-        M.lon = FLT.Fx(tt)
-        M.lat = FLT.Fy(tt)
+        M.lon = FFx(tt)
+        M.lat = FFy(tt)
         M.date = dd[:]
         M.time = tt[:]
 
@@ -11787,48 +11863,56 @@ class CosmoDrawing():
         _wlst.configure(state='normal')
         _wlst.set(PERIOD_LIST[-1])
   
+        global velocity_model
+        global velocity_buoy 
+
         # Displacement of the model (not used in any calculation):
-        dl = [0]
+        dl = []
+        uu = []
         for i in range(1,len(M.lon)):
           dl.append(tools.haversine((M.lon[i-1],M.lat[i-1]),(M.lon[i],M.lat[i])))
+          dt = M.time[i] - M.time[i-1]                       #Difference in seconds
+          if dt > 1:
+            uu.append(dl[i-1]/dt)
+          else:
+            uu.append(0)
         displacement_model = np.array(dl)
-        print('Model displacement: ', displacement_model)
+        velocity_model = np.array(uu)
+        #print('Model displacement: ', displacement_model)
+        print('Model velocity:', velocity_model)
 
         # Displacement of the buoy:
-        dl = [0]
+        dl = []
+        uu = []
         for i in range(1,len(B.lon)):
           dl.append(tools.haversine((B.lon[i-1],B.lat[i-1]),(B.lon[i],B.lat[i])))
-        displacement_buoy = np.array(dl)
-        print('Buoy displacement: ', displacement_buoy)
+          dt = B.time[i] - B.time[i-1]                       #Difference in seconds
+          if dt > 1:
+            uu.append(dl[i-1]/dt)
+          else:
+            uu.append(0)
 
-        # Separation buoys - model:
+        displacement_buoy = np.array(dl)
+        velocity_buoy = np.array(uu)
+        #print('Buoy displacement: ', displacement_buoy)
+        print('Buoy velocity:', velocity_buoy)
+
+
+        # Separation buoy - model:
         dl = []
         for i in range(len(B.lon)):
           dl.append(tools.haversine((B.lon[i],B.lat[i]),(M.lon[i],M.lat[i])))
         separation_mod_obs = np.array(dl)
-        print('Separation : ', separation_mod_obs)
+        #print('Separation : ', separation_mod_obs)
 
         NT = len(B.lon)
-        print('NT = ', NT)
 
-
-      #final_separation = separation_mod_obs[-1]
-      #print('final separation ', final_separation)
 
       final_separation = separation_mod_obs[NT-1]
       print('final separation ', final_separation)
       index_s = []
 
-      #num = np.sum(separation_mod_obs[1:])   #  d_1 + d_2 + d_3 + ...
       num = np.sum(separation_mod_obs[1:NT])   #  d_1 + d_2 + d_3 + ...
-      #print('len(separation) = ',len(separation_mod_obs))
-      #print(np.sum(separation_mod_obs[1:NT]), '  versus ', num)
-
-      #l_n = []
-      #for i in range(len(B.lon)-1):
-      #  l_n.append(np.sum(displacement_buoy[0:i+1]))
-      #den = np.sum(np.array(l_n))    # Denominator: l_1 + l_2 + l_3 + ...
-
 
       l_n = []
       for i in range(NT-1):
@@ -11837,12 +11921,13 @@ class CosmoDrawing():
 
       index_s = num/den
 
-      print('')
-      print('((%.3f, %.3f) , (%.3f, %.3f)) ' % (B.lon[0], B.lat[0], M.lon[0], M.lat[0]))
-      for i in range(1,NT):
-        print('((%.3f, %.3f) , (%.3f, %.3f)): %6d  %6d' % (B.lon[i], B.lat[i], M.lon[i], M.lat[i], displacement_buoy[i],separation_mod_obs[i]))
+      # Histogram of velocitities:
+      #
+      #tools.dhist(velocity_buoy[:NT-1],velocity_model[:NT-1])
 
 
+      # LIU index:
+      #
       if index_s < self.index_n.get(): 
         ss = 1 - index_s/self.index_n.get()
       else:
@@ -11878,7 +11963,7 @@ class CosmoDrawing():
 
 
 
-      fig = plt.figure()
+      fig = plt.figure(2)
       ax  = plt.axes([0.15,0.10,0.80,0.66])
 
       ax.set_xlabel('Longitude')
@@ -11903,7 +11988,8 @@ class CosmoDrawing():
       ax.text(0.2,0.98,string,ha='left',va='top',transform=fig.transFigure)
       string = 'Simulation length %.1f hours, i.e. %.2f days ' % ((M.time[NT-1]-M.time[0])/3600 ,(M.time[NT-1]-M.time[0])/86400 ) 
       ax.text(0.2,0.95,string,ha='left',va='top',transform=fig.transFigure)
-      string = 'Displacement: Buoy = %d km; Model = %d km' % (np.sum(displacement_buoy[0:NT-1])/1000, np.sum(displacement_model[0:NT-1])/1000)
+      string = 'Displacement: Buoy = %d km; Model = %d km' % (np.sum(displacement_buoy[0:NT-1])/1000, \
+                                                              np.sum(displacement_model[0:NT-1])/1000)
       ax.text(0.2,0.92,string,ha='left',va='top',transform=fig.transFigure)
       string = 'Final distance between model and buoy = %d km' % (final_separation/1000) 
       ax.text(0.2,0.89,string,ha='left',va='top',transform=fig.transFigure)
@@ -11915,6 +12001,18 @@ class CosmoDrawing():
       ax.text(0.2,0.80,string,ha='left',va='top',transform=fig.transFigure)
 
       plt.show()
+
+    def _floatselect():
+    # =================
+      print(self.Fp.get())
+
+    def _releasechange():
+    # =================
+      if 'model' in self.skill_release.get():
+        self.time_ini.set(0)
+      else:
+        self.time_ini.set(1)
+      _get_release()
 
     def _lselection():
     # =================
@@ -11930,6 +12028,15 @@ class CosmoDrawing():
       self.Window_skill.protocol('WM_DELETE_WINDOW',_close)
     else:
       self.Window_skill.lift()
+
+    FF = ttk.Frame(self.Window_skill,padding=5)
+    tk.Label(FF,text='Float:').grid(row=0,column=0,padx=3,sticky='e')
+    _wsf = ttk.Combobox(FF,textvariable=self.Fp,values=FLOAT_LIST,width=3)
+    _wsf.grid(row=0,column=1,sticky='w')
+    _wsf.bind('<<ComboboxSelected>>',lambda e: _floatselect())
+    if NFLOATS == 1:
+      _wsf.configure(state='disabled')
+    FF.grid()
 
     F0 = ttk.Frame(self.Window_skill,padding=5)
     #ttk.Label(F0,text='Model initial date  : '+str(self.VEC[ii].DATE[0])).grid(row=0,column=0,columnspan=3,padx=3,stick='w')
@@ -11947,19 +12054,27 @@ class CosmoDrawing():
     e.insert(0,str(self.FLOAT[jj].DATE[0]))
     e.configure(state='readonly')
 
-    ttk.Label(F0,text='Initial point (xo, yo, zo, to): ').grid(row=2,column=0,columnspan=3,padx=3,stick='w')
+    ttk.Label(F0,text='Release at: ').grid(row=2,column=0,padx=3,stick='w')
+    _wrl = ttk.Combobox(F0,textvariable=self.skill_release,values=self.skill_release_VALUES)
+    _wrl.grid(row=2,column=1,padx=3,sticky='w')
+    _wrl.bind('<<ComboboxSelected>>',lambda e: _releasechange())
+
+    tk.Label(F0,text='Release date:').grid(row=3,column=0,padx=3,stick='e')
+    tk.Entry(F0,textvariable=tdo,justify='left',width=12,state='readonly').grid(row=3,column=1,padx=3,sticky='ew')
+
+    ttk.Label(F0,text='Initial point (xo, yo, zo, to): ').grid(row=4,column=0,columnspan=3,padx=3,stick='w')
     F0.grid()
 
     F2 = ttk.Frame(self.Window_skill)
-    for i in range(min(len(xo),5)):
-      txo.set(xo[i][0])
-      tyo.set(yo[i][0])
-      tzo.set(zo[i])
-      tto.set(to[i][0])
-      tk.Entry(F2,textvariable=txo,justify='left',width=12,state='readonly').grid(row=i,column=0,padx=3,sticky='ew')
-      tk.Entry(F2,textvariable=tyo,justify='left',width=12,state='readonly').grid(row=i,column=1,padx=3,sticky='ew')
-      tk.Entry(F2,textvariable=tzo,justify='left',width=12,state='readonly').grid(row=i,column=2,padx=3,sticky='ew')
-      tk.Entry(F2,textvariable=tto,justify='left',width=12,state='readonly').grid(row=i,column=3,padx=3,sticky='ew')
+    #txo.set(xo[0])
+    #tyo.set(yo[0])
+    #tzo.set(zo[0])
+    #tdo.set(do)
+    #tto.set(Dt[0])
+    tk.Entry(F2,textvariable=txo,justify='left',width=12,state='readonly').grid(row=0,column=0,padx=3,sticky='ew')
+    tk.Entry(F2,textvariable=tyo,justify='left',width=12,state='readonly').grid(row=0,column=1,padx=3,sticky='ew')
+    tk.Entry(F2,textvariable=tzo,justify='left',width=12,state='readonly').grid(row=0,column=2,padx=3,sticky='ew')
+    tk.Entry(F2,textvariable=tdt,justify='left',width=12,state='readonly').grid(row=0,column=3,padx=3,sticky='ew')
     F2.grid()
 
     F3 = ttk.Frame(self.Window_skill)
@@ -11978,6 +12093,15 @@ class CosmoDrawing():
     _wlst.bind('<<ComboboxSelected>>',lambda e: _lselection())
 
 
+    #aa = self.ax.plot(xo[0],yo[0],'o',
+    #                  ms=9.0,linestyle='dotted',
+    #                  color='red',
+    #                  mfc='none',
+    #                  zorder=100,
+    #                  transform=ccrs.PlateCarree())
+#
+#    self.canvas.draw()
+
     F3.grid()
 
 
@@ -11987,4 +12111,263 @@ class CosmoDrawing():
     F1.grid()
 
 
+  # =======================================================
+  def converter(self):
+  # =======================================================
+
+    NS   = tk.StringVar()
+    EW   = tk.StringVar()
+    D1x  = tk.DoubleVar()
+    D1y  = tk.DoubleVar()
+    D2xd = tk.IntVar()
+    D2yd = tk.IntVar()
+    D2xm = tk.DoubleVar()
+    D2ym = tk.DoubleVar()
+    D3xd = tk.IntVar()
+    D3yd = tk.IntVar()
+    D3xm = tk.IntVar()
+    D3ym = tk.IntVar()
+    D3xs = tk.DoubleVar()
+    D3ys = tk.DoubleVar()
+
+    EWL = ['E','W']
+    NSL = ['N','S']
+    EW.set(EWL[0])
+    NS.set(NSL[0])
+
+
+    def _close():
+    # ===========
+      self.Window_converter.destroy()
+      self.Window_converter = None
+
+    if self.Window_converter is None:
+      self.Window_converter = tk.Toplevel(self.master)
+      self.Window_converter.title('Coordinate Converter')
+      self.Window_converter.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_converter.lift()
+
+    def _DD():
+    # =========
+      print('Converting from Decimal Degrees')
+
+      dd = D1x.get()
+      negative = dd < 0
+      dd = abs(dd)
+      minutes,seconds = divmod(dd*3600,60)
+      degrees,minutes = divmod(minutes,60)
+
+      if negative:
+          if degrees > 0:
+            degrees = -degrees
+          elif minutes > 0:
+            minutes = -minutes
+          else:
+            seconds = -seconds
+
+      D2xd.set(int(degrees))
+      D2xm.set(minutes+seconds/60)
+
+      D3xd.set(int(degrees))
+      D3xm.set(int(minutes))
+      D3xs.set(seconds)
+
+      dd = D1y.get()
+      negative = dd < 0
+      dd = abs(dd)
+      minutes,seconds = divmod(dd*3600,60)
+      degrees,minutes = divmod(minutes,60)
+      if negative:
+          if degrees > 0:
+            degrees = -degrees
+          elif minutes > 0:
+            minutes = -minutes
+          else:
+            seconds = -seconds
+
+      D2yd.set(int(degrees))
+      D2ym.set(minutes+seconds/60)
+
+      D3yd.set(int(degrees))
+      D3ym.set(int(minutes))
+      D3ys.set(seconds)
+
+
+
+    def _DDM():
+    # =========
+      print('Converting from Degrees Decimal Minutes')
+
+      D2xm.set(abs(D2xm.get()))
+      D2ym.set(abs(D2ym.get()))
+
+      if D2xd.get() > 0:
+        factor =  1
+      else:
+        factor = -1
+      dd = abs(D2xd.get())
+      d3 = dd*3600 + D2xm.get()*60 
+
+      D1x.set(factor*d3/3600)
+
+      minutes,seconds = divmod(d3,60)
+      degrees,minutes = divmod(minutes,60)
+      D3xd.set(int(factor*degrees))
+      D3xm.set(int(minutes))
+      D3xs.set(seconds)
+
+      D2xd.set(int(factor*degrees))
+      D2xm.set(minutes+seconds/60)
+
+
+
+      if D2yd.get() > 0:
+        factor =  1
+      else:
+        factor = -1
+      dd = abs(D2yd.get())
+      d3 = dd*3600 + D2ym.get()*60 
+      minutes,seconds = divmod(d3,60)
+      degrees,minutes = divmod(minutes,60)
+
+      D1y.set(factor*d3/3600)
+
+      D2yd.set(int(factor*degrees))
+      D2ym.set(minutes+seconds/60)
+
+      D3yd.set(int(factor*degrees))
+      D3ym.set(int(minutes))
+      D3ys.set(seconds)
+
+
+    def _DMS():
+    # =========
+      print('Converting from Degrees Minutes Seconds')
+
+      D3xm.set(abs(D3xm.get()))
+      D3xs.set(abs(D3xs.get()))
+      D3ym.set(abs(D3ym.get()))
+      D3ys.set(abs(D3ys.get()))
+
+      if D3xd.get() > 0:
+        factor =  1
+      else:
+        factor = -1
+      dd = abs(D3xd.get())
+
+      d3 = dd*3600 + D3xm.get()*60 + D3xs.get()
+      D1x.set(factor*d3/3600)
+
+      d2 = int(np.floor(d3/3600))
+      m2 = (d3 - d2*3600)/60
+      D2xd.set(int(factor*d2))
+      D2xm.set(m2)
+
+      if D3yd.get() > 0:
+        factor =  1
+      else:
+        factor = -1
+      dd = abs(D3yd.get())
+      d3 = dd*3600 + D3ym.get()*60 + D3ys.get()
+      D1y.set(factor*d3/3600)
+
+      d2 = int(np.floor(d3/3600))
+      m2 = (d3 - d2*3600)/60
+      D2yd.set(int(factor*d2))
+      D2ym.set(m2)
+
+
+
+    # Styles
+    tpad = ttk.Style()
+    tpad.configure("tpad.TLabelframe",padding=[20,5,5,10])
+
+    # DD
+    F0 =ttk.LabelFrame(self.Window_converter,text='Decimal Degrees (DD)',borderwidth=5,style='tpad.TLabelframe')
+
+    ttk.Label(F0,text='Longitude').grid(row=0,column=0,sticky='w')
+    _d1x = ttk.Entry(F0,textvariable=D1x,width=20)
+    _d1x.grid(row=0,column=1,sticky='ew')
+    ttk.Label(F0,text='\u00b0',width=1).grid(row=0,column=2,sticky='w')
+    _d1xh = ttk.Combobox(F0,textvariable=EW,values=EWL,width=3)
+    EW.set('E')
+    _d1xh.grid(row=0,column=3,sticky='ew')
+
+    ttk.Label(F0,text='Latitude').grid(row=1,column=0,sticky='w')
+    _d1y = ttk.Entry(F0,textvariable=D1y,width=20)
+    _d1y.grid(row=1,column=1,sticky='ew')
+    ttk.Label(F0,text='\u00b0',width=1).grid(row=1,column=2,sticky='w')
+    _d1yh = ttk.Combobox(F0,textvariable=NS,values=NSL,width=3)
+    _d1yh.grid(row=1,column=3,sticky='ew')
+
+    ttk.Button(F0,text='Ok',width=4,command=_DD).grid(row=1,column=4,sticky='ew',padx=3)
+
+    F0.grid(row=0,column=0,padx=5,pady=10,sticky='ewsn')
+    
+
+    # DDM
+    F1 =ttk.LabelFrame(self.Window_converter,text='Degrees Decimal Minutes (DDM)',borderwidth=5,style='tpad.TLabelframe')
+
+    ttk.Label(F1,text='Longitude').grid(row=0,column=0,sticky='w')
+    _d2xd = ttk.Entry(F1,textvariable=D2xd,width=4)
+    _d2xd.grid(row=0,column=1,sticky='ew')
+    ttk.Label(F1,text='\u00b0',width=1).grid(row=0,column=2,sticky='w')
+    _d2xd = ttk.Entry(F1,textvariable=D2xm,width=14)
+    _d2xd.grid(row=0,column=3,sticky='ew')
+    ttk.Label(F1,text="'",width=1).grid(row=0,column=4,sticky='w')
+
+    _d2xh = ttk.Combobox(F1,textvariable=EW,values=EWL,width=3)
+    _d2xh.grid(row=0,column=5,sticky='w')
+
+    ttk.Label(F1,text='Latitude').grid(row=1,column=0,sticky='w')
+    _d2yd = ttk.Entry(F1,textvariable=D2yd,width=4)
+    _d2yd.grid(row=1,column=1,sticky='ew')
+    ttk.Label(F1,text='\u00b0',width=1).grid(row=1,column=2,sticky='w')
+    _d2ym = ttk.Entry(F1,textvariable=D2ym,width=14)
+    _d2ym.grid(row=1,column=3,sticky='ew')
+    ttk.Label(F1,text="'",width=1).grid(row=1,column=4,sticky='w')
+    _d2yh = ttk.Combobox(F1,textvariable=NS,values=NSL,width=3)
+    _d2yh.grid(row=1,column=5,sticky='ew')
+
+    ttk.Button(F1,text='Ok',width=4,command=_DDM).grid(row=1,column=6,sticky='ew',padx=3)
+
+    F1.grid(row=1,column=0,padx=5,pady=10,sticky='ewsn')
+    
+
+    # DMS
+    F2 =ttk.LabelFrame(self.Window_converter,text='Degrees Minutes Seconds (DMS)',borderwidth=5,style='tpad.TLabelframe')
+
+    ttk.Label(F2,text='Longitude').grid(row=0,column=0,sticky='w')
+    _d3xd = ttk.Entry(F2,textvariable=D3xd,width=4)
+    _d3xd.grid(row=0,column=1,sticky='ew')
+    ttk.Label(F2,text='\u00b0',width=1).grid(row=0,column=2,sticky='w')
+    _d3xm = ttk.Entry(F2,textvariable=D3xm,width=3)
+    _d3xm.grid(row=0,column=3,sticky='ew')
+    ttk.Label(F2,text="'",width=1).grid(row=0,column=4,sticky='w')
+    _d3xm = ttk.Entry(F2,textvariable=D3xs,width=9)
+    _d3xm.grid(row=0,column=5,sticky='ew')
+    ttk.Label(F2,text='"',width=1).grid(row=0,column=6,sticky='w')
+
+    _d3xh = ttk.Combobox(F2,textvariable=EW,values=EWL,width=3)
+    _d3xh.grid(row=0,column=7,sticky='w')
+
+    ttk.Label(F2,text='Latitude').grid(row=1,column=0,sticky='w')
+    _d3yd = ttk.Entry(F2,textvariable=D3yd,width=4)
+    _d3yd.grid(row=1,column=1,sticky='ew')
+    ttk.Label(F2,text='\u00b0',width=1).grid(row=1,column=2,sticky='w')
+    _d3ym = ttk.Entry(F2,textvariable=D3ym,width=3)
+    _d3ym.grid(row=1,column=3,sticky='ew')
+    ttk.Label(F2,text="'",width=1).grid(row=1,column=4,sticky='w')
+    _d3ym = ttk.Entry(F2,textvariable=D3ys,width=9)
+    _d3ym.grid(row=1,column=5,sticky='ew')
+    ttk.Label(F2,text='"',width=1).grid(row=1,column=6,sticky='w')
+
+    _d3yh = ttk.Combobox(F2,textvariable=NS,values=NSL,width=3)
+    _d3yh.grid(row=1,column=7,sticky='ew')
+
+    ttk.Button(F2,text='Ok',width=4,command=_DMS).grid(row=1,column=8,sticky='ew',padx=3)
+
+    F2.grid(row=2,column=0,padx=5,pady=10,sticky='ewsn')
+    
 

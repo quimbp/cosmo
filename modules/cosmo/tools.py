@@ -1126,7 +1126,6 @@ class WinGeoaxes():
           if icdf.dimids[vv][dim] == icdf.idl:
             icdf.ppl[vv] = dim
         vv = vv + 1
-      print(icdf.ppl)
       #Update ppl
     else:
       icdf.idl = -1
@@ -2928,10 +2927,13 @@ def initial_position(VEC,FLOAT,**args):
 
   # Identify the first buoy record within the model simulation period:
   #
-  xo = []
-  yo = []
-  zo = []
-  to = []
+  vko = []
+  vxo = []
+  vyo = []
+  vzo = []
+  vdo = []
+  vto = []
+  vdt = []
   for flo in range(FLOAT.nfloats):
 
     if FLOAT.nfloats == 1:
@@ -2956,25 +2958,71 @@ def initial_position(VEC,FLOAT,**args):
 
     if do is None:
       print('ERROR: No match between model and buoy')
-      return None, None, None, None
+      return None
   
     #ko = buoy_date.index(do)
     ko = np.where(buoy_date == do)
-    print('do : ', do)
-    print('ko : ', ko)
+    ko = ko[0]
 
   # Time difference between the first record and the initial model time:
 
 
-    xo.append(buoy_lon[ko])
-    yo.append(buoy_lat[ko])
+    vko.append(ko)
+    vxo.append(buoy_lon[ko])
+    vyo.append(buoy_lat[ko])
     try:
-      zo.append(VEC.Z_LIST[VEC.K.get()])
+      vzo.append(VEC.Z_LIST[VEC.K.get()])
     except:
-      zo.append(0)
-    to.append(buoy_time[ko] - VEC.TIME[0])
+      vzo.append([0])
+
+    vdo.append(do)
+    vto.append(buoy_time[ko])
+    vdt.append(buoy_time[ko] - VEC.TIME[0])
 
     #print("%9.3f, %9.3f, %9.3f, %9.0f" % (xo[-1], yo[-1], zo[-1], to[-1]))
 
-  return xo, yo, zo, to
+  return vko, vxo, vyo, vzo, vdo, vto, vdt
+
+# =============================================
+def dhist(UU,VV,**args):
+# =============================================
+  ''' Print the double histogram of U and V '''
+
+  import matplotlib.pyplot as plt
+
+  U = UU
+  V = VV
+  for i in reversed(range(len(V))):
+    if V[i] < 1e-4:
+      V = np.delete(V,i)
+      U = np.delete(U,i)
+
+
+  print('V = ',V)
+
+  fig = plt.figure(3)
+  ax  = plt.axes([0.15,0.10,0.80,0.66])
+
+  ax.set_xlabel('Velocity')
+  ax.set_ylabel('Count')
+  ax.set_xlabel('Buoy')
+  ax.set_ylabel('Model')
+  ax.grid(True)
+
+  Umax = np.max(U)
+
+  # IQR:
+  Q1 = np.percentile(U, 25, interpolation = 'midpoint')
+  Q3 = np.percentile(U, 75, interpolation = 'midpoint')
+  IQR = Q3 - Q1
+  dU = 2*IQR/np.cbrt(len(U))
+
+  n = np.ceil(Umax/dU)
+  bins = np.linspace(0,Umax,n)
+
+  ax.plot(U,V,'o')
+  #ax.hist([U,V],bins,label=['Buoy','Model'])
+  ax.legend()
+
+  plt.show()
 

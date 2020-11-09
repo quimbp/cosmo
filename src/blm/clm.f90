@@ -1070,7 +1070,7 @@ use mrhs
 
 ! ... Local variables:
 ! ...
-logical init,fractional
+logical init,fractional,sss
 integer flo,kout,nfloating,nstranded,noutside
 integer                                  :: external_step
 real(dp)                                 :: external_time
@@ -1253,12 +1253,15 @@ do external_step=1,external_nsteps
       fractional = .false.
       if (FLT%release_time(flo).le.internal_time-initial_time) then
         FLT%released(flo) = .true.
-      else if (FLT%release_time(flo).lt.internal_time+internal_dt-internal_time) then
-        write(*,*) 'Floater ', flo, ' released in the middle of a time interval'
-        fractional = .true.
-        FLT%released(flo) = .true.
-        fractional_dt = internal_dt - (FLT%release_time(flo)-internal_time) 
-        write(*,*) 'Fractional time interval set to ', fractional_dt
+      else 
+        sss = FLT%release_time(flo).lt.(internal_time + internal_dt - initial_time)
+        if (sss) then
+          write(*,*) 'Floater ', flo, ' released in the middle of a time interval'
+          fractional = .true.
+          FLT%released(flo) = .true.
+          fractional_dt = internal_dt - (FLT%release_time(flo)-internal_time) 
+          write(*,*) 'Fractional time interval set to ', fractional_dt
+        endif
       endif
 
       if (FLT%released(flo)) then
@@ -1361,7 +1364,7 @@ do external_step=1,external_nsteps
     noutside  = 0
     do flo=1,FLT%n
       ! ... Check if status of the float needs to be changed before writing down
-      if (FLT%release_time(flo).le.internal_time-initial_time) then
+      if (abs(FLT%release_time(flo)-(internal_time-initial_time)).le.0.1) then
         FLT%released(flo) = .true.
       endif
       if (FLT%released(flo)) then
