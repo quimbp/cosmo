@@ -8,7 +8,9 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-from tkcolorpicker import askcolor
+#from tkcolorpicker import askcolor
+from tkinter.colorchooser import askcolor
+
 
 import json
 import os

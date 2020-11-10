@@ -14,10 +14,11 @@
 import tkinter as tk
 from tkinter import ttk
 
-try:
-  from tkcolorpicker import askcolor
-except:
-  from tkColorChooser import askcolor
+#try:
+#  from tkcolorpicker import askcolor
+#except:
+#  from tkColorChooser import askcolor
+from tkinter.colorchooser import askcolor
 
 import datetime
 import sys

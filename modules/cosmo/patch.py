@@ -9,10 +9,12 @@
 import tkinter as tk
 from tkinter import ttk
 
-try:
-  from tkcolorpicker import askcolor
-except:
-  from tkColorChooser import askcolor
+#try:
+#  from tkcolorpicker import askcolor
+#except:
+#  from tkColorChooser import askcolor
+from tkinter.colorchooser import askcolor
+
 
 from tkinter import font as tkfont
 import matplotlib.pyplot as plt
