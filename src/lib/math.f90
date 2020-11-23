@@ -622,4 +622,121 @@ end function percentile
 ! ...
 ! =============================================================================
 ! ...
+fUnction median (A)
+
+implicit none
+
+real(dp)                            :: median
+real(dp), dimension(:), intent(in)  :: A
+
+integer N,n1,n2
+integer, dimension(SIZE(A))    :: IWRK
+
+median = nan
+
+N = SIZE(A)
+IF (N.LE.0) return
+
+call indexx(A,IWRK)
+
+if (MOD(N,2).EQ.0) then
+  n1 = N/2
+  n2 = n1 + 1
+  median = 0.5D0*(A(IWRK(n1))+A(IWRK(n2)))
+else
+  n1 = (N+1)/2
+  median = A(IWRK(n1))
+endif
+
+return
+end function median
+! ...
+! ==========================================================================
+! ...
+function nanmedian (A)
+
+implicit none
+
+real(dp)                            :: nanmedian
+real(dp), dimension(:), intent(in)  :: A
+
+integer N,n1,n2,i
+real(dp), dimension(SIZE(A))        :: AA
+integer, dimension(SIZE(A))         :: IWRK
+
+nanmedian = nan
+
+N = 0
+do i=1,SIZE(A)
+  if (isnan(A(i))) THEN
+    ! Skip value
+  else
+    N = N + 1
+    AA(N) = A(i)
+  endif
+enddo
+
+if (N.le.0) return
+
+call indexx(AA(1:N),IWRK)
+
+if (mod(N,2).eq.0) then
+  n1 = N/2
+  n2 = n1 + 1
+  nanmedian = 0.5D0*(AA(IWRK(n1))+AA(IWRK(n2)))
+else
+  n1 = (N+1)/2
+  nanmedian = AA(IWRK(n1))
+endif
+
+return
+end function nanmedian
+! ...
+! ==========================================================================
+! ...
+function wmedian (A,W)
+! ... Weighted median
+
+implicit none
+
+real(dp) wmedian
+real(dp), dimension(:), intent(in)       :: A,W
+
+integer                                  :: N,i,j
+integer, dimension(SIZE(A))              :: IWRK
+real(dp)                                 :: psum,hsum
+
+wmedian = nan
+
+N = SIZE(A)
+if (N.le.0) return
+
+hsum = 0.5D0*sum(W)
+
+call indexx(A,IWRK)
+
+psum = 0D0
+do i=1,N
+  psum = psum + W(IWRK(i))
+  if (psum.GE.hsum) then
+    if (psum.EQ.hsum) then
+      wmedian = 0.5D0*A(IWRK(i))
+      do j=1,N-i
+        if (W(IWRK(i+j)).ne.0) then
+          wmedian = wmedian + 0.5D0*A(IWRK(i+j))
+          return
+        endif
+      enddo
+    else
+      wmedian = A(IWRK(i))
+      return
+    endif
+  endif
+enddo
+
+return
+end function wmedian
+! ...
+! =============================================================================
+! ...
 end module math
