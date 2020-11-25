@@ -21,6 +21,7 @@ module cosmo
   use ocean
   use geojson
   use roms
+  use Mstat
   use pyplot
 
   implicit none
