@@ -15,7 +15,7 @@ public compress,lowercase,line_word,menu,numlines,now,numwords, &
        stop_error,strcat,unitfree,uppercase,say,whitechar, &
        coords2index,index2coords,locate,filetype,mkdir,ls,newfilename, &
        get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr, &
-       rndname,locate2d,find
+       rndname,locate2d,find,print_matrix,read2cols,read1col
 
 type ls_type
   integer                                     :: n
@@ -967,14 +967,12 @@ integer n1,n2,il,im,iu,jl,jm,ju
 
 n1 = size(x,1)
 n2 = size(x,2)
-!print*, 'n1, n2 = ', n1, n2
 
 if (size(y,1).ne.n1) call stop_error(1,'Incompatibe grids in locate2d')
 if (size(y,2).ne.n2) call stop_error(1,'Incompatibe grids in locate2d')
 
 slope1 = x(n1,n2).gt.x(1,1)
 slope2 = y(n1,n2).gt.y(1,1)
-!print*, slope1, slope2
 
 il = 0; iu = n1 + 1
 jl = 0; ju = n2 + 1
@@ -1023,6 +1021,123 @@ find = -1
 return
 
 end function find
+! ...
+! =====================================================================
+! ...
+subroutine print_matrix(A,label)
+
+implicit none
+
+real(dp), dimension(:,:), intent(in)   :: A
+character(len=*), intent(in), optional :: label
+
+integer i
+
+if (present(label)) then
+  write(*,*)
+  write(*,*) trim(label)
+endif
+do i=1,size(A,1)
+  write(*,'(100F9.3)') A(i,:)
+enddo
+write(*,*)
+
+end subroutine print_matrix
+! ...
+! =====================================================================
+! ...
+function read2cols(filename,x,y) result(n)
+! ... Reads an ascii file with two columns: x,y
+! ... returns and integer, n = readcols(filename,x,y)
+! ... n > 0, the size of the vectors
+! ... n = 0, file not found
+! ... n < 0, invalid format
+
+character(len=*), intent(in)                      :: filename
+real(dp), dimension(:), allocatable, intent(out)  :: x
+real(dp), dimension(:), allocatable, intent(out)  :: y
+integer                                           :: n
+
+integer i,iu,err
+
+n  = 0
+iu = unitfree()
+
+open(iu,file=filename,status='old',form='formatted',iostat=err)
+if (err.ne.0) return
+
+
+! ... Read number of lines:
+! ...
+n = 0
+rewind(iu)
+10 read(iu,*,end=20,err=60)
+   n = n + 1
+   goto 10
+20 continue
+
+allocate(x(n))
+allocate(y(n))
+
+rewind(iu)
+do i=1,n
+  read(iu,*,err=60) x(i), y(i)
+enddo
+close(iu)
+return
+
+60 n = -1
+close(iu)
+return
+
+end function read2cols
+! ...
+! =====================================================================
+! ...
+function read1col(filename,x) result(n)
+! ... Reads an ascii file with one column: x
+! ... returns and integer, n = readcols(filename,x)
+! ... n > 0, the size of the vector
+! ... n = 0, file not found
+! ... n < 0, invalid format
+
+character(len=*), intent(in)                      :: filename
+real(dp), dimension(:), allocatable, intent(out)  :: x
+integer                                           :: n
+
+integer i,iu,err
+
+n  = 0
+iu = unitfree()
+
+open(iu,file=filename,status='old',form='formatted',iostat=err)
+if (err.ne.0) return
+
+
+! ... Read number of lines:
+! ...
+n = 0
+rewind(iu)
+10 read(iu,*,end=20,err=60)
+   n = n + 1
+   goto 10
+20 continue
+
+allocate(x(n))
+
+rewind(iu)
+do i=1,n
+  read(iu,*,err=60) x(i)
+enddo
+close(iu)
+return
+
+
+60 n = -1
+close(iu)
+return
+
+end function read1col
 ! ...
 ! =====================================================================
 ! ...

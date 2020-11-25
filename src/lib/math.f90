@@ -739,4 +739,532 @@ end function wmedian
 ! ...
 ! =============================================================================
 ! ...
+function loess (t,x,wr,g,lambda,deg,periodic,period) result(err)
+
+implicit none
+
+integer                                 :: err      ! Output error flag
+real(dp), dimension(:), intent(in)      :: t        ! Sample time
+real(dp), dimension(:), intent(in)      :: x        ! Sample values
+real(dp), dimension(:), intent(in)      :: wr       ! Additional weight
+real(dp), dimension(size(t)), intent(out)  :: g        ! Filtered series
+real(dp), intent(in)                    :: lambda   ! time-lag parameter
+integer, intent(in)                     :: deg      ! Polynolial fit
+logical, intent(in)                     :: periodic ! Polynolial fit
+real(dp), intent(in), optional          :: period   ! Polynolial fit
+
+
+! ... Local variables:
+! ...
+integer                                 :: N        ! Number of points
+integer point,i,j,ii,ll,np
+real(dp) tt,wi,xsum
+
+integer, dimension(size(t))               :: map
+real(dp), dimension(size(t))              :: d,w
+real(dp), dimension(:), allocatable       :: YY,WW
+real(dp), dimension(:,:), allocatable     :: XX,MM
+
+integer                                   :: M
+real(dp), dimension(deg+1)                :: RHS,DD,c
+real(dp), dimension(deg+1,deg+1)          :: A,V
+
+N = size(t)
+
+M = deg + 1
+
+! ... Default value:
+! ...
+g(:) = 0
+err  = 1
+
+IF (lambda.LE.0) THEN
+  WRITE(*,*) 'Invalid negatime time-lag parameter'
+  RETURN
+ENDIF
+
+do point=1,N
+  ! ... For each point, calculate its distance to the other points
+  ! ...
+  if (periodic) then 
+    d = perdist(t,t(point),period)
+  else
+    d = regdist(t,t(point))
+  endif
+
+  ! ... Weighting according to the distance
+  ! ... Only the weights different from zero will be retained
+  ! ...
+  call Wloess (N,lambda,3,d,w)
+  np = 0
+  do i=1,N
+    if (w(i).gt.1E-8) THEN
+      np = np + 1
+      map(np) = i
+    endif
+  enddo
+
+  ! ... Weight multiplication by user-provided additional weight
+  ! ... Usually, the user provides wr(:) = 1
+  ! ...
+  w(:) = wr(:) * w(:)
+
+  if (np.EQ.0) then
+    write(*,*) 'No points for regression'
+    return
+  endif
+
+  ! ... Fitting the weighted local polynomial: orders 0,1 or 2.
+  ! ... [XT W X] alpha = XT W y
+  ! ...
+  if (np.EQ.1) then
+     g(point) = x(map(1))
+     cycle
+  endif
+
+  allocate (XX(np,deg+1))
+  allocate (YY(np))
+
+  do i=1,np
+    ii    = map(i)
+    tt    = d(ii)                ! Distance
+    wi    = SQRT(w(ii))
+    YY(i) = wi*x(ii)
+    do ll=0,deg
+      XX(i,1+ll) = wi*tt**ll
+    enddo
+  enddo
+
+  ! ... Solve the system:
+  ! ...
+  do i=1,M
+    !xsum = 0D0
+    !do ii=1,np
+    !  xsum = xsum + XX(ii,i)*YY(ii)
+    !enddo
+    !RHS(i) = xsum
+    RHS(i) = DOT_PRODUCT(XX(1:np,i),YY(1:np))
+    do j=i,M
+      !xsum =0D0
+      !do ii=1,np
+      !  xsum = xsum + XX(ii,i)*XX(ii,j)
+      !enddo
+      xsum = DOT_PRODUCT(XX(1:np,i),XX(1:np,j))
+      A(i,j) = xsum
+      A(j,i) = xsum
+    enddo
+  enddo
+
+  call svdcmp (A,M,M,M,M,DD,V)
+  where(DD.LE.0) DD = 0D0
+
+  if (count(DD.eq.0).gt.0) then
+    write(*,*) 'Singular matrix'
+    deallocate (XX,YY)
+    return
+  endif
+
+  call svbksb (A,DD,V,M,M,M,M,RHS,c)
+
+  g(point) = c(1)
+
+  deallocate(XX)  
+  deallocate(YY)  
+
+enddo
+
+err = 0
+return  
+
+end function loess
+! ...
+! =========================================================================
+! ...
+function regdist (t,to) result(d)
+
+implicit none
+
+real(dp), dimension(:), intent(in)             :: t
+real(dp), intent(in)                           :: to
+real(dp), dimension(size(t))                   :: d
+
+d(:) = t(:) - to
+
+return
+end function regdist
+! ...
+! =========================================================================
+! ...
+function perdist (t,to,period) result(d)
+
+implicit none
+
+real(dp), dimension(:), intent(in)             :: t
+real(dp), intent(in)                           :: to
+real(dp), intent(in)                           :: period 
+real(dp), dimension(size(t))                   :: d
+
+integer i
+
+do i=1,size(t)
+  if (t(i).lt.to) then
+    d(i) = -(MOD(to - t(i) + 0.5D0*period, period) - 0.5D0*period)
+  else
+    d(i) = MOD(t(i) - to + 0.5D0*period, period) - 0.5D0*period
+  endif
+enddo
+
+return
+end function perdist
+! ...
+! =========================================================================
+! ...
+subroutine Wloess (N,lambda,power,Dist,W)
+
+implicit none
+
+integer, intent(in)                       :: N
+integer, intent(in)                       :: power
+real(dp), INTENT(in)                      :: lambda
+real(dp), dimension(N), intent(in)        :: Dist
+real(dp), dimension(N), intent(out)       :: W
+
+integer i
+real(dp) adist
+
+do i=1,N
+  adist = ABS(Dist(i))
+  if (adist.gt.lambda) then
+    W(i) = 0D0
+  else
+    W(i) = (1D0 - (adist/lambda)**power)**power
+  endiF
+enddo
+
+return
+end subroutine Wloess
+! ...
+! =============================================================================
+! ...
+real(dp) function pythag(a,b)
+
+real(dp) a,b
+real(dp) absa,absb
+
+absa=abs(a)
+absb=abs(b)
+if(absa.gt.absb)then
+  pythag=absa*sqrt(1.d0+(absb/absa)**2)
+else
+  if(absb.eq.0.d0)then
+    pythag=0.d0
+  else
+    pythag=absb*sqrt(1.d0+(absa/absb)**2)
+  endif
+endif
+
+return
+end function pythag
+!  (C) Copr. 1986-92 Numerical Recipes Software *5sV1.
+! ...
+! =============================================================================
+! ...
+      subroutine svdcmp(a,m,n,mp,np,w,v)
+      integer m,mp,n,np
+      real(dp) a(mp,np),v(np,np),w(np)
+!     PARAMETER (NMAX=750)
+!U    USES pythag
+      integer i,its,j,jj,k,l,nm
+      real(dp) anorm,c,f,g,h,s,scale,x,y,z,rv1(n)
+      !real(dp) pythag
+      g=0.0d0
+      scale=0.0d0
+      anorm=0.0d0
+      do 25 i=1,n
+        l=i+1
+        rv1(i)=scale*g
+        g=0.0d0
+        s=0.0d0
+        scale=0.0d0
+        if(i.le.m)then
+          do 11 k=i,m
+            scale=scale+abs(a(k,i))
+11        continue
+          if(scale.ne.0.0d0)then
+            do 12 k=i,m
+              a(k,i)=a(k,i)/scale
+              s=s+a(k,i)*a(k,i)
+12          continue
+            f=a(i,i)
+            g=-sign(sqrt(s),f)
+            h=f*g-s
+            a(i,i)=f-g
+            do 15 j=l,n
+              s=0.0d0
+              do 13 k=i,m
+                s=s+a(k,i)*a(k,j)
+13            continue
+              f=s/h
+              do 14 k=i,m
+                a(k,j)=a(k,j)+f*a(k,i)
+14            continue
+15          continue
+            do 16 k=i,m
+              a(k,i)=scale*a(k,i)
+16          continue
+          endif
+        endif
+        w(i)=scale *g
+        g=0.0d0
+        s=0.0d0
+        scale=0.0d0
+        if((i.le.m).and.(i.ne.n))then
+          do 17 k=l,n
+            scale=scale+abs(a(i,k))
+17        continue
+          if(scale.ne.0.0d0)then
+            do 18 k=l,n
+              a(i,k)=a(i,k)/scale
+              s=s+a(i,k)*a(i,k)
+18          continue
+            f=a(i,l)
+            g=-sign(sqrt(s),f)
+            h=f*g-s
+            a(i,l)=f-g
+            do 19 k=l,n
+              rv1(k)=a(i,k)/h
+19          continue
+            do 23 j=l,m
+              s=0.0d0
+              do 21 k=l,n
+                s=s+a(j,k)*a(i,k)
+21            continue
+              do 22 k=l,n
+                a(j,k)=a(j,k)+s*rv1(k)
+22            continue
+23          continue
+            do 24 k=l,n
+              a(i,k)=scale*a(i,k)
+24          continue
+          endif
+        endif
+        anorm=max(anorm,(abs(w(i))+abs(rv1(i))))
+25    continue
+      do 32 i=n,1,-1
+        if(i.lt.n)then
+          if(g.ne.0.0d0)then
+            do 26 j=l,n
+              v(j,i)=(a(i,j)/a(i,l))/g
+26          continue
+            do 29 j=l,n
+              s=0.0d0
+              do 27 k=l,n
+                s=s+a(i,k)*v(k,j)
+27            continue
+              do 28 k=l,n
+                v(k,j)=v(k,j)+s*v(k,i)
+28            continue
+29          continue
+          endif
+          do 31 j=l,n
+            v(i,j)=0.0d0
+            v(j,i)=0.0d0
+31        continue
+        endif
+        v(i,i)=1.0d0
+        g=rv1(i)
+        l=i
+32    continue
+      do 39 i=min(m,n),1,-1
+        l=i+1
+        g=w(i)
+        do 33 j=l,n
+          a(i,j)=0.0d0
+33      continue
+        if(g.ne.0.0d0)then
+          g=1.0d0/g
+          do 36 j=l,n
+            s=0.0d0
+            do 34 k=l,m
+              s=s+a(k,i)*a(k,j)
+34          continue
+            f=(s/a(i,i))*g
+            do 35 k=i,m
+              a(k,j)=a(k,j)+f*a(k,i)
+35          continue
+36        continue
+          do 37 j=i,m
+            a(j,i)=a(j,i)*g
+37        continue
+        else
+          do 38 j= i,m
+            a(j,i)=0.0d0
+38        continue
+        endif
+        a(i,i)=a(i,i)+1.0d0
+39    continue
+      do 49 k=n,1,-1
+        do 48 its=1,30
+          do 41 l=k,1,-1
+            nm=l-1
+            if((abs(rv1(l))+anorm).eq.anorm)  goto 2
+            if((abs(w(nm))+anorm).eq.anorm)  goto 1
+41        continue
+1         c=0.0d0
+          s=1.0d0
+          do 43 i=l,k
+            f=s*rv1(i)
+            rv1(i)=c*rv1(i)
+            if((abs(f)+anorm).eq.anorm) goto 2
+            g=w(i)
+            h=pythag(f,g)
+            w(i)=h
+            h=1.0d0/h
+            c= (g*h)
+            s=-(f*h)
+            do 42 j=1,m
+              y=a(j,nm)
+              z=a(j,i)
+              a(j,nm)=(y*c)+(z*s)
+              a(j,i)=-(y*s)+(z*c)
+42          continue
+43        continue
+2         z=w(k)
+          if(l.eq.k)then
+            if(z.lt.0.0d0)then
+              w(k)=-z
+              do 44 j=1,n
+                v(j,k)=-v(j,k)
+44            continue
+            endif
+            goto 3
+          endif
+          if(its.eq.30) STOP 'no convergence in svdcmp'
+          x=w(l)
+          nm=k-1
+          y=w(nm)
+          g=rv1(nm)
+          h=rv1(k)
+          f=((y-z)*(y+z)+(g-h)*(g+h))/(2.0d0*h*y)
+          g=pythag(f,1.0d0)
+          f=((x-z)*(x+z)+h*((y/(f+sign(g,f)))-h))/x
+          c=1.0d0
+          s=1.0d0
+          do 47 j=l,nm
+            i=j+1
+            g=rv1(i)
+            y=w(i)
+            h=s*g
+            g=c*g
+            z=pythag(f,h)
+            rv1(j)=z
+            c=f/z
+            s=h/z
+            f= (x*c)+(g*s)
+            g=-(x*s)+(g*c)
+            h=y*s
+            y=y*c
+            do 45 jj=1,n
+              x=v(jj,j)
+              z=v(jj,i)
+              v(jj,j)= (x*c)+(z*s)
+              v(jj,i)=-(x*s)+(z*c)
+45          continue
+            z=pythag(f,h)
+            w(j)=z
+            if(z.ne.0.0d0)then
+              z=1.0d0/z
+              c=f*z
+              s=h*z
+            endif
+            f= (c*g)+(s*y)
+            x=-(s*g)+(c*y)
+            do 46 jj=1,m
+              y=a(jj,j)
+              z=a(jj,i)
+              a(jj,j)= (y*c)+(z*s)
+              a(jj,i)=-(y*s)+(z*c)
+46          continue
+47        continue
+          rv1(l)=0.0d0
+          rv1(k)=f
+          w(k)=x
+48      continue
+3       continue
+49    continue
+      return
+      END
+!  (C) Copr. 1986-92 Numerical Recipes Software *5sV1.
+! ...
+! ====================================================================
+! ...
+subroutine svbksb(u,w,v,m,n,mp,np,b,x)
+
+integer, intent(in)                      :: m,mp,n,np
+real(dp), intent(in), dimension(mp,np)   :: u
+real(dp), intent(in), dimension(np,np)   :: v
+real(dp), intent(in), dimension(mp)      :: b
+real(dp), intent(in), dimension(np)      :: w
+real(dp), intent(out), dimension(np)     :: x
+
+! ... Local variables
+! ...
+integer i,j,jj
+real(dp) s,tmp(n)
+
+do j=1,n
+  s = 0.d0
+  if(w(j).ne.0.d0)then
+    do i=1,m
+      s = s + u(i,j)*b(i)
+    enddo
+    s = s/w(j)
+  endif
+  tmp(j) = s
+enddo
+
+do j=1,n
+  x(j)=DOT_PRODUCT(v(j,1:n),tmp(1:n))
+enddo
+
+return
+end subroutine svbksb
+! ... (C) Copr. 1986-92 Numerical Recipes Software *5sV1.
+! ...
+! =============================================================================
+! ...
+subroutine eigsort(d,r,v,n)
+
+implicit none
+integer n,r
+REAL(dp) d(r),v(n,r)
+
+integer i,j,k
+real(dp) p
+
+do i=1,r-1
+  k=i
+  p=d(i)
+  do j=i+1,r
+    if (d(j).ge.p) then
+      k=j
+      p=d(j)
+    endif
+  enddo
+  if (k.ne.i) then
+    d(k)=d(i)
+    d(i)=p
+    do j=1,n
+      p=v(j,i)
+      v(j,i)=v(j,k)
+      v(j,k)=p
+    enddo
+  endif
+enddo
+
+return
+end subroutine eigsort
+! ...
+! =============================================================================
+! ...
 end module math

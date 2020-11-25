@@ -136,6 +136,31 @@ end function string2date
 ! ...
 ! ============================================================================
 ! ...
+integer pure function monthrange(year,month,leap)
+
+integer, intent(in)            :: year,month
+logical, intent(in), optional  :: leap
+
+! ... local variables:
+! ...
+logical use_leap
+
+if (present(leap)) then
+  use_leap = leap
+else
+  use_leap = .TRUE.
+endif
+
+if (use_leap.and.isleap(year)) then
+  monthrange = LenMonthLeap(month)
+else
+  monthrange = LenMonth(month)
+endif
+
+end 
+! ...
+! ============================================================================
+! ...
 function cal2date(year,month,day,hour,minute,second) result(date)
 ! ... Builds the date structure
 
