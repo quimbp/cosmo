@@ -14,6 +14,14 @@ implicit none
 character(len=80)                      :: plotpyname_
 integer                                :: plotpyfid_
 
+type Mplot
+   character(len=20)                   :: fname
+   integer                             :: iu
+   integer, dimension(2)               :: figsize
+
+
+end type
+
 contains 
 ! ...
 ! ====================================================================
@@ -232,20 +240,8 @@ else
  lfmt = "'-r'"
 endif
 
-n = size(x)
+call write_vector(plotpyfid_,'x',x)
 
-write(plotpyfid_,'("x = [")',advance="no")
-
-do i=1,n
-  write(word,*) x(i)
-  if (i.lt.n) then
-    write(plotpyfid_,'(A)',advance="no") trim(word)
-    write(plotpyfid_,'(",")',advance="no")
-  else
-    write(plotpyfid_,'(A)',advance="no") trim(word)
-    write(plotpyfid_,'("]")')
-  endif
-enddo
 write(plotpyfid_,'(A)') 'plt.plot(x,'//trim(lfmt)//')'
 
 end subroutine add_plotx

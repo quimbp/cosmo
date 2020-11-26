@@ -1267,4 +1267,116 @@ end subroutine eigsort
 ! ...
 ! =============================================================================
 ! ...
+subroutine stl(t,x,period,seasonal_lag,long_lag_frac,Xtrnd,Xseas,Xintr,Xresi)
+
+implicit none
+
+real(dp), dimension(:), intent(in)        :: t
+real(dp), dimension(:), intent(in)        :: X
+real(dp), intent(in)                      :: period
+real(dp), intent(in)                      :: seasonal_lag
+real(dp), intent(in)                      :: long_lag_frac    ! 0.1 
+real(dp), dimension(size(t)), intent(out) :: Xtrnd
+real(dp), dimension(size(t)), intent(out) :: Xseas
+real(dp), dimension(size(t)), intent(out) :: Xintr
+real(dp), dimension(size(t)), intent(out) :: Xresi
+
+! ... Local variables:
+! ...
+integer                                   :: Ninner = 2
+integer                                   :: Nouter = 3
+integer i,ii,j,n,inner,outer,err,Npairs
+real(dp) h1,b,m
+real(dp), dimension(size(t))              :: Xlong,Xstar
+real(dp), dimension(size(t))              :: Xdsea
+real(dp), dimension(size(t))              :: Wrobust,Wper,h
+real(dp), dimension(size(t))              :: Dist
+real(dp), dimension(:), allocatable       :: slopes
+
+n = size(t)
+
+Xlong(:)   = 0D0
+Wrobust(:) = 1D0
+
+do outer=1,Nouter
+
+  do inner=1, Ninner
+
+    ! ... Step 1: Compute the detrended time series
+    ! ...
+    Xstar(:) = X(:) - Xlong(:)
+
+    ! ... Step 2: Compute the seasonal cycle from Xstar
+    ! ... The result is Xseas
+    ! ... Local fit: deg 2-polynomial
+    ! ...
+    err =  loess(t,Xstar,Wrobust,Xseas,seasonal_lag,deg=2, &
+                 periodic=.True.,period=period)
+    if (err.ne.0) stop 'STL error step 2'
+
+    ! ... Step 3: Deseasonalized time series:
+    ! ...
+    Xdsea(:) = X(:) - Xseas(:)
+
+    ! ... Step 4: Compute the long term mean:
+    ! ... The result is Xlong
+    ! ... Local fit: deg 1-polynomial
+    ! ...
+    err = loess(t,Xdsea,Wrobust,Xlong,long_lag_frac*period,deg=1, &
+                periodic=.False.)
+    IF (err.NE.0) STOP 'ERROR Step 4'
+
+  enddo
+
+  Xresi(:) = X(:) - Xlong(:) - Xseas(:)
+  h1 = 6D0 * median(abs(Xresi))
+
+  do i=1,n
+    Dist = perdist(t,t(i),period)
+    CALL Wloess(n,3.0D0,3,Dist,Wper)
+    h(i) = 6D0 * wmedian(abs(Xresi),Wper)
+  enddo
+
+  do i=1,n
+    if (abs(Xresi(i)).gt.h(i)) then
+      Wrobust(i) = 0D0
+    else
+      Wrobust(i) = (1D0 - (ABS(Xresi(i))/h(i))**2)**2
+    endif
+  enddo
+
+enddo
+
+! ... Once here, we estimate the linear slope of Xlong
+! ...
+Npairs = n*(n-1)/2
+ALLOCATE(slopes(Npairs))
+
+ii = 0
+do i=1,n
+  do j=i+1,n
+    ii = ii + 1
+    slopes(ii) = (Xlong(j)-Xlong(i))/(t(j)-t(i))
+  enddo
+enddo
+m = median(slopes)
+
+do i=1,n
+  Xtrnd(i) = Xlong(i) - m*t(i)
+enddo
+b = median(Xtrnd)
+
+Xtrnd(:) = b + m*t(:)
+print*, 'b,m = ', b, m
+
+! ... Interannual variability
+! ...
+Xintr(:) = Xlong(:) - Xtrnd(:)
+
+
+return
+end subroutine stl
+! ...
+! =============================================================================
+! ...
 end module math
