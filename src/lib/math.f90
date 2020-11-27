@@ -9,7 +9,7 @@
 module math
 
 use types, only: dp
-use constants, only: zero,one,two,nan,half,Rearth,deg2rad
+use constants, only: zero,one,two,nan,half,Rearth,deg2rad,pi,dpi
 use utils, only: locate,stop_error
 
 implicit none
@@ -93,9 +93,9 @@ n = size(x)
 nn = size(xx)
 
 df = dakima(x,f)
-DO i=1,nn
+do i=1,nn
   ff(i) = evlak(xx(i),x,f,df)
-ENDDO
+enddo
 
 end function akimav
 ! ...
@@ -111,7 +111,7 @@ real(dp) function evlak(xc,x,f,df)
 ! ... nearest interval is used to extrapolate.                             
 
 real(dp), intent(in)                  :: xc
-real(dp), dimension(:), INTENT(in)    :: x,f,df
+real(dp), dimension(:), intent(in)    :: x,f,df
 
 ! ... Local variables
 ! ...
@@ -172,7 +172,7 @@ real(dp), dimension(size(x))        :: df
 ! ...
 integer                             :: i,n
 real(dp)                            :: Sn,eps,D1,D2
-real(dp), DIMENSION(4)              :: S
+real(dp), dimension(4)              :: S
 
 n = size(x)
 eps  = 1.0e-6*ABS(x(n) - x(1))
@@ -303,8 +303,8 @@ end function mean
       ! ... Local varibles:
       ! ...
       integer, parameter                          :: M=7
-      INTEGER                                     :: n,i,indxt,ir,itemp,j,jstack,k,l
-      INTEGER, dimension(size(arr))               :: istack
+      integer                                     :: n,i,indxt,ir,itemp,j,jstack,k,l
+      integer, dimension(size(arr))               :: istack
       real(dp)                                    :: a            
 
       n = size(arr)
@@ -576,48 +576,48 @@ function percentile (x,p,METHOD)
 ! ... NIST method
 ! ...
 
-IMPLICIT NONE
+implicit none
 
-REAL(KIND=8), DIMENSION(:), INTENT(in)   :: x
-REAL(KIND=8),               INTENT(in)   :: p
-REAL(KIND=8)                             :: percentile
+real(dp), dimension(:), intent(in)   :: x
+real(dp),               intent(in)   :: p
+real(dp)                             :: percentile
 CHARACTER(LEN=*), OPTIONAL               :: METHOD
 
 LOGICAL excel, nist
-INTEGER                                  :: n
-INTEGER, DIMENSION(SIZE(x))              :: indx
+integer                                  :: n
+integer, dimension(SIZE(x))              :: indx
 
-INTEGER i,kk
-REAL(KIND=8) rr,dd
+integer i,kk
+real(dp) rr,dd
 
 excel = .true.
-IF (PRESENT(METHOD)) THEN
-  IF ((METHOD(1:1).EQ.'N').OR.(METHOD(1:1).EQ.'n')) THEN
+if (PRESENT(METHOD)) then
+        if ((METHOD(1:1).EQ.'N').OR.(METHOD(1:1).EQ.'n')) then
     nist = .true.
     excel = .false.
-  ENDIF
-ENDIF
+  endif
+endif
 
 n  = SIZE(x)
 CALL indexx(x,indx)
 
-IF (excel) THEN
+if (excel) then
   rr = p*(n-1.0D0)/100.0D0 + 1.0D0
 ELSE
   rr = p*(n+1.0D0)/100.0D0
-ENDIF
+endif
 
 kk = FLOOR(rr)
 dd = rr - kk
-IF (kk.EQ.0) THEN
+if (kk.EQ.0) then
   percentile = x(indx(1))
-ELSE IF (kk.EQ.n) THEN
+ELSE if (kk.EQ.n) then
   percentile = x(indx(n))
 ELSE
   percentile = x(indx(kk)) + dd*(x(indx(kk+1))-x(indx(kk)))
-ENDIF
+endif
 
-RETURN
+return
 end function percentile
 ! ...
 ! =============================================================================
@@ -635,11 +635,11 @@ integer, dimension(SIZE(A))    :: IWRK
 median = nan
 
 N = SIZE(A)
-IF (N.LE.0) return
+if (N.LE.0) return
 
 call indexx(A,IWRK)
 
-if (MOD(N,2).EQ.0) then
+if (mod(N,2).EQ.0) then
   n1 = N/2
   n2 = n1 + 1
   median = 0.5D0*(A(IWRK(n1))+A(IWRK(n2)))
@@ -668,7 +668,7 @@ nanmedian = nan
 
 N = 0
 do i=1,SIZE(A)
-  if (isnan(A(i))) THEN
+  if (isnan(A(i))) then
     ! Skip value
   else
     N = N + 1
@@ -778,10 +778,10 @@ M = deg + 1
 g(:) = 0
 err  = 1
 
-IF (lambda.LE.0) THEN
-  WRITE(*,*) 'Invalid negatime time-lag parameter'
-  RETURN
-ENDIF
+if (lambda.LE.0) then
+  write(*,*) 'Invalid negatime time-lag parameter'
+  return
+endif
 
 do point=1,N
   ! ... For each point, calculate its distance to the other points
@@ -798,7 +798,7 @@ do point=1,N
   call Wloess (N,lambda,3,d,w)
   np = 0
   do i=1,N
-    if (w(i).gt.1E-8) THEN
+    if (w(i).gt.1E-8) then
       np = np + 1
       map(np) = i
     endif
@@ -908,9 +908,9 @@ integer i
 
 do i=1,size(t)
   if (t(i).lt.to) then
-    d(i) = -(MOD(to - t(i) + 0.5D0*period, period) - 0.5D0*period)
+    d(i) = -(mod(to - t(i) + 0.5D0*period, period) - 0.5D0*period)
   else
-    d(i) = MOD(t(i) - to + 0.5D0*period, period) - 0.5D0*period
+    d(i) = mod(t(i) - to + 0.5D0*period, period) - 0.5D0*period
   endif
 enddo
 
@@ -925,7 +925,7 @@ implicit none
 
 integer, intent(in)                       :: N
 integer, intent(in)                       :: power
-real(dp), INTENT(in)                      :: lambda
+real(dp), intent(in)                      :: lambda
 real(dp), dimension(N), intent(in)        :: Dist
 real(dp), dimension(N), intent(out)       :: W
 
@@ -1237,7 +1237,7 @@ subroutine eigsort(d,r,v,n)
 
 implicit none
 integer n,r
-REAL(dp) d(r),v(n,r)
+real(dp) d(r),v(n,r)
 
 integer i,j,k
 real(dp) p
@@ -1267,7 +1267,7 @@ end subroutine eigsort
 ! ...
 ! =============================================================================
 ! ...
-subroutine stl(t,x,period,seasonal_lag,long_lag_frac,Xtrnd,Xseas,Xintr,Xresi)
+subroutine stl(t,x,period,seasonal_lag,long_lag_frac,m,Xtrnd,Xseas,Xintr,Xresi)
 
 implicit none
 
@@ -1276,6 +1276,7 @@ real(dp), dimension(:), intent(in)        :: X
 real(dp), intent(in)                      :: period
 real(dp), intent(in)                      :: seasonal_lag
 real(dp), intent(in)                      :: long_lag_frac    ! 0.1 
+real(dp), intent(out)                     :: m                
 real(dp), dimension(size(t)), intent(out) :: Xtrnd
 real(dp), dimension(size(t)), intent(out) :: Xseas
 real(dp), dimension(size(t)), intent(out) :: Xintr
@@ -1286,7 +1287,7 @@ real(dp), dimension(size(t)), intent(out) :: Xresi
 integer                                   :: Ninner = 2
 integer                                   :: Nouter = 3
 integer i,ii,j,n,inner,outer,err,Npairs
-real(dp) h1,b,m
+real(dp) h1,b
 real(dp), dimension(size(t))              :: Xlong,Xstar
 real(dp), dimension(size(t))              :: Xdsea
 real(dp), dimension(size(t))              :: Wrobust,Wper,h
@@ -1324,7 +1325,7 @@ do outer=1,Nouter
     ! ...
     err = loess(t,Xdsea,Wrobust,Xlong,long_lag_frac*period,deg=1, &
                 periodic=.False.)
-    IF (err.NE.0) STOP 'ERROR Step 4'
+    if (err.NE.0) STOP 'ERROR Step 4'
 
   enddo
 
@@ -1367,7 +1368,6 @@ enddo
 b = median(Xtrnd)
 
 Xtrnd(:) = b + m*t(:)
-print*, 'b,m = ', b, m
 
 ! ... Interannual variability
 ! ...
@@ -1376,6 +1376,474 @@ Xintr(:) = Xlong(:) - Xtrnd(:)
 
 return
 end subroutine stl
+! ...
+! =============================================================================
+! ...
+subroutine dft (A,N,CA,CB)
+! ...
+! ... Discrete Fourier Transform.
+! ... random-phase test to determine the significance of a correlation
+! ... Creates a synthetic data that preserves the power spectrum of the
+! ... original data. This is done by calculating the Discrete Fourier
+! ... Transform of the original data and then creates artificial time series
+! ... by using random phases.
+
+implicit none 
+
+integer N
+real(dp) A(N),CA(0:N/2),CB(0:N/2)
+
+integer i,p,N2
+real(dp) xsum1,xsum2,xave,darg,arg,ai
+
+if (mod(N,2).NE.0) STOP 'ERROR: DFT requires an even number of points.'
+
+! ... Calculate the DFT of A:
+! ...
+N2 = N/2
+
+xave = SUM(A)/N
+
+CA(0) = xave + xave
+CB(0) = 0.0D0
+
+xsum1 = 0.0D0
+do i=1,N
+  xsum1 = xsum1 + A(i)*DCOS(i*pi)
+enddo
+CA(N2) = xsum1 / N
+CB(N2) = 0.0D0
+
+do p=1,N2-1
+  darg  = dpi*p/N
+  arg   = 0.0D0
+  xsum1 = 0.0D0
+  xsum2 = 0.0D0
+  do i=1,N
+    ai    = A(i)
+    arg   = arg + darg
+    xsum1 = xsum1 + ai*DCOS(arg)
+    xsum2 = xsum2 + ai*DSIN(arg)
+  enddo
+  CA(p) = 2.0D0*xsum1/N
+  CB(p) = 2.0D0*xsum2/N
+enddo
+  
+END subroutine dft
+! ...
+! =============================================================================
+! ...
+subroutine FFT1D(dimx,funcionR,funcionI,signo)
+
+implicit none
+
+integer, intent(IN)    :: dimx,signo
+real(dp),dimension(0:dimx-1), intent(INOUT) :: funcionR,funcionI
+
+! ... Local variables 
+! ...
+real(dp)    :: tempR,tempI
+real(dp)    :: wpasoR,wpasoI
+real(dp)    :: wwR,wwI
+real(dp)    :: ttR,ttI
+integer         :: ix,je,mm,mmax,istep
+
+tempR = 0.0D0
+tempI = 0.0D0
+je = 1
+do ix=0,dimx-1
+  if (je.GT.ix+1) then
+    tempR = funcionR(je-1)
+    tempI = funcionI(je-1)
+    funcionR(je-1) = funcionR(ix)
+    funcionI(je-1) = funcionI(ix)
+    funcionR(ix) = tempR
+    funcionI(ix) = tempI
+  endif
+  mm = dimx/2
+  do while (mm.GT.1 .AND. je.GT.mm)
+    je = je - mm
+    mm = mm/2
+  enddo
+  je = je+mm
+enddo
+
+mmax = 1
+do while (dimx .GT.mmax)
+  istep = 2*mmax
+  wpasoR = cos(PI/DBLE(mmax))
+  wpasoI = signo*sin(PI/DBLE(mmax))
+  wwR = 1.0D0
+  wwI = 0.0D0
+  do mm = 1,mmax
+  do ix = mm-1,dimx-1,istep
+      je = ix+mmax
+      CALL c_mult(wwR,wwI,funcionR(je),funcionI(je),tempR,tempI)
+      funcionR(je) = funcionR(ix) - tempR
+      funcionI(je) = funcionI(ix) - tempI
+      funcionR(ix) = funcionR(ix) + tempR
+      funcionI(ix) = funcionI(ix) + tempI
+    enddo
+    CALL c_mult(wwR,wwI,wpasoR,wpasoI,ttR,ttI)
+    wwR = ttR
+    wwI = ttI
+  enddo
+  mmax = istep
+enddo
+
+return
+END subroutine FFT1D
+! ...
+! =========================================================================
+! ...
+subroutine c_mult (ar,ai,br,bi,cr,ci)
+
+implicit none
+
+real(dp), intent(in)              :: ar,ai,br,bi
+real(dp), intent(out)             :: cr,ci
+
+cr = ar*br - ai*bi
+ci = ar*bi + ai*br
+
+return
+END subroutine c_mult
+! ...
+! ==========================================================================
+! ...
+FUNCTION spectra_fft (x,nfft)
+
+implicit none
+
+integer, intent(IN)                          :: nfft
+real(dp), dimension(:),intent(IN)        :: x
+real(dp), dimension(nfft)                :: spectra_fft
+
+! ... Local variables
+! ...
+integer signo,i,n
+real(dp), dimension(nfft)                :: xr,xi
+
+n = SIZE(x)
+
+xi(:)   = 0.0D0
+xr(:)   = 0.0D0
+xr(1:n) = x(:)
+
+signo = 1
+CALL FFT1D (nfft,xr,xi,signo)
+xr = xr / dble(n)
+xi = xi / dble(n)
+
+do i=1,nfft
+  spectra_fft(i) = xr(i)*xr(i) + xi(i)*xi(i)
+enddo
+
+END FUNCTION spectra_fft
+! ...
+! ==========================================================================
+! ...
+subroutine spectra_blackman (N,t,x,f,G)
+
+! ... The Blackman-Tuckey method for calculating the spectral estimation
+! ... Data Analysis Methods is Physical Oceanography, Pages 417-419
+! ... No calls to DFT subroutines, all calculations made here.
+! ...
+
+implicit none
+
+integer, intent(in)                      :: N
+real(dp), dimension(N), intent(in)       :: t,x
+real(dp), dimension(0:N/2), intent(out)  :: f,G
+
+! ... Local variables
+! ...
+integer order,i,k,m,DN,N2
+real(dp) Tmax,dt,df,arg,darg,xsum
+real(dp), dimension(N)                   :: xx
+real(dp), dimension(0:N)                 :: C
+
+
+if (mod(n,2).EQ.1) then
+  write(*,*) 'ERROR: the number of points of the series must be even'
+  f(:) = 0D0
+  G(:) = 0D0
+  return
+endif
+
+N2 = N/2
+DN = 2*N
+
+Tmax = t(N) - t(1)
+dt   = Tmax / (N-1D0)   
+df   = 1D0  / Tmax      ! Delta freq
+
+
+! ... Make sure the long term mean has been removed:
+! ... In case, pad with zeros ...
+! ...
+xx(:)   = 0D0
+xx(1:N) = x  ! - SUM(x(1:N))/N
+
+!print*, 'Blackam-Tucker (autocorrelation) spectral method'
+!print*, 'Delta t = ', dt
+
+! ... One sided autocorrelation
+! ... Equation (5.6.15b),  C(m) = (1/N) * SUM_{n=1}^{N-m} y(n)*y(n+m)
+! ...
+do m=0,N
+  xsum = 0D0
+  do i=1,N-m
+    xsum = xsum + xx(i)*xx(i+m)
+  enddo
+  C(m) = xsum / N
+enddo
+
+! ... Now do the DFT. 
+! ... As the autocovariance is an even function, the DFT can be calculated
+! ... from the cosine transform.
+! ... Using equation (5.6.16b), page 418.
+! ...
+do k=0,N2
+  darg = dpi*k/DBLE(N)              !  2*pi*k/N
+  arg  = 0D0
+  xsum = 0D0
+  do m=1,N
+    arg  = arg + darg
+    xsum = xsum + C(m)*COS(arg)
+  enddo
+  G(k) = 2D0*dt*(C(0)+2D0*xsum)
+  f(k) = k/(N*dt)
+enddo
+
+return
+END subroutine spectra_blackman
+! ...
+! ======================================================================
+! ...
+subroutine spectra_periodogram (NK,N,t,x,f,G)
+
+! ... The Periodogram method for calculating the spectral estimation
+! ... Data Analysis Methods is Physical Oceanography, Pages 419-421
+! ... Using the FFT subroutine.
+! ...
+
+implicit none
+
+integer, intent(in)                       :: N,NK
+real(dp), dimension(N), intent(in)        :: t,x
+real(dp), dimension(0:NK/2), intent(out)  :: f,G
+
+! ... Local variables
+! ...
+integer order,i,k,m,N2,signo
+real(dp) Tmax,dt,df,arg,darg,xsum
+real(dp), dimension(0:NK-1)               :: xr,xi
+
+k = INT(log(DBLE(NK))/log(2D0))
+if (2**k.NE.NK) then
+  write(*,*) 'ERROR: N = ', NK
+  write(*,*) 'ERROR: the number of points of the series must be a power of two'
+  f(:) = 0D0
+  G(:) = 0D0
+  return
+endif
+
+N2 = NK/2
+
+Tmax = t(N) - t(1)
+dt   = Tmax / (N-1D0)   
+df   = 1D0  / Tmax      ! Delta freq
+
+
+! ... Make sure the long term mean has been removed:
+! ... In case, pad with zeros ...
+! ...
+xi(:)     = 0D0
+xr(:)     = 0D0
+xr(0:N-1) = x(1:N) ! - SUM(x(1:N))/N
+
+!print*, 'Periodogram (FFT) spectral method'
+!print*, 'Delta t = ', dt
+
+! ... Now do the FFT. 
+
+signo = -1
+CALL FFT1D (NK,xr,xi,signo)
+
+! ... One sided PSD i given by equation (5.6.18b), page 421.
+! ...
+f(0) = 0D0
+G(0) = dt*xr(0)**2/Nk
+
+do k=1,N2-1
+  f(k) = k/(NK*dt)
+  G(k) = 2D0*dt*(xr(k)**2+xi(k)**2)/Nk
+enddo
+
+f(N2) = 0.5D0/dt
+G(N2) = dt*xr(N2)**2/Nk
+
+return
+END subroutine spectra_periodogram
+! ...
+! ======================================================================
+! ...
+subroutine spectra_dft (N,t,x,f,G)
+
+! ... The Periodogram method for calculating the spectral estimation
+! ... Data Analysis Methods is Physical Oceanography, Pages 419-421
+! ... Using the DFT subroutine.
+! ...
+
+implicit none
+
+integer, intent(in)                           :: N
+real(dp), dimension(N), intent(in)        :: t,x
+real(dp), dimension(0:N/2), intent(out)   :: f,G
+
+! ... Local variables
+! ...
+integer order,i,k,m,N2
+real(dp) Tmax,dt,df,arg,darg,xsum
+real(dp), dimension(N)                    :: xx
+real(dp), dimension(0:N/2)                :: CA,CB
+
+if (mod(N,2).NE.0) then
+  write(*,*) 'ERRIR: N = ', N
+  write(*,*) 'ERROR: the number of points of the series must be even'
+  f(:) = 0D0
+  G(:) = 0D0
+  return
+endif
+
+N2 = N/2
+
+Tmax = t(N) - t(1)
+dt   = Tmax / (N-1D0)   
+df   = 1D0  / Tmax      ! Delta freq
+
+
+! ... Make sure the long term mean has been removed:
+! ... In case, pad with zeros ...
+! ...
+xx(:)   = 0D0
+xx(1:N) = x(1:N) !  - SUM(x(1:N))/N
+
+!print*, 'Periodogram (DFT) spectral method'
+!print*, 'Delta t = ', dt
+
+! ... Now do the DFT. 
+! ...
+CALL DFT (xx,N,CA,CB)
+
+! ... One sided PSD i given by equation (5.6.18b), page 421.
+! ...
+f(0) = 0D0
+G(0) = dt*N*CA(0)**2
+
+do k=1,N2-1
+  f(k) = k/(N*dt)
+  G(k) = 0.5D0*dt*N*(CA(k)**2+CB(k)**2)
+enddo
+
+f(N2) = 0.5D0/dt
+G(N2) = dt*N*CA(N2)**2
+
+return
+END subroutine spectra_dft
+! ...
+! ======================================================================
+! ...
+subroutine spectra_hanning (N,t,x,f,G)
+
+implicit none
+
+real(dp)                                  :: Fct = 8D0/3D0
+
+integer, intent(in)                       :: N
+real(dp), dimension(N), intent(in)        :: t,x
+real(dp), dimension(0:N/2), intent(out)   :: f,G
+
+integer order,i,k,m,N2
+real(dp) Tmax,dt,df,arg,darg,xsum
+real(dp), dimension(N)                    :: xx
+real(dp), dimension(N)                    :: w
+real(dp), dimension(0:N/2)                :: CA,CB
+
+if (mod(N,2).NE.0) then
+  write(*,*) 'ERRIR: N = ', N
+  write(*,*) 'ERROR: the number of points of the series must be even'
+  f(:) = 0D0
+  G(:) = 0D0
+  return
+endif
+
+N2 = N/2
+
+Tmax = t(N) - t(1)
+dt   = Tmax / (N-1D0)
+df   = 1D0  / Tmax      ! Delta freq
+
+! ... Define the Hanning window function and multiply:
+! ... Use equation (5.673a) page 445 Data Analysis Methods Physical Oceanog.
+! ...
+do i=1,N
+  w(i) = 0.5D0*(1D0 - COS(dpi*(i-1D0)/N)) ! Hanning
+  xx(i) = w(i)*x(i)
+enddo
+
+!print*, 'Hanning windowed DFT spectral method'
+!print*, 'Delta t = ', dt
+
+! ... Now do the DFT.
+! ...
+CALL DFT (xx,N,CA,CB)
+
+! ... One sided PSD i given by equation (5.6.18b), page 421.
+! ...
+f(0) = 0D0
+G(0) = Fct*dt*N*CA(0)**2
+
+do k=1,N2-1
+  f(k) = k/(N*dt)
+  G(k) = 0.5D0*Fct*dt*N*(CA(k)**2+CB(k)**2)
+enddo
+
+f(N2) = 0.5D0/dt
+G(N2) = Fct*dt*N*CA(N2)**2
+
+return
+END subroutine spectra_hanning
+! ...
+! ======================================================================
+! ...
+subroutine linear_detrending (N,A)
+
+implicit none
+
+integer, intent(in)                       :: N
+real(dp), dimension(N), intent(inout)     :: A
+
+! ... Local variables
+! ...
+integer i
+real(dp) arg
+
+arg = (A(1)-A(N))/DBLE(n-1)
+do i=2,N-1
+   A(i) = A(i) - A(1) + (i-1)*arg
+enddo
+A(1) = 0D0
+A(N) = 0D0
+
+return
+END subroutine linear_detrending
+! ...
+! ======================================================================
+! ...
+
+
 ! ...
 ! =============================================================================
 ! ...

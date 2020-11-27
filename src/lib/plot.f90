@@ -19,7 +19,6 @@ type Mplot
    integer                             :: iu
    integer, dimension(2)               :: figsize
 
-
 end type
 
 contains 
@@ -115,13 +114,11 @@ integer, intent(in), optional                :: linewidth
 real(dp), dimension(2), intent(in), optional :: xlim
 real(dp), dimension(2), intent(in), optional :: ylim
 
-
 ! ... Local variables
 ! ...
 integer iu,i,n
 character(80) filename,word,lims
 character(18) lfmt,lwidth
-
 
 if (present(linestyle)) then
  lfmt = '"'//trim(linestyle)//'"'
@@ -147,7 +144,6 @@ endif
 
 write(iu,'(A)') 'plt.plot(x,y,'//trim(lfmt)//trim(lwidth)//')'
 
-
 if (present(title)) write(iu,'(A)') 'plt.title("'//trim(title)//'")'
 if (present(xlabel)) write(iu,'(A)') 'plt.xlabel("'//trim(xlabel)//'")'
 if (present(ylabel)) write(iu,'(A)') 'plt.ylabel("'//trim(ylabel)//'")'
@@ -169,12 +165,10 @@ if (present(ylim)) then
   write(iu,'(A)') 'plt.ylim('//trim(lims)//')'
 endif
 
-
 write(iu,'(A)') 'plt.show()'
 close(iu)
 call system('python3 '//trim(filename))
 call system('rm -f '//trim(filename))
-
 
 end subroutine plotxy
 ! ...
@@ -245,6 +239,68 @@ call write_vector(plotpyfid_,'x',x)
 write(plotpyfid_,'(A)') 'plt.plot(x,'//trim(lfmt)//')'
 
 end subroutine add_plotx
+! ...
+! ======================================================================
+! ...
+subroutine add_plotxy(x,y,linestyle,title,xlabel,ylabel,showgrid,  &
+                      linewidth,xlim,ylim)
+
+real(dp), dimension(:), intent(in)           :: x
+real(dp), dimension(:), intent(in)           :: y
+character(len=*), intent(in), optional       :: linestyle
+character(len=*), intent(in), optional       :: title
+character(len=*), intent(in), optional       :: xlabel
+character(len=*), intent(in), optional       :: ylabel
+logical, intent(in), optional                :: showgrid
+integer, intent(in), optional                :: linewidth
+real(dp), dimension(2), intent(in), optional :: xlim
+real(dp), dimension(2), intent(in), optional :: ylim
+
+! ... Local variables
+! ...
+integer i
+character(80) filename,word,lims
+character(18) lfmt,lwidth
+
+if (present(linestyle)) then
+ lfmt = '"'//trim(linestyle)//'"'
+else
+ lfmt = "'-r'"
+endif
+
+call write_vector(plotpyfid_,'x',x)
+call write_vector(plotpyfid_,'y',y)
+
+if (present(linewidth)) then
+ write(lwidth,'(",linewidth=",i2)') linewidth
+else
+ lwidth = ''
+endif
+
+write(plotpyfid_,'(A)') 'plt.plot(x,y,'//trim(lfmt)//trim(lwidth)//')'
+
+if (present(title)) write(plotpyfid_,'(A)') 'plt.title("'//trim(title)//'")'
+if (present(xlabel)) write(plotpyfid_,'(A)') 'plt.xlabel("'//trim(xlabel)//'")'
+if (present(ylabel)) write(plotpyfid_,'(A)') 'plt.ylabel("'//trim(ylabel)//'")'
+if (present(showgrid)) then
+  if (showgrid) write(plotpyfid_,'(A)') 'plt.grid(True)'
+endif
+if (present(xlim)) then
+  write(word,*) xlim(1)
+  lims = '('//trim(word)//','
+  write(word,*) xlim(2)
+  lims = trim(lims)//trim(word)//')'
+  write(plotpyfid_,'(A)') 'plt.xlim('//trim(lims)//')'
+endif
+if (present(ylim)) then
+  write(word,*) ylim(1)
+  lims = '('//trim(word)//','
+  write(word,*) ylim(2)
+  lims = trim(lims)//trim(word)//')'
+  write(plotpyfid_,'(A)') 'plt.ylim('//trim(lims)//')'
+endif
+
+end subroutine add_plotxy
 ! ...
 ! ======================================================================
 ! ...

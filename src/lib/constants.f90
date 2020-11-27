@@ -11,13 +11,6 @@ use types, only: sp,dp
 
 implicit none
 
-!private
-!public True,False
-!public pi,e_,nan,inf,deg2rad,rad2deg,i_,dpi,hpi
-!public zero,one,half,quarter,two,ten,hundred
-!public nan4,inf4
-!public grav,Rearth,Omega
-
 ! ... Logical constants
 ! ...
 logical, parameter     :: True    = .true.
