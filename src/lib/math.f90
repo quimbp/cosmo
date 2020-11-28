@@ -13,11 +13,6 @@ use constants, only: zero,one,two,nan,half,Rearth,deg2rad,pi,dpi
 use utils, only: locate,stop_error
 
 implicit none
-!private
-!public identity,akima,dakima,arange,mean,indexx,interplin,haversine
-!public d_interpol
-!public grnn1
-!public norm2
 
 interface akima
   module procedure akimas,akimav
@@ -277,6 +272,130 @@ else
 endif
 
 end function mean
+! ...
+! =============================================================================
+! ...
+FUNCTION variance (A,W)
+
+! ... Calculates the variance = FACTOR * Sum (A(i)-mean(A))**2
+! ... The value of FACTOR depends of W. By default, W=0, FACTOR = 1/(N-1)
+! ... However, if W=1, the biased variance is calculated, i.e. FACTOR=1/N
+! ... If W has to be used as a weight it must be a vector with the same
+! ... size than A.
+! ...
+! ... Weights are optional.
+! ...
+IMPLICIT NONE
+
+! ... Output value
+! ...
+REAL(KIND=8) variance
+
+REAL(KIND=8), DIMENSION(:), INTENT(in)     :: A
+REAL(KIND=8), DIMENSION(:), OPTIONAL       :: W
+
+LOGICAL                                    :: weight = .false.
+LOGICAL                                    :: biased = .false.
+INTEGER N,i
+REAL(KIND=8) xsum1,xsum2,ai,wi,Sw
+
+variance = nan
+N = SIZE(A)
+IF (N.EQ.0) RETURN
+
+IF (PRESENT(W)) THEN
+  IF (SIZE(W).EQ.1) THEN
+    IF (W(1).EQ.0) THEN
+      biased = .false.
+    ELSE IF (W(1).EQ.1) THEN
+      biased = .true.
+    ELSE
+      STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
+    ENDIF
+  ELSE IF (SIZE(W).EQ.N) THEN
+    weight = .true.
+  ELSE
+    STOP 'ERROR in variance: Size W must be 1 or N'
+  ENDIF
+ENDIF
+
+IF (weight) THEN
+  Sw    = 0D0
+  xsum1 = 0D0
+  xsum2 = 0D0
+  DO i=1,N
+    wi = w(i)
+    ai = A(i)
+    Sw    = Sw    + wi
+    xsum1 = xsum1 + wi*ai
+    xsum2 = xsum2 + wi*ai*ai
+  ENDDO
+  xsum1 = xsum1 / Sw
+  xsum2 = xsum2/Sw-xsum1*xsum1
+  variance = Sw * xsum2 /(Sw - 1D0)
+ELSE
+  xsum1 = 0D0
+  xsum2 = 0D0
+  DO i=1,N
+    ai = A(i)
+    xsum1 = xsum1 + ai
+    xsum2 = xsum2 + ai*ai
+  ENDDO
+  xsum1 = xsum1 / N
+  xsum2 = xsum2 / N - xsum1*xsum1
+  IF (biased) THEN
+    variance = xsum2
+  ELSE
+    variance = N*xsum2/(N-1D0)
+  ENDIF
+ENDIF
+IF (variance.LT.0) variance = 0D0
+
+END FUNCTION variance
+! ...
+! ========================================================================
+! ...
+FUNCTION nanvariance (A,W)
+
+! ... Get free of the NaN values before calling the variance function
+! ... The program assumes Nan values on both A and W.
+
+IMPLICIT NONE
+
+! ... Output value
+! ...
+REAL(KIND=8) nanvariance
+
+REAL(KIND=8), DIMENSION(:), INTENT(in)     :: A
+REAL(KIND=8), DIMENSION(:), OPTIONAL       :: W
+
+! ... Local variables
+! ...
+LOGICAL, DIMENSION(SIZE(A))                :: flag
+
+IF (.NOT.PRESENT(W)) THEN
+   ! ... No weights are applied
+   ! ... Just remove the NaN values
+   ! ...
+   nanvariance = variance(PACK(A,MASK=.NOT.isnan(A)))
+ELSE
+   IF (SIZE(W).EQ.1) THEN
+     ! ... The weight only refers to normalization
+     ! ... Remove the NaN values of A and calculate the requested variance
+     ! ...
+     nanvariance = variance(PACK(A,MASK=.NOT.isnan(A)),W)
+   ELSE
+     ! ... Both A and W must be removed from the data before
+     ! ... calculating the variance
+     ! ... Remove the NaN values of A and calculate the requested variance
+     ! ... 
+     flag = .NOT.isnan(A).AND..NOT.isnan(W)
+     nanvariance = variance( PACK(A,MASK=flag), PACK(W,MASK=flag) )
+   ENDIF
+ENDIF
+RETURN
+
+END FUNCTION nanvariance
 ! ...
 ! =============================================================================
 ! ...
