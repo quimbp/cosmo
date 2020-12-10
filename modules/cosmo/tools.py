@@ -2862,7 +2862,8 @@ def colsel(tkvar,tkstyle,widget,style,master=None):
        command=lambda:colsel(PLOT.FIGURE_COLOR, bline, OB,"bline.TLabel",master=parent)).grid()
 	EGL, 06/2020
 '''
-  from tkcolorpicker import askcolor
+  #from tkcolorpicker import askcolor
+  from tkinter.colorchooser import askcolor
   if master is not None:
     backup = tkvar.get()
     if tkvar.get() == 'None':
