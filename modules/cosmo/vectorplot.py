@@ -95,9 +95,9 @@ class parameters():
     self.BARB_HEIGHT       = tk.DoubleVar()
     self.BARB_WIDTH        = tk.DoubleVar()
     self.BARB_EMPTYBARB    = tk.DoubleVar()
-    self.BARB_HALF         = tk.IntVar()
-    self.BARB_FULL         = tk.IntVar()
-    self.BARB_FLAG         = tk.IntVar()
+    self.BARB_HALF         = tk.DoubleVar()
+    self.BARB_FULL         = tk.DoubleVar()
+    self.BARB_FLAG         = tk.DoubleVar()
     self.BARB_LINEWIDTH    = tk.DoubleVar()
     self.BARB_SCALE        = tk.DoubleVar()
 
