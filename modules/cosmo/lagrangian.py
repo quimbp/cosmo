@@ -423,18 +423,21 @@ class parameters():
     elif filename.lower().endswith(('.geojson','.json')):
       read_trajectory_json(filename)
 
-    elif filename.lower().endswith(('.txt')):
+    else:
       read_trajectory_txt(filename)
 
-    elif filename.lower().endswith(('.csv')):
-      print('csv: not yet coded')
-      self.nfloats  = None
-      self.nrecords = None
-
-    elif filename.lower().endswith(('.dat','.data')):
-      print('ascii data: not yet coded')
-      self.nfloats  = None
-      self.nrecords = None
+#    elif filename.lower().endswith(('.txt')):
+#      read_trajectory_txt(filename)
+#
+#    elif filename.lower().endswith(('.csv')):
+#      print('csv: not yet coded')
+#      self.nfloats  = None
+#      self.nrecords = None
+#
+#    elif filename.lower().endswith(('.dat','.data')):
+#      print('ascii data: not yet coded')
+#      self.nfloats  = None
+#      self.nrecords = None
 
 
     # Cheack that something has been read:
