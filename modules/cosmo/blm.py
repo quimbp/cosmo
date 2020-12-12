@@ -288,8 +288,10 @@ class WinConfig:
 
    def __init__(self,master,CLM):
 
-     self.FLIST = [CLM.VEC[i].FILENAME.get() for i in range(len(CLM.VEC))]
-     self.FLIST.append('')
+     self.ULIST = [CLM.VEC[i].UFILENAME.get() for i in range(len(CLM.VEC))]
+     self.ULIST.append('')
+     self.VLIST = [CLM.VEC[i].VFILENAME.get() for i in range(len(CLM.VEC))]
+     self.VLIST.append('')
 
      def switch_mode():
        if CLM.INI_USE.get():
@@ -338,19 +340,19 @@ class WinConfig:
          self.wrn.configure(state='disabled')
 
      def select_ufile():
-       CLM.UINDEX = self.FLIST.index(CLM.UFILE.get())
-       uid = CLM.VEC[CLM.UINDEX].uid
-       CLM.Ux.set(CLM.VEC[CLM.UINDEX].icdf.xname)
-       CLM.Uy.set(CLM.VEC[CLM.UINDEX].icdf.yname)
-       CLM.Uz.set(CLM.VEC[CLM.UINDEX].icdf.zname)
-       CLM.Ut.set(CLM.VEC[CLM.UINDEX].icdf.tname)
-       CLM.Uu.set(CLM.VEC[CLM.UINDEX].icdf.vname[uid])
+       CLM.UINDEX = self.ULIST.index(CLM.UFILE.get())
+       uid = CLM.VEC[CLM.UINDEX].U.varid
+       CLM.Ux.set(CLM.VEC[CLM.UINDEX].U.icdf.xname)
+       CLM.Uy.set(CLM.VEC[CLM.UINDEX].U.icdf.yname)
+       CLM.Uz.set(CLM.VEC[CLM.UINDEX].U.icdf.zname)
+       CLM.Ut.set(CLM.VEC[CLM.UINDEX].U.icdf.tname)
+       CLM.Uu.set(CLM.VEC[CLM.UINDEX].U.icdf.vname[uid])
        if CLM.VINDEX is None:
-         vid = CLM.VEC[CLM.UINDEX].vid
-         CLM.Vv.set(CLM.VEC[CLM.UINDEX].icdf.vname[vid])
+         vid = CLM.VEC[CLM.UINDEX].V.varid
+         CLM.Vv.set(CLM.VEC[CLM.UINDEX].V.icdf.vname[vid])
        else:
-         vid = CLM.VEC[CLM.VINDEX].vid
-         CLM.Vv.set(CLM.VEC[CLM.VINDEX].icdf.vname[vid])
+         vid = CLM.VEC[CLM.VINDEX].V.varid
+         CLM.Vv.set(CLM.VEC[CLM.VINDEX].V.icdf.vname[vid])
 
      def select_vfile():
        if empty(CLM.VFILE.get()):
@@ -359,16 +361,16 @@ class WinConfig:
          CLM.Vy.set('')
          CLM.Vz.set('')
          CLM.Vt.set('')
-         vid = CLM.VEC[CLM.UINDEX].vid
-         CLM.Vv.set(CLM.VEC[CLM.UINDEX].icdf.vname[vid])
+         vid = CLM.VEC[CLM.UINDEX].V.varid
+         CLM.Vv.set(CLM.VEC[CLM.UINDEX].V.icdf.vname[vid])
        else:
-         CLM.VINDEX = self.FLIST.index(CLM.VFILE.get())
-         vid = CLM.VEC[CLM.VINDEX].vid
-         CLM.Vx.set(CLM.VEC[CLM.VINDEX].icdf.xname)
-         CLM.Vy.set(CLM.VEC[CLM.VINDEX].icdf.yname)
-         CLM.Vz.set(CLM.VEC[CLM.VINDEX].icdf.zname)
-         CLM.Vt.set(CLM.VEC[CLM.VINDEX].icdf.tname)
-         CLM.Vv.set(CLM.VEC[CLM.VINDEX].icdf.vname[vid])
+         CLM.VINDEX = self.VLIST.index(CLM.VFILE.get())
+         vid = CLM.VEC[CLM.VINDEX].V.varid
+         CLM.Vx.set(CLM.VEC[CLM.VINDEX].V.icdf.xname)
+         CLM.Vy.set(CLM.VEC[CLM.VINDEX].V.icdf.yname)
+         CLM.Vz.set(CLM.VEC[CLM.VINDEX].V.icdf.zname)
+         CLM.Vt.set(CLM.VEC[CLM.VINDEX].V.icdf.tname)
+         CLM.Vv.set(CLM.VEC[CLM.VINDEX].V.icdf.vname[vid])
 
      def select_tfile():
        if empty(CLM.TFILE.get()):
@@ -379,7 +381,7 @@ class WinConfig:
          CLM.Tt.set('')
          CLM.Tvname.set('')
        else:
-         CLM.TINDEX = self.FLIST.index(CLM.TFILE.get())
+         CLM.TINDEX = self.ULIST.index(CLM.TFILE.get())
          CLM.Tx.set(CLM.VEC[CLM.TINDEX].icdf.xname)
          CLM.Ty.set(CLM.VEC[CLM.TINDEX].icdf.yname)
          CLM.Tz.set(CLM.VEC[CLM.TINDEX].icdf.zname)
@@ -437,19 +439,19 @@ class WinConfig:
      # Initialize the CLM files and variables:
      # AAA
 
-     CLM.UFILE.set(self.FLIST[CLM.UINDEX])
-     uid = CLM.VEC[CLM.UINDEX].uid
-     CLM.Ux.set(CLM.VEC[CLM.UINDEX].icdf.xname)
-     CLM.Uy.set(CLM.VEC[CLM.UINDEX].icdf.yname)
-     CLM.Uz.set(CLM.VEC[CLM.UINDEX].icdf.zname)
-     CLM.Ut.set(CLM.VEC[CLM.UINDEX].icdf.tname)
-     CLM.Uu.set(CLM.VEC[CLM.UINDEX].icdf.vname[uid])
+     CLM.UFILE.set(self.ULIST[CLM.UINDEX])
+     uid = CLM.VEC[CLM.UINDEX].U.varid
+     CLM.Ux.set(CLM.VEC[CLM.UINDEX].U.icdf.xname)
+     CLM.Uy.set(CLM.VEC[CLM.UINDEX].U.icdf.yname)
+     CLM.Uz.set(CLM.VEC[CLM.UINDEX].U.icdf.zname)
+     CLM.Ut.set(CLM.VEC[CLM.UINDEX].U.icdf.tname)
+     CLM.Uu.set(CLM.VEC[CLM.UINDEX].U.icdf.vname[uid])
      if CLM.VINDEX is None:
-       vid = CLM.VEC[CLM.UINDEX].vid
-       CLM.Vv.set(CLM.VEC[CLM.UINDEX].icdf.vname[vid])
+       vid = CLM.VEC[CLM.UINDEX].V.varid
+       CLM.Vv.set(CLM.VEC[CLM.UINDEX].V.icdf.vname[vid])
      else:
-       vid = CLM.VEC[CLM.VINDEX].vid
-       CLM.Vv.set(CLM.VEC[CLM.VINDEX].icdf.vname[vid])
+       vid = CLM.VEC[CLM.VINDEX].V.varid
+       CLM.Vv.set(CLM.VEC[CLM.VINDEX].V.icdf.vname[vid])
 
      # The main window
      #
@@ -459,7 +461,7 @@ class WinConfig:
      ttk.Label(F1,text='file =')    \
         .grid(row=1,column=0,padx=3,sticky='e')
      ubox = ttk.Combobox(F1,textvariable=CLM.UFILE,width=80, \
-                            values=self.FLIST)
+                            values=self.ULIST)
      ubox.grid(row=1,column=1,columnspan=8)
      ubox.bind('<<ComboboxSelected>>',lambda e: select_ufile())
 
@@ -487,7 +489,7 @@ class WinConfig:
      ttk.Label(F2,text='file =') \
         .grid(row=1,column=0,padx=3,sticky='e')
      vbox = ttk.Combobox(F2,textvariable=CLM.VFILE,width=80, \
-                                values=self.FLIST)
+                                values=self.VLIST)
      vbox.grid(row=1,column=1,columnspan=8)
      vbox.bind('<<ComboboxSelected>>',lambda e: select_vfile())
      ttk.Label(F2,text='x =')    \
@@ -513,7 +515,7 @@ class WinConfig:
      ttk.Label(F3,text='file =') \
         .grid(row=1,column=0,padx=3,sticky='e')
      tbox = ttk.Combobox(F3,textvariable=CLM.TFILE,width=80, \
-                                values=self.FLIST)
+                                values=self.ULIST)
      tbox.grid(row=1,column=1,columnspan=8)
      tbox.bind('<<ComboboxSelected>>',lambda e: select_tfile())
      #ttk.Entry(F3,textvariable=CLM.TFILE,width=80).grid(row=1,column=1,columnspan=8)
