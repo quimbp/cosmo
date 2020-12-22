@@ -455,7 +455,8 @@ def drawing(fig,ax,proj,X,Y,IFIELD,MASK,PLOT):
             orientation = 'horizontal'
             
       # EG divider gives cartopy errors
-      cax = divider.append_axes(location,size="5%",pad=0.1,axes_class=plt.Axes)
+      #cax = divider.append_axes(location,size="5%",pad=0.1,axes_class=plt.Axes)
+      cax = divider.append_axes(location,size=PLOT.COLORBAR_SIZE.get(),pad=padding,axes_class=plt.Axes)
       fig.add_axes(cax)
       
       cbar = fig.colorbar(_cf, cax=cax, orientation=orientation)
