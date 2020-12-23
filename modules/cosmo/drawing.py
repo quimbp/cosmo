@@ -1088,11 +1088,14 @@ class DrawingConfig():
     self.COASTLINE_SOURCE   = tk.IntVar()
     self.COASTLINE_WIDTH    = tk.DoubleVar()
     self.COASTLINE_COLOR    = tk.StringVar()
+    self.COASTLINE_ZORDER   = tk.IntVar()
     self.COUNTRYLINE_SHOW   = tk.BooleanVar()
     self.COUNTRYLINE_WIDTH  = tk.DoubleVar()
     self.COUNTRYLINE_COLOR  = tk.StringVar()
     self.LAND_COLOR         = tk.StringVar()
+    self.LAND_ZORDER        = tk.IntVar()
     self.WATER_COLOR        = tk.StringVar()
+    self.WATER_ZORDER       = tk.IntVar()
 
     self.TITLE              = tk.StringVar()
     self.TITLEFONT          = FontProperties().copy()
@@ -1246,11 +1249,14 @@ class DrawingConfig():
     self.COASTLINE_SOURCE.set(1)
     self.COASTLINE_WIDTH.set(1)
     self.COASTLINE_COLOR.set('black')
+    self.COASTLINE_ZORDER.set(1)
     self.COUNTRYLINE_SHOW.set(False)
     self.COUNTRYLINE_WIDTH.set(2)
     self.COUNTRYLINE_COLOR.set('grey')
     self.LAND_COLOR.set('coral')
+    self.LAND_ZORDER.set(0)
     self.WATER_COLOR.set('white')
+    self.WATER_ZORDER.set(0)
     self.TITLE.set('')
     self.TITLEFONT.set_size(22)
     self.TITLEFONT.set_weight('bold')
@@ -1450,9 +1456,10 @@ class DrawingConfig():
     conf['LON_0'] = self.LON_0.get()
     conf['SATELLITE_HEIGHT'] = self.SATELLITE_HEIGHT.get()
     conf['COASTLINE_SHOW'] = self.COASTLINE_SHOW.get()
-    conf['COASTLINE_SOURCE'] = self.COASTLINE_SHOW.get()
+    conf['COASTLINE_SOURCE'] = self.COASTLINE_SOURCE.get()
     conf['COASTLINE_WIDTH'] = self.COASTLINE_WIDTH.get()
     conf['COASTLINE_COLOR'] = self.COASTLINE_COLOR.get()
+    conf['COASTLINE_ZORDER'] = self.COASTLINE_ZORDER.get()
     conf['COUNTRYLINE_SHOW'] = self.COUNTRYLINE_SHOW.get()
     conf['COUNTRYLINE_WIDTH'] = self.COUNTRYLINE_WIDTH.get()
     conf['COUNTRYLINE_COLOR'] = self.COUNTRYLINE_COLOR.get()
@@ -1618,6 +1625,7 @@ class DrawingConfig():
     self.COASTLINE_SOURCE.set(conf['COASTLINE_SOURCE'])
     self.COASTLINE_WIDTH.set(conf['COASTLINE_WIDTH'])
     self.COASTLINE_COLOR.set(conf['COASTLINE_COLOR'])
+    self.COASTLINE_ZORDER.set(conf['COASTLINE_ZORDER'])
     self.COUNTRYLINE_SHOW.set(conf['COUNTRYLINE_SHOW'])
     self.COUNTRYLINE_WIDTH.set(conf['COUNTRYLINE_WIDTH'])
     self.COUNTRYLINE_COLOR.set(conf['COUNTRYLINE_COLOR'])
@@ -4853,12 +4861,17 @@ class CosmoDrawing():
     ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.LAND_COLOR, \
 				self.sland,self.LLabel,"sland.TLabel",master=self.Window_mapconfig)). \
 				grid(row=0,column=2,padx=5,sticky='w')
+    ttk.Label(f3_b,text='Zorder').grid(row=0,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_b,textvariable=self.PLOT.LAND_ZORDER,width=4).grid(row=0,column=4,padx=5,sticky='e')
+
     ttk.Label(f3_b,text='Sea').grid(row=1,column=0,padx=5)
     self.WLabel = ttk.Label(f3_b,textvariable=self.PLOT.WATER_COLOR,width=7,style="swater.TLabel")
     self.WLabel.grid(row=1,column=1,padx=5)
     ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.WATER_COLOR, \
 				self.swater,self.WLabel,"swater.TLabel",master=self.Window_mapconfig)). \
 				grid(row=1,column=2,padx=5,sticky='w')
+    ttk.Label(f3_b,text='Zorder').grid(row=1,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_b,textvariable=self.PLOT.WATER_ZORDER,width=4).grid(row=1,column=4,padx=5,sticky='e')
     f3_b.grid(row=0,column=0,padx=5,pady=10,sticky='ewsn')
     
     # Features: Coastlines
@@ -4882,6 +4895,8 @@ class CosmoDrawing():
     ttk.Label(f3_c,text='EMODNET').grid(row=2,column=1,padx=5,sticky='w')    
     ttk.Radiobutton(f3_c,text=' Show',variable=self.PLOT.COASTLINE_SOURCE,value=2). \
                 grid(row=2,column=2,padx=5)
+    ttk.Label(f3_c,text='Zorder').grid(row=2,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_c,textvariable=self.PLOT.COASTLINE_ZORDER,width=4).grid(row=2,column=4,padx=5,sticky='e')
     f3_c.grid(row=1,column=0,padx=5,pady=10,sticky='ewsn')
     
     # Miscelanea
@@ -7147,31 +7162,15 @@ class CosmoDrawing():
       ii = self.SHAPE_INDX.get()
       if ii >= 0:
 
-        if self.SHAPE[ii].CROP.get() and self.SHAPE[ii].type == 'POINT':
-          toconsola('Cropping shapefile type POINT',wid=self.cons)
-          nsp = self.SHAPE[ii].n
-          x = self.SHAPE[ii].lon[:].copy()
-          y = self.SHAPE[ii].lat[:].copy()
-          s = self.SHAPE[ii].name[:].copy()
-          self.SHAPE[ii].lon  = []
-          self.SHAPE[ii].lat  = []
-          self.SHAPE[ii].name = []
+        if self.SHAPE[ii].CROP.get():
+          toconsola('Cropping shapefile',wid=self.cons)
 
           xmin = self.PLOT.WEST.get()  + self.PLOT.CROP_PAD.get()
           xmax = self.PLOT.EAST.get()  - self.PLOT.CROP_PAD.get()
           ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
           ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
-
-          for i in range(nsp):
-            if x[i] > xmin:
-              if x[i] < xmax:
-                if y[i] > ymin:
-                  if y[i] < ymax:
-                    self.SHAPE[ii].lon.append(x[i])
-                    self.SHAPE[ii].lat.append(y[i])
-                    self.SHAPE[ii].name.append(s[i])
-                
-          self.SHAPE[ii].n = len(self.SHAPE[ii].lon)
+          bbox = [xmin, xmax, ymin, ymax]
+          self.SHAPE[ii].Crop(bbox)
 
         self.SHAPE[ii].LABEL.set(_wlab.get())
         self.make_plot()
@@ -7270,7 +7269,7 @@ class CosmoDrawing():
       self.SHAPE_INDX.set(self.nshape-1)
       self.SHAPE_LIST = list(range(self.nshape))
 
-      self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=len(SHAPE.lon),wid=self.cons)
+      self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=SHAPE.n,wid=self.cons)
       self.LAYERS.print()
       #self.nfeatures += 1
       #self.FEATNAMES.append(SHAPE.FILENAME.get())
@@ -7337,7 +7336,6 @@ class CosmoDrawing():
     _wpad.grid(row=4,column=2,sticky='w',padx=3)
     _wcrp = ttk.Checkbutton(F0)
     _wcrp.grid(row=4,column=3,sticky='w')
-    ttk.Label(F0,text='Set labels before cropping').grid(row=4,column=4,columnspan=4)
 
 
     F0.grid(row=0,column=0)
@@ -7647,7 +7645,7 @@ class CosmoDrawing():
       self.Mnb.add(page0,text='Label Aspect')
       self.Mnb.add(page1,text='Geometry Aspect')
       self.Mnb.add(page2,text='Text Aspect')
-      self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+      self.Mnb.add(page3,text='Hide Features')
       self.Mnb.grid()
       self.Mnb.select(itab)
 
@@ -7675,7 +7673,7 @@ class CosmoDrawing():
       shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
 
       # Page 3
-      #shape.ShowData(page3,self.SHAPE[ii])
+      shape.HideData(page3,self.SHAPE[ii])
 
       f0 = ttk.Frame(ishow,padding=5)
       ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -7793,7 +7791,7 @@ class CosmoDrawing():
     self.Mnb.add(page0,text='Label Aspect')
     self.Mnb.add(page1,text='Geometry Aspect')
     self.Mnb.add(page2,text='Text Aspect')
-    self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+    self.Mnb.add(page3,text='Hide Feature')
     self.Mnb.grid()
 
     # Page0
@@ -7819,7 +7817,7 @@ class CosmoDrawing():
     shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
 
     # Page 3 Si hay Muchas geometrias inmanejable
-    #shape.ShowData(page3,self.SHAPE[ii])
+    shape.HideData(page3,self.SHAPE[ii])
 
     f0 = ttk.Frame(ishow,padding=5)
     ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -9261,7 +9259,7 @@ class CosmoDrawing():
     #EG Coastlines
     #toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
     if self.PLOT.COASTLINE_SHOW.get():
-      if self.PLOT.COASTLINE_SOURCE.get() == 1:
+      if self.PLOT.COASTLINE_SOURCE.get() == 2:
         emodnet="coastlines"
         try:
           self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
@@ -9270,7 +9268,8 @@ class CosmoDrawing():
       else:
         toconsola("\t EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
         self.ax.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.COASTLINE_ZORDER.get())
 
     if self.PLOT.ISOBAT_NPLOT > 0:
       toconsola("EG plot Custom ISOBATHS",wid=self.cons)
@@ -9350,16 +9349,17 @@ class CosmoDrawing():
       #toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.WATER_COLOR.get()),zorder=self.PLOT.WATER_ZORDER.get())
     if self.PLOT.LAND_COLOR.get() != 'None': 
       #toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.LAND_COLOR.get()),zorder=self.PLOT.LAND_ZORDER.get())
     if self.PLOT.COUNTRYLINE_SHOW.get():
       #toconsola("PLOT.COUNTRYLINE",wid=self.cons)
-      self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+      self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COUNTRYLINE_COLOR.get(),
+							linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.LAND_ZORDER.get()+1)
     if self.PLOT.RIVERS_SHOW.get(): 
       #toconsola("PLOT.RIVERS",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
@@ -9662,15 +9662,19 @@ class CosmoDrawing():
       if self.PLOT.COASTLINE_SOURCE.get() == 1:
         emodnet="coastlines"
         try:
-          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,
+                           color=self.PLOT.COASTLINE_COLOR.get(),
+		    	   linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                           zorder=self.PLOT.COASTLINE_ZORDER.get())
         except:
           toconsola("WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
           #print("WARNING: EMODNET coastlines !, it is disabled......")
       else:
-        toconsola("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms",wid=self.cons)
-        #print("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms")
+        toconsola("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        #print("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms")
         self.Max.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.COASTLINE_ZORDER.get())
 
     if self.PLOT.ISOBAT_NPLOT > 0:
       toconsola("EG Custom ISOBATHS",wid=self.cons)
@@ -9750,15 +9754,17 @@ class CosmoDrawing():
     if self.PLOT.COUNTRYLINE_SHOW.get():
       toconsola("EG PLOT.COUNTRYLINE",wid=self.cons)
       #print("EG PLOT.COUNTRYLINE")
-      self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+      self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COUNTRYLINE_COLOR.get(),
+							linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.LAND_ZORDER.get()+1)
     if self.PLOT.RIVERS_SHOW.get(): 
       toconsola("EG PLOT.RIVERS",wid=self.cons)
       #print("EG PLOT.RIVERS")
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
 			self.PLOT.MAP_RESOLUTION.get(), \
 			linewidth=self.PLOT.RIVERS_WIDTH.get(),
-			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
+			edgecolor=self.PLOT.RIVERS_COLOR.get(),
+                        zorder=self.PLOT.LAND_ZORDER.get()+1))
 
     if self.PLOT.GRID_SHOW.get():
       toconsola("EG PLOT.GRID"+str(self.PLOT.GRID_LINESTYLE.get()),wid=self.cons)
