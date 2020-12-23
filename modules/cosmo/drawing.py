@@ -19,7 +19,9 @@
 			Corrected some text font managements
 			All color selections are now managed through tools.colsel() function
 			Cartopy projection can be accessed through tools.map_proj()
-			
+		EGL, 12/2020:
+			Now multiple lagrangian trajectories can be loaded at once by
+			using askopenfilenames instead of askopenfile
 '''
 __version__ = "2.0"
 __author__  = "Quim Ballabrera and Emilio García"
@@ -2038,15 +2040,18 @@ class CosmoDrawing():
     #F0.grid(row=0, column=0,sticky='ew')
        
     #EG Afegim una Consola
-    #EG is the widget referencing the toconsola()
+    #EG self.cons is the widget referencing the toconsola()
     if tconsola is not None:
         if len(tconsola) > 0:
          wiconsola = tk.Frame(self.master)  # Expandimos la Consola
          wiconsola.grid_rowconfigure(0, weight=1)
          cscrollb = tk.Scrollbar(wiconsola)
          cscrollb.grid(row=0,column=1,sticky='nswe')
-         self.cons = tk.Text(wiconsola, bg="black", fg="white", \
+         myFont = tkfont.Font(family=self.PLOT.WINDOW_FONT_TYPE.get(), \
+						  size=self.PLOT.WINDOW_FONT_SIZE.get())
+         self.cons = tk.Text(wiconsola,bg="black", fg="white", \
          							 yscrollcommand=cscrollb.set)
+         self.cons.configure(font=myFont)
          # tags to highligth different cathegories of messages by formating the the text
          self.cons.tag_config("y", foreground="yellow", font="-weight bold")
          self.cons.tag_config("o", foreground="orange", font="-weight bold")
@@ -5502,7 +5507,7 @@ class CosmoDrawing():
 
       if os.path.isfile(self.MLM.TRAJECTORY.get()):
         FLT = lagrangian.parameters()
-        toconsola(FLT.MESSAGE,wid=self.cons)
+        toconsola(FLT.MESSAGE,wid=wid)
         FLT.Read(self.MLM.TRAJECTORY.get())
         if FLT is None:
           return
@@ -5909,7 +5914,7 @@ class CosmoDrawing():
     self.Window_blm.title('COSMO B Lagrangian Model options')
     self.Window_blm.resizable(width=True,height=True)
     self.Window_blm.protocol('WM_DELETE_WINDOW',_close)
-
+    
     blm.WinConfig(self.Window_blm,self.BLM)
 
     F0 = ttk.Frame(self.Window_blm,padding=5)
@@ -7838,6 +7843,8 @@ class CosmoDrawing():
 
     self.LSOURCE = tk.StringVar()
     self.LSOURCE.set(self.FLOAT_OPTIONS[0])
+    #EG
+    self.COUNT=[]
 
     def _cancel():
     # ===========
@@ -7951,32 +7958,42 @@ class CosmoDrawing():
 
     def _refill(ii):
     # ==============
+      print("entro refill",ii)
       if ii >= 0:
+        self.COUNT.append(tk.StringVar())
+        self.COUNT[-1].set(str(ii))
         self.FLOAT_LIST = list(range(self.nfloat))
-        _wsel['values'] = self.FLOAT_LIST
-        _went['textvariable'] = self.FLOAT[ii].FILENAME
-        _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
-        _wsel.configure(state='normal')
-        _show.configure(state='normal')
-        _show['variable']=self.FLOAT[ii].show
-        _aent.configure(state='normal')
-        _aent['textvariable'] = self.FLOAT[ii].ALIAS
-        _wcrp.configure(state='normal')
-        _wcrp['variable']=self.FLOAT[ii].CROP
+        ttk.Label(self.F1,textvariable=self.COUNT[-1],anchor='center', \
+            background="#fff",foreground="#000000",width=5).grid(row=ii+1,column=0)
+        ttk.Label(self.F1,textvariable=self.FLOAT[ii].FILENAME,\
+            background="#fff",foreground="#000000",justify='left').grid(row=ii+1,column=1,padx=3,sticky='w')
+        ttk.Entry(self.F1,textvariable=self.FLOAT[ii].ALIAS,width=15).grid(row=ii+1,column=2,sticky='w')
+        tk.Checkbutton(self.F1).grid(row=ii+1,column=3,sticky='we')
+        tk.Checkbutton(self.F1).grid(row=ii+1,column=4,sticky='we')
+        
+        #EG _wsel['values'] = self.FLOAT_LIST
+        #EG _went['textvariable'] = self.FLOAT[ii].FILENAME
+        #EG _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
+        #EG _wsel.configure(state='normal')
+        #EG _show.configure(state='normal')
+        #EG _show['variable']=self.FLOAT[ii].show
+        #EG _aent.configure(state='normal')
+        #EG _aent['textvariable'] = self.FLOAT[ii].ALIAS
+        #EG _wcrp.configure(state='normal')
+        #EG _wcrp['variable']=self.FLOAT[ii].CROP
 
       else:
         self.FLOAT         = []
         self.FLOAT_LIST    = ['0']
         self.FLOAT_INDX    = tk.IntVar()
         self.FLOAT_INDX.set(0)
-        _wsel['values'] = self.FLOAT_LIST
-        _went['textvariable'] = ''
-        _wstat['text'] = ''
-        _wsel.configure(state='disabled')
-        _aent.configure(state='disabled')
-        _show.configure(state='disabled')
-        _wcrp.configure(state='disabled')
-
+        #EG _wsel['values'] = self.FLOAT_LIST
+        #EG _went['textvariable'] = ''
+        #EG _wstat['text'] = ''
+        #EG _wsel.configure(state='disabled')
+        #EG _aent.configure(state='disabled')
+        #EG _show.configure(state='disabled')
+        #EG _wcrp.configure(state='disabled')
 
     def _add():
     # ========
@@ -7984,17 +8001,29 @@ class CosmoDrawing():
 
       if ISOURCE == 0:
 
-        types=[('Netcdf','*.nc'),('JSON','*.json'),       \
-               ('GEOJSON','*.geojson'),('ALL','*')]
-        nn = filedialog.askopenfile(parent=self.Window_float, \
-                                    filetypes=types)
+        types=[('Netcdf','*.nc'),('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
+        #EG OLD code
+        '''        nn = filedialog.askopenfile(parent=self.Window_float, \
+						filetypes=types)
+			try:
+				if empty(nn.name):
+				return
+			except:
+				return
+			_load_trajectory(nn.name)        
+        '''
+        #EG New code
+        nn = filedialog.askopenfilenames(parent=self.Window_float,\
+										 filetypes=types)
         try:
-          if empty(nn.name):
-            return
+          if len(nn.name) == 0: return
+          if empty(nn.name): return
         except:
-          return
-        _load_trajectory(nn.name)
-
+          toconsola("======= Trajectories ======",tag="o",wid=self.cons)
+          for filename in nn:
+            _load_trajectory(filename)
+        toconsola("=====================",tag="o", wid=self.cons)
+          
       elif ISOURCE == 1:
         path = '%s' % filedialog.askdirectory(parent=self.Window_float, \
                                    title='Select local trajectory folder')
@@ -8027,11 +8056,9 @@ class CosmoDrawing():
 
     def _load_trajectory(filename):
     # ==================================
-
-      FLT = lagrangian.parameters()
-      toconsola(FLT.MESSAGE, wid=self.cons)     
+      FLT = lagrangian.parameters(wid=self.cons)    
       FLT.Read(filename)
-
+	  
       if FLT.nfloats is None or FLT.nfloats==0 or FLT.nrecords==0:
         return
 
@@ -8060,6 +8087,7 @@ class CosmoDrawing():
 #                             self.DATE[0]).total_seconds()       \
 #                                           for i in range(FLT.nrecords)])
       if self.LAYERS.nsequence > 0:
+        print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
         FLT.MAPX = []
         FLT.MAPY = []
         if FLT.nfloats > 1:
@@ -8076,6 +8104,7 @@ class CosmoDrawing():
           FLT.MAPX = np.array(FLT.MAPX).T
           FLT.MAPY = np.array(FLT.MAPY).T
         else:
+          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
           FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon,
                                    bounds_error=False, fill_value=np.NaN)
           FLT.MAPX = FLT.Fx(self.TIME)
@@ -8177,7 +8206,9 @@ class CosmoDrawing():
 #              self.SEQUENCES[-1].set(True)
 #              self.SEQLEADER[-1].set(False)
             self.FLOAT[ii].L.set(self.L.get())  #Synchronize records
+          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
 
+      print("abasn refill",self.FLOAT_LIST)
       _refill(ii)
 
 
@@ -8196,58 +8227,82 @@ class CosmoDrawing():
       ii = -1
 
     F0 = ttk.Frame(self.Window_float,padding=5)
-
+    #EG Nueva interface
     # Add
+    #EG ttk.Combobox(F0,textvariable=self.LSOURCE, \
+    #EG            values=self.FLOAT_OPTIONS).grid(row=0,column=0,padx=3)
+    ttk.Button(F0,text='Import',command=_add).grid(row=0,column=0,padx=3)
     ttk.Combobox(F0,textvariable=self.LSOURCE, \
-                 values=self.FLOAT_OPTIONS).grid(row=0,column=0,padx=3) 
-    ttk.Button(F0,text='Import',command=_add).grid(row=1,column=0,padx=3)
-
+                 values=self.FLOAT_OPTIONS).grid(row=0,column=1)
+    F0.grid(row=0,column=0,sticky="w")
+    
     # Filename:
-    ttk.Label(F0,text='Float file').grid(row=0,column=1,padx=3)
+    ttk.Separator(self.Window_float, orient='horizontal').grid(row=1,column=0,sticky="nesw")
+    #EG F1 = ttk.Frame(self.Window_float,padding=5)
+    #EG ttk.Label(F0,text='Float file').grid(row=0,column=1,padx=3)
+    #EG _wsel = ttk.Combobox(F0,textvariable=self.FLOAT_INDX, \
+    #EG                               values=self.FLOAT_LIST,width=5)
+    #EG _wsel.grid(row=0,column=2)
+    #EG _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    #EG _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    #EG _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+    #EG 
+    self.F1 = ttk.Frame(self.Window_float,padding=5)
+    ttk.Label(self.F1,text='Nfloat',width=5).grid(row=0,column=0)
+    ttk.Label(self.F1,text='Float file',anchor="center",width=50).grid(row=0,column=1,sticky='we')
+    ttk.Label(self.F1,text='Alias',anchor="center",width=15).grid(row=0,column=2)
+    ttk.Label(self.F1,text='Crop').grid(row=0,column=3)
+    ttk.Label(self.F1,text='Show').grid(row=0,column=4)
+    self.F1.grid(row=2,column=0)
+    #EGttk.Label(F1,text='Float file').grid(row=0,column=1,padx=3)
 
-    _wsel = ttk.Combobox(F0,textvariable=self.FLOAT_INDX, \
-                                  values=self.FLOAT_LIST,width=5)
-    _wsel.grid(row=0,column=2)
-    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
-    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
-    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+    #_wsel = ttk.Combobox(F1,textvariable=self.FLOAT_INDX, \
+    #                              values=self.FLOAT_LIST,width=5)
+    #_wsel.grid(row=0,column=2)
+    #_wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    #_went = ttk.Entry(F1,justify='left',width=50,state='readonly')
+    #_went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
 
     # AAA
-    if ii == -1:
-      _wstat = ttk.Label(F0,text='',width=50,justify='left')
-      _wsel.configure(state='disabled')
-    else:
-      _wstat = ttk.Label(F0,text=' Floats in the file= '+str(self.FLOAT[ii].nfloats),width=50,justify='left')
-      _went['textvariable'] = self.FLOAT[ii].FILENAME
+    #if ii == -1:
+    #  _wstat = ttk.Label(F1,text='',width=50,justify='left')
+    #  _wsel.configure(state='disabled')
+    #else:
+    #  _wstat = ttk.Label(F1,text=' Floats in the file= '+str(self.FLOAT[ii].nfloats),width=50,justify='left')
+    #  _went['textvariable'] = self.FLOAT[ii].FILENAME
 
-    _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
+    #_wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
 
     #Alias
-    ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
-    _aent = ttk.Entry(F0,width=15,justify='left')
-    _aent.grid(row=2,column=2,columnspan=2,sticky='w')
-    _wcrp = ttk.Checkbutton(F0,text='Crop')
-    _wcrp.grid(row=3,column=1,sticky='w')
+    #ttk.Label(F1,text='Alias').grid(row=2,column=1,padx=3,pady=3)
+    #_aent = ttk.Entry(F0,width=15,justify='left')
+    #_aent.grid(row=2,column=2,columnspan=2,sticky='w')
+    #_wcrp = ttk.Checkbutton(F0,text='Crop')
+    #_wcrp.grid(row=3,column=1,sticky='w')
 
-    F0.grid(row=0,column=0)
-
-    F1 = ttk.Frame(self.Window_float,padding=5)
+    #EGF0.grid(row=0,column=0)
+    ttk.Separator(self.Window_float, orient='horizontal').grid(row=3,column=0,sticky="nesw") 
+    F2 = ttk.Frame(self.Window_float,padding=5)
     if ii == -1:
-      _show = ttk.Checkbutton(F1,text='Show')
-      _aent.configure(state='disabled')
-      _wcrp.configure(state='disabled')
+      print('-1',ii)
+      pass
+      #_show = ttk.Checkbutton(F2,text='Show')
+      #_aent.configure(state='disabled')
+      #_wcrp.configure(state='disabled')
     else:
-      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
-      _show['variable']=self.FLOAT[ii].show
-      _aent['textvariable'] = self.FLOAT[ii].ALIAS
-      _wcrp['variable'] = self.FLOAT[ii].CROP
+      print('nfloats',ii)
+      pass
+      #_show = ttk.Checkbutton(F2,text='Show',command=self.make_plot)
+      #_show['variable']=self.FLOAT[ii].show
+      #_aent['textvariable'] = self.FLOAT[ii].ALIAS
+      #_wcrp['variable'] = self.FLOAT[ii].CROP
 
 
-    _show.grid(row=1,column=5,padx=3)
-    ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)
-    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
-    ttk.Button(F1,text='Plot',command=_close).grid(row=1,column=8,padx=3)
-    F1.grid(row=1,column=0)
+    #_show.grid(row=1,column=5,padx=3)
+    ttk.Button(F2,text='Cancel',command=_cancel).grid(row=0,column=0,padx=3)
+    ttk.Button(F2,text='Clear',command=_clear).grid(row=0,column=1,padx=3)
+    ttk.Button(F2,text='Plot',command=_close).grid(row=0,column=2,padx=3)
+    F2.grid(row=4,column=0)
 
   # ========================
   def currents_config(self):
