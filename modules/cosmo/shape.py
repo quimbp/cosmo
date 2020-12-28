@@ -188,8 +188,6 @@ class parameters():
     self.KEY_LIST = list(self.record[0].attributes.keys())
     self.KEY_LIST.insert(0,' ')
 
-    print('SHAPEFILE TYPE: ', self.type)
-                          
     # Cheack that something has been read:
     if self.n == 0:
       self = None
@@ -316,8 +314,6 @@ def drawing(ax,proj,SHAPE):
   if not SHAPE.show.get():
     return
 
-  hidelist = SHAPE.namestohide.split(';')
-
   # Axis lims
   xmin, xmax = ax.get_xlim()
   ymin, ymax = ax.get_ylim()
@@ -348,13 +344,14 @@ def drawing(ax,proj,SHAPE):
 
       try:
         label = point.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
       except:
-        label = None
-
-      if label in hidelist:
-        plotit = False
-      else:
+        label  = None
         plotit = True
+
 
       if x <= xmin or x>= xmax:
         plotit = False
@@ -399,13 +396,14 @@ def drawing(ax,proj,SHAPE):
       #
       try:
         label = record.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
       except:
-        label = None
-
-      if label in hidelist:
-        plotit = False
-      else:
+        label  = None
         plotit = True
+
 
       if plotit:
         for line in record.geometry:
@@ -458,12 +456,12 @@ def drawing(ax,proj,SHAPE):
       #
       try:
         label = record.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
       except:
-        label = None
-
-      if label in hidelist:
-        plotit = False
-      else:
+        label  = None
         plotit = True
 
       if plotit:
@@ -742,11 +740,10 @@ def HideData(master,LL):
     LL.namestohide = ''
 
   def _hide(board):
-    LL.namestohide = board.get('1.0',tk.END)
-    LL.namestohide += ';'
+    LL.namestohide = board.get('1.0',tk.END).upper()
 
   F0 = tk.Frame(master)
-  tk.Label(F0,text='Enter the names of the Features to hide separated by semi-colons (;)').grid(row=0,column=0)
+  tk.Label(F0,text='Enter the names of the Features to hide:').grid(row=0,column=0)
   tk.Label(F0,text='[Label Key (Label Aspect TAB) must be selected]').grid(row=1,column=0)
   board = tk.Text(F0,height=6)
   board.grid(row=2,column=0,padx=10,pady=10,sticky='nsew')
