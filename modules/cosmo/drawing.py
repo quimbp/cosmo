@@ -9410,7 +9410,7 @@ class CosmoDrawing():
       gl.ylocator = mticker.FixedLocator(vparallels)
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       gl.xformatter = LONGITUDE_FORMATTER
-      gl.xformatter = LONGITUDE_FORMATTER
+      gl.yformatter = LATITUDE_FORMATTER
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
 
@@ -9806,7 +9806,7 @@ class CosmoDrawing():
       gl.ylocator = mticker.FixedLocator(vparallels)
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       gl.xformatter = LONGITUDE_FORMATTER
-      gl.xformatter = LONGITUDE_FORMATTER
+      gl.yformatter = LATITUDE_FORMATTER
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
     else:
