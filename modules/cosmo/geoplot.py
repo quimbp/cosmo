@@ -64,6 +64,7 @@ class parameters():
     self.EDGECOLOR         = tk.StringVar()
     self.FACECOLOR         = tk.StringVar()
     self.LINEWIDTH         = tk.DoubleVar()
+    self.LINESTYLE         = tk.StringVar()
     self.ALPHA             = tk.DoubleVar()
 
     self.HA                = tk.StringVar()
@@ -81,6 +82,8 @@ class parameters():
     self.BBOX_FACECOLOR    = tk.StringVar()
     self.BBOX_ALPHA        = tk.DoubleVar()
 
+    self.FILLED            = tk.BooleanVar()
+   
     # Default attribute values:
     #
     self.SHOW.set(True)
@@ -91,6 +94,7 @@ class parameters():
     self.EDGECOLOR.set('blue')
     self.FACECOLOR.set('aqua')
     self.LINEWIDTH.set(1.0)
+    self.LINESTYLE.set('-')
     self.HA.set('left')
     self.VA.set('baseline')
     self.WRAP.set(True)
@@ -105,6 +109,7 @@ class parameters():
     self.BBOX.set(False)
     self.BBOX_FACECOLOR.set('white')
     self.BBOX_ALPHA.set(0.5)
+    self.FILLED.set(False)
 
     # If configuration file exists, it is read and
     # the default values are overrided. If the configuration
@@ -137,6 +142,7 @@ class parameters():
     conf['EDGECOLOR'] = self.EDGECOLOR.get()
     conf['FACECOLOR'] = self.FACECOLOR.get()
     conf['LINEWIDTH'] = self.LINEWIDTH.get()
+    conf['LINESTYLE'] = self.LINESTYLE.get()
     conf['HA'] = self.HA.get()
     conf['VA'] = self.VA.get()
     conf['WRAP'] = self.WRAP.get()
@@ -151,6 +157,7 @@ class parameters():
     conf['BBOX'] = self.BBOX.get()
     conf['BBOX_FACECOLOR'] = self.BBOX_FACECOLOR.get()
     conf['BBOX_ALPHA'] = self.BBOX_ALPHA.get()
+    conf['FILLED'] = self.FILLED.get()
     return conf
 
   def conf_set(self,conf):
@@ -165,6 +172,7 @@ class parameters():
     self.EDGECOLOR.set(conf['EDGECOLOR'])
     self.FACECOLOR.set(conf['FACECOLOR'])
     self.LINEWIDTH.set(conf['LINEWIDTH'])
+    self.LINESTYLE.set(conf['LINESTYLE'])
     self.HA.set(conf['HA'])
     self.VA.set(conf['VA'])
     self.WRAP.set(conf['WRAP'])
@@ -179,6 +187,7 @@ class parameters():
     self.BBOX.set(conf['BBOX'])
     self.BBOX_FACECOLOR.set(conf['BBOX_FACECOLOR'])
     self.BBOX_ALPHA.set(conf['BBOX_ALPHA'])
+    self.FILLED.set(conf['FILLED'])
 
 
   def conf_load(self,filename):
@@ -230,6 +239,7 @@ def Configuration(parent,PLOT):
   SYMBOL_LIST = ['.',',','o','v','^','<','>', \
                 '1','2','3','4','s','p','*',  \
                 'h','H','+','x','D','d','|','_']
+  STYLE_LIST =  ['-','--',':','-.','']
   for n in range(ord('\u2600'),ord('\u26B8')+1):
     SYMBOL_LIST.append(chr(n))
 
@@ -248,20 +258,32 @@ def Configuration(parent,PLOT):
             grid(row=0,column=0,columnspan=6,sticky='ew')
   
   ttk.Label(F0,text='Polygons',font=font).grid(row=1,column=0,sticky='w')
-  ttk.Label(F0,text='Edge Color').grid(row=2,padx=3,column=0,sticky='w')
+
+  tk.Label(F0,text='Filled polygons',font=font). \
+            grid(row=2,column=0,padx=3,sticky='w')
+  tk.Checkbutton(F0,text='',variable=PLOT.FILLED,font=font). \
+            grid(row=2,column=1,padx=3,sticky='w')
+
+  ttk.Label(F0,text='Edge Color').grid(row=3,padx=3,column=0,sticky='w')
   ELabel = ttk.Label(F0,textvariable=PLOT.EDGECOLOR,width=8,style="selabel.TLabel")
-  ELabel.grid(row=2,padx=3,column=1)
+  ELabel.grid(row=3,padx=3,column=1)
   ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.EDGECOLOR, \
             selabel,ELabel,"selabel.TLabel",master=parent)).\
-            grid(row=2,column=2,padx=3,sticky='ew')
+            grid(row=3,column=2,padx=3,sticky='ew')
             
-  ttk.Label(F0,text='Face Color').grid(row=3,padx=3,column=0,sticky='w')
+  ttk.Label(F0,text='Face Color').grid(row=4,padx=3,column=0,sticky='w')
   FLabel = ttk.Label(F0,textvariable=PLOT.FACECOLOR,width=8,style="sflabel.TLabel")
-  FLabel.grid(row=3,column=1)
+  FLabel.grid(row=4,column=1)
   ttk.Button(F0,text='Select',command=lambda:colsel(PLOT.FACECOLOR, \
             sflabel,FLabel,"sflabel.TLabel",master=parent)).\
-            grid(row=3,column=2,padx=3,sticky='ew')
+            grid(row=4,column=2,padx=3,sticky='ew')
   
+  ttk.Label(F0,text='Line Style').grid(row=5,column=0,padx=3,sticky='w')
+  ttk.Combobox(F0,textvariable=PLOT.LINESTYLE, \
+               values=STYLE_LIST,width=8).grid(row=5,column=1,padx=3,sticky='w')
+  ttk.Label(F0,text='Line Width').grid(row=6,column=0,padx=3,sticky='w')
+  ttk.Entry(F0,textvariable=PLOT.LINEWIDTH,width=8).grid(row=6,column=1,sticky='w')
+
   ttk.Label(F0,text='Points',font=font).grid(row=1,column=3,sticky='w')
   ttk.Label(F0,text='Symbol').grid(row=2,column=3,padx=3,columnspan=1,sticky='w')
   ttk.Combobox(F0,textvariable=PLOT.SYMBOL, \
@@ -281,7 +303,7 @@ def Configuration(parent,PLOT):
   
   ttk.Label(fs0,text='Zorder').grid(row=0,column=3,padx=3)
   ttk.Entry(fs0,textvariable=PLOT.ZORDER,width=8).grid(row=0,column=4,padx=3)
-  fs0.grid(row=5,column=0,columnspan=6,sticky='we',pady=10)         
+  fs0.grid(row=7,column=0,columnspan=6,sticky='we',pady=10)         
   F0.grid()
 
 

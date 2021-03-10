@@ -34,6 +34,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 import cosmo.lineplot as lineplot
+from cosmo.tools import toconsola
 from cosmo.tools import exists
 from cosmo.tools import caldat
 from cosmo.tools import Select_Columns
@@ -56,7 +57,7 @@ class parameters():
   __author__  = "Quim Ballabrera"
   __date__    = "July 2018"
 
-  def __init__ (self):
+  def __init__ (self, wid=False):
   # ==================
     ''' Define ans initialize class attrobutes'''
 
@@ -105,6 +106,8 @@ class parameters():
     self.CROP.set(False)
     self.Fx              = None
     self.Fy              = None
+    
+    self.cons = wid
 
     #if exists(self.FILECONF):
     #  print('Reading Lagrangian configuration file '+self.FILECONF)
@@ -219,8 +222,12 @@ class parameters():
     # --------------------------------------
       '''Read a set of trajectories from a netcdf file'''
       from netCDF4 import Dataset
-
-      print('Reading netcdf file - ',filename)
+	  
+	  #EG
+      self.MESSAGE +='\n Reading netcdf file - '+filename
+      if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+      else:  print(self.MESSAGE)
+      
       ncid = Dataset(filename)
       self.nfloats  = ncid.dimensions['floats'].size
       self.nrecords = ncid.dimensions['time'].size
@@ -234,7 +241,10 @@ class parameters():
       elif len(ncid.variables['time'].shape) == 2:
         self.SOURCE = 'mlm'
       else:
-        print('Error: Unknown Trajectory source')
+        #EG
+        self.MESSAGE +='\nError: Unknown Trajectory source'
+        if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+        else:  print(self.MESSAGE)
         return
 
       try:
@@ -291,19 +301,27 @@ class parameters():
       import json
 
       if filename[0:5].lower() == 'http:':
-        print('Reading remote json file ',filename)
+        self.MESSAGE +='\nReading remote json file.. '+filename.split("/")[-1]
+        self.MESSAGE +='\nPath: '+'/'.join(filename.split("/")[:-1])+"/n"
+        if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+                
         response = urllib.request.urlopen(filename)
         data = response.read()
         text = data.decode('utf-8')
         DATA = json.loads(text)
-      else:  
-        print('Reading local json file ',filename)
+      else:
+        self.MESSAGE +='\nReading local json file.. '+filename.split("/")[-1]
+        self.MESSAGE +='\nPath: '+'/'.join(filename.split("/")[:-1])+"/n"
+        if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+        else:  print(self.MESSAGE)
+        
         with open(filename) as datafile:
           DATA = json.load(datafile)
 
       nfeatures = len(DATA["features"])
-      print("Number of features: ", nfeatures)
-
+      self.MESSAGE +="\nNumber of features: "+str(nfeatures)
+      if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+      else:  print(self.MESSAGE)
       # Detect the GEOJSON MODE
       # In the "Dated LineString", the date is stored in the property "time"
       # of the trajectory
@@ -343,8 +361,10 @@ class parameters():
                            '%Y-%m-%dT%H:%M:%SZ'))
 
       else:
-        print('Unknown GEOJSON file format')
-
+        self.MESSAGE +='Unknown GEOJSON file format'
+        if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+        else:  print(self.MESSAGE)
+        
       self.nfloats  = 1
       self.nrecords = len(self.lon)
       self.lon = np.array(self.lon)
@@ -358,7 +378,10 @@ class parameters():
       with open(filename,'r') as f:
         first_line = f.readline()
 
-      print('Reading txt file ',filename)
+      self.MESSAGE +='\nReading txt file '+filename
+      if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+      else:  print(self.MESSAGE)
+      
       win = tk.Toplevel()
       win.title('Float column')
       Axes = Select_Columns(win,first_line,' ')
@@ -406,15 +429,15 @@ class parameters():
             self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+'T'+columns[Axes.time],Axes.fmt))
 
           else:
-            print('unknown ASCII file format')
+            self.MESSAGE +='unknown ASCII file format'
+            if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+            else:  print(self.MESSAGE)
             return
         
-
       self.nfloats  = 1
       self.nrecords = len(self.lon)
       self.lon = np.array(self.lon)
       self.lat = np.array(self.lat)
-
 
     filename = self.FILENAME.get()
     if filename.lower().endswith(('.nc','.cdf','.ncdf')):
@@ -442,7 +465,10 @@ class parameters():
 
     # Cheack that something has been read:
     if self.nfloats is None:
-      print('No data has been read')
+      self.MESSAGE +='\nReading txt file.. '+filename.split("/")[-1]
+      self.MESSAGE +='\nPath: '+'/'.join(filename.split("/")[:-1])
+      if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+      else:  print(self.MESSAGE)
       self = None
       return
 

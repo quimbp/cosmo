@@ -31,13 +31,19 @@ from cosmo.tools import empty
 from cosmo.tools import colsel
 
 #EG 
-from cartopy.io.shapereader import Reader
+#from cartopy.io.shapereader import Reader
 from cartopy.feature import ShapelyFeature
 import cartopy.crs as ccrs
 
-__version__ = "1.0"
+#QB new shapefile version
+import cartopy
+from cartopy.io import shapereader
+from shapely import geometry
+
+
+__version__ = "2.0"
 __author__  = "Quim Ballabrera"
-__date__    = "July 2018"
+__date__    = "December 2020"
 
 class parameters():
 # ===================
@@ -55,9 +61,9 @@ class parameters():
     
     self.MESSAGE = ''
     
-    self.shp   = None
-    self.geom  = None
-    self.type  = None
+    self.shp             = None
+#    self.geom            = None
+    self.type            = None
     self.FILENAME        = tk.StringVar()
     self.ALIAS           = tk.StringVar()
     self.SOURCE          = ''
@@ -65,14 +71,13 @@ class parameters():
 
     self.PLOT            = geoplot.parameters()
     self.LABEL           = tk.StringVar()
-    self.n               = 0
     self.textmode        = tk.BooleanVar()
-    self.lon             = []
-    self.lat             = []
-    self.name            = []
+    self.n               = 0
+    self.record          = []
     self.KEY_LIST        = []
     self.LABEL_KEY       = tk.StringVar() 
     self.CROP            = tk.BooleanVar()
+    self.namestohide     = ''
 
 
     self.LABEL_KEY.set('')
@@ -103,6 +108,7 @@ class parameters():
     conf['LABEL'] = self.LABEL.get()
     conf['LABEL_KEY'] = self.LABEL_KEY.get()
     conf['CROP'] = self.CROP.get()
+    conf['NAMESTOHIDE'] = self.namestohide
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -118,6 +124,7 @@ class parameters():
     self.LABEL.set(conf['LABEL'])
     self.LABEL_KEY.set(conf['LABEL_KEY'])
     self.CROP.set(conf['CROP'])
+    self.namestohide = conf['NAMESTOHIDE']
     self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
@@ -156,47 +163,31 @@ class parameters():
   # ======================
     '''Opens and reads a set of points'''
 
-    __version__ = "1.0"
+    __version__ = "2.0"
     __author__  = "Quim Ballabrera"
-    __date__    = "May 2018"
+    __date__    = "December 2018"
 
-    # --------------------------------------
-    def read(filename):
-    # --------------------------------------
-      '''Read a shp file'''
-      self.shp = Reader(filename)
-      points = list(self.shp.geometries())
 
-      self.lon = []
-      self.lat = []
-      self.name = []
-      for i in range(len(points)):
-        pp = points[i]
-        self.lon.append(pp.x)
-        self.lat.append(pp.y)
-        self.name.append('')
+    '''Read a shp file'''
+    try:
+      self.shp = shapereader.Reader(filename)
+    except:
+      print('ERROR: shapereader.Reader cannot open this file')
+      self = None
+      return
 
     self.FILENAME.set(filename)
     self.SOURCE = 'FILE'
 
-    if filename.lower().endswith(('.shp')):
-      read(filename)
-      
-    self.n = len(self.lon)
-    self.geom = self.shp
-    #self.type = self.shp.shapeType
+    self.n   = len(self.shp)
+    self.record = list(self.shp.records())
+    self.type     = self.record[0].geometry.geom_type.upper()
 
-    geoms = list(self.geom.geometries())
-    self.type = type(geoms[0]).__name__.upper()
-    print('SHAPEFILE TYPE: ', self.type)
 
     # Label Key:
-    records = list(self.shp.records())
-    self.KEY_LIST = list(records[0].attributes.keys())
+    self.KEY_LIST = list(self.record[0].attributes.keys())
     self.KEY_LIST.insert(0,' ')
-    del records
 
-                          
     # Cheack that something has been read:
     if self.n == 0:
       self = None
@@ -257,26 +248,78 @@ class parameters():
     self.KEY_LIST = list(records[0].attributes.keys())
     self.KEY_LIST.insert(0,' ')
 
+  def Crop(self,bbox):
+  # ==================
+    xmin = bbox[0]
+    xmax = bbox[1]
+    ymin = bbox[2]
+    ymax = bbox[3]
+    pgon = geometry.Polygon(((xmin, ymin),  \
+                             (xmin, ymax),  \
+                             (xmax, ymax),  \
+                             (xmax, ymin),  \
+                             (xmin, ymin)))
+
+    if self.type == 'POINT':
+      # Shapes that are points 
+      #
+      for i in range(self.n-1,-1,-1):
+        point = self.record[i]
+        x = point.geometry.x
+        y = point.geometry.y
+        remove = False
+        if x <= xmin or x>= xmax:
+          remove = True
+        if y <= ymin or y>= ymax:
+          remove = True
+        if remove:
+          del self.record[i]
+
+    else:
+      # Shapes other than points 
+      #
+      for i in range(self.n-1,-1,-1):
+        feature = self.record[i]
+
+        # Check for intersection between element's bbox (egon) and map (pgon).
+        #
+        areas = []
+        for element in feature.geometry:    # Allows for multipolygons
+          exmin = element.bounds[0]
+          exmax = element.bounds[2]
+          eymin = element.bounds[1]
+          eymax = element.bounds[3]
+          egon = geometry.Polygon(((exmin, eymin),  \
+                                   (exmin, eymax),  \
+                                   (exmax, eymax),  \
+                                   (exmax, eymin),  \
+                                   (exmin, eymin)))
+          areas.append(egon.intersection(pgon).area)
+        # If not significant, remove the shape:
+        if sum(areas) <= 1E-5:
+          del self.record[i]
+
+    self.n = len(self.record)      # Set the new number of records
+
 
 # ======================================
 def drawing(ax,proj,SHAPE):
 # ======================================
   '''Draw geometries from shapes files'''
 
-  __version__ = "1.0"
+  __version__ = "2.0"
   __author__  = "Emili Garcia, based on Joaquin Ballabrera geomarker.py"
-  __date__    = "May 2018"
+  __date__    = "December 2020"
 
   if not SHAPE.show.get():
     return
 
   # Axis lims
-  xlim = ax.get_xlim()
-  ylim = ax.get_ylim()
-
-  records = list(SHAPE.geom.records())
-  geoms   = list(SHAPE.geom.geometries())
-  GTYPE   = type(geoms[0]).__name__.upper()
+  xmin, xmax = ax.get_xlim()
+  ymin, ymax = ax.get_ylim()
+  # Transform to lon,lat:
+  xmin, ymin = ccrs.PlateCarree().transform_point(xmin,ymin,ax.projection)
+  xmax, ymax = ccrs.PlateCarree().transform_point(xmax,ymax,ax.projection)
 
   xpad = SHAPE.PLOT.XPAD.get()
   ypad = SHAPE.PLOT.YPAD.get()
@@ -289,20 +332,35 @@ def drawing(ax,proj,SHAPE):
     bbox = None
 
   lshp = None
-  if GTYPE[0:5] == 'POINT':
-#    for i in range(len(records)):
-#      poly = geoms[i]
-#      name = '%s' % records[i].attributes['name']
-#      if poly.x > xlim[0] and poly.x < xlim[1]:
-#        if poly.y > ylim[0] and poly.y < ylim[1]:
+
+  # - - - - - - - - - - - - -
+  if 'POINT' in SHAPE.type:
+  # - - - - - - - - - - - - -
+
     for i in range(SHAPE.n):
+      point = SHAPE.record[i]
+      x = point.geometry.x
+      y = point.geometry.y
+
+      try:
+        label = point.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
+      except:
+        label  = None
+        plotit = True
+
+
+      if x <= xmin or x>= xmax:
+        plotit = False
+      if y <= ymin or y>= ymax:
+        plotit = False
+
+      if plotit:
        
-      x = SHAPE.lon[i]
-      y = SHAPE.lat[i]
-      if x > xlim[0] and x < xlim[1]:
-        if y > ylim[0] and y < ylim[1]:
-#          lshp, = ax.plot(poly.x,poly.y,                                  \
-          lshp, = ax.plot(x,y,             \
+        lshp, = ax.plot(x,y,             \
                   linestyle='',                                   \
                   marker=marker_string(SHAPE.PLOT.SYMBOL.get()),  \
                   ms=SHAPE.PLOT.SIZE.get(),                       \
@@ -311,12 +369,10 @@ def drawing(ax,proj,SHAPE):
                   alpha=SHAPE.PLOT.ALPHA.get(),                   \
                   zorder=SHAPE.PLOT.ZORDER.get(),
                   transform=ccrs.PlateCarree())
-                  #transform=proj)
 
-          if SHAPE.textmode.get():
-            # Here, every marker is identified by its label
-#            ax.text(xpad+poly.x,ypad+poly.y,SHAPE.name[i],
-            ax.text(xpad+x,ypad+y,SHAPE.name[i],
+        if SHAPE.textmode.get():
+          # Here, every marker is identified by its label
+          ax.text(xpad+x,ypad+y,label,
                  ha=SHAPE.PLOT.HA.get(),
                  va=SHAPE.PLOT.VA.get(),
                  wrap=SHAPE.PLOT.WRAP.get(),
@@ -328,52 +384,139 @@ def drawing(ax,proj,SHAPE):
                  rotation=SHAPE.PLOT.ANGLE.get(),
                  bbox=bbox,
                  transform=ccrs.PlateCarree())
-                 #transform=proj)
 
 
+  # - - - - - - - - - - - - -
+  elif 'LINE' in SHAPE.type:
+  # - - - - - - - - - - - - -
+
+    for record in SHAPE.record:
+
+      # Get label and check if has been asked not to be shown
+      #
+      try:
+        label = record.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
+      except:
+        label  = None
+        plotit = True
+
+
+      if plotit:
+        for line in record.geometry:
+          x,y = line.xy
+          lshp, = ax.plot(x,y,
+                          linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+                          linestyle=SHAPE.PLOT.LINESTYLE.get(),
+                          alpha=SHAPE.PLOT.ALPHA.get(),
+                          color=SHAPE.PLOT.EDGECOLOR.get(),
+                          zorder=SHAPE.PLOT.ZORDER.get(),
+                          transform=ccrs.PlateCarree())
+
+        if SHAPE.textmode.get():
+          # Here, every marker is identified by its label
+
+          # Get the center of the longest segment
+          #
+          lmax = 0
+          for line in record.geometry:
+            x,y = line.xy
+            if len(x) > lmax:
+              lmax = len(x)
+              xmean = np.mean(x)
+              ymean = np.mean(y)
+
+          # Place the text
+          #
+          ax.text(xpad+xmean,ypad+ymean,label,
+                  ha=SHAPE.PLOT.HA.get(),
+                  va=SHAPE.PLOT.VA.get(),
+                  wrap=SHAPE.PLOT.WRAP.get(),
+                  style=SHAPE.PLOT.STYLE.get(),
+                  weight=SHAPE.PLOT.WEIGHT.get(),
+                  color=SHAPE.PLOT.TCOLOR.get(),
+                  size=SHAPE.PLOT.TSIZE.get(),
+                  zorder=SHAPE.PLOT.ZORDER.get()+1,
+                  rotation=SHAPE.PLOT.ANGLE.get(),
+                  bbox=bbox,
+                  transform=ccrs.PlateCarree())
+
+
+  # - - - - - - - - - - - - -
   else:
-    for i in range(len(geoms)):
-      feature = ShapelyFeature(geoms[i], proj)
-      ax.add_feature(feature,
-               visible=SHAPE.PLOT.SHOW.get(),
-               linewidth=SHAPE.PLOT.LINEWIDTH.get(),
-               alpha=SHAPE.PLOT.ALPHA.get(),
-               edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
-               facecolor=SHAPE.PLOT.FACECOLOR.get(),
-               zorder=SHAPE.PLOT.ZORDER.get())
-      if SHAPE.textmode.get():
-        # Here, every marker is identified by its label
-        xx = geoms[i].centroid.x
-        yy = geoms[i].centroid.y
-        ss = ax.text(xpad+xx,ypad+yy,SHAPE.name[i],
-                ha=SHAPE.PLOT.HA.get(),
-                va=SHAPE.PLOT.VA.get(),
-                wrap=SHAPE.PLOT.WRAP.get(),
-                style=SHAPE.PLOT.STYLE.get(),
-                weight=SHAPE.PLOT.WEIGHT.get(),
-                color=SHAPE.PLOT.TCOLOR.get(),
-                size=SHAPE.PLOT.TSIZE.get(),
-                zorder=SHAPE.PLOT.ZORDER.get()+1,
-                rotation=SHAPE.PLOT.ANGLE.get(),
-                #bbox=dict(facecolor='white',alpha=0.5),
-                #bbox=None,
-                bbox=bbox,
-                transform=ccrs.PlateCarree())
-                #transform=proj)
+  # - - - - - - - - - - - - -
+    # Geometries other than POINT or LINESTRINGS:
+    #
+    for record in SHAPE.record:
+
+      # Get label and check if has been asked not to be shown
+      #
+      try:
+        label = record.attributes[SHAPE.LABEL_KEY.get()]
+        if label.upper() in SHAPE.namestohide:
+          plotit = False     # Label in names to hide list
+        else:
+          plotit = True      # Label not in names to hide list
+      except:
+        label  = None
+        plotit = True
+
+      if plotit:
+        if SHAPE.PLOT.FILLED.get():
+          shape_feature = ShapelyFeature(record.geometry,ccrs.PlateCarree())
+          ax.add_feature(shape_feature, 
+                         linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+                         linestyle=SHAPE.PLOT.LINESTYLE.get(),
+                         alpha=SHAPE.PLOT.ALPHA.get(),
+                         edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
+                         facecolor=SHAPE.PLOT.FACECOLOR.get(),
+                         zorder=SHAPE.PLOT.ZORDER.get())
+        else:
+          for element in record.geometry:
+            x,y = element.exterior.coords.xy
+            lshp, = ax.plot(x,y,
+                            linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+                            linestyle=SHAPE.PLOT.LINESTYLE.get(),
+                            alpha=SHAPE.PLOT.ALPHA.get(),
+                            color=SHAPE.PLOT.EDGECOLOR.get(),
+                            zorder=SHAPE.PLOT.ZORDER.get(),
+                            transform=ccrs.PlateCarree())
+
+        if SHAPE.textmode.get():
+          # label variable holds the name of the feature
+          # We will label the largest feature
+          amax = 0
+          imax = -1
+          for i  in range(len(record.geometry)):
+            element = record.geometry[i]
+            area = element.area
+            if area > amax:
+              amax = area
+              imax = i
+
+          # Now label at the center of the larger area:
+          #
+          geom = record.geometry[imax]
+          xx = geom.centroid.x
+          yy = geom.centroid.y
+          ss = ax.text(xpad+xx,ypad+yy,label,
+                  ha=SHAPE.PLOT.HA.get(),
+                  va=SHAPE.PLOT.VA.get(),
+                  wrap=SHAPE.PLOT.WRAP.get(),
+                  style=SHAPE.PLOT.STYLE.get(),
+                  weight=SHAPE.PLOT.WEIGHT.get(),
+                  color=SHAPE.PLOT.TCOLOR.get(),
+                  size=SHAPE.PLOT.TSIZE.get(),
+                  zorder=SHAPE.PLOT.ZORDER.get()+1,
+                  rotation=SHAPE.PLOT.ANGLE.get(),
+                  bbox=bbox,
+                  transform=ccrs.PlateCarree())
 
   return lshp
 
-#
-#    feature = ShapelyFeature(SHAPE.geom.geometries(), proj)
-#    ax.add_feature(feature,
-#             visible=SHAPE.PLOT.SHOW.get(),
-#             linewidth=SHAPE.PLOT.LINEWIDTH.get(),
-#             #label=SHAPE.LABEL.get(),
-#             label='nomed',
-#             alpha=SHAPE.PLOT.ALPHA.get(),
-#             edgecolor=SHAPE.PLOT.EDGECOLOR.get(),
-#             facecolor=SHAPE.PLOT.FACECOLOR.get(),
-#             zorder=SHAPE.PLOT.ZORDER.get())
                 
 # ======================================
 def TextConfigure(parent,MPLOT):
@@ -582,6 +725,42 @@ def ShowData(master,LL):
                                                  LL.lat[l],
                                                  LL.label[l])
     log.insert('end',string)'''
+
+# ======================================
+def HideData(master,LL):
+# ======================================
+  ''' Hide data '''
+
+  __version__ = "2.0"
+  __author__  = "Quim Ballabrerera"
+  __date__    = "December 2020"
+
+  def _clear(board):
+    board.delete('1.0',tk.END)
+    LL.namestohide = ''
+
+  def _hide(board):
+    LL.namestohide = board.get('1.0',tk.END).upper()
+
+  F0 = tk.Frame(master)
+  tk.Label(F0,text='Enter the names of the Features to hide:').grid(row=0,column=0)
+  tk.Label(F0,text='[Label Key (Label Aspect TAB) must be selected]').grid(row=1,column=0)
+  board = tk.Text(F0,height=6)
+  board.grid(row=2,column=0,padx=10,pady=10,sticky='nsew')
+  board.grid_columnconfigure(0,weight=0)
+  board.grid_rowconfigure(0,weight=1)
+  # Scrollbar
+  scrollb = tk.Scrollbar(F0,command=board.yview)
+  scrollb.grid(row=0,column=1,sticky='nsew',padx=2,pady=2)
+  board['yscrollcommand'] = scrollb.set
+
+  F0.grid()
+  F1 = tk.Frame(master)
+  ttk.Button(F1,text='Clear',command=lambda:_clear(board)).grid(row=0,column=0)
+  ttk.Button(F1,text='Hide',command=lambda:_hide(board)).grid(row=0,column=1)
+  F1.grid()
+
+
 
 def main():
 

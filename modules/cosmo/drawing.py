@@ -19,7 +19,9 @@
 			Corrected some text font managements
 			All color selections are now managed through tools.colsel() function
 			Cartopy projection can be accessed through tools.map_proj()
-			
+		EGL, 12/2020:
+			Now multiple lagrangian trajectories can be loaded at once by
+			using askopenfilenames instead of askopenfile
 '''
 __version__ = "2.0"
 __author__  = "Quim Ballabrera and Emilio García"
@@ -1088,11 +1090,14 @@ class DrawingConfig():
     self.COASTLINE_SOURCE   = tk.IntVar()
     self.COASTLINE_WIDTH    = tk.DoubleVar()
     self.COASTLINE_COLOR    = tk.StringVar()
+    self.COASTLINE_ZORDER   = tk.IntVar()
     self.COUNTRYLINE_SHOW   = tk.BooleanVar()
     self.COUNTRYLINE_WIDTH  = tk.DoubleVar()
     self.COUNTRYLINE_COLOR  = tk.StringVar()
     self.LAND_COLOR         = tk.StringVar()
+    self.LAND_ZORDER        = tk.IntVar()
     self.WATER_COLOR        = tk.StringVar()
+    self.WATER_ZORDER       = tk.IntVar()
 
     self.TITLE              = tk.StringVar()
     self.TITLEFONT          = FontProperties().copy()
@@ -1246,11 +1251,14 @@ class DrawingConfig():
     self.COASTLINE_SOURCE.set(1)
     self.COASTLINE_WIDTH.set(1)
     self.COASTLINE_COLOR.set('black')
+    self.COASTLINE_ZORDER.set(1)
     self.COUNTRYLINE_SHOW.set(False)
     self.COUNTRYLINE_WIDTH.set(2)
     self.COUNTRYLINE_COLOR.set('grey')
     self.LAND_COLOR.set('coral')
+    self.LAND_ZORDER.set(0)
     self.WATER_COLOR.set('white')
+    self.WATER_ZORDER.set(0)
     self.TITLE.set('')
     self.TITLEFONT.set_size(22)
     self.TITLEFONT.set_weight('bold')
@@ -1450,14 +1458,17 @@ class DrawingConfig():
     conf['LON_0'] = self.LON_0.get()
     conf['SATELLITE_HEIGHT'] = self.SATELLITE_HEIGHT.get()
     conf['COASTLINE_SHOW'] = self.COASTLINE_SHOW.get()
-    conf['COASTLINE_SOURCE'] = self.COASTLINE_SHOW.get()
+    conf['COASTLINE_SOURCE'] = self.COASTLINE_SOURCE.get()
     conf['COASTLINE_WIDTH'] = self.COASTLINE_WIDTH.get()
     conf['COASTLINE_COLOR'] = self.COASTLINE_COLOR.get()
+    conf['COASTLINE_ZORDER'] = self.COASTLINE_ZORDER.get()
     conf['COUNTRYLINE_SHOW'] = self.COUNTRYLINE_SHOW.get()
     conf['COUNTRYLINE_WIDTH'] = self.COUNTRYLINE_WIDTH.get()
     conf['COUNTRYLINE_COLOR'] = self.COUNTRYLINE_COLOR.get()
     conf['LAND_COLOR'] = self.LAND_COLOR.get()
+    conf['LAND_ZORDER'] = self.LAND_ZORDER.get()
     conf['WATER_COLOR'] = self.WATER_COLOR.get()
+    conf['WATER_ZORDER'] = self.WATER_ZORDER.get()
     conf['TITLE'] = self.TITLE.get()
     conf['TITLEFONT'] = self.TITLEFONT.__dict__
     conf['TITLE_PAD'] = self.TITLE_PAD.get()
@@ -1618,11 +1629,14 @@ class DrawingConfig():
     self.COASTLINE_SOURCE.set(conf['COASTLINE_SOURCE'])
     self.COASTLINE_WIDTH.set(conf['COASTLINE_WIDTH'])
     self.COASTLINE_COLOR.set(conf['COASTLINE_COLOR'])
+    self.COASTLINE_ZORDER.set(conf['COASTLINE_ZORDER'])
     self.COUNTRYLINE_SHOW.set(conf['COUNTRYLINE_SHOW'])
     self.COUNTRYLINE_WIDTH.set(conf['COUNTRYLINE_WIDTH'])
     self.COUNTRYLINE_COLOR.set(conf['COUNTRYLINE_COLOR'])
     self.LAND_COLOR.set(conf['LAND_COLOR'])
+    self.LAND_ZORDER.set(conf['LAND_ZORDER'])
     self.WATER_COLOR.set(conf['WATER_COLOR'])
+    self.WATER_ZORDER.set(conf['WATER_ZORDER'])
     self.TITLE.set(conf['TITLE'])
     self.TITLEFONT = setfont(conf['TITLEFONT'])
     self.TITLE_PAD.set(conf['TITLE_PAD'])
@@ -2038,15 +2052,18 @@ class CosmoDrawing():
     #F0.grid(row=0, column=0,sticky='ew')
        
     #EG Afegim una Consola
-    #EG is the widget referencing the toconsola()
+    #EG self.cons is the widget referencing the toconsola()
     if tconsola is not None:
         if len(tconsola) > 0:
          wiconsola = tk.Frame(self.master)  # Expandimos la Consola
          wiconsola.grid_rowconfigure(0, weight=1)
          cscrollb = tk.Scrollbar(wiconsola)
          cscrollb.grid(row=0,column=1,sticky='nswe')
-         self.cons = tk.Text(wiconsola, bg="black", fg="white", \
+         myFont = tkfont.Font(family=self.PLOT.WINDOW_FONT_TYPE.get(), \
+						  size=self.PLOT.WINDOW_FONT_SIZE.get())
+         self.cons = tk.Text(wiconsola,bg="black", fg="white", \
          							 yscrollcommand=cscrollb.set)
+         self.cons.configure(font=myFont)
          # tags to highligth different cathegories of messages by formating the the text
          self.cons.tag_config("y", foreground="yellow", font="-weight bold")
          self.cons.tag_config("o", foreground="orange", font="-weight bold")
@@ -4853,12 +4870,17 @@ class CosmoDrawing():
     ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.LAND_COLOR, \
 				self.sland,self.LLabel,"sland.TLabel",master=self.Window_mapconfig)). \
 				grid(row=0,column=2,padx=5,sticky='w')
+    ttk.Label(f3_b,text='Zorder').grid(row=0,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_b,textvariable=self.PLOT.LAND_ZORDER,width=4).grid(row=0,column=4,padx=5,sticky='e')
+
     ttk.Label(f3_b,text='Sea').grid(row=1,column=0,padx=5)
     self.WLabel = ttk.Label(f3_b,textvariable=self.PLOT.WATER_COLOR,width=7,style="swater.TLabel")
     self.WLabel.grid(row=1,column=1,padx=5)
     ttk.Button(f3_b,text='Select',command=lambda:colsel(self.PLOT.WATER_COLOR, \
 				self.swater,self.WLabel,"swater.TLabel",master=self.Window_mapconfig)). \
 				grid(row=1,column=2,padx=5,sticky='w')
+    ttk.Label(f3_b,text='Zorder').grid(row=1,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_b,textvariable=self.PLOT.WATER_ZORDER,width=4).grid(row=1,column=4,padx=5,sticky='e')
     f3_b.grid(row=0,column=0,padx=5,pady=10,sticky='ewsn')
     
     # Features: Coastlines
@@ -4882,6 +4904,8 @@ class CosmoDrawing():
     ttk.Label(f3_c,text='EMODNET').grid(row=2,column=1,padx=5,sticky='w')    
     ttk.Radiobutton(f3_c,text=' Show',variable=self.PLOT.COASTLINE_SOURCE,value=2). \
                 grid(row=2,column=2,padx=5)
+    ttk.Label(f3_c,text='Zorder').grid(row=2,column=3,padx=5,sticky='e')
+    ttk.Entry(f3_c,textvariable=self.PLOT.COASTLINE_ZORDER,width=4).grid(row=2,column=4,padx=5,sticky='e')
     f3_c.grid(row=1,column=0,padx=5,pady=10,sticky='ewsn')
     
     # Miscelanea
@@ -5502,7 +5526,7 @@ class CosmoDrawing():
 
       if os.path.isfile(self.MLM.TRAJECTORY.get()):
         FLT = lagrangian.parameters()
-        toconsola(FLT.MESSAGE,wid=self.cons)
+        toconsola(FLT.MESSAGE,wid=wid)
         FLT.Read(self.MLM.TRAJECTORY.get())
         if FLT is None:
           return
@@ -5909,7 +5933,7 @@ class CosmoDrawing():
     self.Window_blm.title('COSMO B Lagrangian Model options')
     self.Window_blm.resizable(width=True,height=True)
     self.Window_blm.protocol('WM_DELETE_WINDOW',_close)
-
+    
     blm.WinConfig(self.Window_blm,self.BLM)
 
     F0 = ttk.Frame(self.Window_blm,padding=5)
@@ -7147,31 +7171,15 @@ class CosmoDrawing():
       ii = self.SHAPE_INDX.get()
       if ii >= 0:
 
-        if self.SHAPE[ii].CROP.get() and self.SHAPE[ii].type == 'POINT':
-          toconsola('Cropping shapefile type POINT',wid=self.cons)
-          nsp = self.SHAPE[ii].n
-          x = self.SHAPE[ii].lon[:].copy()
-          y = self.SHAPE[ii].lat[:].copy()
-          s = self.SHAPE[ii].name[:].copy()
-          self.SHAPE[ii].lon  = []
-          self.SHAPE[ii].lat  = []
-          self.SHAPE[ii].name = []
+        if self.SHAPE[ii].CROP.get():
+          toconsola('Cropping shapefile',wid=self.cons)
 
           xmin = self.PLOT.WEST.get()  + self.PLOT.CROP_PAD.get()
           xmax = self.PLOT.EAST.get()  - self.PLOT.CROP_PAD.get()
           ymin = self.PLOT.SOUTH.get() + self.PLOT.CROP_PAD.get()
           ymax = self.PLOT.NORTH.get() - self.PLOT.CROP_PAD.get()
-
-          for i in range(nsp):
-            if x[i] > xmin:
-              if x[i] < xmax:
-                if y[i] > ymin:
-                  if y[i] < ymax:
-                    self.SHAPE[ii].lon.append(x[i])
-                    self.SHAPE[ii].lat.append(y[i])
-                    self.SHAPE[ii].name.append(s[i])
-                
-          self.SHAPE[ii].n = len(self.SHAPE[ii].lon)
+          bbox = [xmin, xmax, ymin, ymax]
+          self.SHAPE[ii].Crop(bbox)
 
         self.SHAPE[ii].LABEL.set(_wlab.get())
         self.make_plot()
@@ -7270,7 +7278,7 @@ class CosmoDrawing():
       self.SHAPE_INDX.set(self.nshape-1)
       self.SHAPE_LIST = list(range(self.nshape))
 
-      self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=len(SHAPE.lon),wid=self.cons)
+      self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=SHAPE.n,wid=self.cons)
       self.LAYERS.print()
       #self.nfeatures += 1
       #self.FEATNAMES.append(SHAPE.FILENAME.get())
@@ -7337,7 +7345,6 @@ class CosmoDrawing():
     _wpad.grid(row=4,column=2,sticky='w',padx=3)
     _wcrp = ttk.Checkbutton(F0)
     _wcrp.grid(row=4,column=3,sticky='w')
-    ttk.Label(F0,text='Set labels before cropping').grid(row=4,column=4,columnspan=4)
 
 
     F0.grid(row=0,column=0)
@@ -7647,7 +7654,7 @@ class CosmoDrawing():
       self.Mnb.add(page0,text='Label Aspect')
       self.Mnb.add(page1,text='Geometry Aspect')
       self.Mnb.add(page2,text='Text Aspect')
-      self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+      self.Mnb.add(page3,text='Hide Features')
       self.Mnb.grid()
       self.Mnb.select(itab)
 
@@ -7675,7 +7682,7 @@ class CosmoDrawing():
       shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
 
       # Page 3
-      #shape.ShowData(page3,self.SHAPE[ii])
+      shape.HideData(page3,self.SHAPE[ii])
 
       f0 = ttk.Frame(ishow,padding=5)
       ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -7793,7 +7800,7 @@ class CosmoDrawing():
     self.Mnb.add(page0,text='Label Aspect')
     self.Mnb.add(page1,text='Geometry Aspect')
     self.Mnb.add(page2,text='Text Aspect')
-    self.Mnb.add(page3,text='Geometry coordinates',state="disabled")
+    self.Mnb.add(page3,text='Hide Feature')
     self.Mnb.grid()
 
     # Page0
@@ -7819,7 +7826,7 @@ class CosmoDrawing():
     shape.TextConfigure(page2,self.SHAPE[ii].PLOT)
 
     # Page 3 Si hay Muchas geometrias inmanejable
-    #shape.ShowData(page3,self.SHAPE[ii])
+    shape.HideData(page3,self.SHAPE[ii])
 
     f0 = ttk.Frame(ishow,padding=5)
     ttk.Button(f0,text='Cancel',command=_cancel,padding=5). \
@@ -7838,6 +7845,8 @@ class CosmoDrawing():
 
     self.LSOURCE = tk.StringVar()
     self.LSOURCE.set(self.FLOAT_OPTIONS[0])
+    #EG
+    self.COUNT=[]
 
     def _cancel():
     # ===========
@@ -7951,32 +7960,42 @@ class CosmoDrawing():
 
     def _refill(ii):
     # ==============
+      print("entro refill",ii)
       if ii >= 0:
+        self.COUNT.append(tk.StringVar())
+        self.COUNT[-1].set(str(ii))
         self.FLOAT_LIST = list(range(self.nfloat))
-        _wsel['values'] = self.FLOAT_LIST
-        _went['textvariable'] = self.FLOAT[ii].FILENAME
-        _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
-        _wsel.configure(state='normal')
-        _show.configure(state='normal')
-        _show['variable']=self.FLOAT[ii].show
-        _aent.configure(state='normal')
-        _aent['textvariable'] = self.FLOAT[ii].ALIAS
-        _wcrp.configure(state='normal')
-        _wcrp['variable']=self.FLOAT[ii].CROP
+        ttk.Label(self.F1,textvariable=self.COUNT[-1],anchor='center', \
+            background="#fff",foreground="#000000",width=5).grid(row=ii+1,column=0)
+        ttk.Label(self.F1,textvariable=self.FLOAT[ii].FILENAME,\
+            background="#fff",foreground="#000000",justify='left').grid(row=ii+1,column=1,padx=3,sticky='w')
+        ttk.Entry(self.F1,textvariable=self.FLOAT[ii].ALIAS,width=15).grid(row=ii+1,column=2,sticky='w')
+        tk.Checkbutton(self.F1).grid(row=ii+1,column=3,sticky='we')
+        tk.Checkbutton(self.F1).grid(row=ii+1,column=4,sticky='we')
+        
+        #EG _wsel['values'] = self.FLOAT_LIST
+        #EG _went['textvariable'] = self.FLOAT[ii].FILENAME
+        #EG _wstat['text'] = ' Nfloats = '+str(self.FLOAT[ii].nfloats)
+        #EG _wsel.configure(state='normal')
+        #EG _show.configure(state='normal')
+        #EG _show['variable']=self.FLOAT[ii].show
+        #EG _aent.configure(state='normal')
+        #EG _aent['textvariable'] = self.FLOAT[ii].ALIAS
+        #EG _wcrp.configure(state='normal')
+        #EG _wcrp['variable']=self.FLOAT[ii].CROP
 
       else:
         self.FLOAT         = []
         self.FLOAT_LIST    = ['0']
         self.FLOAT_INDX    = tk.IntVar()
         self.FLOAT_INDX.set(0)
-        _wsel['values'] = self.FLOAT_LIST
-        _went['textvariable'] = ''
-        _wstat['text'] = ''
-        _wsel.configure(state='disabled')
-        _aent.configure(state='disabled')
-        _show.configure(state='disabled')
-        _wcrp.configure(state='disabled')
-
+        #EG _wsel['values'] = self.FLOAT_LIST
+        #EG _went['textvariable'] = ''
+        #EG _wstat['text'] = ''
+        #EG _wsel.configure(state='disabled')
+        #EG _aent.configure(state='disabled')
+        #EG _show.configure(state='disabled')
+        #EG _wcrp.configure(state='disabled')
 
     def _add():
     # ========
@@ -7984,17 +8003,29 @@ class CosmoDrawing():
 
       if ISOURCE == 0:
 
-        types=[('Netcdf','*.nc'),('JSON','*.json'),       \
-               ('GEOJSON','*.geojson'),('ALL','*')]
-        nn = filedialog.askopenfile(parent=self.Window_float, \
-                                    filetypes=types)
+        types=[('Netcdf','*.nc'),('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
+        #EG OLD code
+        '''        nn = filedialog.askopenfile(parent=self.Window_float, \
+						filetypes=types)
+			try:
+				if empty(nn.name):
+				return
+			except:
+				return
+			_load_trajectory(nn.name)        
+        '''
+        #EG New code
+        nn = filedialog.askopenfilenames(parent=self.Window_float,\
+										 filetypes=types)
         try:
-          if empty(nn.name):
-            return
+          if len(nn.name) == 0: return
+          if empty(nn.name): return
         except:
-          return
-        _load_trajectory(nn.name)
-
+          toconsola("======= Trajectories ======",tag="o",wid=self.cons)
+          for filename in nn:
+            _load_trajectory(filename)
+        toconsola("=====================",tag="o", wid=self.cons)
+          
       elif ISOURCE == 1:
         path = '%s' % filedialog.askdirectory(parent=self.Window_float, \
                                    title='Select local trajectory folder')
@@ -8027,11 +8058,9 @@ class CosmoDrawing():
 
     def _load_trajectory(filename):
     # ==================================
-
-      FLT = lagrangian.parameters()
-      toconsola(FLT.MESSAGE, wid=self.cons)     
+      FLT = lagrangian.parameters(wid=self.cons)    
       FLT.Read(filename)
-
+	  
       if FLT.nfloats is None or FLT.nfloats==0 or FLT.nrecords==0:
         return
 
@@ -8060,6 +8089,7 @@ class CosmoDrawing():
 #                             self.DATE[0]).total_seconds()       \
 #                                           for i in range(FLT.nrecords)])
       if self.LAYERS.nsequence > 0:
+        print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
         FLT.MAPX = []
         FLT.MAPY = []
         if FLT.nfloats > 1:
@@ -8076,6 +8106,7 @@ class CosmoDrawing():
           FLT.MAPX = np.array(FLT.MAPX).T
           FLT.MAPY = np.array(FLT.MAPY).T
         else:
+          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
           FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon,
                                    bounds_error=False, fill_value=np.NaN)
           FLT.MAPX = FLT.Fx(self.TIME)
@@ -8177,7 +8208,9 @@ class CosmoDrawing():
 #              self.SEQUENCES[-1].set(True)
 #              self.SEQLEADER[-1].set(False)
             self.FLOAT[ii].L.set(self.L.get())  #Synchronize records
+          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
 
+      print("abasn refill",self.FLOAT_LIST)
       _refill(ii)
 
 
@@ -8196,58 +8229,82 @@ class CosmoDrawing():
       ii = -1
 
     F0 = ttk.Frame(self.Window_float,padding=5)
-
+    #EG Nueva interface
     # Add
+    #EG ttk.Combobox(F0,textvariable=self.LSOURCE, \
+    #EG            values=self.FLOAT_OPTIONS).grid(row=0,column=0,padx=3)
+    ttk.Button(F0,text='Import',command=_add).grid(row=0,column=0,padx=3)
     ttk.Combobox(F0,textvariable=self.LSOURCE, \
-                 values=self.FLOAT_OPTIONS).grid(row=0,column=0,padx=3) 
-    ttk.Button(F0,text='Import',command=_add).grid(row=1,column=0,padx=3)
-
+                 values=self.FLOAT_OPTIONS).grid(row=0,column=1)
+    F0.grid(row=0,column=0,sticky="w")
+    
     # Filename:
-    ttk.Label(F0,text='Float file').grid(row=0,column=1,padx=3)
+    ttk.Separator(self.Window_float, orient='horizontal').grid(row=1,column=0,sticky="nesw")
+    #EG F1 = ttk.Frame(self.Window_float,padding=5)
+    #EG ttk.Label(F0,text='Float file').grid(row=0,column=1,padx=3)
+    #EG _wsel = ttk.Combobox(F0,textvariable=self.FLOAT_INDX, \
+    #EG                               values=self.FLOAT_LIST,width=5)
+    #EG _wsel.grid(row=0,column=2)
+    #EG _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    #EG _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    #EG _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+    #EG 
+    self.F1 = ttk.Frame(self.Window_float,padding=5)
+    ttk.Label(self.F1,text='Nfloat',width=5).grid(row=0,column=0)
+    ttk.Label(self.F1,text='Float file',anchor="center",width=50).grid(row=0,column=1,sticky='we')
+    ttk.Label(self.F1,text='Alias',anchor="center",width=15).grid(row=0,column=2)
+    ttk.Label(self.F1,text='Crop').grid(row=0,column=3)
+    ttk.Label(self.F1,text='Show').grid(row=0,column=4)
+    self.F1.grid(row=2,column=0)
+    #EGttk.Label(F1,text='Float file').grid(row=0,column=1,padx=3)
 
-    _wsel = ttk.Combobox(F0,textvariable=self.FLOAT_INDX, \
-                                  values=self.FLOAT_LIST,width=5)
-    _wsel.grid(row=0,column=2)
-    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
-    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
-    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+    #_wsel = ttk.Combobox(F1,textvariable=self.FLOAT_INDX, \
+    #                              values=self.FLOAT_LIST,width=5)
+    #_wsel.grid(row=0,column=2)
+    #_wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    #_went = ttk.Entry(F1,justify='left',width=50,state='readonly')
+    #_went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
 
     # AAA
-    if ii == -1:
-      _wstat = ttk.Label(F0,text='',width=50,justify='left')
-      _wsel.configure(state='disabled')
-    else:
-      _wstat = ttk.Label(F0,text=' Floats in the file= '+str(self.FLOAT[ii].nfloats),width=50,justify='left')
-      _went['textvariable'] = self.FLOAT[ii].FILENAME
+    #if ii == -1:
+    #  _wstat = ttk.Label(F1,text='',width=50,justify='left')
+    #  _wsel.configure(state='disabled')
+    #else:
+    #  _wstat = ttk.Label(F1,text=' Floats in the file= '+str(self.FLOAT[ii].nfloats),width=50,justify='left')
+    #  _went['textvariable'] = self.FLOAT[ii].FILENAME
 
-    _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
+    #_wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
 
     #Alias
-    ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
-    _aent = ttk.Entry(F0,width=15,justify='left')
-    _aent.grid(row=2,column=2,columnspan=2,sticky='w')
-    _wcrp = ttk.Checkbutton(F0,text='Crop')
-    _wcrp.grid(row=3,column=1,sticky='w')
+    #ttk.Label(F1,text='Alias').grid(row=2,column=1,padx=3,pady=3)
+    #_aent = ttk.Entry(F0,width=15,justify='left')
+    #_aent.grid(row=2,column=2,columnspan=2,sticky='w')
+    #_wcrp = ttk.Checkbutton(F0,text='Crop')
+    #_wcrp.grid(row=3,column=1,sticky='w')
 
-    F0.grid(row=0,column=0)
-
-    F1 = ttk.Frame(self.Window_float,padding=5)
+    #EGF0.grid(row=0,column=0)
+    ttk.Separator(self.Window_float, orient='horizontal').grid(row=3,column=0,sticky="nesw") 
+    F2 = ttk.Frame(self.Window_float,padding=5)
     if ii == -1:
-      _show = ttk.Checkbutton(F1,text='Show')
-      _aent.configure(state='disabled')
-      _wcrp.configure(state='disabled')
+      print('-1',ii)
+      pass
+      #_show = ttk.Checkbutton(F2,text='Show')
+      #_aent.configure(state='disabled')
+      #_wcrp.configure(state='disabled')
     else:
-      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
-      _show['variable']=self.FLOAT[ii].show
-      _aent['textvariable'] = self.FLOAT[ii].ALIAS
-      _wcrp['variable'] = self.FLOAT[ii].CROP
+      print('nfloats',ii)
+      pass
+      #_show = ttk.Checkbutton(F2,text='Show',command=self.make_plot)
+      #_show['variable']=self.FLOAT[ii].show
+      #_aent['textvariable'] = self.FLOAT[ii].ALIAS
+      #_wcrp['variable'] = self.FLOAT[ii].CROP
 
 
-    _show.grid(row=1,column=5,padx=3)
-    ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)
-    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
-    ttk.Button(F1,text='Plot',command=_close).grid(row=1,column=8,padx=3)
-    F1.grid(row=1,column=0)
+    #_show.grid(row=1,column=5,padx=3)
+    ttk.Button(F2,text='Cancel',command=_cancel).grid(row=0,column=0,padx=3)
+    ttk.Button(F2,text='Clear',command=_clear).grid(row=0,column=1,padx=3)
+    ttk.Button(F2,text='Plot',command=_close).grid(row=0,column=2,padx=3)
+    F2.grid(row=4,column=0)
 
   # ========================
   def currents_config(self):
@@ -9261,7 +9318,7 @@ class CosmoDrawing():
     #EG Coastlines
     #toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
     if self.PLOT.COASTLINE_SHOW.get():
-      if self.PLOT.COASTLINE_SOURCE.get() == 1:
+      if self.PLOT.COASTLINE_SOURCE.get() == 2:
         emodnet="coastlines"
         try:
           self.ax.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
@@ -9270,7 +9327,8 @@ class CosmoDrawing():
       else:
         toconsola("\t EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
         self.ax.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.COASTLINE_ZORDER.get())
 
     if self.PLOT.ISOBAT_NPLOT > 0:
       toconsola("EG plot Custom ISOBATHS",wid=self.cons)
@@ -9350,16 +9408,17 @@ class CosmoDrawing():
       #toconsola("PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.WATER_COLOR.get()),zorder=self.PLOT.WATER_ZORDER.get())
     if self.PLOT.LAND_COLOR.get() != 'None': 
       #toconsola("PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.LAND_COLOR.get()),zorder=self.PLOT.LAND_ZORDER.get())
     if self.PLOT.COUNTRYLINE_SHOW.get():
       #toconsola("PLOT.COUNTRYLINE",wid=self.cons)
-      self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+      self.ax.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COUNTRYLINE_COLOR.get(),
+							linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.LAND_ZORDER.get()+1)
     if self.PLOT.RIVERS_SHOW.get(): 
       #toconsola("PLOT.RIVERS",wid=self.cons)
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
@@ -9406,7 +9465,7 @@ class CosmoDrawing():
       gl.ylocator = mticker.FixedLocator(vparallels)
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       gl.xformatter = LONGITUDE_FORMATTER
-      gl.xformatter = LONGITUDE_FORMATTER
+      gl.yformatter = LATITUDE_FORMATTER
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
 
@@ -9662,15 +9721,19 @@ class CosmoDrawing():
       if self.PLOT.COASTLINE_SOURCE.get() == 1:
         emodnet="coastlines"
         try:
-          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
+          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,
+                           color=self.PLOT.COASTLINE_COLOR.get(),
+		    	   linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                           zorder=self.PLOT.COASTLINE_ZORDER.get())
         except:
           toconsola("WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
           #print("WARNING: EMODNET coastlines !, it is disabled......")
       else:
-        toconsola("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms",wid=self.cons)
-        #print("EG COASTLINE: Natura_Earth (50m by default) or EMODNET wms")
+        toconsola("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        #print("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms")
         self.Max.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=0)
+							linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.COASTLINE_ZORDER.get())
 
     if self.PLOT.ISOBAT_NPLOT > 0:
       toconsola("EG Custom ISOBATHS",wid=self.cons)
@@ -9750,15 +9813,17 @@ class CosmoDrawing():
     if self.PLOT.COUNTRYLINE_SHOW.get():
       toconsola("EG PLOT.COUNTRYLINE",wid=self.cons)
       #print("EG PLOT.COUNTRYLINE")
-      self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),zorder=1)
+      self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COUNTRYLINE_COLOR.get(),
+							linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(),
+                                                        zorder=self.PLOT.LAND_ZORDER.get()+1)
     if self.PLOT.RIVERS_SHOW.get(): 
       toconsola("EG PLOT.RIVERS",wid=self.cons)
       #print("EG PLOT.RIVERS")
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
 			self.PLOT.MAP_RESOLUTION.get(), \
 			linewidth=self.PLOT.RIVERS_WIDTH.get(),
-			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
+			edgecolor=self.PLOT.RIVERS_COLOR.get(),
+                        zorder=self.PLOT.LAND_ZORDER.get()+1))
 
     if self.PLOT.GRID_SHOW.get():
       toconsola("EG PLOT.GRID"+str(self.PLOT.GRID_LINESTYLE.get()),wid=self.cons)
@@ -9796,7 +9861,7 @@ class CosmoDrawing():
       gl.ylocator = mticker.FixedLocator(vparallels)
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       gl.xformatter = LONGITUDE_FORMATTER
-      gl.xformatter = LONGITUDE_FORMATTER
+      gl.yformatter = LATITUDE_FORMATTER
       gl.xlabel_style, gl.ylabel_style = lstyle, lstyle
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
     else:
