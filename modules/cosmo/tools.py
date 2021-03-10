@@ -2711,8 +2711,8 @@ def map_proj(name, params=None):
   import cartopy.crs as ccrs
   
   params_def = {"central_longitude":0.0, "central_latitude":0.0, 
-        "min_latitude":-80.0, "max_latitude":84.0,
         "false_easting":0.0, "false_northing":0.0,
+        "min_latitude":-80.0, "max_latitude":84.0,
         "latitude_true_scale":0.0,
         "true_scale_latitude":None, "scale_factor":None,
         "satellite_height":35785831, "sweep_axis":'y'}    
@@ -2738,7 +2738,7 @@ def map_proj(name, params=None):
               'proj':ccrs.Mollweide(central_longitude=params['central_longitude'], 
                     false_easting=params['false_easting'], 
                     false_northing=params['false_northing']),
-              'state':[1,0,0,0,1,1,0,0,0,0,0]},
+              'state':[1,0,1,1,0,0,0,0,0,0,0]},
              'Orthographic':{'text':'Orthographic',
               'proj':ccrs.Orthographic(central_longitude=params['central_longitude'],
                                        central_latitude=params['central_latitude']),
