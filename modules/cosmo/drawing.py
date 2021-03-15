@@ -22,8 +22,11 @@
 		EGL, 12/2020:
 			Now multiple lagrangian trajectories can be loaded at once by
 			using askopenfilenames instead of askopenfile
+    QPB, 03/2021:
+			Allow for a user defined time axis
+			Add a distance calculator
 '''
-__version__ = "2.0"
+__version__ = "3.0"
 __author__  = "Quim Ballabrera and Emilio García"
 __date__    = "July 2020"
 
@@ -685,23 +688,6 @@ class LAYER():
     self.SEQUENCER   = []   # True if SEQUENCE leader
     self.NREC        = []   # Number of records in layer
 
-#    # Different types of layers
-#    self.nfld        = 0
-#    self.nvec        = 0
-#    self.nfloat      = 0
-#    self.nmarker     = 0
-#    self.nshape      = 0
-#    self.nellipse    = 0
-#    self.npatch      = 0
-#
-#    self.FLD_LIST    = []
-#    self.VEC_LIST    = []
-#    self.FLOAT_LIST  = []
-#    self.MARKER_LIST = []
-#    self.SHAPE_LIST  = []
-#    self.ELLIPSE_LIST= []
-#    self.PATCH_LIST  = []
-
     self.update      = False
 
   def erase(self,TYPE,ii,**args):
@@ -1037,21 +1023,6 @@ class DrawingConfig():
 
   def __init__(self):
   # ========================
-
-    #fileconf = '%s' % COSMO_CONF + 'configure.conf'
-    #self.CONFLIST = []
-    #if exists(fileconf):
-    #  f = open(fileconf,'r')
-    #  for line in f:
-    #    self.CONFLIST.append('%s' % line[0:-1])
-    #  f.close()
-    #  self.FILECONF = '%s' % self.CONFLIST[0]
-    #else:
-    #  self.FILECONF           = '%s' % COSMO_CONF + 'drawing.conf'
-    #  f = open(fileconf,'w')
-    #  f.write(self.FILECONF)
-    #  f.close()
-    #  self.CONFLIST.append([self.FILECONF])
 
     self.FILECONF           = '%s' % COSMO_CONF + 'drawing.conf'
     self.VERSION            = __version__
@@ -2127,6 +2098,7 @@ class CosmoDrawing():
     self.Window_patchconfig   = None
     self.Window_skill         = None
     self.Window_converter     = None
+    self.Window_settime       = None
     
     self.legendtabs           = None
     self.Window_mapa          = None
@@ -2331,6 +2303,8 @@ class CosmoDrawing():
                          command=self.ellipse_config)
     confmenu.add_command(label='Patch',
                          command=self.patch_config)
+    confmenu.add_command(label='Time axis',
+                         command=self.set_time)
     confmenu.add_separator()
     confmenu.add_command(label='Select configuration',
                          command=self.configuration_file)
@@ -2513,9 +2487,9 @@ class CosmoDrawing():
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.VEC[ii].K
         _kbox['values'] = self.VEC[ii].K_LIST
-        #_lbox.configure(state='!disabled')
-        #_lbox['textvariable'] = self.VEC[ii].L
-        #_lbox['values'] = self.VEC[ii].L_LIST
+        _lbox.configure(state='!disabled')
+        _lbox['textvariable'] = self.VEC[ii].L
+        _lbox['values'] = self.VEC[ii].L_LIST
         _aent.configure(state='!disabled')
         _aent['textvariable'] = self.VEC[ii].ALIAS
         if self.VEC[ii].U.icdf.idk < 0:
@@ -2523,13 +2497,13 @@ class CosmoDrawing():
           _zbox['text']='--'
         else:
           _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-        #if self.VEC[ii].U.icdf.idl < 0:
-        #  _lbox.configure(state='disabled')
-        #  _dbox['text']='--'
-        #else:
-          #_lbox['textvariable'] = self.VEC[ii].L
-          #_lbox['values'] = self.VEC[ii].L_LIST
-          #_dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
+        if self.VEC[ii].U.icdf.idl < 0:
+          _lbox.configure(state='disabled')
+          _dbox['text']='--'
+        else:
+          _lbox['textvariable'] = self.VEC[ii].L
+          _lbox['values'] = self.VEC[ii].L_LIST
+          _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
         _show['variable'] = self.VEC[ii].show
         #_wsav.configure(state='normal')
 
@@ -2543,7 +2517,7 @@ class CosmoDrawing():
         _uvar.configure(state='disabled')
         _vvar.configure(state='disabled')
         _kbox.configure(state='disabled')
-        #_lbox.configure(state='disabled')
+        _lbox.configure(state='disabled')
         _wsel['values'] = self.VEC_LIST
         _went['textvariable'] = ''
         _uvar['textvariable'] = ''
@@ -2555,11 +2529,11 @@ class CosmoDrawing():
         _kbox['textvariable'] = ''
         _kbox['values'] = ['']
         _zbox['text'] = '--'
-        #_lbox['text'] = ''
-        #_lbox['values'] = ['']
-        #_lbox['textvariable'] = ''
-        #_lbox['values'] = ['']
-        #_dbox['text'] = ['--']
+        _lbox['text'] = ''
+        _lbox['values'] = ['']
+        _lbox['textvariable'] = ''
+        _lbox['values'] = ['']
+        _dbox['text'] = ['--']
         _wsav.configure(state='disabled')
 
     def _add(SOURCE):
@@ -3086,12 +3060,12 @@ class CosmoDrawing():
     _zbox.grid(row=3,column=3,columnspan=2,sticky='w')
 
     # Time:
-    #ttk.Label(F0,text='Time').grid(row=4,column=1,padx=3,pady=3)
-    #_lbox = ttk.Combobox(F0,width=5)
-    #_lbox.grid(row=4,column=2)
-    #_lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
-    #_dbox = ttk.Label(F0,width=20)
-    #_dbox.grid(row=4,column=3,columnspan=2,sticky='w')
+    ttk.Label(F0,text='Time').grid(row=4,column=1,padx=3,pady=3)
+    _lbox = ttk.Combobox(F0,width=5)
+    _lbox.grid(row=4,column=2)
+    _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
+    _dbox = ttk.Label(F0,width=20)
+    _dbox.grid(row=4,column=3,columnspan=2,sticky='w')
 
     #Alias
     ttk.Label(F0,text='Alias').grid(row=5,column=1,padx=3,pady=3)
@@ -3103,7 +3077,7 @@ class CosmoDrawing():
       _uvar.configure(state='disabled')
       _vvar.configure(state='disabled')
       _kbox.configure(state='disabled')
-      #_lbox.configure(state='disabled')
+      _lbox.configure(state='disabled')
       _aent.configure(state='disabled')
     else:
       _went['textvariable'] = self.VEC[ii].UFILENAME
@@ -3120,13 +3094,21 @@ class CosmoDrawing():
         _zbox['text']='--'
       else:
         _zbox['text']=self.VEC[ii].Z_LIST[self.VEC[ii].K.get()]
-      #if self.VEC[ii].U.icdf.idl < 0:
-      #  _lbox.configure(state='disabled')
-      #  _dbox['text']='--'
-      #else:
-      #  _lbox['textvariable'] = self.VEC[ii].L
-      #  _lbox['values'] = self.VEC[ii].L_LIST
-      #  _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
+      if self.VEC[ii].U.icdf.idl < 0:
+        _lbox.configure(state='disabled')
+        _dbox['text']='--'
+        try:
+          nodate = empty(self.VEC[ii].DATE[0])
+        except:
+          nodate = False
+        if nodate:
+          _dbox['text']='--'
+        else:
+          _dbox['text'] = xelf.CDF[ii].DATE[0]
+      else:
+        _lbox['textvariable'] = self.VEC[ii].L
+        _lbox['values'] = self.VEC[ii].L_LIST
+        _dbox['text'] = self.VEC[ii].DATE[self.VEC[ii].L.get()]
 
     F0.grid(row=0,column=0)
 
@@ -6414,9 +6396,9 @@ class CosmoDrawing():
         _kbox.configure(state='!disabled')
         _kbox['textvariable'] = self.CDF[ii].K
         _kbox['values'] = self.CDF[ii].K_LIST
-        #_lbox.configure(state='!disabled')
-        #_lbox['textvariable'] = self.CDF[ii].L
-        #_lbox['values'] = self.CDF[ii].L_LIST
+        _lbox.configure(state='!disabled')
+        _lbox['textvariable'] = self.CDF[ii].L
+        _lbox['values'] = self.CDF[ii].L_LIST
         _aent.configure(state='!disabled')
         _aent['textvariable'] = self.CDF[ii].ALIAS
         if self.CDF[ii].FLD.icdf.idk < 0:
@@ -6424,14 +6406,14 @@ class CosmoDrawing():
           _zbox['text']='--'
         else:
           _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-        #if self.CDF[ii].FLD.icdf.idl < 0:
-        #  _lbox.configure(state='disabled')
-        #  _dbox['text']='--'
-        #else:
-        #  _lbox['textvariable'] = self.CDF[ii].L
-        #  _lbox['values'] = self.CDF[ii].L_LIST
-        #  _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
-        #_show['variable'] = self.CDF[ii].show
+        if self.CDF[ii].FLD.icdf.idl < 0:
+          _lbox.configure(state='disabled')
+          _dbox['text']='--'
+        else:
+          _lbox['textvariable'] = self.CDF[ii].L
+          _lbox['values'] = self.CDF[ii].L_LIST
+          _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+        _show['variable'] = self.CDF[ii].show
 
       else:
         self.CDF         = []
@@ -6442,7 +6424,7 @@ class CosmoDrawing():
         _wsel.configure(state='disabled')
         _wvar.configure(state='disabled')
         _kbox.configure(state='disabled')
-        #_lbox.configure(state='disabled')
+        _lbox.configure(state='disabled')
         _aent.configure(state='disabled')
         _wsel['values'] = self.CDF_LIST
         _went['textvariable'] = ''
@@ -6452,11 +6434,11 @@ class CosmoDrawing():
         _kbox['textvariable'] = ''
         _kbox['values'] = ['']
         _zbox['text'] = '--'
-        #_lbox['text'] = ''
-        #_lbox['values'] = ['']
-        #_lbox['textvariable'] = ''
-        #_lbox['values'] = ['']
-        #_dbox['text'] = ['--']
+        _lbox['text'] = ''
+        _lbox['values'] = ['']
+        _lbox['textvariable'] = ''
+        _lbox['values'] = ['']
+        _dbox['text'] = ['--']
         _wsav.configure(state='disabled')
 
     def _add(SOURCE):
@@ -6755,15 +6737,15 @@ class CosmoDrawing():
     _zbox.grid(row=2,column=3,columnspan=2,sticky='w')
 
     # Time:
-    #ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
-    #_lbox = ttk.Combobox(F0,width=5)
-    #_lbox.grid(row=3,column=2)
-    #_lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
-    #_dbox = ttk.Label(F0,width=20)
-    #_dbox.grid(row=3,column=3,columnspan=2,sticky='w')
+    ttk.Label(F0,text='Time').grid(row=3,column=1,padx=3,pady=3)
+    _lbox = ttk.Combobox(F0,width=5)
+    _lbox.grid(row=3,column=2)
+    _lbox.bind('<<ComboboxSelected>>',lambda e: _lselection())
+    _dbox = ttk.Label(F0,width=20)
+    _dbox.grid(row=3,column=3,columnspan=2,sticky='w')
 
-    #_dsel = ttk.Button(F0,text='Select date',command=_date)
-    #_dsel.grid(row=3,column=5,sticky='w')
+    _dsel = ttk.Button(F0,text='Select date',command=_date)
+    _dsel.grid(row=3,column=5,sticky='w')
 
     # Alias
     ttk.Label(F0,text='Alias').grid(row=4,column=1,padx=3,pady=3)
@@ -6774,8 +6756,8 @@ class CosmoDrawing():
       _wsel.configure(state='disabled')
       _wvar.configure(state='disabled')
       _kbox.configure(state='disabled')
-      #_lbox.configure(state='disabled')
-      #_dsel.configure(state='disabled')
+      _lbox.configure(state='disabled')
+      _dsel.configure(state='disabled')
       _aent.configure(state='disabled')
     else:
       _went['textvariable'] = self.CDF[ii].FILENAME
@@ -6789,23 +6771,23 @@ class CosmoDrawing():
         _zbox['text']='--'
       else:
         _zbox['text']=self.CDF[ii].Z_LIST[self.CDF[ii].K.get()]
-      #if self.CDF[ii].FLD.icdf.idl < 0:
-      #  _lbox.configure(state='disabled')
-      #  _dsel.configure(state='enabled')
-      #  try:
-      #    nodate = empty(sefl.CDF[ii].DATE[0])
-      #  except:
-      #    nodate = False
-      #  if nodate:
-      #    _dbox['text']='--'
-      #  else:
-      #    _dbox['text']=self.CDF[ii].DATE[0]
-      #
-      #else:
-      #  _lbox['textvariable'] = self.CDF[ii].L
-      #  _lbox['values'] = self.CDF[ii].L_LIST
-      #  _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
-      #  _dsel.configure(state='disabled')
+      if self.CDF[ii].FLD.icdf.idl < 0:
+        _lbox.configure(state='disabled')
+        _dsel.configure(state='enabled')
+        try:
+          nodate = empty(sefl.CDF[ii].DATE[0])
+        except:
+          nodate = False
+        if nodate:
+          _dbox['text']='--'
+        else:
+          _dbox['text']=self.CDF[ii].DATE[0]
+       
+      else:
+        _lbox['textvariable'] = self.CDF[ii].L
+        _lbox['values'] = self.CDF[ii].L_LIST
+        _dbox['text'] = self.CDF[ii].DATE[self.CDF[ii].L.get()]
+        _dsel.configure(state='disabled')
 
     F0.grid(row=0,column=0)
 
@@ -12436,4 +12418,78 @@ class CosmoDrawing():
 
     F2.grid(row=2,column=0,padx=5,pady=10,sticky='ewsn')
     
+  # =======================
+  def set_time(self):
+  # =======================
+
+    initial_date = tk.StringVar()
+    final_date   = tk.StringVar()
+    time_interval= tk.DoubleVar()
+
+    try:
+      backup_TIME = self.TIME.copy()
+      backup_DATE = self.DATE.copy()
+      backup_NL   = self.NL
+      initial_date.set(self.DATE[0])
+      final_date.set(self.DATE[self.NL-1])
+      time_interval.set(self.TIME[2] - self.TIME[1])
+    except:
+      backup_NL   = 0
+      initial_date.set("")
+      final_date.set("")
+      time_interval.set(0)
+
+    def _cancel():
+    # ============
+    
+      print("In _cancel: ",initial_date.get())
+      if backup_NL > 0:
+        self.TIME = backup_TIME.copy()
+        self.DATE = backup_DATE.copy()
+        self.NL   = backup_NL
+      self.Window_settime.destroy()
+      self.Window_settime = None
+
+    def _done():
+    # ==========
+      self.Window_settime.destroy()
+      self.Window_settime = None
+      self.make_plot()
+
+
+    # Main window
+    # ============
+
+    self.Window_settime = tk.Toplevel(self.master)
+    self.Window_settime.title('Set time axis')
+    self.Window_settime.resizable(width=True,height=True)
+    self.Window_settime.protocol('WM_DELETE_WINDOW',_cancel)
+
+    F0 = ttk.Frame(self.Window_settime,padding=10)
+
+    ttk.Label(F0,text="Initial time: ").grid(row=0,column=0,sticky='e',padx=3)
+    _wini = tk.Entry(F0,textvariable=initial_date,width=18)
+    _wini.grid(row=0,column=1,sticky='w',padx=3)
+
+    ttk.Label(F0,text="Final time: ").grid(row=1,column=0,sticky='e',padx=3)
+    _wini = tk.Entry(F0,textvariable=final_date,width=18)
+    _wini.grid(row=1,column=1,sticky='w',padx=3)
+
+    ttk.Label(F0,text="Time interval (seconds): ").grid(row=2,column=0,sticky='e',padx=3)
+    _wini = tk.Entry(F0,textvariable=time_interval,width=18)
+    _wini.grid(row=2,column=1,sticky='w',padx=3)
+
+    #_wini.bind('<<ComboboxSelected>>',lambda e:_selected())
+#    #_went = ttk.Entry(fsel,justify='left',width=50,state='readonly')
+#    #_went.grid(row=0,column=2,columnspan=5,padx=3,sticky='w')
+#    #_went = ttk.Entry(fsel,justify='left',width=80,state='readonly')
+#    #_went.grid(row=0,column=2,columnspan=8,padx=3,sticky='w')
+    F0.grid()
+
+    F1 = ttk.Frame(self.Window_settime,padding=5)
+    ttk.Button(F1,text='Cancel',command=_cancel,padding=5).   \
+        grid(row=0,column=1,padx=3)
+    ttk.Button(F1,text='Done',command=_done,padding=5).     \
+        grid(row=0,column=2,padx=3)
+    F1.grid(sticky='ew',columnspan=2)
 
