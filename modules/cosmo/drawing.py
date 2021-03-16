@@ -193,6 +193,7 @@ class CONTOUR():
     self.T_LIST  = []
     self.DATE    = []
     self.TIME    = []
+    self.TIME_SET= False
 
     self.landmask.set(False)
     self.ALIAS.set('')
@@ -202,6 +203,10 @@ class CONTOUR():
     # Selected point
     self.io      = tk.IntVar()
     self.jo      = tk.IntVar()
+
+    # Link to the Drawing Time Axis
+    self.LINK    = tk.BooleanVar()
+    self.LINK.set(False)
 
 
   def conf_get(self):
@@ -218,6 +223,7 @@ class CONTOUR():
     conf['L']      = self.L.get()
     conf['LANDMASK'] = self.landmask.get()
     conf['SHOW']   = self.show.get()
+    conf['LINK']   = self.LINK.get()
     conf['PLOT']   = self.PLOT.conf_get()
     conf['FLD']    = self.FLD.conf_get()
     return conf
@@ -235,6 +241,7 @@ class CONTOUR():
     self.L.set(conf['L'])
     self.landmask.set(conf['LANDMASK'])
     self.show.set(conf['SHOW'])
+    self.LINK.set(conf['LINK'])
     self.PLOT.conf_set(conf['PLOT'])
     self.FLD.conf_set(conf['FLD'])
 
@@ -470,6 +477,10 @@ class VECTOR():
     self.CURRENT_NX_0 = -1
     self.CURRENT_NY_0 = -1
 
+    # Link to the drawing Time Axis
+    self.LINK         = tk.BooleanVar()
+    self.LINK.set(False)
+
   def conf_get(self):
   # =================
     ''' Set class dictionary from class attributes '''
@@ -486,6 +497,7 @@ class VECTOR():
     conf['L']    = self.L.get()
     conf['SHOW'] = self.show.get()
     conf['GRID_TYPE'] = self.grid_type.get()
+    conf['LINK'] = self.LINK.get()
     conf['PLOT'] = self.PLOT.conf_get()
     conf['U']    = self.U.conf_get()
     conf['V']    = self.V.conf_get()
@@ -505,6 +517,7 @@ class VECTOR():
     self.K.set(conf['K'])
     self.L.set(conf['L'])
     self.show.set(conf['SHOW'])
+    self.LINK.set(conf['LINK'])
     self.grid_type.set(conf['GRID_TYPE'])
     self.PLOT.conf_set(conf['PLOT'])
     self.U.conf_set(conf['U'])
@@ -2715,38 +2728,60 @@ class CosmoDrawing():
 
         # Is this field member of the SEQUENCE?
         # Is this field a member of the SEQUENCE?
+        print("HEEEEERE ", self.NL, nt)
         if nt > 1:
-          if self.LAYERS.nsequence == 0:
-            toconsola('Vector initiates SEQUENCE list',wid=self.cons)
-            self.LAYERS.nsequence = 1
-            self.LAYERS.INSEQUENCE[n-1].set(True)
-            self.LAYERS.SEQUENCER[n-1].set(True)
-            self.LAYERS.leader = n-1
-            self.LAYERS.seqlen = nt
-#              self.SEQUENCES[-1].set(True)
-#              self.SEQLEADER[-1].set(True)
-#              self.SEQLEADER_INDX = self.nfiles
-            self.DATE = self.VEC[ii].DATE.copy()
+
+          if self.NL == 0:
+            toconsola('Vector initiates Time axis',wid=self.cons)
+            self.VEC[ii].LINK.set(True)
             self.TIME = self.VEC[ii].TIME.copy()
+            self.DATE = self.VEC[ii].DATE.copy()
+            self.NL = nt
             self.L.set(self.VEC[ii].L.get())
             self.L_LIST = list(range(nt))
-            self.NL = nt
             self.lbox.configure(state='normal')
             self.lbox['values'] = self.L_LIST
             if self.L.get() < self.NL-1:
               self.bnext.configure(state='normal')
             if self.L.get() > 0:
               self.bprev.configure(state='normal')
-          else:
-            if nt == self.LAYERS.seqlen:
-              toconsola('Adding vector to SEQUENCE list',wid=self.cons)
-              self.LAYERS.nsequence += 1
-              self.LAYERS.INSEQUENCE[n-1].set(True)
-              self.LAYERS.SEQUENCER[n-1].set(False)
-#                self.nsequence += 1
-#                self.SEQUENCES[-1].set(True)
-#                self.SEQLEADER[-1].set(False)
-              self.VEC[ii].L.set(self.L.get())  #Synchronize records
+          elif self.NL == nt:
+            toconsola('Linking Vector to Time axis',wid=self.cons)
+            self.VEC[ii].LINK.set(True)
+            self.VEC[ii].L.set(self.L.get())  #Synchronize records
+         
+#          if self.LAYERS.nsequence == 0:
+#            toconsola('Vector initiates SEQUENCE list',wid=self.cons)
+#            self.LAYERS.nsequence = 1
+#            self.LAYERS.INSEQUENCE[n-1].set(True)
+#            self.LAYERS.SEQUENCER[n-1].set(True)
+#            self.LAYERS.leader = n-1
+#            self.LAYERS.seqlen = nt
+##              self.SEQUENCES[-1].set(True)
+##              self.SEQLEADER[-1].set(True)
+##              self.SEQLEADER_INDX = self.nfiles
+#            self.DATE = self.VEC[ii].DATE.copy()
+#            self.TIME = self.VEC[ii].TIME.copy()
+#            self.L.set(self.VEC[ii].L.get())
+#            self.L_LIST = list(range(nt))
+#            self.NL = nt
+#            self.lbox.configure(state='normal')
+#            self.lbox['values'] = self.L_LIST
+#            if self.L.get() < self.NL-1:
+#              self.bnext.configure(state='normal')
+#            if self.L.get() > 0:
+#              self.bprev.configure(state='normal')
+#          else:
+#            if nt == self.LAYERS.seqlen:
+#              toconsola('Adding vector to SEQUENCE list',wid=self.cons)
+#              self.VEC[ii].LINK.set(True)
+#              self.LAYERS.nsequence += 1
+#              self.LAYERS.INSEQUENCE[n-1].set(True)
+#              self.LAYERS.SEQUENCER[n-1].set(False)
+##                self.nsequence += 1
+##                self.SEQUENCES[-1].set(True)
+##                self.SEQLEADER[-1].set(False)
+#              self.VEC[ii].L.set(self.L.get())  #Synchronize records
 
         _refill(ii)
         self.Window_currents_sel.destroy()
@@ -3257,8 +3292,10 @@ class CosmoDrawing():
     ttk.Label(F0,text='SOURCE',width=10).grid(row=0,column=2,padx=3,sticky='we')
     ttk.Label(F0,text='ZORDER').grid(row=0,column=3,padx=3,sticky='we')
     ttk.Label(F0,text='ALPHA').grid(row=0,column=4,padx=3,sticky='we')
-    ttk.Label(F0,text='SEQUENCE').grid(row=0,column=5,padx=3,sticky='we')
-    ttk.Label(F0,text='SEQ LEADER').grid(row=0,column=6,padx=3,sticky='we')
+    ttk.Label(F0,text='TIME LINK').grid(row=0,column=5,padx=3,sticky='we')
+    
+    #ttk.Label(F0,text='SEQUENCE').grid(row=0,column=5,padx=3,sticky='we')
+    #ttk.Label(F0,text='SEQ LEADER').grid(row=0,column=6,padx=3,sticky='we')
     ttk.Label(F0,text='ALIAS',width=12).grid(row=0,column=7,padx=3,sticky='we')
     ttk.Label(F0,text='FILENAME').grid(row=0,column=8,sticky='we')
 
@@ -3285,7 +3322,16 @@ class CosmoDrawing():
         aa = ttk.Entry(F0,textvariable=self.VEC[ii].PLOT.ALPHA,width=3)
         aa.grid(row=i+1,column=4,padx=3)
         aa.bind("<Return>",lambda f: self.make_plot())
-        ttk.Label(F0,text=self.VEC[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+
+        # Link
+        cc = ttk.Checkbutton(F0,variable=self.VEC[ii].LINK)
+        cc.grid(row=i+1,column=5,padx=3)
+        if self.VEC[ii].U.icdf.nt != self.NL:  
+          cc.configure(state='disabled')
+
+        # Alias
+        ttk.Label(F0,text=self.VEC[ii].ALIAS.get(),justify='left',
+                  width=12).grid(row=i+1,column=7,padx=3)
         
       if TYPE == 'FLD':
 
@@ -3299,6 +3345,13 @@ class CosmoDrawing():
         aa = ttk.Entry(F0,textvariable=self.CDF[ii].PLOT.ALPHA,width=3)
         aa.grid(row=i+1,column=4,padx=3)
         aa.bind("<Return>",lambda f: self.make_plot())
+
+        # Link
+        cc = ttk.Checkbutton(F0,variable=self.CDF[ii].LINK)
+        cc.grid(row=i+1,column=5,padx=3)
+        if self.CDF[ii].FLD.icdf.nt != self.NL:  
+          cc.configure(state='disabled')
+
         ttk.Label(F0,text=self.CDF[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
         
       if TYPE == 'FLOAT':
@@ -3393,20 +3446,20 @@ class CosmoDrawing():
                                                  column=1, \
                                                  columnspan=1,padx=3,sticky='we')
 
-      # Sequence
-      cc = ttk.Checkbutton(F0,variable=self.LAYERS.INSEQUENCE[i],command=_tosequence)
-      cc.grid(row=i+1,column=5,padx=3)
-      if self.LAYERS.NREC[ii] != self.LAYERS.NREC[self.LAYERS.leader]:
-        cc.configure(state='disabled')
+#      # Sequence
+#      cc = ttk.Checkbutton(F0,variable=self.LAYERS.INSEQUENCE[i],command=_tosequence)
+#      cc.grid(row=i+1,column=5,padx=3)
+#      if self.LAYERS.NREC[ii] != self.LAYERS.NREC[self.LAYERS.leader]:
+#        cc.configure(state='disabled')
 
 
-      # Sequence leader
-      bb = ttk.Checkbutton(F0,variable=self.LAYERS.SEQUENCER[i])
-      bb.grid(row=i+1,column=6,padx=3)
-
-      if self.LAYERS.NREC[i] <= 1 or noseq:
-        cc.configure(state='disabled')
-        bb.configure(state='disabled')
+#      # Sequence leader
+#      bb = ttk.Checkbutton(F0,variable=self.LAYERS.SEQUENCER[i])
+#      bb.grid(row=i+1,column=6,padx=3)
+#
+#      if self.LAYERS.NREC[i] <= 1 or noseq:
+#        cc.configure(state='disabled')
+#        bb.configure(state='disabled')
 
       # Filename
       base = os.path.basename(self.LAYERS.FILENAME[i])
@@ -6536,34 +6589,54 @@ class CosmoDrawing():
 
           # CAROUSEL MANAGEMENT - CONTOUR
         if nt > 1:
-          if self.LAYERS.nsequence == 0:
-            toconsola('Contour initiates SEQUENCE list',wid=self.cons)
-            self.LAYERS.nsequence = 1
-            self.LAYERS.INSEQUENCE[n-1].set(True)
-            self.LAYERS.SEQUENCER[n-1].set(True)
-            self.LAYERS.leader = n-1
-            self.LAYERS.seqlen = nt
-#            self.SEQUENCES[-1].set(True)
-#            self.SEQLEADER[-1].set(True)   # Is the first field
-#            self.SEQLEADER_INDX = self.nfiles
-            self.DATE = self.CDF[ii].DATE.copy()
+
+          if self.NL == 0:
+            toconsola('Contour initiates Time axis',wid=self.cons)
+            self.CDF[ii].LINK.set(True)
             self.TIME = self.CDF[ii].TIME.copy()
+            self.DATE = self.CDF[ii].DATE.copy()
+            self.NL = nt
             self.L.set(self.CDF[ii].L.get())
-            self.L_LIST = list(range(self.CDF[ii].FLD.icdf.nt))
-            self.NL = len(self.L_LIST)
+            self.L_LIST = list(range(nt))
             self.lbox.configure(state='normal')
             self.lbox['values'] = self.L_LIST
             if self.L.get() < self.NL-1:
               self.bnext.configure(state='normal')
             if self.L.get() > 0:
               self.bprev.configure(state='normal')
-          else:
-            if nt == self.LAYERS.seqlen:
-              toconsola('Adding Contour to SEQUENCE list',wid=self.cons)
-              self.LAYERS.nsequence += 1
-              self.LAYERS.INSEQUENCE[n-1].set(True)
-              self.LAYERS.SEQUENCER[n-1].set(False)
-              self.CDF[ii].L.set(self.L.get())  #Synchronize records
+          elif self.NL == nt:
+            toconsola('Linking Contour to Time axis',wid=self.cons)
+            self.CDF[ii].LINK.set(True)
+            self.CDF[ii].L.set(self.L.get())  #Synchronize records
+
+#          if self.LAYERS.nsequence == 0:
+#            toconsola('Contour initiates SEQUENCE list',wid=self.cons)
+#            self.LAYERS.nsequence = 1
+#            self.LAYERS.INSEQUENCE[n-1].set(True)
+#            self.LAYERS.SEQUENCER[n-1].set(True)
+#            self.LAYERS.leader = n-1
+#            self.LAYERS.seqlen = nt
+##            self.SEQUENCES[-1].set(True)
+##            self.SEQLEADER[-1].set(True)   # Is the first field
+##            self.SEQLEADER_INDX = self.nfiles
+#            self.DATE = self.CDF[ii].DATE.copy()
+#            self.TIME = self.CDF[ii].TIME.copy()
+#            self.L.set(self.CDF[ii].L.get())
+#            self.L_LIST = list(range(self.CDF[ii].FLD.icdf.nt))
+#            self.NL = len(self.L_LIST)
+#            self.lbox.configure(state='normal')
+#            self.lbox['values'] = self.L_LIST
+#            if self.L.get() < self.NL-1:
+#              self.bnext.configure(state='normal')
+#            if self.L.get() > 0:
+#              self.bprev.configure(state='normal')
+#          else:
+#            if nt == self.LAYERS.seqlen:
+#              toconsola('Adding Contour to SEQUENCE list',wid=self.cons)
+#              self.LAYERS.nsequence += 1
+#              self.LAYERS.INSEQUENCE[n-1].set(True)
+#              self.LAYERS.SEQUENCER[n-1].set(False)
+#              self.CDF[ii].L.set(self.L.get())  #Synchronize records
 
         _refill(ii)
         Window_select.destroy()
@@ -8950,15 +9023,25 @@ class CosmoDrawing():
     else:
       self.bnext.configure(state='normal')
 
-    for i in range(self.LAYERS.n):
-      if self.LAYERS.INSEQUENCE[i].get():
-        jj = self.LAYERS.TYPE_INDEX[i]
-        if self.LAYERS.TYPE[i] == 'VEC':
-          self.VEC[jj].L.set(L)
-          self.VEC[jj].read(wid=self.cons)
-        elif self.LAYERS.TYPE[i] == 'FLD':
-          self.CDF[jj].L.set(L)
-          self.CDF[jj].read(update_lims=False,wid=self.cons)
+    for i in range(self.nvec):
+      if self.VEC[i].LINK.get():
+        self.VEC[i].L.set(L)
+        self.VEC[i].read(wid=self.cons)
+
+    for i in range(self.ncdf):
+      if self.CDF[i].LINK.get():
+        self.CDF[i].L.set(L)
+        self.CDF[i].read(wid=self.cons)
+
+#    for i in range(self.LAYERS.n):
+#      if self.LAYERS.INSEQUENCE[i].get():
+#        jj = self.LAYERS.TYPE_INDEX[i]
+#        if self.LAYERS.TYPE[i] == 'VEC':
+#          self.VEC[jj].L.set(L)
+#          self.VEC[jj].read(wid=self.cons)
+#        elif self.LAYERS.TYPE[i] == 'FLD':
+#          self.CDF[jj].L.set(L)
+#          self.CDF[jj].read(update_lims=False,wid=self.cons)
     self.make_plot()
 
   # ==============
@@ -8972,19 +9055,32 @@ class CosmoDrawing():
         self.bprev.configure(state='disabled')
       if self.L.get() < self.NL - 1:
         self.bnext.configure(state='normal')
-      for i in range(self.LAYERS.n):
-        if self.LAYERS.INSEQUENCE[i].get():
-          jj = self.LAYERS.TYPE_INDEX[i]
-          if self.LAYERS.TYPE[i] == 'VEC':
-            L  = self.VEC[jj].L.get()
-            Lm = self.VEC[jj].L.get() - 1
-            self.VEC[jj].L.set(Lm)
-            self.VEC[jj].read(wid=self.cons)
-          elif self.LAYERS.TYPE[i] == 'FLD':
-            L  = self.CDF[jj].L.get()
-            Lm = self.CDF[jj].L.get() - 1
-            self.CDF[jj].L.set(Lm)
-            self.CDF[jj].read(update_lims=False,wid=self.cons)
+
+      for i in range(self.nvec):
+        if self.VEC[i].LINK.get():
+          Lm = self.VEC[i].L.get() - 1
+          self.VEC[i].L.set(Lm)
+          self.VEC[i].read(wid=self.cons)
+
+      for i in range(self.ncdf):
+        if self.CDF[i].LINK.get():
+          Lm = self.CDF[i].L.get() - 1
+          self.CDF[i].L.set(Lm)
+          self.CDF[i].read(wid=self.cons)
+
+#      for i in range(self.LAYERS.n):
+#        if self.LAYERS.INSEQUENCE[i].get():
+#          jj = self.LAYERS.TYPE_INDEX[i]
+#          if self.LAYERS.TYPE[i] == 'VEC':
+#            L  = self.VEC[jj].L.get()
+#            Lm = self.VEC[jj].L.get() - 1
+#            self.VEC[jj].L.set(Lm)
+#            self.VEC[jj].read(wid=self.cons)
+#          elif self.LAYERS.TYPE[i] == 'FLD':
+#            L  = self.CDF[jj].L.get()
+#            Lm = self.CDF[jj].L.get() - 1
+#            self.CDF[jj].L.set(Lm)
+#            self.CDF[jj].read(update_lims=False,wid=self.cons)
       self.make_plot()
     else:
       return
@@ -9003,19 +9099,31 @@ class CosmoDrawing():
       if self.L.get() > 0:
         self.bprev.configure(state='normal')
 
-      for i in range(self.LAYERS.n):
-        if self.LAYERS.INSEQUENCE[i].get():
-          jj = self.LAYERS.TYPE_INDEX[i]
-          if self.LAYERS.TYPE[i] == 'VEC':
-            L  = self.VEC[jj].L.get()
-            Lp = self.VEC[jj].L.get() + 1
-            self.VEC[jj].L.set(Lp)
-            self.VEC[jj].read(wid=self.cons)
-          elif self.LAYERS.TYPE[i] == 'FLD':
-            L  = self.CDF[jj].L.get()
-            Lp = self.CDF[jj].L.get() + 1
-            self.CDF[jj].L.set(Lp)
-            self.CDF[jj].read(update_lims=False,wid=self.cons)
+      for i in range(self.nvec):
+        if self.VEC[i].LINK.get():
+          Lp = self.VEC[i].L.get() + 1
+          self.VEC[i].L.set(Lp)
+          self.VEC[i].read(wid=self.cons)
+
+      for i in range(self.ncdf):
+        if self.CDF[i].LINK.get():
+          Lp = self.CDF[i].L.get() + 1
+          self.CDF[i].L.set(Lp)
+          self.CDF[i].read(wid=self.cons)
+
+#      for i in range(self.LAYERS.n):
+#        if self.LAYERS.INSEQUENCE[i].get():
+#          jj = self.LAYERS.TYPE_INDEX[i]
+#          if self.LAYERS.TYPE[i] == 'VEC':
+#            L  = self.VEC[jj].L.get()
+#            Lp = self.VEC[jj].L.get() + 1
+#            self.VEC[jj].L.set(Lp)
+#            self.VEC[jj].read(wid=self.cons)
+#          elif self.LAYERS.TYPE[i] == 'FLD':
+#            L  = self.CDF[jj].L.get()
+#            Lp = self.CDF[jj].L.get() + 1
+#            self.CDF[jj].L.set(Lp)
+#            self.CDF[jj].read(update_lims=False,wid=self.cons)
       #toconsola("EG Drawing next.................",wid=self.cons)
       self.make_plot()
       #toconsola("EG next DOne",wid=self.cons)
