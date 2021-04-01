@@ -78,6 +78,7 @@ from tkinter import filedialog as filedialog
 #from tkcolorpicker import askcolor
 from tkinter.colorchooser import askcolor
 from tkinter import font as tkfont
+from tkcalendar import Calendar, DateEntry
 
 try:
   to_unicode = unicode
@@ -419,6 +420,7 @@ class VECTOR():
     self.ALIAS     = tk.StringVar()
     self.UFILENAME = tk.StringVar()
     self.VFILENAME = tk.StringVar()
+    self.two_files = 0          #By default, U and V in the same file
     self.SOURCE    = 'FILE'
     self.PARENT    = None       # USed in mean and variance calculations
 
@@ -489,6 +491,7 @@ class VECTOR():
     conf['ALIAS'] = self.ALIAS.get()
     conf['UFILENAME'] = self.UFILENAME.get()
     conf['VFILENAME'] = self.VFILENAME.get()
+    conf['TWO_FILES'] = self.two_files
     conf['SOURCE'] = self.SOURCE
     conf['PARENT'] = self.PARENT
     conf['UNAME'] = self.uname.get()
@@ -510,6 +513,7 @@ class VECTOR():
     self.ALIAS.set(conf['ALIAS'])
     self.UFILENAME.set(conf['UFILENAME'])
     self.VFILENAME.set(conf['VFILENAME'])
+    self.two_files = conf['TWO_FILES']
     self.SOURCE = conf['SOURCE']
     self.PARENT = conf['PARENT']
     self.uname.set(conf['UNAME'])
@@ -690,15 +694,15 @@ class LAYER():
 
     self.MESSAGE     = "\nLAYER class:\n"
     self.n           = 0    # Number of layers
-    self.nsequence   = 0    # Number of layers attached to a SEQUENCE
-    self.seqlen      = 0    # SEQUENCE length
-    self.leader      = 0    # Points to the SEQUENCER layer
+#    self.nsequence   = 0    # Number of layers attached to a SEQUENCE
+#    self.seqlen      = 0    # SEQUENCE length
+#    self.leader      = 0    # Points to the SEQUENCER layer
 
     self.TYPE        = []   # VEC, FLD, MARKER, ....
     self.TYPE_INDEX  = []
     self.FILENAME    = []
-    self.INSEQUENCE  = []   # Belongs to a SEQUENCE
-    self.SEQUENCER   = []   # True if SEQUENCE leader
+#    self.INSEQUENCE  = []   # Belongs to a SEQUENCE
+#    self.SEQUENCER   = []   # True if SEQUENCE leader
     self.NREC        = []   # Number of records in layer
 
     self.update      = False
@@ -747,8 +751,8 @@ class LAYER():
       self.INSEQUENCE = []
       self.SEQUENCER  = []
       self.NREC       = []
-      self.nsequence  = 0
-      self.seqlen     = 0
+      #self.nsequence  = 0
+      #self.seqlen     = 0
       return
     
     # If we are here , it means that the structure is not empty
@@ -760,21 +764,21 @@ class LAYER():
         self.TYPE_INDEX[i] = ii
     
 
-    # If erasing a layer in the SEQUENCE:
-    if INSEQUENCE:
-      self.nsequence -= 1
-      if self.nsequence > 0:
-        if SEQUENCER:
-          # If we have erased the SEQUENCER,
-          # we set the first field as SEQUENCE leader
-          for i in range(self.n):
-            if self.INSEQUENCE[i].get():
-              self.SEQUENCER[i].set(True)
-              self.leader = i
-              self.update = True
-      else:
-        self.seqlen = 0
-
+#    # If erasing a layer in the SEQUENCE:
+#    if INSEQUENCE:
+#      self.nsequence -= 1
+#      if self.nsequence > 0:
+#        if SEQUENCER:
+#          # If we have erased the SEQUENCER,
+#          # we set the first field as SEQUENCE leader
+#          for i in range(self.n):
+#            if self.INSEQUENCE[i].get():
+#              self.SEQUENCER[i].set(True)
+#              self.leader = i
+#              self.update = True
+#      else:
+#        self.seqlen = 0
+#
   def add(self,TYPE,Filename=None,N=None,**args):
   # ==============================================
     
@@ -795,8 +799,8 @@ class LAYER():
 
     self.n += 1
 
-    self.INSEQUENCE.append(tk.BooleanVar(value=False))
-    self.SEQUENCER.append(tk.BooleanVar(value=False))
+    #self.INSEQUENCE.append(tk.BooleanVar(value=False))
+    #self.SEQUENCER.append(tk.BooleanVar(value=False))
     toconsola('Adding '+TYPE+' layer ',wid=wid)
     toconsola('Layer %s with index %d' %(TYPE,self.TYPE_INDEX[-1]),wid=wid)
     toconsola('Number of layers: ' + str(self.n)+'\n',wid=wid)
@@ -806,14 +810,15 @@ class LAYER():
   # ==============
     print('\n ================================== ')
     print('Number of layers, n = ', self.n)
-    print('Number of layers in SEQUENCE, nsequence = ', self.nsequence)
-    print('SEQUENCE,lenght = ', self.seqlen)
-    print('SEQUENCE leader id = ', self.leader)
+#    print('Number of layers in SEQUENCE, nsequence = ', self.nsequence)
+#    print('SEQUENCE,lenght = ', self.seqlen)
+#    print('SEQUENCE leader id = ', self.leader)
     for i in range(self.n):
       print('> Layer ', i)
       print('>>  Type, Type order, num records : ', self.TYPE[i], self.TYPE_INDEX[i], self.NREC[i])
       print('>>  Filename                      : ', self.FILENAME[i])
-      print('>>  In sequence?, Sequence leader ? ', self.INSEQUENCE[i].get(), self.SEQUENCER[i].get())
+      #print('>>  LINK                          : ', self.LINK.get())
+#      print('>>  In sequence?, Sequence leader ? ', self.INSEQUENCE[i].get(), self.SEQUENCER[i].get())
 
 
 
@@ -1880,6 +1885,7 @@ class CosmoDrawing():
                           'Local Folder', \
                           'Remote Folder', \
                           'Trajectories Database']
+    self.Lagrangian_types=[('Netcdf','*.nc'),('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
 
     self.SAIDIN        = CONTOUR()
     #self.SAIDIN        = cdf_parameters()
@@ -2353,6 +2359,8 @@ class CosmoDrawing():
     menubar.add_cascade(label='Calculators',menu=calcmenu)
     calcmenu.add_command(label='Coordinate converter',
                          command=self.converter)
+    calcmenu.add_command(label='Distance estimation',
+                         command=self.ruler)
 
     helpmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Help',menu=helpmenu)
@@ -2792,16 +2800,16 @@ class CosmoDrawing():
       # =============
         toconsola('Selected Arakawa '+VEC.grid_type.get()+' grid ',wid=self.cons)
         if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
-          vselect['state'] = 'disabled'
-          vaxesid.Ibox['state'] = 'disabled'
-          vaxesid.Jbox['state'] = 'disabled'
-          vaxesid.Kbox['state'] = 'disabled'
-          vaxesid.Lbox['state'] = 'disabled'
-          vaxesid.Xbox['state'] = 'disabled'
-          vaxesid.Ybox['state'] = 'disabled'
-          vaxesid.Zbox['state'] = 'disabled'
-          vaxesid.Tbox['state'] = 'disabled'
-          vaxesid.wgr['state']  = 'disabled'
+          vselect['state'] = 'normal'
+          vaxesid.Ibox['state'] = 'normal'
+          vaxesid.Jbox['state'] = 'normal'
+          vaxesid.Kbox['state'] = 'normal'
+          vaxesid.Lbox['state'] = 'normal'
+          vaxesid.Xbox['state'] = 'normal'
+          vaxesid.Ybox['state'] = 'normal'
+          vaxesid.Zbox['state'] = 'normal'
+          vaxesid.Tbox['state'] = 'normal'
+          vaxesid.wgr['state']  = 'normal'
         else:
           vselect['state'] = 'normal'
           vaxesid.Ibox['state'] = 'normal'
@@ -2828,6 +2836,7 @@ class CosmoDrawing():
         else:
           filename = '%s' % nn
 
+        VEC.two_files = 1
         VEC.VFILENAME.set(filename)
         VEC.V.nc = Dataset(filename)
         VEC.V.icdf = tools.geocdf(filename, wid=self.cons)
@@ -2980,16 +2989,16 @@ class CosmoDrawing():
       FVmain.grid()
 
       if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
-        vselect['state'] = 'disabled'
-        vaxesid.Ibox['state'] = 'disabled'
-        vaxesid.Jbox['state'] = 'disabled'
-        vaxesid.Kbox['state'] = 'disabled'
-        vaxesid.Lbox['state'] = 'disabled'
-        vaxesid.Xbox['state'] = 'disabled'
-        vaxesid.Ybox['state'] = 'disabled'
-        vaxesid.Zbox['state'] = 'disabled'
-        vaxesid.Tbox['state'] = 'disabled'
-        vaxesid.wgr['state']  = 'disabled'
+        vselect['state'] = 'normal'
+        vaxesid.Ibox['state'] = 'normal'
+        vaxesid.Jbox['state'] = 'normal'
+        vaxesid.Kbox['state'] = 'normal'
+        vaxesid.Lbox['state'] = 'normal'
+        vaxesid.Xbox['state'] = 'normal'
+        vaxesid.Ybox['state'] = 'normal'
+        vaxesid.Zbox['state'] = 'normal'
+        vaxesid.Tbox['state'] = 'normal'
+        vaxesid.wgr['state']  = 'normal'
 
       F1 = ttk.Frame(self.Window_currents_sel,padding=5)
       cancel = ttk.Button(F1,text='Cancel',command=_cancel)
@@ -3796,11 +3805,11 @@ class CosmoDrawing():
         VEC.U.icdf = tools.geocdf(filename, wid=self.cons)
         nt = VEC.U.icdf.nt         # Save the number of time records
 
-        # Vheck the Arakawa's grid type and read, if required, the VFILENAME
+        # Check the Arakawa's grid type and read, if required, the VFILENAME
         #
         vv = CONF[ii]['VEC']
         VEC.grid_type.set(vv['GRID_TYPE'])
-        if VEC.grid_type.get() == 'A' or VEC.grid_type.get() == 'B':
+        if VEC.two_files == 0:
           vfilename = filename
         else:
           vfilename = vv['VFILENAME']
@@ -8058,20 +8067,20 @@ class CosmoDrawing():
 
       if ISOURCE == 0:
 
-        types=[('Netcdf','*.nc'),('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
+#        self.Lagrangian_types=[('Netcdf','*.nc'),('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
         #EG OLD code
-        '''        nn = filedialog.askopenfile(parent=self.Window_float, \
-						filetypes=types)
-			try:
-				if empty(nn.name):
-				return
-			except:
-				return
-			_load_trajectory(nn.name)        
-        '''
+#        '''        nn = filedialog.askopenfile(parent=self.Window_float, \
+#						filetypes=types)
+#			try:
+#				if empty(nn.name):
+#				return
+#			except:
+#				return
+#			_load_trajectory(nn.name)        
+#        '''
         #EG New code
         nn = filedialog.askopenfilenames(parent=self.Window_float,\
-										 filetypes=types)
+										 filetypes=self.Lagrangian_types)
         try:
           if len(nn.name) == 0: return
           if empty(nn.name): return
@@ -8079,7 +8088,23 @@ class CosmoDrawing():
           toconsola("======= Trajectories ======",tag="o",wid=self.cons)
           for filename in nn:
             _load_trajectory(filename)
+
+          # Remember the selected extension and use as default for the next call
+          # Consider the last filename and retrieve its extension:
+          selected_basename,selected_extension = os.path.splitext(filename)
+          indx = -1
+          iii  = -1
+          all  = -1
+          for type in self.Lagrangian_types:
+             indx = indx + 1
+             if selected_extension in type[1]: iii = indx
+             if '*' in type[1]: all = indx
+          # If no extension has been found, we assume that it was the ALL:
+          if iii == -1: iii = all
+          self.Lagrangian_types.insert(0,self.Lagrangian_types.pop(iii))
+
         toconsola("=====================",tag="o", wid=self.cons)
+        
           
       elif ISOURCE == 1:
         path = '%s' % filedialog.askdirectory(parent=self.Window_float, \
@@ -8143,25 +8168,20 @@ class CosmoDrawing():
 #        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
 #                             self.DATE[0]).total_seconds()       \
 #                                           for i in range(FLT.nrecords)])
-      if self.LAYERS.nsequence > 0:
-        print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
-        FLT.MAPX = []
-        FLT.MAPY = []
+      if self.NL > 0:
         if FLT.nfloats > 1:
+          MAPX = []
+          MAPY = []
           for i in range(FLT.nfloats):
             f = interpolate.interp1d(FLT.TIME,FLT.lon[:,i],
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPX.append(f(self.TIME))
+            MAPX.append(f(self.TIME))
             f = interpolate.interp1d(FLT.TIME,FLT.lat[:,i],
                                      bounds_error=False, fill_value=np.NaN)
-            FLT.MAPY.append(list(f(self.TIME)))
-          # Transpose FLT.MAPX and FLT.MAPY:
-          #FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-          #FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-          FLT.MAPX = np.array(FLT.MAPX).T
-          FLT.MAPY = np.array(FLT.MAPY).T
+            MAPY.append(list(f(self.TIME)))
+          FLT.MAPX = np.array(MAPX).T
+          FLT.MAPY = np.array(MAPY).T
         else:
-          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
           FLT.Fx = interpolate.interp1d(FLT.TIME,FLT.lon,
                                    bounds_error=False, fill_value=np.NaN)
           FLT.MAPX = FLT.Fx(self.TIME)
@@ -8230,16 +8250,17 @@ class CosmoDrawing():
         self.first = False
 
       if nt > 1:
-        if self.LAYERS.nsequence == 0:
+        if self.NL == 0:
           toconsola('FLOAT initiates SEQUENCE list',wid=self.cons)
-          self.LAYERS.nsequence = 1
-          self.LAYERS.INSEQUENCE[n-1].set(True)
-          self.LAYERS.SEQUENCER[n-1].set(True)
-          self.LAYERS.leader = n-1
-          self.LAYERS.seqlen = nt
+          #self.LAYERS.nsequence = 1
+          #self.LAYERS.INSEQUENCE[n-1].set(True)
+          #self.LAYERS.SEQUENCER[n-1].set(True)
+          #self.LAYERS.leader = n-1
+          #self.LAYERS.seqlen = nt
 #              self.SEQUENCES[-1].set(True)
 #              self.SEQLEADER[-1].set(True)
 #              self.SEQLEADER_INDX = self.nfiles
+          self.FLOAT[ii].LINK.set(True)
           self.FLOAT[ii].MAPX = self.FLOAT[ii].lon.copy()
           self.FLOAT[ii].MAPY = self.FLOAT[ii].lat.copy()
           self.DATE = self.FLOAT[ii].DATE.copy()
@@ -8254,16 +8275,17 @@ class CosmoDrawing():
           if self.L.get() > 0:
             self.bprev.configure(state='normal')
         else:
-          if nt == self.LAYERS.seqlen:
-            toconsola('Adding vector to SEQUENCE list',wid=self.cons)
-            self.LAYERS.nsequence += 1
-            self.LAYERS.INSEQUENCE[n-1].set(True)
-            self.LAYERS.SEQUENCER[n-1].set(False)
+          if nt == self.NL:
+            toconsola('Linking trajectory to TIME axis',wid=self.cons)
+#            self.LAYERS.nsequence += 1
+#            self.LAYERS.INSEQUENCE[n-1].set(True)
+#            self.LAYERS.SEQUENCER[n-1].set(False)
 #              self.nsequence += 1
 #              self.SEQUENCES[-1].set(True)
 #              self.SEQLEADER[-1].set(False)
+            self.FLOAT[ii].LINK.set(True)
             self.FLOAT[ii].L.set(self.L.get())  #Synchronize records
-          print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
+          #print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
 
       print("abasn refill",self.FLOAT_LIST)
       _refill(ii)
@@ -9219,7 +9241,7 @@ class CosmoDrawing():
         self.canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=1)
         
         #EG event controllers
-        self.canvas.mpl_connect('button_press_event',self.canvas_click)
+        self.CANVAS_CLICK = self.canvas.mpl_connect('button_press_event',self.canvas_click)
         self.canvas.mpl_connect('close_event',self.canvas_closing)
         self.canvas.mpl_connect('resize_event',self.canvas_resizing)
         top_panel.grid(row=0, column=0, sticky='swen')
@@ -12530,9 +12552,18 @@ class CosmoDrawing():
   def set_time(self):
   # =======================
 
+    global initial_DATE
+    global final_DATE
+    global time_updated
+    global time_layer
+
+    TSELECTION   = tk.StringVar()
     initial_date = tk.StringVar()
     final_date   = tk.StringVar()
     time_interval= tk.DoubleVar()
+    time_updated = False
+    time_layer   = -1
+
 
     try:
       backup_TIME = self.TIME.copy()
@@ -12541,10 +12572,16 @@ class CosmoDrawing():
       initial_date.set(self.DATE[0])
       final_date.set(self.DATE[self.NL-1])
       time_interval.set(self.TIME[2] - self.TIME[1])
+      initial_DATE = self.DATE[0]
+      final_DATE = self.DATE[self.NL-1]
     except:
       backup_NL   = 0
-      initial_date.set("")
-      final_date.set("")
+      now = datetime.datetime.now().date()
+      now = datetime.datetime.combine(now,datetime.datetime.min.time())
+      initial_DATE = now
+      final_DATE   = now + datetime.timedelta(1)
+      initial_date.set(initial_DATE)
+      final_date.set(final_DATE)
       time_interval.set(0)
 
     def _cancel():
@@ -12560,9 +12597,231 @@ class CosmoDrawing():
 
     def _done():
     # ==========
+      global time_updated
+      global time_layer
+
+      # Get the initial and final date stamps:
+      #
+      initial_DATE =  datetime.datetime.strptime(initial_date.get(),'%Y-%m-%d %H:%M:%S')
+      final_DATE   =  datetime.datetime.strptime(final_date.get(),'%Y-%m-%d %H:%M:%S')
+      initial_TIME = initial_DATE.timestamp()
+      final_TIME   = final_DATE.timestamp()
+
+      if final_TIME < initial_TIME:
+        time_updated = False
+        _cancel()
+        return
+      if time_interval.get() == 0:
+        time_updated = False
+        _cancel()
+        return
+
+      if time_updated:
+        print("Updating drawing TIME and DATE ...")
+        # Unlink all the layers except the one selected
+        for i in range(self.LAYERS.n):
+          TYPE = self.LAYERS.TYPE[i]
+          ii = self.LAYERS.TYPE_INDEX[i]
+          if i == time_layer:
+            linked = True
+          else:
+            linked = False
+          print(i, TYPE, ii, linked)
+          if TYPE == 'VEC':
+            self.VEC[ii].LINK.set(linked)
+          elif TYPE == 'FLD':
+            self.CDF[ii].LINK.set(linked)
+          elif TYPE == 'FLT':
+            self.FLOAT[ii].LINK.set(linked)
+
+
+        self.NL = int((final_TIME - initial_TIME) / time_interval.get() + 1)
+        print(initial_TIME,final_TIME,time_interval.get(), self.NL)
+        self.TIME = []
+        self.DATE = []
+        for i in range(self.NL):
+          self.TIME.append(initial_TIME + i*time_interval.get())
+          self.DATE.append(datetime.datetime.fromtimestamp(self.TIME[i]))
+          print(self.DATE[i])
+
+        # Interpolate Lagrangian trajectories
+        # 
+        for ii in range(self.nfloat):
+          if self.FLOAT[ii].nfloats > 1:
+            MAPX = []
+            MAPY = []
+            for i in range(self.FLOAT[ii].nfloats):
+              f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon[:,i],
+                                       bounds_error=False, fill_value=np.NaN)
+              MAPX.append(f(self.TIME))
+              f = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat[:,i],
+                                       bounds_error=False, fill_value=np.NaN)
+              MAPY.append(list(f(self.TIME)))
+            self.FLOAT[ii].MAPX = np.array(MAPX).T
+            self.FLOAT[ii].MAPY = np.array(MAPY).T
+          else:
+            self.FLOAT[ii].Fx = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lon,
+                                     bounds_error=False, fill_value=np.NaN)
+            self.FLOAT[ii].MAPX = self.FLOAT[ii].Fx(self.TIME)
+            self.FLOAT[ii].Fy = interpolate.interp1d(self.FLOAT[ii].TIME,self.FLOAT[ii].lat,
+                                     bounds_error=False, fill_value=np.NaN)
+            self.FLOAT[ii].MAPY = self.FLOAT[ii].Fy(self.TIME)
+
+        # Update time widgets
+        self.L.set(0)
+        self.L_LIST = list(range(self.NL))
+        self.lbox['values'] = self.L_LIST
+        self.PLOT.TLABEL.set(self.DATE[self.L.get()])
+
       self.Window_settime.destroy()
       self.Window_settime = None
       self.make_plot()
+
+    def _autotime():
+    # ==============
+
+      global time_updated
+      global time_layer
+
+      print('In autotime')
+      layer_selected = TSELECTION.get()
+      print(layer_selected)
+      if empty(layer_selected):
+        return
+
+      for i in range(self.LAYERS.n):
+        layer_name = os.path.basename(self.LAYERS.FILENAME[i])
+        TYPE = self.LAYERS.TYPE[i]
+        ii = self.LAYERS.TYPE_INDEX[i]
+        print(layer_name,TYPE,ii)
+
+        if TYPE == 'VEC':
+          layer_ref = self.VEC[ii].ALIAS.get()
+          if layer_ref == layer_selected or layer_name == layer_selected:
+            print('Found it !!!!!')
+            time_updated = True
+            time_layer = i
+            self.TIME = self.VEC[ii].TIME.copy()
+            self.DATE = self.VEC[ii].DATE.copy()
+            self.NL   = self.LAYERS.NREC[i]
+
+        elif TYPE == 'FLD':
+          layer_ref = self.CDF[ii].ALIAS.get()
+          if layer_ref == layer_selected or layer_name == layer_selected:
+            print('Found it !!!!!')
+            time_updated = True
+            time_layer = i
+            self.TIME = self.CDF[ii].TIME.copy()
+            self.DATE = self.CDF[ii].DATE.copy()
+            self.NL   = self.LAYERS.NREC[i]
+
+        elif TYPE == 'FLT':
+          layer_ref = self.FLOAT[ii].ALIAS.get()
+          if layer_ref == layer_selected or layer_name == layer_selected:
+            time_updated = True
+            time_layer = i
+            self.TIME = self.FLOAT[ii].TIME.copy()
+            self.DATE = self.FLOAT[ii].DATE.copy()
+            self.NL   = self.LAYERS.NREC[i]
+
+      if time_updated:
+        initial_date.set(self.DATE[0])
+        final_date.set(self.DATE[self.NL-1])
+        time_interval.set(self.TIME[2] - self.TIME[1])
+
+    def _initime():
+    # ==============
+
+      global time_updated
+      global initial_DATE
+
+      initial_DATE =  datetime.datetime.strptime(initial_date.get(),'%Y-%m-%d %H:%M:%S')
+      time_updated = True
+
+    def _initime2():
+    # ==============
+
+      global time_updated
+      global initial_DATE
+      global cal
+      global top
+
+      top.destroy()
+      top = None
+      aa = cal.selection_get()
+      initial_DATE = initial_DATE.replace(year=aa.year,month=aa.month,day=aa.day)
+      initial_date.set(initial_DATE)
+      time_updated = True
+
+    def _inical():
+    # =============
+
+      global time_updated
+      global final_DATE
+      global cal
+      global top
+
+      top = tk.Toplevel(self.master)
+      cal = Calendar(top, font="Arial 14", selectmode='day', locale='en_US',
+                     disabledforeground='red',cursor="hand1",
+                     year=initial_DATE.year,month=initial_DATE.month,day=initial_DATE.day)
+      cal.grid()
+      ttk.Button(top, text="ok", command=_initime2).grid()
+      time_updated = True
+ 
+    def _fintime():
+    # ==============
+
+      global time_updated
+      global final_DATE
+      final_DATE =  datetime.datetime.strptime(final_date.get(),'%Y-%m-%d %H:%M:%S')
+      time_updated = True
+
+    def _fintime2():
+    # ==============
+
+      global time_updated
+      global final_DATE
+      global cal
+      global top
+
+      top.destroy()
+      top = None
+      aa = cal.selection_get()
+      final_DATE = final_DATE.replace(year=aa.year,month=aa.month,day=aa.day)
+      final_date.set(final_DATE)
+      time_updated = True
+
+
+    def _fincal():
+    # =============
+
+      global time_updated
+      global final_DATE
+      global cal
+      global top
+
+      top = tk.Toplevel(self.master)
+      cal = Calendar(top, font="Arial 14", selectmode='day', locale='en_US',
+                     disabledforeground='red',cursor="hand1",
+                     year=final_DATE.year,month=final_DATE.month,day=final_DATE.day)
+      cal.grid()
+      ttk.Button(top, text="ok", command=_fintime2).grid()
+      time_updated = True
+ 
+    def _dt():
+    # =============
+
+      global time_updated
+      #time_updated = True
+
+      if time_interval.get() == 0:
+        messagebox.showinfo(message='Error: Time interval cannot be zero')
+        time_updated = False
+      else:
+        time_updated = True
+
+
 
 
     # Main window
@@ -12573,25 +12832,65 @@ class CosmoDrawing():
     self.Window_settime.resizable(width=True,height=True)
     self.Window_settime.protocol('WM_DELETE_WINDOW',_cancel)
 
+
+    tpad = ttk.Style()
+    tpad.configure("tpad.TLabelframe",padding=[20,5,5,10])
+
+    # Make a list of all potential files to define the Time Axis:
+    #
+    tlist = []
+    layer_ref = ''
+    for i in range(self.LAYERS.n):
+      TYPE = self.LAYERS.TYPE[i]
+      ii = self.LAYERS.TYPE_INDEX[i]
+      if TYPE == 'VEC':
+        layer_ref = self.VEC[ii].ALIAS.get()
+      elif TYPE == 'FLD':
+        layer_ref = self.CDF[ii].ALIAS.get()
+      elif TYPE == 'FLT':
+        layer_ref = self.FLOAT[ii].ALIAS.get()
+      else:
+        print('Unknown file type in time axis')
+
+      if empty(layer_ref):
+        layer_ref = os.path.basename(self.LAYERS.FILENAME[i])
+
+      tlist.append(layer_ref)
+ 
+
     F0 = ttk.Frame(self.Window_settime,padding=10)
 
-    ttk.Label(F0,text="Initial time: ").grid(row=0,column=0,sticky='e',padx=3)
-    _wini = tk.Entry(F0,textvariable=initial_date,width=18)
+    F1=ttk.LabelFrame(F0,text='Automatic time selection',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Label(F1,text="Select field: ").grid(row=1,column=0,sticky='e',padx=3)
+    _was = ttk.Combobox(F1,textvariable=TSELECTION,values=tlist,width=14)
+    _was.grid(row=1,column=1,sticky='w',padx=3)
+    _was.bind('<<ComboboxSelected>>',lambda e: _autotime())
+    if len(tlist) == 0:
+      _was.configure(state='disabled')
+
+    F1.grid(row=0,column=0,columnspan=3)
+
+    F2=ttk.LabelFrame(F0,text='Manual time selection',borderwidth=5,style='tpad.TLabelframe')
+    ttk.Label(F2,text="Initial time: ").grid(row=0,column=0,sticky='e',padx=3)
+
+    _wini = tk.Entry(F2,textvariable=initial_date,width=18)
+    _wini.bind('<Return>',lambda e: _initime())
     _wini.grid(row=0,column=1,sticky='w',padx=3)
+    tk.Button(F2,text='Select',command=_inical).grid(row=0,column=2,sticky='w',padx=3)
 
-    ttk.Label(F0,text="Final time: ").grid(row=1,column=0,sticky='e',padx=3)
-    _wini = tk.Entry(F0,textvariable=final_date,width=18)
-    _wini.grid(row=1,column=1,sticky='w',padx=3)
 
-    ttk.Label(F0,text="Time interval (seconds): ").grid(row=2,column=0,sticky='e',padx=3)
-    _wini = tk.Entry(F0,textvariable=time_interval,width=18)
-    _wini.grid(row=2,column=1,sticky='w',padx=3)
+    ttk.Label(F2,text="Final time: ").grid(row=1,column=0,sticky='e',padx=3)
+    _wfin = tk.Entry(F2,textvariable=final_date,width=18)
+    _wfin.bind('<Return>',lambda e: _fintime())
+    _wfin.grid(row=1,column=1,sticky='w',padx=3)
+    tk.Button(F2,text='Select',command=_fincal).grid(row=1,column=2,sticky='w',padx=3)
 
-    #_wini.bind('<<ComboboxSelected>>',lambda e:_selected())
-#    #_went = ttk.Entry(fsel,justify='left',width=50,state='readonly')
-#    #_went.grid(row=0,column=2,columnspan=5,padx=3,sticky='w')
-#    #_went = ttk.Entry(fsel,justify='left',width=80,state='readonly')
-#    #_went.grid(row=0,column=2,columnspan=8,padx=3,sticky='w')
+    ttk.Label(F2,text="Time interval (seconds): ").grid(row=2,column=0,sticky='e',padx=3)
+    _wtdt = tk.Entry(F2,textvariable=time_interval,width=18)
+    _wtdt.bind('<Return>',lambda e: _dt())
+    _wtdt.grid(row=2,column=1,sticky='w',padx=3)
+    F2.grid(row=1,column=0,columnspan=3)
+
     F0.grid()
 
     F1 = ttk.Frame(self.Window_settime,padding=5)
@@ -12600,4 +12899,108 @@ class CosmoDrawing():
     ttk.Button(F1,text='Done',command=_done,padding=5).     \
         grid(row=0,column=2,padx=3)
     F1.grid(sticky='ew',columnspan=2)
+
+  # =======================
+  def ruler(self):
+  # =======================
+
+    global first
+    global cross
+    global _cc
+    global _kk
+    global _ll
+    global xo
+    global yo
+
+    try:
+      self.canvas.mpl_disconnect(self.CANVAS_CLICK)
+    except:
+      self.make_plot()
+      self.canvas.mpl_disconnect(self.CANVAS_CLICK)
+
+    first = True
+    cross = None
+    _cc = None
+    _kk = None
+    _ll = None
+
+    def _done():
+    # ==========
+
+      global _cc
+      global _kk
+      global _ll
+      global cross
+      global line
+      global annotation
+
+      cross.clear()
+      line.clear()
+      annotation.remove()
+      self.make_plot()
+      self.canvas.mpl_disconnect(_cc)
+      self.canvas.mpl_disconnect(_kk)
+      self.canvas.mpl_disconnect(_ll)
+      self.master.unbind('<Key>')
+      self.CANVAS_CLICK = self.canvas.mpl_connect('button_press_event',self.canvas_click)
+
+    def _canvas_click(event):
+    # ============================
+      
+      global first
+      global cross
+      global xo
+      global yo
+      global _ll
+      global line
+      global annotation
+
+      if first:
+        first = False
+        xo = event.xdata
+        yo = event.ydata
+        cross = self.ax.plot(xo,yo,'+',ms=20,transform=ccrs.PlateCarree())
+        self.canvas.draw()
+
+        messagebox.showinfo(message='Use left mouse to select the second point. ESC to quit')
+        string = 'Calculating distances from point ({0:.3f},{1:.3f})'.format(xo,yo)
+        line = self.ax.plot(xo,yo,color='k',lw=0.8,ls='--',zorder=100,transform=ccrs.PlateCarree())
+        annotation = self.ax.annotate('',xy=(xo,yo),   \
+                                      ha='right',      \
+                                      va='bottom',     \
+                                      xycoords='data',
+                                      bbox=dict(boxstyle='round,pad=0.5',fc='yellow',alpha=0.75))
+      else:
+        line[0].set_visible(False)
+        if event.inaxes:
+          dist = haversine((xo,yo),(event.xdata,event.ydata)) / 1000.
+          string = 'Distance to ({0:8.3f},{1:8.3f}):  {2:7.1f} km'.format(event.xdata,event.ydata,dist)
+          line[0].set_data([xo,event.xdata],[yo,event.ydata])
+          line[0].set_visible(True)
+          annotation.xytext = event.xdata, event.ydata
+          annotation.set_text('{0:7.1f} km'.format(dist))
+          self.canvas.draw()
+
+
+      toconsola(string,wid=self.cons)
+
+    def _key_handler(event):
+    # ============================
+      if event.keycode == 9:
+        _done()
+
+    def _key_handler2(event):
+    # ============================
+      if event.key == 'escape':
+        _done()
+
+
+    # Main window
+    # ============
+
+    _cc = self.canvas.mpl_connect('button_press_event',_canvas_click)
+    _kk = self.canvas.mpl_connect('key_press_event',_key_handler2)
+    self.master.bind('<Key>',_key_handler)
+    messagebox.showinfo(message='Select a starting point with the left mouse button. ESC to quit')
+
 

@@ -106,6 +106,9 @@ class parameters():
     self.CROP.set(False)
     self.Fx              = None
     self.Fy              = None
+
+    self.LINK            = tk.BooleanVar()
+    self.LINK.set(False)
     
     self.cons = wid
 
@@ -154,6 +157,7 @@ class parameters():
     conf['FLOAT_SHOW']  = FLOAT_SHOW.copy()
     conf['FLOAT_ZORDER']  = FLOAT_ZORDER.copy()
     conf['CROP'] = self.CROP.get()
+    conf['LINK']  = self.LINK.get()
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -184,6 +188,7 @@ class parameters():
         self.FLOAT_SHOW.append(tk.BooleanVar(value=self.show.get()))
         self.FLOAT_ZORDER.append(tk.IntVar(value=self.PLOT.ZORDER.get()))
     self.CROP.set(conf['CROP'])
+    self.LINK.set(conf['LINK'])
     self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
