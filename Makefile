@@ -2,7 +2,7 @@
 
 BINDIR=${PWD}/bin
 
-all: path include lib bin default COSMO BLM MLM TOOLS COSMO_VIEW
+all: path include lib bin default COSMO CLM COSMO_VIEW
 	@echo "Done"
 
 path:
@@ -48,6 +48,14 @@ MLM:
 	@echo "=============================================="
 	@echo 
 	(cd src/mlm/; make clean; make all)
+
+CLM:
+	@echo 
+	@echo "=============================================="
+	@echo "Compiling CLM"
+	@echo "=============================================="
+	@echo 
+	(cd src/clm/; make clean; make all)
 
 TOOLS:
 	@echo 
