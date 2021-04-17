@@ -27,6 +27,7 @@ integer                                 :: i,j
 integer                                 :: step,pou,pov,pau,pav
 real(dp)                                :: west,east,south,north
 real(dp)                                :: tmin,tmax,maxdt
+type(type_date)                         :: datemin,datemax
 
 write(*,*) 
 write(*,*) '=========================================================='
@@ -61,17 +62,43 @@ if (userRKdt.gt.maxdt) call stop_error(1,'Time step too large')
 !  print*, -4.487_dp,35.19_dp+(j-1)*0.02_dp, 'point_type = ', i
 !enddo
 
+! ... Check that we can do a cubic time interpolation.
+! ... It requires, at least, that the simulation time (0.0) starts at the
+! ... second time step.
+! ...
+!if (GOU%t(1).ge.0.0_dp) call stop_error(1,'ERROR: OCE U not enough time steps for cubic interpolation')
+!if (GOV%t(1).ge.0.0_dp) call stop_error(1,'ERROR: OCE V not enough time steps for cubic interpolation')
+!if (withAtmx) then
+!  if (GAU%t(1).ge.0.0_dp) call stop_error(1,'ERROR: ATM U not enough time steps for cubic interpolation')
+!  if (GAV%t(1).ge.0.0_dp) call stop_error(1,'ERROR: ATM V not enough time steps for cubic interpolation')
+!endif
+
+write(*,*) 'Simulation period: '
+datemin = jd2date(tmin)
+datemax = jd2date(tmax)
+
 pou = locate(GOU%t,0.0_dp)
 pov = locate(GOV%t,0.0_dp)
+
+write(*,*) 'Initial time : ', tmin, datemin%iso()
+write(*,*) 'Final time   : ', tmax, datemax%iso()
+write(*,*) 'Ocean zonal velocity record pointer: ', pou
+write(*,*) 'Ocean meridional velocity record pointer: ', pou
+if (withAtmx) then
+  pau = locate(GAU%t,0.0_dp+userRKdt)
+  pav = locate(GAV%t,0.0_dp+userRKdt)
+  write(*,*) 'Wind zonal velocity record pointer: ', pau
+  write(*,*) 'Wind meridional velocity record pointer: ', pau
+endif
+
 if (pou.lt.2) call stop_error(1,'ERROR: OCE U not enough time steps for cubic interpolation')
 if (pov.lt.2) call stop_error(1,'ERROR: OCE V not enough time steps for cubic interpolation')
 if (withAtmx) then
-  pau = locate(GAU%t,0.0_dp)
-  pav = locate(GAV%t,0.0_dp)
   if (pau.lt.2) call stop_error(1,'ERROR: ATM U not enough time steps for cubic interpolation')
   if (pav.lt.2) call stop_error(1,'ERROR: ATM V not enough time steps for cubic interpolation')
 endif
 
+write(*,*)
 write(*,'(T2,A,4F9.3)') 'Domain limits W,S,E,N: ', rad2deg*[west,south,east,north]
 model_jdref = tmin
 call float_ini(model_jdref)

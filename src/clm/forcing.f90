@@ -23,18 +23,20 @@ real(dp), intent(out)                :: tmin,tmax
 
 ! ... Local variables:
 ! ...
-integer err,k
+integer err,k,lu,lv
+real(dp) tou,tov,tau,tav,tmp
+type(type_date) dmin,dmax
 
 ! ... Zonal ocean current
 ! ...
 if (GOU%open(OcexFname).ne.0) call stop_error(1,'Unable to open OCEAN ZONAL file')
-if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Unable to scan OCEAN ZONAL file')
+if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Invalid to scan OCEAN ZONAL velocity variable')
 call GOU%show('Zonal ocean current')
 
 ! ... Meridional ocean current
 ! ...
 if (GOV%open(OceyFname).ne.0) call stop_error(1,'Unable to open OCEAN MERIDIONAL file')
-if (GOV%scan(OceyVname).ne.0) call stop_error(1,'Unable to scan OCEAN MERIDIONAL file')
+if (GOV%scan(OceyVname).ne.0) call stop_error(1,'Unable to scan OCEAN MERIDIONAL velocity variable')
 call GOV%show('Zonal ocean current')
 
 ! ... Winds
@@ -90,13 +92,54 @@ endif
 ! ...
 if (GOU%nz.ne.GOV%nz) call stop_error(1,'Incompatible number of ocean layers')
 
+
+! ... Time axis: first, check for minimum and maximum common time:
+! ...
+tou = minval(GOU%t(:))
+tov = minval(GOV%t(:))
+tmin = max(tou,tov)
+if (withAtmx) then
+  tau = minval(GAU%t(:))
+  tav = minval(GAV%t(:))
+  tmin = maxval([tmin,tau,tav])
+endif
+lu = max(locate(GOU%t,tmin),3)
+lv = max(locate(GOV%t,tmin),3)
+tmin = max(GOU%t(lu),GOV%t(lv))
+
+tou = maxval(GOU%t(:))
+tov = maxval(GOV%t(:))
+tmax = min(tou,tov)
+if (withAtmx) then
+  tau = maxval(GAU%t(:))
+  tav = maxval(GAV%t(:))
+  tmax = minval([tmax,tau,tav])
+endif
+lu = min(locate(GOU%t,tmax),GOU%nt-1)
+lv = min(locate(GOV%t,tmax),GOV%nt-1)
+tmax = min(GOU%t(lu),GOV%t(lv))
+
+if (withReverse) then
+  tmp = tmax
+  tmax = tmin
+  tmin = tmp
+endif
+
+if (withTini) then
+  tmin = UserTini
+else
+  UserTini = tmin
+endif
+
+if (withTlen) tmax = tmin + reverse*UserTlen  ! Julian days
+dmin = jd2date(tmin)
+dmax = jd2date(tmax)
+
 ! ... Re-scale time with reference to the common time:
 ! ... The zero corresponds to tmin.
 ! ... Negative values are not a problem
+! ... From now on, time units: SECONDS
 ! ...
-tmin = UserTini                     ! Julian days
-tmax = UserTini + reverse*UserTlen  ! Julian days
-
 GOU%t(:) = nint((GOU%t(:)-tmin)*86400.0_dp)      ! Time in seconds
 GOV%t(:) = nint((GOV%t(:)-tmin)*86400.0_dp)      ! Time in seconds
 if (withAtmx) then

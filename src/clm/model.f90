@@ -106,7 +106,6 @@ ll = nint(4.0_dp*(t-rk_t)/rk_dt) + 1
 o1 = GOU%hinterpol(Ourhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
 o2 = GOV%hinterpol(Ovrhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
 
-
 if (withAtmx.and.surface) then
   a1     = GAU%hinterpol(Aurhs(:,:,ll),x(1),x(2))
   a2     = GAV%hinterpol(Avrhs(:,:,ll),x(1),x(2))
@@ -327,6 +326,7 @@ do step=1,model_Nstep
     if (verb) write(*,*) "Saving trajectories' positions"
     call trajectory_write(step*rk_dt,XY(:,:,pk)); call check_status()
   endif
+
 
 enddo
 

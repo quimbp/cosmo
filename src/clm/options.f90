@@ -246,13 +246,18 @@ call argdbl('-ymax',CropYmax,UserYmax)
 ! ... Initial time
 ! ...
 call argstr('-from',withTini,word)
-userDini = strptime(word)
-userTini = userDini%jd()
+if (withTini) then
+  userDini = strptime(word)
+  userTini = userDini%jd()
+else
+  write(*,*) 'No initial date proposed by the user'
+  userTini = 0.0D0
+endif
 
 call argstr('-for',withTlen,tlen)
 if (withTlen) then
   if (is_numeric(tlen)) then
-    ! ... No units procided. Default units "days"
+    ! ... No units provided. Default units "days"
     ! ...
     read(tlen,*) userTlen                ! Simulation length given in days
   else

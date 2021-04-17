@@ -45,8 +45,7 @@ from cosmo import codar
 from cosmo import copernicus
 from cosmo import saidin
 from cosmo import lagrangian
-from cosmo import blm
-from cosmo import mlm
+from cosmo import clm
 from cosmo import geomarker
 from cosmo import drawing
 from cosmo import db
@@ -57,4 +56,3 @@ from cosmo import field
 from cosmo import plotxy
 from cosmo import ellipse
 from cosmo import patch
-

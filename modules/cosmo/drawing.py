@@ -94,8 +94,7 @@ import cosmo.copernicus as copernicus
 import cosmo.saidin as saidin
 import cosmo.lagrangian as lagrangian
 import cosmo.lineplot as lineplot
-import cosmo.blm as blm
-import cosmo.mlm as mlm
+import cosmo.clm as clm
 import cosmo.db as db
 import cosmo.geomarker as geomarker
 import cosmo.dotplot as dotplot
@@ -728,8 +727,8 @@ class LAYER():
       toconsola('Layer not found',wid=wid)
       return
 
-    INSEQUENCE  = self.INSEQUENCE[ll].get()
-    SEQUENCER   = self.SEQUENCER[ll].get()
+    #INSEQUENCE  = self.INSEQUENCE[ll].get()
+    #SEQUENCER   = self.SEQUENCER[ll].get()
     self.update = False
 
     toconsola('Erasing '+TYPE+' layer '+str(ii),wid=wid)
@@ -737,8 +736,8 @@ class LAYER():
     del self.TYPE[ll]
     del self.TYPE_INDEX[ll]
     del self.FILENAME[ll]
-    del self.INSEQUENCE[ll]
-    del self.SEQUENCER[ll]
+    #del self.INSEQUENCE[ll]
+    #del self.SEQUENCER[ll]
     del self.NREC[ll]
 
     self.n -= 1
@@ -748,8 +747,8 @@ class LAYER():
       self.TYPE       = []
       self.TYPE_INDEX = []
       self.FILENAME   = []
-      self.INSEQUENCE = []
-      self.SEQUENCER  = []
+      #self.INSEQUENCE = []
+      #self.SEQUENCER  = []
       self.NREC       = []
       #self.nsequence  = 0
       #self.seqlen     = 0
@@ -1122,6 +1121,7 @@ class DrawingConfig():
     self.GRID_EAST          = tk.BooleanVar()
     self.GRID_LINESTYLE     = tk.StringVar()
     self.GRID_ALPHA         = tk.DoubleVar()
+    self.GRID_ZORDER        = tk.IntVar()
 
     self.SCALE_SHOW         = tk.BooleanVar()
     self.SCALE_X            = tk.DoubleVar()
@@ -1262,13 +1262,13 @@ class DrawingConfig():
     self.DPI.set(72)
     self.FIGURE_COLOR.set('white')
     self.TEXT_COLOR.set('black')
-    self.GRID_SHOW.set(False)
+    self.GRID_SHOW.set(True)
     self.GRID_LINEWIDTH.set(1)
     self.MERIDIAN_INI.set(-180)
-    self.MERIDIAN_FIN.set(180)
+    self.MERIDIAN_FIN.set(210)
     self.MERIDIAN_INT.set(60)
     self.PARALLEL_INI.set(-90)
-    self.PARALLEL_FIN.set(90)
+    self.PARALLEL_FIN.set(120)
     self.PARALLEL_INT.set(30)
     self.GRID_COLOR.set('black')
     self.GRID_FONTCOLOR.set('black')
@@ -1279,6 +1279,7 @@ class DrawingConfig():
     self.GRID_EAST.set(False)
     self.GRID_LINESTYLE.set(':')
     self.GRID_ALPHA.set(1.0)
+    self.GRID_ZORDER.set(2)
     self.SCALE_SHOW.set(False)
     self.SCALE_X.set(0)
     self.SCALE_Y.set(0)
@@ -1481,6 +1482,7 @@ class DrawingConfig():
     conf['GRID_EAST'] = self.GRID_EAST.get()
     conf['GRID_LINESTYLE'] = self.GRID_LINESTYLE.get()
     conf['GRID_ALPHA'] = self.GRID_ALPHA.get()
+    conf['GRID_ZORDER'] = self.GRID_ZORDER.get()
 
     conf['SCALE_SHOW'] = self.SCALE_SHOW.get()
     conf['SCALE_X'] = self.SCALE_X.get()
@@ -1643,6 +1645,7 @@ class DrawingConfig():
     self.GRID_EAST.set(conf['GRID_EAST'])
     self.GRID_LINESTYLE.set(conf['GRID_LINESTYLE'])
     self.GRID_ALPHA.set(conf['GRID_ALPHA'])
+    self.GRID_ZORDER.set(conf['GRID_ZORDER'])
 
     self.SCALE_SHOW.set(conf['SCALE_SHOW'])
     self.SCALE_X.set(conf['SCALE_X'])
@@ -1927,18 +1930,15 @@ class CosmoDrawing():
     self.PATCH_INDX   = tk.IntVar() # contador de files
     self.PATCH_INDX.set(0)
 
-    # Initialize BLM command:
-    self.BLM = blm.parameters()
-
-    # Initialize MLM command:
-    self.MLM = mlm.parameters()
+    # Initialize CLM command:
+    self.CLM = clm.parameters()
 
     # Skill - related variables
     self.time_sampling = tk.DoubleVar()
     self.index_s       = tk.DoubleVar()
     self.index_n       = tk.DoubleVar()
     self.release_file  = tk.StringVar()
-    self.blm_idt       = tk.IntVar()
+    self.clm_idt       = tk.IntVar()
     self.out_file      = tk.StringVar()
     self.time_ini      = tk.IntVar()
     self.Fp            = tk.IntVar()
@@ -1951,7 +1951,7 @@ class CosmoDrawing():
     self.time_ini.set(0)                     # 0 - Model time; 1 - Buoy time
     self.release_file.set('skill_ini.dat')
     self.out_file.set('skill_out.nc')
-    self.blm_idt.set(1800)                   # 0.5 hours
+    self.clm_idt.set(600)                   # 0.5 hours
     self.Fp.set(0)
     
 
@@ -2061,7 +2061,7 @@ class CosmoDrawing():
          self.cons.grid(row=0,column=0,sticky='we')
          cscrollb.config(command=self.cons.yview)
          line = tconsola + '\n'+ versions + "\n"+ mess + self.PLOT.MESSAGE+ \
-                 self.SAIDIN.FLD.MESSAGE+self.BLM.MESSAGE+self.MLM.MESSAGE
+                 self.SAIDIN.FLD.MESSAGE+self.CLM.MESSAGE
          self.cons.insert("end", line + "\n")
          self.cons.see(tk.END)
          wiconsola.grid(row=3, column=0, columnspan=6, pady=5, sticky='nsew')  
@@ -2090,8 +2090,7 @@ class CosmoDrawing():
     self.Window_float         = None
     self.Window_saidinconfig  = None
     self.Window_floatconfig   = None
-    self.Window_blm           = None
-    self.Window_mlm           = None
+    self.Window_clm           = None
     self.Window_dpi           = None
     self.Window_anim          = None
     self.Window_ncdf          = None
@@ -2217,10 +2216,8 @@ class CosmoDrawing():
       #if not empty(self.SAIDIN.FILENAME.get()):
       #  print('SAIDIN SST = ', self.SAIDIN.FIELD.F(xo,yo))
       
-      self.BLM.xo.set(latlon[0])
-      self.BLM.yo.set(latlon[1])
-      self.MLM.xo.set(latlon[0])
-      self.MLM.yo.set(latlon[1])
+      self.CLM.xo.set(latlon[0])
+      self.CLM.yo.set(latlon[1])
 
       if self.CAPTURE_POINT:
         self.pxo.set(xo)
@@ -2350,10 +2347,8 @@ class CosmoDrawing():
                          command=self.get_patch)
     toolmenu.add_command(label='Make animation',
                          command=self.make_anim)
-    toolmenu.add_command(label='COSMO B Lagrangian Model (BLM)',
-                         command=self.blm)
-    toolmenu.add_command(label='COSMO M Lagrangian Model (MLM)',
-                         command=self.mlm)
+    toolmenu.add_command(label='COSMO Lagrangian Model (CLM)',
+                         command=self.clm)
 
     calcmenu = tk.Menu(menubar, tearoff=0)
     menubar.add_cascade(label='Calculators',menu=calcmenu)
@@ -2394,8 +2389,8 @@ class CosmoDrawing():
       # save the panel's image from 'garbage collection'
       panel1.image = photoimage
 
-      _author = 'Author: Quim Ballabrera (COSMO Project) \n Emilio Garcia (COSMO Project)'
-      _description = ' Ocean visualization tool for the COSMO project'
+      _author = 'Authors: Quim Ballabrera (ICM/CSIC) \n Emilio Garcia (ICM/CSIC)'
+      _description = ' Ocean visualization tool for the COSMO and MED OSMOSIS projects\n V1.0 - Oct 2019 (COSMO project) \n V2.0 - July 2020 (COSMO project) \n V3.0 - April 2021 (MED OSMOSIS project)'
       tk.Label(self.Window_about,text='COSMO-VIEW'). \
               grid(row=1,column=0,sticky='ew')
       tk.Label(self.Window_about,text='Version '+VERSION). \
@@ -2736,7 +2731,6 @@ class CosmoDrawing():
 
         # Is this field member of the SEQUENCE?
         # Is this field a member of the SEQUENCE?
-        print("HEEEEERE ", self.NL, nt)
         if nt > 1:
 
           if self.NL == 0:
@@ -2875,6 +2869,9 @@ class CosmoDrawing():
       elif ISOURCE == 4:
         aa = get_remote()
         filename = aa.filename()
+        filename = 'https://cosmo.icm.csic.es/MEDSEA_100.nc'
+        filename = filename.decode('utf-8')
+        print('filename: ',filename)
       else:
         if self.ncdf <= 0:
           messagebox.showinfo(message='No Contour file opened yet')
@@ -3621,8 +3618,8 @@ class CosmoDrawing():
       conf = {}
       conf['FILENAME'] = self.LAYERS.FILENAME[i]
       conf['TYPE'] = TYPE
-      conf['INSEQUENCE'] = self.LAYERS.INSEQUENCE[i].get()
-      conf['SEQUENCER'] = self.LAYERS.SEQUENCER[i].get()
+      #conf['INSEQUENCE'] = self.LAYERS.INSEQUENCE[i].get()
+      #conf['SEQUENCER'] = self.LAYERS.SEQUENCER[i].get()
       conf['NREC'] = self.LAYERS.NREC[i]
 
       if TYPE == 'FLD':
@@ -3761,8 +3758,8 @@ class CosmoDrawing():
         nt = CONF[ii]['NREC']
         self.LAYERS.add(TYPE='FLD',Filename=filename,N=nt,wid=self.cons)
         nm = self.LAYERS.n - 1
-        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        #self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        #self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
         self.LAYERS.print()
 
         #self.nfiles += 1
@@ -3897,8 +3894,8 @@ class CosmoDrawing():
         nt = CONF[ii]['NREC']
         self.LAYERS.add(TYPE='VEC',Filename=filename,N=nt,wid=self.cons)
         nm = self.LAYERS.n - 1
-        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        #self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        #self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
         self.LAYERS.print()
 
         #self.nfiles += 1
@@ -3962,26 +3959,6 @@ class CosmoDrawing():
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
           self.first = False
 
-#          if FLT.SOURCE == 'blm':
-#            self.DATE = [FLT.date[i].replace(tzinfo=None) for i in
-#                                                  range(FLT.nrecords)]
-#            self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
-#                                   self.DATE[0]).total_seconds() 
-#                                       for i in range(FLT.nrecords)])
-#          elif FLT.SOURCE == 'mlm':
-#            self.DATE = [FLT.date[i][0].replace(tzinfo=None)
-#                              for i in range(FLT.nrecords)]
-#            self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-
-#                                   self.DATE[0]).total_seconds()
-#                                       for i in range(FLT.nrecords)])
-#
-#        # Set each FLOAT time values and interpolated positions.
-
-#        if FLT.SOURCE == 'blm':
-#          FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-
-#                                self.DATE[0]).total_seconds() 
-#                                    for i in range(FLT.nrecords)])
-
         if len(self.TIME) > 0:
 
           if FLT.CROP.get():
@@ -4044,38 +4021,6 @@ class CosmoDrawing():
                                      bounds_error=False, fill_value=np.NaN)
             FLT.MAPY = FLT.Fy(self.TIME)
 
-
-
-
-#          error = 0
-#
-#        elif FLT.SOURCE == 'mlm':
-#          FLT.TIME = []
-#          FLT.MAPX = []
-#          FLT.MAPY = []
-#          for j in range(FLT.nfloats):
-#            FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-
-#                               self.DATE[0]).total_seconds()
-#                                   for i in range(FLT.nrecords)])
-#            f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]),
-#                                     bounds_error=False,fill_value=np.NaN)
-#            FLT.MAPX.append(list(f(self.TIME)))
-#            f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]),
-#                                     bounds_error=False,fill_value=np.NaN)
-#            FLT.MAPY.append(list(f(self.TIME)))
-#            FLT.TIME.append(FTIME)
-#
-#          # Transpose FLT.MAPX and FLT.MAPY:
-#          FLT.MAPX = np.array(FLT.MAPX).T.tolist()
-#          FLT.MAPY = np.array(FLT.MAPY).T.tolist()
-#          FLT.TIME = np.array(FLT.TIME).T.tolist()
-#          error = 0
-#        else:
-#          messagebox.showinfo(message='FLOAT source not found')
-#          error = 1
-          
-#        if error == 0:
-
         self.nfloat += 1
         self.FLOAT.append(FLT)
         self.FLOAT_INDX.set(self.nfloat-1)
@@ -4084,17 +4029,9 @@ class CosmoDrawing():
         nt = CONF[ii]['NREC']
         self.LAYERS.add(TYPE='FLOAT',Filename=filename,N=nt,wid=self.cons)
         nm = self.LAYERS.n - 1
-        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        #self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        #self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
         self.LAYERS.print()
-
-          #self.nfiles += 1
-          #self.FILENAMES.append(filename)
-          #self.FILETYPES.append('FLOAT')
-          #self.FILEORDER.append(self.nfloat-1)
-          #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
-          #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
-          #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
       if CONF[ii]['TYPE'] == 'SAIDIN':
 
@@ -4126,8 +4063,8 @@ class CosmoDrawing():
         nt = CONF[ii]['NREC']
         self.LAYERS.add(TYPE='SAIDIN',Filename=filename,N=nt,wid=self.cons)
         nm = self.LAYERS.n - 1
-        self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-        self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
+        #self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
+        #self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
         self.LAYERS.print()
 
         #self.nfiles += 1
@@ -5178,6 +5115,9 @@ class CosmoDrawing():
     ttk.Button(f5,text='Select',command=lambda:colsel(self.PLOT.GRID_FONTCOLOR, \
             self.sgrid,self.GFlabel,"sfgrid.TLabel",master=self.Window_mapconfig)). \
             grid(row=16,column=3,padx=3)   
+    ttk.Label(f5,text='Zorder').grid(row=17,column=1,sticky='w')
+    ttk.Entry(f5,textvariable=self.PLOT.GRID_ZORDER,justify='left',width=8) \
+        .grid(row=17,column=2)
     f5.grid()
 
     f6 = ttk.Frame(page5,borderwidth=5,padding=5)
@@ -5547,240 +5487,71 @@ class CosmoDrawing():
     #                         box_alignment=ba,pad=0.0,frameon=True,zorder=100)
     self.with_logo = self.ax.add_artist(self.ab)
 
-  # ============
-  def mlm(self):
-  # ============
-    '''Options to launch the COSMO M - Lagrangian Model'''
 
-    def _close():
-    # ===========
-      self.Window_mlm.destroy()
-      self.Window_mlm = None
+  # =====================
+  def clm(self):
+  # =====================
+    '''Options to launch the COSMO Lagrangian Model'''
 
-    def _run(options):
-    # ================
-
-      command = self.MLM.PATH.get() + \
-                self.MLM.BIN.get()
-
-      command += options
-      toconsola(command,wid=self.cons)
-      #print(command)
-      os.system(command)
-
-      if os.path.isfile(self.MLM.TRAJECTORY.get()):
-        FLT = lagrangian.parameters()
-        toconsola(FLT.MESSAGE,wid=wid)
-        FLT.Read(self.MLM.TRAJECTORY.get())
-        if FLT is None:
-          return
-
-        FLT.TIME = []
-        FLT.MAPX = []
-        FLT.MAPY = []
-        for j in range(FLT.nfloats):
-          FTIME = np.array([(FLT.DATE[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
-          f = interpolate.interp1d(FTIME,FLT.lon[:,j], \
-                                   bounds_error=False,  \
-                                   fill_value=np.NaN)
-          FLT.MAPX.append(f(self.TIME))
-          f = interpolate.interp1d(FTIME,FLT.lat[:,j], \
-                                   bounds_error=False,  \
-                                   fill_value=np.NaN)
-          FLT.MAPY.append(f(self.TIME))
-
-          FLT.TIME.append(FTIME)
-        FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-        FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-        FLT.TIME = np.array(FLT.TIME).T.tolist() 
-
-        self.nfloat += 1
-        self.FLOAT.append(FLT)
-        self.FLOAT_INDX.set(self.nfloat-1)
-        self.FLOAT_LIST = list(range(self.nfloat))
-
-        nt = len(FLT.TIME)
-        self.LAYERS.add(TYPE='FLOAT',Filename=FLT.FILENAME.get(),N=nt,wid=self.cons)
-        self.LAYERS.print()
-
-        #self.nfiles += 1
-        #self.FILENAMES.append(FLT.FILENAME.get())
-        #self.FILETYPES.append('FLOAT')
-        #self.SEQUENCES.append(tk.BooleanVar(value=False))
-        #self.SEQLEADER.append(tk.BooleanVar(value=False))
-        #self.SEQNTIMES.append(0)
-        #self.FILEORDER.append(self.nfloat-1)
-
-        self.make_plot()
-      else:
-        messagebox.showinfo(message='COSMO M Lagrangian Model failed')
-
-    def _help():
-    # ==========
-      options = '--help'
-      _run(options)
-
-    def _run_single():
-    # ================
-
-      options = mlm.Basic_options(self.MLM)
-      if empty(options):
-        return
-
-      if self.MLM.INI_USE.get():
-        pass
-      else:
-        try:
-          aa = ' -t0 %s' % self.MLM.to.get()
-          options += aa
-        except:
-          messagebox.showinfo(message='Invalid release time')
-          return
-
-      if self.MLM.reverse.get():
-        try:
-          aa = ' -time_sim %s' % -np.abs(self.MLM.time_sim.get())
-          options += aa
-        except:
-          aa = ' -time_sim %s' % -self.MLM.to.get()/86400.0
-          options += aa
-      else:
-        try:
-          aa = ' -time_sim %s' % self.MLM.time_sim.get()
-          options += aa
-        except:
-          pass
-
-      try:
-        aa = ' -idt %s' % self.MLM.idt.get()
-        options += aa
-      except:
-        pass
-
-      _run(options)
-
-    def _run_ensemble():
-    # ==================
-
-      options = mlm.Basic_options(self.MLM)
-
-      if self.MLM.reverse.get():
-        try:
-          aa = ' -time_sim %s' % -math.abs(self.MLM.time_sim.get())
-          options += aa
-        except:
-          aa = ' -time_sim %s' % -math.abs(self.MLM.to.get())
-          options += aa
-      else:
-        try:
-          aa = ' -time_sim %s' % self.MLM.time_sim.get()
-          options += aa
-        except:
-          pass
-
-      if self.MLM.INI_USE.get():
-        pass
-      else:
-        try:
-          aa = ' -to %s' % self.MLM.to.get()
-          options += aa
-        except:
-          messagebox.showinfo(message='Invalid release time')
-          return
-
-      try:
-        aa = ' -seed %s' % self.MLM.seed.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -nfloats %s' % self.MLM.nfloats.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -Rx %s' % self.MLM.Rx.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -Ry %s' % self.MLM.Ry.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -Rt %s' % self.MLM.Rt.get()
-        options += aa
-      except:
-        pass
-
-      _run(options)
-
-    # Main MLM Window
-    if self.nvec == 0:
-      messagebox.showinfo(message='No file with ocean currents has ben opened yet')
-      return
-
-    if self.Window_mlm is not None:
-      self.Window_mlm.lift()
-      return
-
-    # Copy the VEC information to the MLM class
-    #
-    self.MLM.VEC = self.VEC
-
-    string = self.DATE[self.L.get()]
+    self.CLM.west.set(self.PLOT.WEST.get())
+    self.CLM.east.set(self.PLOT.EAST.get())
+    self.CLM.south.set(self.PLOT.SOUTH.get())
+    self.CLM.north.set(self.PLOT.NORTH.get())
     try:
-      self.MLM.do.set(string.replace(' ','T'))
+      self.CLM.do.set(self.DATE[0])
     except:
-      pass
-    self.MLM.to.set(self.TIME[self.L.get()]-self.TIME[0])
-    self.MLM.record.set(self.L.get()+1)
-
-    self.Window_mlm = tk.Toplevel(self.master)
-    self.Window_mlm.title('COSMO M Lagrangian Model options')
-    self.Window_mlm.resizable(width=True,height=True)
-    self.Window_mlm.protocol('WM_DELETE_WINDOW',_close)
-
-    mlm.WinConfig(self.Window_mlm,self.MLM)
-
-    F0 = ttk.Frame(self.Window_mlm,padding=5)
-    ttk.Checkbutton(F0,text='Reverse Run',variable=self.MLM.reverse). \
-        grid(row=0,column=1,padx=5)
-    ttk.Button(F0,text='Run Single',command=_run_single).grid(row=0,column=2,padx=5)
-    ttk.Button(F0,text='Run Ensemble',command=_run_ensemble).grid(row=0,column=3,padx=5)
-    ttk.Button(F0,text='Run Help',command=_help).grid(row=0,column=4,padx=5)
-    F0.grid()
-
-  # =====================
-  def blm(self):
-  # =====================
-    '''Options to launch the COSMO B - Lagrangian Model'''
+      self.CLM.do.set(datetime.datetime.now())
 
     def _close():
     # ===========
-      self.Window_blm.destroy()
-      self.Window_blm = None
+      self.Window_clm.destroy()
+      self.Window_clm = None
 
     def _run(options):
     # ================
 
-      command = self.BLM.PATH.get() + \
-                self.BLM.BIN.get()
+      if self.CLM.script.get():
+        
+        now = datetime.datetime.now()
+        soptions = '# COSMO Lagrangian Model options generated by cosmo-view.\n# %s' % now + options
+        soptions = soptions.replace('-OU','\n-OU')
+        soptions = soptions.replace('-OV','\n-OV')
+        soptions = soptions.replace('-trajectory','\n-trajectory')
+        soptions = soptions.replace('-end','\n-end')
+        soptions = soptions.replace('-xo','\n-xo')
+        soptions = soptions.replace('-yo','\n-yo')
+        soptions = soptions.replace('-zo','\n-zo')
+        soptions = soptions.replace('-to','\n-to')
+        soptions = soptions.replace('-release','\n-release')
+        soptions = soptions.replace('-from','\n-from')
+        soptions = soptions.replace('-for','\n-for')
+        soptions = soptions.replace('-dt','\n-dt')
+        soptions = soptions.replace('-alpha','\n-alpha')
+        soptions = soptions.replace('-mu','\n-mu')
+        soptions = soptions.replace('-va','\n-va')
+        soptions = soptions.replace('-xmin','\n-xmin')
+        soptions = soptions.replace('-xmax','\n-xmax')
+        soptions = soptions.replace('-ymin','\n-ymin')
+        soptions = soptions.replace('-ymax','\n-ymax')
+        soptions = soptions.replace('-xmax','\n-xmax')
+        soptions = soptions.replace('-reverse','\n-reverse')
+
+        ofile = open(self.CLM.SFILE.get(), "w")
+        a = ofile.write(soptions)
+        ofile.close()
+
+      command = self.CLM.PATH.get() + \
+                self.CLM.BIN.get()
 
       command += options
       toconsola(command,wid=self.cons)
       #print(command)
       os.system(command)
 
-      if os.path.isfile(self.BLM.TRAJECTORY.get()):
+      if os.path.isfile(self.CLM.TRAJECTORY.get()):
         FLT = lagrangian.parameters()
         toconsola(FLT.MESSAGE,wid=self.cons)
-        FLT.Read(self.BLM.TRAJECTORY.get())
+        FLT.Read(self.CLM.TRAJECTORY.get())
         if FLT is None:
           return
 
@@ -5821,167 +5592,87 @@ class CosmoDrawing():
 
         self.make_plot()
       else:
-        messagebox.showinfo(message='COSMO B Lagrangian Model failed')
+        messagebox.showinfo(message='COSMO Lagrangian Model failed')
 
     def _help():
     # ==========
-      options = '--help'
+      options = ' --help'
       _run(options)
   
     def _run_single():
     # ================
 
-      options = blm.Basic_options(self.BLM)
+      options = clm.Basic_options(self.CLM)
       if empty(options):
         return
-
-      if self.BLM.INI_USE.get():
-        pass
-      else:
-        if self.BLM.reverse.get():
-          try:
-            aa = ' -to %s' % 0.0
-            options += aa
-          except:
-            pass
-        else:
-          if self.BLM.to_use.get():
-            try:
-              aa = ' -to %s' % self.BLM.to.get()
-              options += aa
-            except:
-              messagebox.showinfo(message='Invalid release time')
-              return
-          else:
-            if empty(self.BLM.do.get()):
-              messagebox.showinfo(message='Invalid release date')
-              return
-            else:
-              aa = ' -do %s' % self.BLM.do.get()
-              options += aa
-
-      if self.BLM.record_use.get():
-        try:
-          aa = ' -record %s' % self.BLM.record.get()
-          options += aa
-        except:
-          messagebox.showinfo(message='Invalid simulation starting record')
-          return
-      
-      if self.BLM.reverse.get():
-        options += ' -reverse'
 
       _run(options)
 
     def _run_ensemble():
     # ==================
 
-      options = blm.Basic_options(self.BLM)
+      options = clm.Basic_options(self.CLM)
 
-      if self.BLM.reverse.get():
-
-        options += ' -reverse'
-
-        if self.BLM.INI_USE.get():
-          pass
-        else:
-          try:
-            aa = ' -to %s' % 0.0
-            options += aa
-          except:
-            pass
-
-      else:
-
-        if self.BLM.INI_USE.get():
-          pass
-        else:
-          if self.BLM.to_use.get():
-            try:
-              aa = ' -to %s' % self.BLM.to.get()
-              options += aa
-            except:
-              messagebox.showinfo('Invalid release time')
-              return
-          else:
-             if empty(self.BLM.do.get()):
-               messagebox.showinfo('Invalid release date')
-               return
-             else:
-               aa = ' -do %s' % self.BLM.do.get()
-               options += aa
-
-
-      if self.BLM.record_use.get():
-        try:
-          aa = ' -record %s' % self.BLM.record.get()
-          options += aa
-        except:
-          messagebox.showinfo('Invalid simulation starting record')
-          return
-      
       try:
-        aa = ' -seed %s' % self.BLM.seed.get()
+        aa = ' -random %s' % self.CLM.nfloats.get()
         options += aa
       except:
         pass
 
       try:
-        aa = ' -nfloats %s' % self.BLM.nfloats.get()
+        aa = ' -Rx %s' % self.CLM.Rx.get()
         options += aa
       except:
         pass
 
       try:
-        aa = ' -Rx %s' % self.BLM.Rx.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -Ry %s' % self.BLM.Ry.get()
-        options += aa
-      except:
-        pass
-
-      try:
-        aa = ' -Rt %s' % self.BLM.Rt.get()
+        aa = ' -Ry %s' % self.CLM.Ry.get()
         options += aa
       except:
         pass
 
       _run(options)
 
-    # Main BLM Window
+    # -------------------------
+    # Main CLM Window
+    # -------------------------
     if self.nvec == 0:
       messagebox.showinfo(message='No file with ocean currents has ben opened yet')
       return
 
-    if self.Window_blm is not None:
-      self.Window_blm.lift()
+    if self.Window_clm is not None:
+      self.Window_clm.lift()
       return
 
-    # Copy the VEC information to the BLM class
+    # Copy the VEC information to the CLM class
     #
-    self.BLM.VEC = self.VEC
+    self.CLM.VEC = self.VEC
 
     string = self.DATE[self.L.get()]
     try:
-      self.BLM.do.set(string.replace(' ','T'))
+      self.CLM.do.set(string.replace(' ','T'))
     except:
       pass
-    self.BLM.to.set(self.TIME[self.L.get()]-self.TIME[0])
-    self.BLM.record.set(self.L.get()+1)
+    self.CLM.to.set(self.TIME[self.L.get()]-self.TIME[0])
 
-    self.Window_blm = tk.Toplevel(self.master)
-    self.Window_blm.title('COSMO B Lagrangian Model options')
-    self.Window_blm.resizable(width=True,height=True)
-    self.Window_blm.protocol('WM_DELETE_WINDOW',_close)
+    lini = self.L.get() + 1
+    if lini < 2:
+      lini = 2
+    self.CLM.Lini.set(lini)
+    self.CLM.Tini.set(self.TIME[lini])
+    self.CLM.Dini.set(self.DATE[lini])
+
+    self.Window_clm = tk.Toplevel(self.master)
+    self.Window_clm.title('COSMO Lagrangian Model options')
+    self.Window_clm.resizable(width=True,height=True)
+    self.Window_clm.protocol('WM_DELETE_WINDOW',_close)
     
-    blm.WinConfig(self.Window_blm,self.BLM)
+    clm.WinConfig(self.Window_clm,self.CLM,self.TIME,self.DATE)
 
-    F0 = ttk.Frame(self.Window_blm,padding=5)
-    ttk.Checkbutton(F0,text='Reverse Run',variable=self.BLM.reverse). \
+    F0 = ttk.Frame(self.Window_clm,padding=5)
+    #ttk.Checkbutton(F0,text='Reverse Run',variable=self.CLM.reverse). \
+    #    grid(row=0,column=1,padx=5)
+    ttk.Checkbutton(F0,text='Save options',variable=self.CLM.script). \
         grid(row=0,column=1,padx=5)
     ttk.Button(F0,text='Run Single',command=_run_single).grid(row=0,column=2,padx=5)
     ttk.Button(F0,text='Run Ensemble',command=_run_ensemble).grid(row=0,column=3,padx=5)
@@ -6015,21 +5706,17 @@ class CosmoDrawing():
           self.PLOT.TLABEL.set(self.DATE[L])
 
           print('L = ', L)
-          for i in range(self.LAYERS.n):
-            TYPE = self.LAYERS.TYPE[i]
-            ii   = self.LAYERS.TYPE_INDEX[i]
-            if self.LAYERS.INSEQUENCE[i].get():
-              if TYPE == 'VEC':
-                self.VEC[ii].L.set(L)
-                self.VEC[ii].read(wid=self.cons)
-              elif TYPE == 'FLD':
-                self.CDF[ii].L.set(L)
-                self.CDF[ii].read(update_lims=False,wid=self.cons)
-              #else:
-              #  toconsola("Something wrong",wid=self.cons)
-              #  #print('Something wrong')
-              #  quit()
-          print('to make_Mplot ...')
+          
+          for i in range(self.nvec):
+            if self.VEC[i].LINK.get():
+              self.VEC[i].L.set(L)
+              self.VEC[i].read(update_lims=False,wid=self.cons)
+
+          for i in range(self.ncdf):
+            if self.CDF[i].LINK.get():
+              self.CDF[i].L.set(L)
+              self.CDF[i].read(update_lims=False,wid=self.cons)
+
           self.make_Mplot()
           writer.grab_frame()
       messagebox.showinfo(parent=self.Window_anim,message='Movie has been saved')
@@ -6669,8 +6356,11 @@ class CosmoDrawing():
         else:
           filename = '%s' % nn
       elif ISOURCE == 3:
-        aa = get_remote()
-        filename = aa.filename()
+        #aa = get_remote()
+        #filename2 = aa.filename()
+        #filename = filename2.decode('utf-8')
+        filename = 'https://cosmo.icm.csic.es/MEDSEA_100.nc'
+        print('filename: ', filename)
       else:
         if self.nvec <= 0:
           messagebox.showinfo(message='No Trajectory file opened yet')
@@ -8144,30 +7834,6 @@ class CosmoDrawing():
       if FLT.nfloats is None or FLT.nfloats==0 or FLT.nrecords==0:
         return
 
-#      if self.first:
-#        # Set figure DATE and TIME references
-#        if FLT.SOURCE == 'blm':
-#          self.DATE = [FLT.date[i].replace(tzinfo=None) 
-#                                     for i in range(FLT.nrecords)]
-#          self.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
-#                                self.DATE[0]).total_seconds()       \
-#                                     for i in range(FLT.nrecords)])
-#
-#        elif FLT.SOURCE == 'mlm':
-#          #messagebox.showinfo(message='No field has been opened yet. '  + \
-#          #'The TIME and DATE vectors will be the ones in this float file.' + \
-#          #     'The FIRST of the floats is taken a reference')
-#          self.DATE = [FLT.date[i][0].replace(tzinfo=None) 
-#                                     for i in range(FLT.nrecords)]
-#          self.TIME = np.array([(FLT.date[i][0].replace(tzinfo=None)-  \
-#                               self.DATE[0]).total_seconds()           \
-#                                     for i in range(FLT.nrecords)])
-#
-#      if FLT.SOURCE == 'blm':
-#        # Set the values of TIME for the float:
-#        FLT.TIME = np.array([(FLT.date[i].replace(tzinfo=None)-  \
-#                             self.DATE[0]).total_seconds()       \
-#                                           for i in range(FLT.nrecords)])
       if self.NL > 0:
         if FLT.nfloats > 1:
           MAPX = []
@@ -8188,27 +7854,6 @@ class CosmoDrawing():
           FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat,
                                    bounds_error=False, fill_value=np.NaN)
           FLT.MAPY = FLT.Fy(self.TIME)
-
-#      elif FLT.SOURCE == 'mlm':
-#
-#        FLT.TIME =  []
-#        FLT.MAPX =  []
-#        FLT.MAPY =  []
-#        for j in range(FLT.nfloats):
-#
-#          FTIME = np.array([(FLT.date[i][j].replace(tzinfo=None)-self.DATE[0]).total_seconds() for i in range(FLT.nrecords)])
-#          f = interpolate.interp1d(FTIME,np.array(FLT.lon[:,j]), bounds_error=False, fill_value=np.NaN)
-#          FLT.MAPX.append(list(f(self.TIME)))
-#          f = interpolate.interp1d(FTIME,np.array(FLT.lat[:,j]), bounds_error=False, fill_value=np.NaN)
-#          FLT.MAPY.append(list(f(self.TIME)))
-#          FLT.TIME.append(FTIME)
-#
-#        # Transpose FLT.MAPX and FLT.MAPY:
-#        FLT.MAPX = np.array(FLT.MAPX).T.tolist() 
-#        FLT.MAPY = np.array(FLT.MAPY).T.tolist() 
-#        FLT.TIME = np.array(FLT.TIME).T.tolist() 
-      
-
 
       self.nfloat += 1
       self.FLOAT.append(FLT)
@@ -8251,7 +7896,7 @@ class CosmoDrawing():
 
       if nt > 1:
         if self.NL == 0:
-          toconsola('FLOAT initiates SEQUENCE list',wid=self.cons)
+          toconsola('FLOAT initiates Time axis',wid=self.cons)
           #self.LAYERS.nsequence = 1
           #self.LAYERS.INSEQUENCE[n-1].set(True)
           #self.LAYERS.SEQUENCER[n-1].set(True)
@@ -9536,7 +9181,7 @@ class CosmoDrawing():
       self.ax.add_feature(cfeat.NaturalEarthFeature('physical','rivers_and_lakes_centerlines', \
 			self.PLOT.MAP_RESOLUTION.get(), \
 			linewidth=self.PLOT.RIVERS_WIDTH.get(),
-			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=0))
+			edgecolor=self.PLOT.RIVERS_COLOR.get(),zorder=self.PLOT.LAND_ZORDER.get()+1))
 
     #self.ax.coastlines(resolution='110m')
     #self.ax.gridlines()
@@ -9561,7 +9206,8 @@ class CosmoDrawing():
 						linewidth=self.PLOT.GRID_LINEWIDTH.get(),
 						color=self.PLOT.GRID_FONTCOLOR.get(),
 						alpha=self.PLOT.GRID_ALPHA.get(),
-						linestyle=self.PLOT.GRID_LINESTYLE.get())
+						linestyle=self.PLOT.GRID_LINESTYLE.get(),
+            zorder=self.PLOT.GRID_ZORDER.get())
       # Lines visibility
       gl.xlines, gl.ylines = True, True
       if self.PLOT.GRID_LINESTYLE.get() == "None":
@@ -9741,56 +9387,57 @@ class CosmoDrawing():
     self.Mcdfbar = []
     self.Max.clear()
 
+    font_family = self.PLOT.MAP_FONT_TYPE.get()    # Lets see ...
+    font_size   = self.PLOT.LABEL_SIZE.get()
+
     # Deshabilitado temporalmente EPSG
     # epsg = int(self.PLOT.EPSG.get())
 
-    SOUTH = float(self.PLOT.SOUTH.get())
-    NORTH = float(self.PLOT.NORTH.get())
-    WEST  = float(self.PLOT.WEST.get())
-    EAST  = float(self.PLOT.EAST.get())
+#    SOUTH = float(self.PLOT.SOUTH.get())
+#    NORTH = float(self.PLOT.NORTH.get())
+#    WEST  = float(self.PLOT.WEST.get())
+#    EAST  = float(self.PLOT.EAST.get())
+
+    self.Max.set_extent([float(self.PLOT.WEST.get()) ,float(self.PLOT.EAST.get()),\
+         float(self.PLOT.SOUTH.get()),float(self.PLOT.NORTH.get())],\
+         crs=proj)
 
     if self.Mdrawmap:
       #EG no se necesita mas self.setmap(self.Max,1)
       self.Mdrawmap = False
 
-    toconsola("EG: RELIEF tiles",wid=self.cons)
-    #print("EG: RELIEF tiles")
+    #toconsola("EG: RELIEF tiles",wid=self.cons)
     if self.PLOT.RELIEF_SHOW.get():
       if self.PLOT.RELIEF.get() == 1:
         gebco ="GEBCO_2019_Grid"
         try:
-          toconsola("\tEG: GEBCO tiles",wid=self.cons)
-          #print("\tEG: GEBCO tiles")
+          #toconsola("\tEG: GEBCO tiles",wid=self.cons)
           self.Max.add_wms(wms='https://www.gebco.net/data_and_products/gebco_web_services/2019/mapserv?request=getmap&service=wms&BBOX=-90,-180,90,360&crs=EPSG:4326&format=image/jpeg&layers=gebco_2019_grid&width=1200&height=600&version=1.3.0',layers=gebco,zorder=0)
         except:
           toconsola("\tWARNING: GEBCO server failed !, it is disabled......",wid=self.cons)
-          #print("\tWARNING: GEBCO server failed !, it is disabled......")      
       elif self.PLOT.RELIEF.get() == 2: 
         emod_land="emodnet:mean_atlas_land"
-        toconsola("\tEG: EMODNET tiles",wid=self.cons)
-        #print("\tEG: EMODNET tiles")
+        #toconsola("\tEG: EMODNET tiles",wid=self.cons)
         try:
           self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emod_land,zorder=0)
         except:
           toconsola("\tWARNING: EMODNET server failed !, it is disabled......",wid=self.cons)
-          #print("\tWARNING: EMODNET server failed !, it is disabled......")
       else:
         #EG Sometimes this situation is possible (i.e. manual edition of conf files)
         self.PLOT.RELIEF_SHOW.set(False)
 
     if self.PLOT.EMODNET_ISO.get():
       emodnet="emodnet:contours"
-      toconsola("EG: EMODNET contours",wid=self.cons)
-      #print("EG: EMODNET contours")
+      #toconsola("EG: EMODNET contours",wid=self.cons)
       try:
         self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,zorder=0)
       except:
         toconsola("\t WARNING: EMODNET contours failed !, it is disabled......",wid=self.cons)
-        #print("\t WARNING: EMODNET contours failed !, it is disabled......") 
     
     # Draw SAIDIN:
     if not empty(self.SAIDIN.FILENAME.get()):
-      self.Mscbar = contourplot.drawing(self.Mfig,self.Max, proj,\
+      if self.SAIDIN.show.get():
+        self.Mscbar = contourplot.drawing(self.Mfig,self.Max, proj,\
                           self.SAIDIN.FLD.xx,self.SAIDIN.FLD.yy, \
                           self.SAIDIN.FLD.data, \
                           self.SAIDIN.FLD.data.mask, \
@@ -9811,49 +9458,68 @@ class CosmoDrawing():
       for ii in range(self.nvec):
         if self.VEC[ii].show.get():
           vectorplot.drawing(self.Max,proj,self.VEC[ii])
+
     # Draw floats:
     if self.nfloat > 0:
       for ii in range(self.nfloat):
         self.FLOAT[ii].L.set(self.L.get())
         lagrangian.drawing(self.Max,proj,self.FLOAT[ii])
+
     # Draw markers:
+    mrklines = []
+    mrklabls = []
     if self.nmarker > 0:
       for ii in range(self.nmarker):
-        geomarker.drawing(self.Max,proj,self.MARKER[ii])
+        lmrk = geomarker.drawing(self.Max,proj,self.MARKER[ii])
+        mrklines.append(lmrk)
+        mrklabls.append(self.MARKER[ii].LABEL.get())
+
+    # Draw shapes:
+    if self.nshape > 0:
+      for ii in range(self.nshape):
+        #toconsola("\tSHAPE"+str(ii),wid=self.cons)
+        #EG Added projection argument, reference map and fig
+        lmrk = shape.drawing(self.Max,proj,self.SHAPE[ii])
+        if lmrk is not None:
+          mrklines.append(lmrk)
+          mrklabls.append(self.SHAPE[ii].LABEL.get())
 
     # Draw Ellipses:
     if self.nellipse > 0:
       for ii in range(self.nellipse):
-        ellipse.drawing(self.Max, proj['proj'], self.ELLIPSE[ii])
+        ellipse.drawing(self.Max,proj,self.ELLIPSE[ii])
+
+    # Draw patches:
+    #
+    if self.npatch > 0:
+      for ii in range(self.npatch):
+        patch.drawing(self.Max,proj,self.PATCH[ii])
 
     #EG Coastlines
-    toconsola("EG: COASTLINES",wid=self.cons)
-    #print("EG: COASTLINES")
+    #toconsola("EG: COASTLINES",wid=self.cons)
     if self.PLOT.COASTLINE_SHOW.get():
-      if self.PLOT.COASTLINE_SOURCE.get() == 1:
+      if self.PLOT.COASTLINE_SOURCE.get() == 2:
         emodnet="coastlines"
         try:
-          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',layers=emodnet,
+          self.Max.add_wms(wms='http://ows.emodnet-bathymetry.eu/wms',
+                           layers=emodnet,
                            color=self.PLOT.COASTLINE_COLOR.get(),
-		    	   linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+		    	                 linewidth=self.PLOT.COASTLINE_WIDTH.get(),
                            zorder=self.PLOT.COASTLINE_ZORDER.get())
         except:
           toconsola("WARNING: EMODNET coastlines !, it is disabled......",wid=self.cons)
-          #print("WARNING: EMODNET coastlines !, it is disabled......")
       else:
-        toconsola("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
-        #print("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms")
-        self.Max.coastlines(self.PLOT.MAP_RESOLUTION.get(),color=self.PLOT.COASTLINE_COLOR.get(),
-							linewidth=self.PLOT.COASTLINE_WIDTH.get(),
-                                                        zorder=self.PLOT.COASTLINE_ZORDER.get())
+        #toconsola("EG COASTLINE: Natural_Earth (50m by default) or EMODNET wms",wid=self.cons)
+        self.Max.coastlines(self.PLOT.MAP_RESOLUTION.get(),
+                            color=self.PLOT.COASTLINE_COLOR.get(),
+							              linewidth=self.PLOT.COASTLINE_WIDTH.get(),
+                            zorder=self.PLOT.COASTLINE_ZORDER.get())
 
     if self.PLOT.ISOBAT_NPLOT > 0:
-      toconsola("EG Custom ISOBATHS",wid=self.cons)
-      #print("EG Custom ISOBATHS")
+      #toconsola("EG Custom ISOBATHS",wid=self.cons)
       # Plot isobaths and its legend:
       lines, labels = [], []
       toconsola("\t lABEL_SHOW",self.PLOT.ISOBAT_LABEL_SHOW.get(),wid=self.cons)
-      #print("\t lABEL_SHOW",self.PLOT.ISOBAT_LABEL_SHOW.get())
       for ii in range(self.PLOT.nisobat):
         label = None
         if self.PLOT.ISOBAT_LABEL_SHOW.get():
@@ -9864,8 +9530,7 @@ class CosmoDrawing():
           color = self.PLOT.ISOBAT_COLOR[ii].get()
           
         if self.PLOT.ISOBAT_SHOW[ii]:
-          toconsola("\t EG ISOBATA:",self.PLOT.ISOBAT_LABEL[ii],wid=self.cons)			
-          #print("\t EG ISOBATA:",self.PLOT.ISOBAT_LABEL[ii])
+          #toconsola("\t EG ISOBATA:",self.PLOT.ISOBAT_LABEL[ii],wid=self.cons)			
           z = self.PLOT.ISOBAT_DATA[ii]
           isox,isoy = z['lon'],z['lat']
           for i in range(len(isox)):
@@ -9875,13 +9540,13 @@ class CosmoDrawing():
           isbt, = self.Max.plot(isox,isoy,marker=None, 
                                 linestyle=self.PLOT.ISOBAT_STYLE[ii].get(),
                                 linewidth=self.PLOT.ISOBAT_WIDTH[ii].get(),
+                                transform=ccrs.PlateCarree(),
                                 color=color)
           lines.append(isbt)
           labels.append(label)
             
           if self.PLOT.ISOBAT_LEGEND.SHOW.get():
-            toconsola("\t EG self.PLOT.ISOBAT_LEGEND.SHOW",wid=self.cons)
-            #print("\t EG self.PLOT.ISOBAT_LEGEND.SHOW")
+            #toconsola("\t EG self.PLOT.ISOBAT_LEGEND.SHOW",wid=self.cons)
             fontsize = self.PLOT.ISOBAT_LEGEND.FONTSIZE.get()
             mode = None
             if self.PLOT.ISOBAT_LEGEND.FONTSIZE.get() < 1:
@@ -9891,40 +9556,49 @@ class CosmoDrawing():
             if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
               try: pass
               except: pass
-      self.Max.legend(lines,labels, \
-                     title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
-                     title_fontsize=24,
-                     loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
-                     ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
-                     fontsize=fontsize,
-                     frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
-                     fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
-                     shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
-                     framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
-                     mode=mode,
-                     facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
-                     edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
-                     markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
-                     borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
-                     handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
-                     borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
-                     labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
+
+            # Anchor BBOX:
+            if self.PLOT.ISOBAT_LEGEND.USE_BB.get():
+              bb = [self.PLOT.ISOBAT_LEGEND.BBx.get(),
+                    self.PLOT.ISOBAT_LEGEND.BBy.get()]
+            else:
+              bb = None
+
+            Ilegend = self.Max.legend(lines,labels, \
+                       #title=self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                       #title_fontsize=24,
+                       loc=self.PLOT.ISOBAT_LEGEND.LOC.get(), 
+                       ncol=self.PLOT.ISOBAT_LEGEND.NCOL.get(),
+                       fontsize=fontsize,
+                       frameon=self.PLOT.ISOBAT_LEGEND.FRAMEON.get(),
+                       fancybox=self.PLOT.ISOBAT_LEGEND.FANCYBOX.get(),
+                       shadow=self.PLOT.ISOBAT_LEGEND.SHADOW.get(),
+                       framealpha=self.PLOT.ISOBAT_LEGEND.ALPHA.get(),
+                       mode=mode,
+                       facecolor=self.PLOT.ISOBAT_LEGEND.COLOR.get(),
+                       edgecolor=self.PLOT.ISOBAT_LEGEND.EDGECOLOR.get(),
+                       markerscale=self.PLOT.ISOBAT_LEGEND.MARKERSCALE.get(),
+                       borderpad=self.PLOT.ISOBAT_LEGEND.BORDERPAD.get(),
+                       handletextpad=self.PLOT.ISOBAT_LEGEND.HANDLETEXTPAD.get(),
+                       borderaxespad=self.PLOT.ISOBAT_LEGEND.BORDERAXESPAD.get(),
+                       labelspacing=self.PLOT.ISOBAT_LEGEND.LABELSPACING.get())
+            if not empty(self.PLOT.ISOBAT_LEGEND.TITLE.get()):
+              Ilegend.set_title(self.PLOT.ISOBAT_LEGEND.TITLE.get(),
+                                 prop=self.PLOT.ISOBAT_LEGEND.TITLEFONT)
+
 
     if self.PLOT.WATER_COLOR.get() != 'None':
-      toconsola("EG PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
-      #print("EG PLOT.WATER_COLOR por defecto 50m")
+      #toconsola("EG PLOT.WATER_COLOR por defecto 50m",wid=self.cons)
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'ocean', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.WATER_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.WATER_COLOR.get()),zorder=self.PLOT.WATER_ZORDER.get())
     if self.PLOT.LAND_COLOR.get() != 'None': 
-      toconsola("EG PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
-      #print("EG PLOT.LAND_COLOR por defecto 50m")
+      #toconsola("EG PLOT.LAND_COLOR por defecto 50m",wid=self.cons)
       self.Max.add_feature(cfeat.NaturalEarthFeature('physical', 'land', \
 					self.PLOT.MAP_RESOLUTION.get(), \
-					facecolor=self.PLOT.LAND_COLOR.get()),zorder=0)
+					facecolor=self.PLOT.LAND_COLOR.get()),zorder=self.PLOT.LAND_ZORDER.get())
     if self.PLOT.COUNTRYLINE_SHOW.get():
-      toconsola("EG PLOT.COUNTRYLINE",wid=self.cons)
-      #print("EG PLOT.COUNTRYLINE")
+      #toconsola("EG PLOT.COUNTRYLINE",wid=self.cons)
       self.Max.add_feature(cfeat.BORDERS,edgecolor=self.PLOT.COUNTRYLINE_COLOR.get(),
 							linewidth=self.PLOT.COUNTRYLINE_WIDTH.get(),
                                                         zorder=self.PLOT.LAND_ZORDER.get()+1)
@@ -9938,13 +9612,7 @@ class CosmoDrawing():
                         zorder=self.PLOT.LAND_ZORDER.get()+1))
 
     if self.PLOT.GRID_SHOW.get():
-      toconsola("EG PLOT.GRID"+str(self.PLOT.GRID_LINESTYLE.get()),wid=self.cons)
-      #print("EG PLOT.GRID",self.PLOT.GRID_LINESTYLE.get())
-      #EG adaptar falat comprobar
-      #def setcolor(x,color):
-      #  for m in x:
-      #    for t in x[m][1]:
-      #      t.set_color(color)
+      #toconsola("EG PLOT.GRID"+str(self.PLOT.GRID_LINESTYLE.get()),wid=self.cons)
       vmeridians = np.arange(self.PLOT.MERIDIAN_INI.get(), \
                              self.PLOT.MERIDIAN_FIN.get(), \
                              self.PLOT.MERIDIAN_INT.get())
@@ -9953,11 +9621,12 @@ class CosmoDrawing():
                              self.PLOT.PARALLEL_INT.get())
       lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
       lstyle = {'size':self.PLOT.GRID_SIZE.get(),'color':self.PLOT.GRID_COLOR.get()}
-      gl = self.Max.gridlines(crs=proj,draw_labels=True,
+      gl = self.Max.gridlines(crs=ccrs.PlateCarree(),draw_labels=True,
 						linewidth=self.PLOT.GRID_LINEWIDTH.get(),
 						color=self.PLOT.GRID_FONTCOLOR.get(),
 						alpha=self.PLOT.GRID_ALPHA.get(),
-						linestyle=self.PLOT.GRID_LINESTYLE.get())
+						linestyle=self.PLOT.GRID_LINESTYLE.get(),
+            zorder=self.PLOT.GRID_ZORDER.get())
       # Lines visibility
       gl.xlines, gl.ylines = True, True
       if self.PLOT.GRID_LINESTYLE.get() == "None":
@@ -9978,25 +9647,25 @@ class CosmoDrawing():
       #gl.xpadding , gl.ypadding = self.PLOT.LABEL_PAD.get(), self.PLOT.LABEL_PAD.get()
     else:
       # Default: no labels, no grid just Latitude and Longitude
-      toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+self.PLOT.YLABEL.get(),wid=self.cons)
+      #toconsola("EG XYLabels ..\n\t"+self.PLOT.XLABEL.get()+self.PLOT.YLABEL.get(),wid=self.cons)
       #print("EG XYLabels ..\n\t",self.PLOT.XLABEL.get(),self.PLOT.YLABEL.get())
-      font_family = self.PLOT.MAP_FONT_TYPE.get()
-      font_size   = self.PLOT.LABEL_SIZE.get()
-      font_weight = 'normal'
+      #font_family = self.PLOT.MAP_FONT_TYPE.get()
+      #font_size   = self.PLOT.LABEL_SIZE.get()
 
+      font_weight = 'normal'
       font = {'family' : font_family, 'weight' : font_weight,
               'color'  : self.PLOT.TEXT_COLOR.get(),
               'size'   : font_size}
       
-      self.Max.text(-0.07, 0.55, self.PLOT.YLABEL.get(), va="bottom", \
+      self.Max.text(-self.PLOT.YLABEL_PAD.get(), 0.55, self.PLOT.YLABEL.get(), va="bottom", \
 					ha="center", rotation="vertical", rotation_mode="anchor",
-					transform=self.ax.transAxes,fontdict=font)
-      self.Max.text(0.5, -0.2, self.PLOT.XLABEL.get(), va="bottom", \
+					transform=self.Max.transAxes,fontdict=font)
+      self.Max.text(0.5, -self.PLOT.XLABEL_PAD.get(), self.PLOT.XLABEL.get(), va="bottom", \
 					ha="center", rotation="horizontal", rotation_mode="anchor",
-					transform=self.ax.transAxes,fontdict=font)
+					transform=self.Max.transAxes,fontdict=font)
+
     # Title
-    toconsola("Title:\n"+self.PLOT.TITLE.get(),wid=self.cons)
-    #print("Title:\n",self.PLOT.TITLE.get(),self.PLOT.TITLE_PAD.get())
+    #toconsola("Title:\n"+self.PLOT.TITLE.get(),wid=self.cons)
     self.Max.set_title(self.PLOT.TITLE.get(),fontproperties=self.PLOT.TITLEFONT)                  
     px,py = self.Max.title.get_position()
     dy = self.PLOT.TITLE_PAD.get()/self.fig.get_dpi()
@@ -10013,8 +9682,7 @@ class CosmoDrawing():
             LINEWIDTH = float(self.PLOT.SCALE_LINEWIDTH.get())
           except:  LINEWIDTH = None
           #EG no parecefuncionarojo scale_bar from tools
-          toconsola("EG bar scale",wid=self.cons)
-          #print("EG bar scale")
+          #toconsola("EG bar scale",wid=self.cons)
           scale_bar(self.Max, 1)
 
     # Time stamp
@@ -10023,11 +9691,8 @@ class CosmoDrawing():
     except: pass
     
     if len(self.DATE) > 0:
-      print("EG Time stamp: len(self.DATE) > 0")
       if self.PLOT.TIMESTAMP_SHOW.get():
-        toconsola("EG Time stamp: "+str(self.DATE[self.L.get()]),wid=self.cons)
-        #print("EG Time stamp: ", self.DATE[self.L.get()])
-        font_family = self.PLOT.MAP_FONT_TYPE.get()
+        #toconsola("EG Time stamp: "+str(self.DATE[self.L.get()]),wid=self.cons)
         font_weight = 'normal'
         if self.PLOT.TIMESTAMP_BOLD.get(): font_weight = 'bold'
    
@@ -10040,14 +9705,25 @@ class CosmoDrawing():
 					fontfamily=font_family, fontweight=font_weight, \
 					annotation_clip=False)
     
-    if self.nmarker > 0 and self.PLOT.LEGEND.SHOW.get():
+    if self.PLOT.LOGO_DISPLAY.get() == 1: self.plot_logo()  
+
+    if len(mrklines) > 0 and self.PLOT.LEGEND.SHOW.get():
       fontsize = self.PLOT.LEGEND.FONTSIZE.get()
       mode = None
       if self.PLOT.LEGEND.FONTSIZE.get() < 1: fontsize = None
       if self.PLOT.LEGEND.MODE.get() == 1: mode = 'expand'
-      # HASTA AQUI
-      try:
-        legend = self.Max.legend(loc=self.PLOT.LEGEND.LOC.get(),
+
+      # Anchor BBOX:
+      if self.PLOT.LEGEND.USE_BB.get():
+        bb = [self.PLOT.LEGEND.BBx.get(),
+              self.PLOT.LEGEND.BBy.get()]
+      else:
+        bb = None
+
+      #try:
+      #toconsola("EG ax.legend",wid=self.cons)
+      legend = self.Max.legend(mrklines,mrklabls,
+                        loc=self.PLOT.LEGEND.LOC.get(),
                         ncol=self.PLOT.LEGEND.NCOL.get(),
                         fontsize=fontsize,
                         frameon=self.PLOT.LEGEND.FRAMEON.get(),
@@ -10055,6 +9731,7 @@ class CosmoDrawing():
                         shadow=self.PLOT.LEGEND.SHADOW.get(),
                         framealpha=self.PLOT.LEGEND.ALPHA.get(),
                         mode=mode,
+                        bbox_to_anchor=bb,
                         facecolor=self.PLOT.LEGEND.COLOR.get(),
                         edgecolor=self.PLOT.LEGEND.EDGECOLOR.get(),
                         markerscale=self.PLOT.LEGEND.MARKERSCALE.get(),
@@ -10062,7 +9739,11 @@ class CosmoDrawing():
                         handletextpad=self.PLOT.LEGEND.HANDLETEXTPAD.get(),
                         borderaxespad=self.PLOT.LEGEND.BORDERAXESPAD.get(),
                         labelspacing=self.PLOT.LEGEND.LABELSPACING.get())
-      except:  pass
+      #except: pass
+      try:
+        self.Max.add_artist(Ilegend)
+      except:
+        pass
 
       if not empty(self.PLOT.LEGEND.TITLE.get()):
         try:
@@ -10071,14 +9752,12 @@ class CosmoDrawing():
         except:
           pass
 
-    if self.PLOT.LOGO_DISPLAY.get() == 1:
-      self.plot_logo()  
-
-    self.Max.set_extent([float(self.PLOT.WEST.get()) ,float(self.PLOT.EAST.get()),\
-						float(self.PLOT.SOUTH.get()),float(self.PLOT.NORTH.get())],\
-						crs=proj)
+#    self.Max.set_extent([float(self.PLOT.WEST.get()) ,float(self.PLOT.EAST.get()),\
+#						float(self.PLOT.SOUTH.get()),float(self.PLOT.NORTH.get())],\
+#						crs=proj)
 
     self.Mcanvas.draw()
+    return
 
   def trajectory_editor(self):
   # ==========================
@@ -11896,9 +11575,9 @@ class CosmoDrawing():
           ss = "%9.3f, %9.3f, %9.3f, %9.0f\n" % (txo.get(), tyo.get(), tzo.get(), tdt.get())
           f.write(ss)
 
-        BLM = blm.parameters()
+        CLM = clm.parameters()
 
-        command = BLM.PATH.get() + BLM.BIN.get()
+        command = CLM.PATH.get() + CLM.BIN.get()
 
         options  = ' -U file='+self.VEC[ii].UFILENAME.get() 
 
@@ -11916,7 +11595,7 @@ class CosmoDrawing():
         options += ' t='+self.VEC[ii].V.icdf.tname
         options += ' v='+self.VEC[ii].vname.get()
         options += ' -release ' + self.release_file.get()
-        options += ' -idt %d ' % self.blm_idt.get()
+        options += ' -idt %d ' % self.clm_idt.get()
         options += ' -out '+ self.out_file.get()
 
         command += options
@@ -11943,7 +11622,7 @@ class CosmoDrawing():
         FLT.Fy = interpolate.interp1d(FLT.TIME,FLT.lat, bounds_error=False, fill_value=np.NaN)
         FLT.MAPY = FLT.Fy(self.TIME)
 
-        FLT.SOURCE = 'blm'
+        FLT.SOURCE = 'clm'
         FLT.PLOT.LINE_COLOR.set(self.VEC[ii].PLOT.CURRENT_COLOR.get())
 
         self.nfloat += 1
@@ -12260,8 +11939,8 @@ class CosmoDrawing():
     tk.Entry(F3,textvariable=self.release_file,justify='left',width=40).grid(row=0,column=1,padx=3,sticky='w')
     tk.Label(F3,text='Trajectory filename:').grid(row=1,column=0,padx=3,sticky='w')
     tk.Entry(F3,textvariable=self.out_file,justify='left',width=40).grid(row=1,column=1,padx=3,sticky='w')
-    tk.Label(F3,text='blm option -idt:').grid(row=2,column=0,padx=3,sticky='w')
-    tk.Entry(F3,textvariable=self.blm_idt,justify='left',width=40).grid(row=2,column=1,padx=3,sticky='w')
+    tk.Label(F3,text='clm option -idt:').grid(row=2,column=0,padx=3,sticky='w')
+    tk.Entry(F3,textvariable=self.clm_idt,justify='left',width=40).grid(row=2,column=1,padx=3,sticky='w')
     tk.Label(F3,text='Normalization factor, n:').grid(row=3,column=0,padx=3,sticky='w')
     tk.Entry(F3,textvariable=self.index_n,justify='left',width=40).grid(row=3,column=1,padx=3,sticky='w')
     tk.Label(F3,text='Target prediction:').grid(row=4,column=0,padx=3,sticky='w')
