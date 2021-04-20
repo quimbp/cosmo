@@ -74,11 +74,11 @@ Then type,
 $ make
 ```
 
-If compilation succeeds, the COSMO Lagrangian Model will be located in **$COSMO/bin/blm**
+If compilation succeeds, the COSMO Lagrangian Model will be located in **$COSMO/bin/clm**
 
 Type
 ```
-$ $COSMO/bin/blm --help
+$ $COSMO/bin/clm --help
 ```
 to obtain the list of options for running the model. A detailed User Documentation will be uploaded shortly.
 
