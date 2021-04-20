@@ -107,6 +107,7 @@ import cosmo.field as field
 import cosmo.plotxy as plotxy
 import cosmo.ellipse as ellipse
 import cosmo.patch as patch
+import cosmo.climatology as climatology
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -2345,6 +2346,8 @@ class CosmoDrawing():
                          command=self.marker_editor)
     toolmenu.add_command(label='Add patch',
                          command=self.get_patch)
+    toolmenu.add_command(label='Download Atlas of currents',
+                         command=self.atlas)
     toolmenu.add_command(label='Make animation',
                          command=self.make_anim)
     toolmenu.add_command(label='COSMO Lagrangian Model (CLM)',
@@ -12681,5 +12684,26 @@ class CosmoDrawing():
     _kk = self.canvas.mpl_connect('key_press_event',_key_handler2)
     self.master.bind('<Key>',_key_handler)
     messagebox.showinfo(message='Select a starting point with the left mouse button. ESC to quit')
+
+
+
+  # =======================
+  def atlas(self):
+  # =======================
+
+    def _cancel():
+    # ============
+      self.Window_atlas.destroy()
+
+
+    # Main window
+    # ============
+
+    self.Window_atlas = tk.Toplevel(self.master)
+    self.Window_atlas.title('Set time axis')
+    self.Window_atlas.resizable(width=False,height=False)
+    self.Window_atlas.protocol('WM_DELETE_WINDOW',_cancel)
+
+    climatology.winClim(self.Window_atlas,wid=self.cons)
 
 

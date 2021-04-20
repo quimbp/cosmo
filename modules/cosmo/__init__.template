@@ -56,3 +56,5 @@ from cosmo import field
 from cosmo import plotxy
 from cosmo import ellipse
 from cosmo import patch
+from cosmo import climatology
+
