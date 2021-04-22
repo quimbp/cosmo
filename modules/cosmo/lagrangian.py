@@ -545,7 +545,7 @@ def drawing(ax,proj,FLT):
              
     if FLT.PLOT.MARKER_SHOW.get():
       ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
-             ms=FLT.PLOT.INITIAL_SIZE.get(),       \
+             ms=FLT.PLOT.MARKER_SIZE.get(),       \
              transform=proj,                       \
              alpha=FLT.PLOT.ALPHA.get(),           \
              zorder=zorder,                        \
@@ -553,7 +553,17 @@ def drawing(ax,proj,FLT):
              color=FLT.PLOT.MARKER_COLOR.get())
              
     if FLT.PLOT.INITIAL_SHOW.get():
-      ax.plot(xx[r1],yy[r1],                  \
+
+      # Check that we get the first valid position:
+      #
+      vr1 = r1
+      for i in range(r1,r2):
+        if np.isnan(xx[i]) or np.isnan(yy[i]):
+          pass
+        else:
+          vr1 = i
+          break
+      ax.plot(xx[vr1],yy[vr1],                \
              FLT.PLOT.INITIAL_STYLE.get(),    \
              ms=FLT.PLOT.INITIAL_SIZE.get(),  \
              transform=proj,                  \
