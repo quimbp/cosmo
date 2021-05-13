@@ -35,6 +35,7 @@ type type_date
     procedure              :: now           => date_now
     procedure              :: is            => date_set
     procedure              :: jd            => date2jd
+    procedure              :: timedelta     => date_increment
 
 end type type_date
 
@@ -638,6 +639,177 @@ date%calendar = 'gregorian'
 
 return
 end function strptime
+! ...
+! =====================================================================
+! ...
+type(type_date) function date_increment(date,days,hours,minutes,seconds) result(new_date)
+
+class(type_date), intent(in)            :: date
+integer, intent(in), optional           :: days,hours,minutes,seconds
+
+! ... Local variables
+! ...
+integer i,num_days,num_hours,num_minutes,num_seconds,dmax
+
+
+num_days = 0
+num_hours = 0
+num_minutes = 0
+num_seconds = 0
+
+if (present(seconds)) then
+  num_minutes = num_minutes + seconds/60
+  num_seconds = mod(seconds,60)
+endif
+if (present(minutes)) then
+  num_minutes = num_minutes + minutes
+  num_hours = num_hours + num_minutes/60
+  num_minutes = mod(num_minutes,60)
+endif
+if (present(hours)) then
+  num_hours = num_hours + hours
+  num_days = num_days + num_hours/24
+  num_hours = mod(num_hours,24)
+endif
+if (present(days)) num_days = num_days + days
+
+new_date = date
+
+if (num_days.gt.0) then
+  do i=1,num_days
+    call add_one_day(new_date)
+  enddo
+else if (num_days.lt.0) then
+  ! negative days
+  do i=1,abs(num_days)
+    call minus_one_day(new_date)
+  enddo
+endif
+
+if (num_hours.gt.0) then
+  do i=1,num_hours
+    call add_one_hour(new_date)
+  enddo
+else if (num_hours.lt.0) then
+  do i=1,abs(num_hours)
+    call minus_one_hour(new_date)
+  enddo
+endif
+
+if (num_minutes.gt.0) then
+  do i=1,num_minutes
+    call add_one_minute(new_date)
+  enddo
+else if (num_minutes.lt.0) then
+  do i=1,abs(num_minutes)
+    call minus_one_minute(new_date)
+  enddo
+endif
+
+if (num_seconds.gt.0) then
+  do i=1,num_seconds
+    new_date%second = new_date%second + 1
+    if (new_date%second.eq.60) then
+      new_date%second = 0
+      call add_one_minute(new_date)
+    endif
+  enddo
+else if (num_seconds.lt.0) then
+  do i=1,abs(num_seconds)
+    new_date%second = new_date%second - 1
+    if (new_date%second.eq.-1) then
+      new_date%second = 59
+      call minus_one_minute(new_date)
+    endif
+  enddo
+endif
+
+  contains
+
+    subroutine add_one_day(date)
+    ! --------------------------
+    type(type_date), intent(inout)   :: date
+    integer dmax
+    dmax = days_in_month(date%year,date%month)
+    date%day = date%day + 1
+    if (date%day.gt.dmax) then
+      date%day = 1
+      date%month = date%month + 1
+      if (date%month.eq.13) then
+        date%month = 1
+        date%year = date%year + 1
+      endif
+    endif
+    return
+    end subroutine add_one_day
+
+    subroutine minus_one_day(date)
+    ! -------------------------------
+    type(type_date), intent(inout)   :: date
+    integer dmax
+    if (date%month.eq.1) then
+      dmax = 31
+    else
+      dmax = days_in_month(date%year,date%month-1)
+    endif
+    date%day = date%day - 1
+    if (date%day.lt.1) then
+      date%day = dmax
+      date%month = date%month - 1
+      if (date%month.eq.0) then
+        date%month = 12
+        date%year = date%year - 1
+      endif
+    endif
+    return
+    end subroutine minus_one_day
+
+    subroutine add_one_hour(date)
+    ! ---------------------------
+    type(type_date), intent(inout)   :: date
+    date%hour = date%hour + 1
+    if (date%hour.eq.24) then
+      date%hour = 0
+      call add_one_day(date)
+    endif
+    return
+    end subroutine add_one_hour
+
+    subroutine minus_one_hour(date)
+    ! -----------------------------
+    type(type_date), intent(inout)   :: date
+    date%hour = date%hour - 1
+    if (date%hour.eq.-1) then
+      date%hour = 23
+      call minus_one_day(date)
+    endif
+    return
+    end subroutine minus_one_hour
+
+    subroutine add_one_minute(date)
+    ! ---------------------------
+    type(type_date), intent(inout)   :: date
+    date%minute = date%minute + 1
+    if (date%minute.eq.60) then
+      date%minute = 0
+      call add_one_hour(date)
+    endif
+    return
+    end subroutine add_one_minute
+
+    subroutine minus_one_minute(date)
+    ! -----------------------------
+    type(type_date), intent(inout)   :: date
+    date%minute = date%minute - 1
+    if (date%minute.eq.-1) then
+      date%minute = 59
+      call minus_one_hour(date)
+    endif
+    return
+    end subroutine minus_one_minute
+
+
+end function date_increment  
 ! ...
 ! =====================================================================
 ! ...
