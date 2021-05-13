@@ -1679,6 +1679,7 @@ class Select_Columns():
     self.SEPARATOR = tk.StringVar()
 
     line = line.strip()
+    line = ' '.join(line.split())
     self.LINE.set(line)
     self.SEPARATOR.set(sep)
     self.columns = line.split(self.SEPARATOR.get())

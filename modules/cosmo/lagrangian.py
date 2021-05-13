@@ -405,6 +405,7 @@ class parameters():
       with open(filename) as datafile:
         for line in datafile.readlines():
           line = line.strip()
+          line = ' '.join(line.split())
           columns = line.split(Axes.SEPARATOR.get())
 
           self.lon.append(float(columns[Axes.lon]))
