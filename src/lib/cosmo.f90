@@ -23,6 +23,7 @@ use module_grid
 use module_rk
 use module_lineargs
 use module_random
+use module_json
 
 implicit none
 

@@ -606,9 +606,15 @@ att = line_replace(att,'-',' ')
 att = line_replace(att,':',' ')
 att = line_replace(att,'T',' ')
 att = line_replace(att,'Z',' ')
+att = line_replace(att,'"',' ')
+att = line_replace(att,'[',' ')
+att = line_replace(att,']',' ')
 nw  = numwords(att)
 if (nw.ne.6) then
-  write(*,*) trim(string)
+  write(*,*) 'Error in strptime'
+  write(*,*) 'input string    : ', trim(string)
+  write(*,*) 'processed string: ', trim(att)
+  write(*,*) 'number of terms : ', nw
   call stop_error(1,'Invalid iso date')
 endif
 

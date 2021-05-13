@@ -293,24 +293,30 @@ real(dp), intent(in)                 :: xo
 ! ...
 logical slope
 integer n,jl,jm,ju
-real(dp) xn,x1
 
-n = size(x)
-x1 = x(1)
-xn = x(n)
-slope = x(n).gt.x(1)
+n  = size(x)
 
 jl = 0
 ju = n+1
-do while (ju-jl.gt.1)
+slope = (x(n).ge.x(1))
+
+do 
+  if (ju-jl.le.1) exit
   jm = (ju+jl)/2
-  if (slope.eqv.(xo.gt.x(jm))) then
+  if (slope.eqv.(xo.ge.x(jm))) then
     jl = jm
   else
     ju = jm
   endif
 enddo
-j = jl
+
+if (xo.eq.x(1)) then
+  j = 1
+else if (xo.eq.x(n)) then
+  j = n - 1
+else
+  j = jl
+endif
 
 end function locate
 ! ...

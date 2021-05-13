@@ -9,7 +9,8 @@ TARGET = $(LIBDIR)/libcosmo.a
 INC = $(CDFINC) -I$(INCDIR)
 
 all: $(TARGET)
-OBJ = types.o constants.o status.o math.o random.o utils.o lineargs.o help.o rungekutta.o ascii.o datetime.o grid.o cosmo.o
+OBJ = types.o constants.o status.o random.o utils.o math.o lineargs.o help.o rungekutta.o ascii.o datetime.o \
+      grid.o json.o cosmo.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< $(INC)
@@ -32,13 +33,13 @@ constants.o: constants.f90 types.o
 status.o: status.f90
 	$(FC) $(FFLAGS) -c $< $(INC)
 
-math.o: math.f90 status.o constants.o types.o
-	$(FC) $(FFLAGS) -c $< $(INC)
-
 random.o: random.f90 status.o constants.o types.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
 utils.o: utils.f90 random.o types.o
+	$(FC) $(FFLAGS) -c $< $(INC)
+
+math.o: math.f90 status.o constants.o types.o utils.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
 lineargs.o: lineargs.f90 utils.o constants.o types.o
@@ -59,6 +60,9 @@ datetime.o: datetime.f90 status.o utils.o types.o
 grid.o: grid.f90 datetime.o status.o utils.o math.o constants.o types.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
-cosmo.o: cosmo.f90 types.o constants.o status.o ascii.o utils.o datetime.o math.o grid.o rungekutta.o
+json.o: json.f90 types.o
+	$(FC) $(FFLAGS) -c $< $(INC)
+
+cosmo.o: cosmo.f90 types.o constants.o status.o ascii.o utils.o datetime.o math.o grid.o rungekutta.o json.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
