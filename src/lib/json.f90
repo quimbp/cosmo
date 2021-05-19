@@ -453,8 +453,8 @@ type(type_key), dimension(:), allocatable    :: keys
 
 ns = len_trim(line)
 
-print*, 'line: ', trim(line)
-print*, 'ns = ',ns
+!print*, 'line: ', trim(line)
+!print*, 'ns = ',ns
 
 key_open = 0
 key_close = 0
@@ -478,7 +478,7 @@ if (key_open.ne.key_close) stop 'Unbalanced number of keys'
 nkeys = key_open
 allocate(keys(nkeys))
 
-print*, 'nkeys: ', nkeys
+!print*, 'nkeys: ', nkeys
 
 l = 0
 key_level = 0

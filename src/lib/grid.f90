@@ -72,7 +72,8 @@ type type_grid
   real(dp), dimension(:,:), pointer      :: lon,lat
 !  real(dp), dimension(:,:), pointer      :: x,y
   real(dp), dimension(:), pointer        :: z
-  real(dp), dimension(:), pointer        :: t                 ! in julian time
+  real(dp), dimension(:), pointer        :: t                 ! time in julian days
+  real(dp), dimension(:), pointer        :: s                 ! time in seconds
   type(type_date), dimension(:), pointer :: date
   integer                                :: io,jo,ko,lo 
   integer                                :: ni,nj,nk,nl 
@@ -359,6 +360,7 @@ allocate(GRD%lon(GRD%nx,GRD%ny),stat=err); if (err.NE.0) return
 allocate(GRD%lat(GRD%nx,GRD%ny),stat=err); if (err.NE.0) return
 allocate(GRD%z(GRD%nz),stat=err); if (err.NE.0) return
 allocate(GRD%t(GRD%nt),stat=err); if (err.NE.0) return
+allocate(GRD%s(GRD%nt),stat=err); if (err.NE.0) return
 allocate(GRD%date(GRD%nt),stat=err); if (err.NE.0) return
 
 ! ... Read the horizontal grid, the depth and time
@@ -409,6 +411,7 @@ if (GRD%idt.gt.0) then
   err = NF90_GET_VAR(GRD%fid,GRD%idt,GRD%t)
   if (err.ne.NF90_NOERR) return
   GRD%t(:) = dateref%jd() + tscale*GRD%t(:)/86400.0_dp
+  GRD%s(:) = 86400.0D0*GRD%t(:)
   do i=1,GRD%nt
     dd = jd2date(GRD%t(i))
     GRD%date(i) = dd
@@ -418,7 +421,7 @@ if (GRD%idt.gt.0) then
   if (GRD%nt.eq.1) then
     GRD%dt = 0.0_dp
   else
-    GRD%dt = nint(GRD%t(2)*86400.0d0) - nint(GRD%t(1)*86400.0d0)
+    GRD%dt = nint(GRD%s(2)) - nint(GRD%s(1))
   endif
 endif
 
@@ -935,12 +938,15 @@ do l=GRD%lo,GRD%lo+GRD%nl-1
 enddo
 
 deallocate(GRD%t)
+deallocate(GRD%s)
 deallocate(GRD%date)
 
 allocate(GRD%t(GRD%nl))
+allocate(GRD%s(GRD%nl))
 allocate(GRD%date(GRD%nl))
 
 GRD%t(:) = tmp(:)
+GRD%s(:) = 86400.0D0*tmp(:)
 do l=1,GRD%nl
   dd = jd2date(GRD%t(l))
   GRD%date(l) = dd
