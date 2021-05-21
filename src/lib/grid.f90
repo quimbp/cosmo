@@ -70,6 +70,7 @@ type type_grid
   real(dp)                               :: zmin,zmax,tmin,tmax
   real(dp)                               :: dt                ! in seconds
   real(dp), dimension(:,:), pointer      :: lon,lat
+  real(dp), dimension(:,:), pointer      :: dlon,dlat
 !  real(dp), dimension(:,:), pointer      :: x,y
   real(dp), dimension(:), pointer        :: z
   real(dp), dimension(:), pointer        :: t                 ! time in julian days
@@ -362,6 +363,8 @@ allocate(GRD%z(GRD%nz),stat=err); if (err.NE.0) return
 allocate(GRD%t(GRD%nt),stat=err); if (err.NE.0) return
 allocate(GRD%s(GRD%nt),stat=err); if (err.NE.0) return
 allocate(GRD%date(GRD%nt),stat=err); if (err.NE.0) return
+allocate(GRD%dlon(GRD%nx-1,GRD%ny),stat=err); if (err.NE.0) return
+allocate(GRD%dlat(GRD%nx,GRD%ny-1),stat=err); if (err.NE.0) return
 
 ! ... Read the horizontal grid, the depth and time
 ! ...
@@ -399,7 +402,6 @@ else
   GRD%lat(:,:) = 0.0D0
 endif
 
-
 if (GRD%idz.gt.0) then
   err = NF90_GET_VAR(GRD%fid,GRD%idz,GRD%z)
   if (err.ne.NF90_NOERR) return
@@ -435,6 +437,18 @@ GRD%lat(:,:) = deg2rad*GRD%lat(:,:)    ! Latitudes in radians
 
 GRD%lonmin = minval(GRD%lon); GRD%lonmax = maxval(GRD%lon)          ! rad
 GRD%latmin = minval(GRD%lat); GRD%latmax = maxval(GRD%lat)          ! rad
+
+do j=1,GRD%ny
+do i=1,GRD%nx-1
+  GRD%dlon(i,j) = GRD%lon(i+1,j) - GRD%lon(i,j)
+enddo
+enddo
+
+do j=1,GRD%ny-1
+do i=1,GRD%nx
+  GRD%dlat(i,j) = GRD%lat(i,j+1) - GRD%lat(i,j)
+enddo
+enddo
 
 !allocate(GRD%x(GRD%nx,GRD%ny),stat=err); if (err.NE.0) return
 !allocate(GRD%y(GRD%nx,GRD%ny),stat=err); if (err.NE.0) return
@@ -648,6 +662,22 @@ if (GRD%vid.gt.0) then
   enddo
 endif
 
+deallocate(GRD%dlon)
+deallocate(GRD%dlat)
+allocate(GRD%dlon(ni-1,nj))
+allocate(GRD%dlat(ni,nj-1))
+
+do j=1,nj
+do i=1,ni-1
+  GRD%dlon(i,j) = GRD%lon(i+1,j) - GRD%lon(i,j)
+enddo
+enddo
+
+do j=1,nj-1
+do i=1,ni
+  GRD%dlat(i,j) = GRD%lat(i,j+1) - GRD%lat(i,j)
+enddo
+enddo
 
 err = 0
 return
