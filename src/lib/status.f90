@@ -25,7 +25,7 @@ subroutine cdf_error()
 
 if (STATUS_ERROR.ne.NF90_NOERR) then
   STATUS_TEXT = trim(NF90_STRERROR(STATUS_ERROR))
-  return
+  call check_status()
 endif
 
 end subroutine cdf_error

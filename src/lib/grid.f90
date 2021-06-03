@@ -86,6 +86,7 @@ type type_grid
 !    procedure                 :: lbracket      => grid_lbracket
     procedure                 :: bracket       => grid_bracket
     procedure                 :: read          => grid_read2D
+    procedure                 :: read_point    => grid_read_point
     procedure                 :: locate        => grid_locate2D
     procedure                 :: show          => grid_show
     procedure                 :: hinterpol     => grid_hinterpol
@@ -683,6 +684,68 @@ err = 0
 return
 
 end function grid_crop
+! ...
+! =====================================================================
+! ...
+function grid_read_point(GRD,coords) result(F)
+
+class(type_grid), intent(in)           :: GRD
+integer, dimension(:), intent(in)      :: coords
+real(dp)                               :: F
+
+! ... Local variables
+! ...
+integer np
+integer ones(size(coords))
+real(dp) F1(1)
+
+
+STATUS_ERROR = 0; STATUS_TEXT  = ""
+
+np = size(coords)
+ones(:) = 1
+
+if (GRD%var%ndims.NE.np) then
+  ! ... Invalid dimensions
+  ! ...
+  STATUS_ERROR = 1
+  STATUS_TEXT  = 'in GRID_READ_POINT invalid dimensions'
+  return
+endif
+
+STATUS_ERROR = NF90_GET_VAR(GRD%fid,GRD%vid,F1,coords,ones)
+call cdf_error()
+!if (err.ne.NF90_NOERR) then
+!  STATUS_ERROR = err
+!  STATUS_TEXT  = trim(NF90_STRERROR(err))
+!  return
+!endif
+
+F = F1(1)
+
+! ... Scale the field:
+! ...
+if (GRD%var%missing) then
+  if (GRD%var%missing_isnan) then
+    if (isnan(F)) then
+      F = zero
+    else
+      F = GRD%var%add_offset + GRD%var%scale_factor*F
+    endif
+  else
+    if ((F.eq.GRD%var%missing_value)) then
+      F = zero
+    else
+      F = GRD%var%add_offset + GRD%var%scale_factor*F
+    endif
+  endif
+else
+  F = GRD%var%add_offset + GRD%var%scale_factor*F
+endif
+
+return
+
+end function grid_read_point
 ! ...
 ! =====================================================================
 ! ...
