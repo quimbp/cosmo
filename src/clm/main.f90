@@ -108,6 +108,11 @@ if (FLT%Nfloats.le.0) call stop_error(0,'No floats !')
 ! ...
 call forcing_layers(FLT%z,FLT%k)
 
+if (verb) then
+  write(*,*) 'Float release depth     : ', FLT%z
+  write(*,*) 'Advected by model layer : ', LAYER(FLT%k)
+endif
+
 call model_ini(west,south,east,north,tmin,tmax)
 write(*,*) 'Number time steps: ', model_Nstep
 write(*,*) 'Time step (s): ', rk_dt
@@ -116,6 +121,7 @@ write(*,*) 'Time step (s): ', rk_dt
 
 call trajectory_open(Oname,FLT%Nfloats,FLT%missing)
 call release_write()
+call param_write(wsf,A11,A12,A21,A22,noise_mul,noise_add)
 
 call model_run()
 

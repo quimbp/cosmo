@@ -7,6 +7,8 @@ use module_datetime
 use module_options
 use netcdf
 use module_float
+use module_forcing, only: NLAYER,LAYER
+
 
 implicit none
 
@@ -34,6 +36,7 @@ integer                                  :: output_yoid
 integer                                  :: output_zoid
 integer                                  :: output_toid
 integer                                  :: output_status
+integer                                  :: output_kid
 real(dp)                                 :: output_missing
 
 contains
@@ -90,6 +93,9 @@ if (lowercase(ext).eq.'nc') then
   STATUS_ERROR = NF90_DEF_VAR(output_id,'release_depth',NF90_DOUBLE,(/output_nid/),output_zoid)
   call cdf_error()
   STATUS_ERROR = NF90_PUT_ATT(output_id,output_zoid,'units','meters')
+  call cdf_error()
+
+  STATUS_ERROR = NF90_DEF_VAR(output_id,'model_level',NF90_INT,(/output_nid/),output_kid)
   call cdf_error()
 
   STATUS_ERROR = NF90_DEF_VAR(output_id,'release_time',NF90_DOUBLE,(/output_nid/),output_toid)
@@ -172,12 +178,31 @@ end subroutine trajectory_open
 ! ...
 ! ====================================================================
 ! ...
+subroutine param_write(p1,p2,p3,p4,p5,p6,p7)
+
+real(dp), intent(in)         :: p1,p2,p3,p4,p5,p6,p7
+
+STATUS_ERROR = NF90_REDEF(output_id); call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'alpha',p1);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A11',p2);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A12',p3);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A21',p4);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A22',p5);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'mu',p6);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'va',p7);   call cdf_error()
+STATUS_ERROR = NF90_ENDDEF(output_id); call cdf_error()
+
+end subroutine param_write
+! ...
+! ====================================================================
+! ...
 subroutine release_write()
 
 STATUS_ERROR = NF90_PUT_VAR(output_id,output_xoid,FLT%release_lon);   call cdf_error()
 STATUS_ERROR = NF90_PUT_VAR(output_id,output_yoid,FLT%release_lat);   call cdf_error()
 STATUS_ERROR = NF90_PUT_VAR(output_id,output_zoid,FLT%release_depth); call cdf_error()
 STATUS_ERROR = NF90_PUT_VAR(output_id,output_toid,FLT%release_time);  call cdf_error()
+STATUS_ERROR = NF90_PUT_VAR(output_id,output_kid,LAYER(FLT%k));  call cdf_error()
 
 end subroutine release_write
 ! ...

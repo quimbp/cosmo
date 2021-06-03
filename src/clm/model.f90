@@ -412,6 +412,7 @@ contains
 
     ! ... Read the fields:
     ! ...
+    write(*,*) 'Reading ocean layers: ', LAYER(:)
     do ll=1,4
       do kk=1,NLAYER
         outab(:,:,kk,ll) = GOU%read(layer=LAYER(kk),step=ourecords(ll))
