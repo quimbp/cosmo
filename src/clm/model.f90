@@ -179,8 +179,9 @@ integer step,pou,pov,pau,pav,flo,nfreq
 integer pk,pn,io,ptu,ptv
 type(type_date)                        :: date
 real(dp)                               :: jd
-real(dp)                               :: XY(2,FLT%Nfloats,2)   ! X and Y positions
+!real(dp)                               :: XY(2,FLT%Nfloats,2)   ! X and Y positions
 real(dp)                               :: uf(2)
+real(dp)                               :: xp(2),xn(2)
 
 ! ... Memory space for forcing cubic interpolation
 ! ...
@@ -222,47 +223,26 @@ do step=1,model_Nstep
     ! ... Attention: It is assumed that, at initialization
     ! ... all floats are inside the domain and not stranded.
     ! ...
-    !print*, 'Release time: ', FLT%release_time(:)
     do flo=1,FLT%Nfloats
       if (FLT%release_time(flo).le.rk_t) then
         FLT%released(flo) = .True.
         FLT%floating(flo) = .True.
+        FLT%lon(flo) = FLT%release_lon(flo)
+        FLT%lat(flo) = FLT%release_lat(flo)
+        FLT%z(flo)   = FLT%release_depth(flo)
+        FLT%x(flo)   = deg2rad*FLT%lon(flo)
+        FLT%y(flo)   = deg2rad*FLT%lat(flo)
       else
         FLT%released(flo) = .False.
         FLT%floating(flo) = .False.
-      endif
-      !FLT%outside(flo)  = outside(FLT%x(flo),FLT%y(flo))
-      !FLT%floating(flo) = FLT%released(flo).and.(.not.FLT%outside(flo))
-      if (FLT%released(flo)) then
-        XY(1,flo,pk) = FLT%x(flo)
-        XY(2,flo,pk) = FLT%y(flo)
-      else
-        XY(:,flo,pk) = FLT%missing
+        FLT%lon(flo)      = FLT%missing
+        FLT%lat(flo)      = FLT%missing
+        FLT%z(flo)        = FLT%missing
+        FLT%x(flo)        = FLT%missing
+        FLT%y(flo)        = FLT%missing
       endif
     enddo
-
-    ! ... Write intial condition
-    ! ...
-    call trajectory_write(rk_t,XY(:,:,pk)); call check_status()
-
-  else
-
-    ! ... Check if any not-released float should be released now:
-    ! ...
-    do flo=1,FLT%Nfloats
-      if (.not.FLT%released(flo)) then
-        if (verb) write(*,*) 'Float ', flo,' not yet released '
-        if (FLT%release_time(flo).le.rk_t) then
-          ! ... Again, it is assumed that the initial position
-          ! ... of the floats is a position in the water.
-          ! ...
-          FLT%released(flo) = .True.
-          FLT%floating(flo) = .True.
-          XY(1,flo,pk) = FLT%x(flo)
-          XY(2,flo,pk) = FLT%y(flo)
-        endif
-      endif
-    enddo
+    call trajectory_write(rk_t)
 
   endif
         
@@ -275,56 +255,85 @@ do step=1,model_Nstep
   do flo=1,FLT%Nfloats
 
     if (FLT%floating(flo)) then
-      ! ... Call Runge-Kutta to advance the solution:
-      ! ...
+
       surface = FLT%surface(flo)
       ADVECTION_LAYER = FLT%k(flo)
 
-      call spherical_rk5 (2,XY(:,flo,pk),rk_t,rk_dt,XY(:,flo,pn),uf,RHS2D)
+      ! ... Position before advection
+      ! ...
+      xp(:) = [FLT%x(flo), FLT%y(flo)]
+
+      ! ... Call Runge-Kutta to advance the solution:
+      ! ...
+      call spherical_rk5 (2,xp,rk_t,rk_dt,xn,uf,RHS2D)
+
+      FLT%x(flo) = xn(1)
+      FLT%y(flo) = xn(2)
+      FLT%lon(flo) = rad2deg*xn(1)
+      FLT%lat(flo) = rad2deg*xn(2)
+      FLT%u(flo)   = uf(1)
+      FLT%v(flo)   = uf(2)
+
+      !write(66,'(2F9.3)') uf(1), Rearth*(xn(1)-xp(1))/rk_dt 
+      !write(67,'(2F9.3)') uf(2), cos(0.5d0*(xn(2)+xp(2)))*Rearth*(xn(2)-xp(2))/rk_dt 
 
       ! ... Check if, after being advecter, the floater leaves
       ! ... the domain or becomes stranded:
       ! ... pn = new step
       ! ... pk = previous step
       ! ...
-      if (outside(XY(1,flo,pn),XY(2,flo,pn))) then
+      if (outside(FLT%x(flo),FLT%y(flo))) then
         FLT%outside(flo) = .True.
         FLT%floating(flo) = .False.
-        XY(:,flo,pn) = FLT%missing
+        FLT%x(flo) = FLT%missing
+        FLT%y(flo) = FLT%missing
+        FLT%z(flo) = FLT%missing
+        FLT%lon(flo) = FLT%missing
+        FLT%lat(flo) = FLT%missing
       else
-        ptu = GOU%point_type(XY(1,flo,pn),XY(2,flo,pn))   ! 0:land, 1:water
-        ptv = GOV%point_type(XY(1,flo,pn),XY(2,flo,pn))   ! 0:land, 1:water
+        ptu = GOU%point_type(xn(1),xn(2))   ! 0:land, 1:water
+        ptv = GOV%point_type(xn(1),xn(2))   ! 0:land, 1:water
         if (ptu.eq.0.and.ptv.eq.0) then
            FLT%stranded(flo) = .True.
            FLT%floating(flo) = .False.
         endif
       endif
-      ! ... Check if floater has changed status:
-      ! ...
-      if (.not.FLT%floating(flo)) then
-        FLT%x(flo) = XY(1,flo,pk)    ! previous position
-        FLT%y(flo) = XY(2,flo,pk)    ! previous position
-        FLT%t(flo) = rk_t            ! previous time step
-      else
-        FLT%dist(flo) = FLT%dist(flo) + &
-                        haversine(XY(1,flo,pk),XY(2,flo,pk), &
-                                  XY(1,flo,pn),XY(2,flo,pn))
 
+      if (FLT%floating(flo)) then
+        FLT%dist(flo) = FLT%dist(flo) + haversine(xp(1),xp(2),xn(1),xn(2))
       endif
 
-    else
-      XY(:,flo,pn) = XY(:,flo,pk)
     endif
 
   enddo
 
-  pk = pn
-  pn = pn + 1
-  if (pn.eq.3) pn = 1
+  ! ... Check if any not-released float should be released now:
+  ! ...
+  rk_t = step*rk_dt
+
+  do flo=1,FLT%Nfloats
+    if (.not.FLT%released(flo)) then
+      if (verb) write(*,*) 'Float ', flo,' not yet released '
+      if (FLT%release_time(flo).le.rk_t) then
+        ! ... Again, it is assumed that the initial position
+        ! ... of the floats is a position in the water.
+        ! ...
+        FLT%released(flo) = .True.
+        FLT%floating(flo) = .True.
+        FLT%lon(flo) = FLT%release_lon(flo)
+        FLT%lat(flo) = FLT%release_lat(flo)
+        FLT%z(flo)   = FLT%release_depth(flo)
+        FLT%x(flo)   = deg2rad*FLT%lon(flo)
+        FLT%y(flo)   = deg2rad*FLT%lat(flo)
+      endif
+    endif
+  enddo
 
   if (mod(step,nfreq).eq.0) then
     if (verb) write(*,*) "Saving trajectories' positions"
-    call trajectory_write(step*rk_dt,XY(:,:,pk)); call check_status()
+    !call trajectory_write(step*rk_dt,XY(:,:,pk)); call check_status()
+    call trajectory_write(step*rk_dt); call check_status()
+    call velocity_write()
   endif
 
 
@@ -335,8 +344,7 @@ write(*,*) 'Floaters Released: ', count(FLT%released(:))
 write(*,*) 'Floaters Outside : ', count(FLT%outside(:))
 write(*,*) 'Floaters Stranded: ', count(FLT%stranded(:))
 write(*,*) 'Floaters Floating: ', count(FLT%floating(:))
-
-print*, 'Distance: ', FLT%dist(:)
+write(*,*) 'Floaters Distance: ', FLT%dist(:)
 
 ! ... Save last postions:
 ! ...
@@ -346,19 +354,19 @@ open(io,file=FinalName,status='unknown')
 rewind(io)
 
 do flo=1,FLT%Nfloats
-  ! ... Update, if necessary, the last valid position
-  ! ...
-  if (FLT%floating(flo)) then
-    FLT%x(flo) = XY(1,flo,pk)      ! Last position
-    FLT%y(flo) = XY(2,flo,pk)      ! Last position
-    FLT%t(flo) = model_Nstep*rk_dt ! Last time step
-  endif
+!  ! ... Update, if necessary, the last valid position
+!  ! ...
+!  if (FLT%floating(flo)) then
+!    FLT%x(flo) = xn(1,flo,pk)      ! Last position
+!    FLT%y(flo) = XY(2,flo,pk)      ! Last position
+!    FLT%t(flo) = model_Nstep*rk_dt ! Last time step
+!  endif
 
   ! ... Save with the last valid date:
   ! ...
-  jd = FLT%t(flo)/86400.0_dp + UserTini
+  jd = model_Nstep*rk_dt/86400.0_dp + UserTini
   date = jd2date(jd)
-  write(io,*) rad2deg*FLT%x(flo), rad2deg*FLT%y(flo), FLT%z(flo), trim(date%iso())
+  write(io,*) FLT%lon(flo), FLT%lat(flo), FLT%z(flo), trim(date%iso())
 enddo
 
 close(io)

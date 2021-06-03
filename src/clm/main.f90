@@ -115,9 +115,11 @@ write(*,*) 'Time step (s): ', rk_dt
 !                                           model_time(model_Nstep)/86400.0_dp
 
 call trajectory_open(Oname,FLT%Nfloats,FLT%missing)
+call release_write()
 
 call model_run()
 
+call exitcode_write()
 call trajectory_close()
 
 if (verb) then

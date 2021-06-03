@@ -35,11 +35,14 @@ type type_float
   ! ..
   integer, dimension(:), pointer          :: exitcode 
 
+  real(dp), dimension(:), pointer         :: lon              ! lon in degrees
+  real(dp), dimension(:), pointer         :: lat              ! lat in degrees
   real(dp), dimension(:), pointer         :: x                ! lon in radians
   real(dp), dimension(:), pointer         :: y                ! lat in radians
-  real(dp), dimension(:), pointer         :: z                ! meters 
-  real(dp), dimension(:), pointer         :: t                ! seconds
+  real(dp), dimension(:), pointer         :: z                ! depth in meters 
+  real(dp), dimension(:), pointer         :: t                ! time in seconds
   real(dp), dimension(:), pointer         :: dist             ! travelled distance (m)
+  real(dp), dimension(:), pointer         :: speed            ! m/s
 
   ! ... Each float can be advected by a different layer of the model
   ! ... The layer will depend on the number of layers in the model
@@ -446,11 +449,14 @@ allocate(F%released(n))
 allocate(F%outside(n))
 allocate(F%surface(n))
 allocate(F%floating(n))
+allocate(F%lon(n))
+allocate(F%lat(n))
 allocate(F%x(n))
 allocate(F%y(n))
 allocate(F%z(n))
 allocate(F%t(n))
 allocate(F%dist(n))
+allocate(F%speed(n))
 allocate(F%u(n))
 allocate(F%v(n))
 allocate(F%release_lon(n))

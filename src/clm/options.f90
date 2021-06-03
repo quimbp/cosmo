@@ -97,9 +97,7 @@ logical                      :: withFinalFile = .False.
 character(maxlen)            :: Oname         = "clm-out.nc"
 character(maxlen)            :: FinalName     = "clm-final.dat"
 
-!logical                      :: withSaveini  = .False.
 logical                      :: withSaveInt = .False.
-!integer                      :: Saveini  = 0
 integer                      :: SaveInt = 3600
 
 ! ... Random terms
@@ -385,6 +383,7 @@ endif
 if (withTini) write(iu,*) 'Initial time = ', UserDini%iso(), UserTini, ' (jd)'
 if (withRKdt) write(iu,*) 'Time stepime = ', UserRKdt, '(s)'
 if (withTlen) write(iu,*) 'Integration time = ', UserTlen, '(d)', nint(86400*UserTlen), ' (s)'
+              write(iu,*) 'Saving interval  = ', SaveInt, ' (seconds)'
 if (withOutfile) write(iu,*) 'Output trajectory file = ', trim(Oname)
 
 write(iu,*) 
