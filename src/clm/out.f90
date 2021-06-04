@@ -12,9 +12,6 @@ use module_forcing, only: NLAYER,LAYER
 
 implicit none
 
-private cdf_error
-
-
 character(len=maxlen)                    :: output_mode = ""
 character(len=maxlen)                    :: output_name = ""
 integer                                  :: output_id   = 34
