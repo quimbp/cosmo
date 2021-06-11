@@ -7625,11 +7625,10 @@ class CosmoDrawing():
         pi = ppi[0]
         pf = ppf[0] - 1
 
-        print('Initial index : ', pi)
-        print('Final index   : ', pf)
-
-        print(self.FLOAT[ii].nfloats)
-        print(self.FLOAT[ii].nrecords)
+        #print('Initial index : ', pi)
+        #print('Final index   : ', pf)
+        #print(self.FLOAT[ii].nfloats)
+        #print(self.FLOAT[ii].nrecords)
 
         if self.FLOAT[ii].nfloats > 1:
            lon = self.FLOAT[ii].lon[pi:pf+1,:]
@@ -7651,10 +7650,10 @@ class CosmoDrawing():
            self.FLOAT[ii].TIME = TIME
 
         self.FLOAT[ii].nrecords = len(date)
-        print('DATE[0] = ',self.FLOAT[ii].DATE[0])
-        print('DATE[n] = ',self.FLOAT[ii].DATE[-1])
-        print('TIME[0] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[0]))
-        print('TIME[n] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[-1]))
+        #print('DATE[0] = ',self.FLOAT[ii].DATE[0])
+        #print('DATE[n] = ',self.FLOAT[ii].DATE[-1])
+        #print('TIME[0] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[0]))
+        #print('TIME[n] = ',datetime.datetime.fromtimestamp(self.FLOAT[ii].TIME[-1]))
 
         #print(self.FLOAT[ii].lon)
         #print(self.FLOAT[ii].lat)
@@ -7720,7 +7719,7 @@ class CosmoDrawing():
 
     def _refill(ii):
     # ==============
-      print("entro refill",ii)
+      #print("entro refill",ii)
       if ii >= 0:
         self.COUNT.append(tk.StringVar())
         self.COUNT[-1].set(str(ii))

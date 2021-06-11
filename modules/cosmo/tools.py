@@ -1702,6 +1702,7 @@ class Select_Columns():
     self.SECOND = tk.IntVar()
     self.DATE   = tk.IntVar()
     self.TIME   = tk.IntVar()
+    self.JDAY   = tk.IntVar()
     self.FMT    = tk.StringVar()
     self.DFMT   = tk.StringVar()
     self.TFMT   = tk.StringVar()
@@ -1717,6 +1718,7 @@ class Select_Columns():
     self.SECOND.set(-1)
     self.DATE.set(-1)
     self.TIME.set(-1)
+    self.JDAY.set(-1)
     self.FMT.set('%Y-%m-%dT%H:%M:%S')
     self.DFMT.set('%Y-%m-%d')
     self.TFMT.set('%H:%M:%S')
@@ -1742,9 +1744,11 @@ class Select_Columns():
     self.page1 = ttk.Frame(self.nb)
     self.page2 = ttk.Frame(self.nb)
     self.page3 = ttk.Frame(self.nb)
+    self.page4 = ttk.Frame(self.nb)
     self.nb.add(self.page1,text='Date in different columns')
     self.nb.add(self.page2,text='Date in ISO 8601 format')
     self.nb.add(self.page3,text='Date and time')
+    self.nb.add(self.page4,text='Julian days')
     self.nb.grid(row=2,column=0,columnspan=5)
 
 
@@ -1913,6 +1917,49 @@ class Select_Columns():
     ttk.Button(F2,text='Done',command=self.done2).grid(row=5,column=6,padx=3,pady=5)
     F2.grid()
 
+    F3 = ttk.Frame(self.page4,padding=5)
+    ttk.Label(F3,text='Variable').grid(row=1,column=0,padx=3)
+    ttk.Label(F3,text='Longitude').grid(row=1,column=1,padx=3)
+    ttk.Label(F3,text='Latitude').grid(row=1,column=2,padx=3)
+    ttk.Label(F3,text='Depth').grid(row=1,column=3,padx=3)
+    ttk.Label(F3,text='Time').grid(row=1,column=4,padx=3)
+
+    self.clon3 = ttk.Combobox(F3,textvariable=self.LON,values=self.clist,width=10) 
+    self.clon3.grid(row=2,column=1,padx=3,pady=5)
+    self.clon3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.clat3 = ttk.Combobox(F3,textvariable=self.LAT,values=self.clist,width=10) 
+    self.clat3.grid(row=2,column=2,padx=3,pady=5)
+    self.clat3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.cdep3 = ttk.Combobox(F3,textvariable=self.DEPTH,values=self.clist,width=10)
+    self.cdep3.grid(row=2,column=3,padx=3,pady=5)
+    self.cdep3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.cdat3 = ttk.Combobox(F3,textvariable=self.JDAY,values=self.clist,width=10)
+    self.cdat3.grid(row=2,column=4,padx=3,pady=5,sticky='w')
+    self.cdat3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    ttk.Label(F3,text='Value').grid(row=3,column=0,padx=3)
+    self.wlon3 = ttk.Label(F3,text=self.columns[self.LON.get()],width=10)
+    self.wlon3.grid(row=3,column=1,padx=3,pady=5)
+    self.wlat3 = ttk.Label(F3,text=self.columns[self.LAT.get()],width=10)
+    self.wlat3.grid(row=3,column=2,padx=3,pady=5)
+    self.wdep3 = ttk.Label(F3,text=self.columns[self.DEPTH.get()],width=10)
+    self.wdep3.grid(row=3,column=3,padx=3,pady=5)
+    self.wdat3 = ttk.Label(F3,text=self.columns[self.JDAY.get()],width=10)
+    self.wdat3.grid(row=3,column=4,padx=3,pady=5)
+
+#    ttk.Label(F3,text='Format').grid(row=4,column=0,padx=3,pady=5)
+#    self.wdfmt = ttk.Entry(F3,text=self.DFMT,width=11)
+#    self.wdfmt.grid(row=4,column=4,padx=3,pady=5,sticky='w')
+#    self.wtfmt = ttk.Entry(F3,text=self.TFMT,width=11)
+#    self.wtfmt.grid(row=4,column=5,padx=3,pady=5,sticky='w')
+
+    ttk.Button(F3,text='Cancel',command=self.cancel).grid(row=5,column=5,padx=3,pady=5)
+    ttk.Button(F3,text='Done',command=self.done3).grid(row=5,column=6,padx=3,pady=5)
+    F3.grid()
+
 
     FM.grid()
 
@@ -1951,6 +1998,11 @@ class Select_Columns():
     self.cdep2['values'] = self.clist
     self.ctim2['values'] = self.clist
 
+    self.clon3['values'] = self.clist
+    self.clat3['values'] = self.clist
+    self.cdep3['values'] = self.clist
+    self.cdat3['values'] = self.clist
+
   def cancel(self):
   # ================
     self.lon    = None
@@ -1964,6 +2016,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     self.master.destroy()
@@ -1983,6 +2036,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2021,6 +2075,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2050,6 +2105,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2063,6 +2119,35 @@ class Select_Columns():
     if self.TIME.get() > -1:
       self.time = self.TIME.get()
     self.fmt = self.DFMT.get()+'T'+self.TFMT.get()
+
+    self.master.destroy()
+    return
+
+  def done3(self):
+  # ================
+    self.type   = 3
+    self.lon    = None
+    self.lat    = None
+    self.depth  = None
+    self.year   = None
+    self.month  = None
+    self.day    = None
+    self.hour   = None
+    self.minute = None
+    self.second = None
+    self.date   = None
+    self.time   = None
+    self.jday   = None
+    self.fmt    = None
+
+    if self.LON.get() > -1:
+      self.lon = self.LON.get()
+    if self.LAT.get() > -1:
+      self.lat = self.LAT.get()
+    if self.DEPTH.get() > -1:
+      self.depth = self.DEPTH.get()
+    if self.JDAY.get() > -1:
+      self.jday = self.JDAY.get()
 
     self.master.destroy()
     return
@@ -2093,6 +2178,13 @@ class Select_Columns():
     self.wdep2['text'] = self.columns[self.DEPTH.get()]
     self.wdat2['text'] = self.columns[self.DATE.get()]
     self.wtim2['text'] = self.columns[self.TIME.get()]
+
+  def relabel3(self):
+  # ================
+    self.wlon3['text'] = self.columns[self.LON.get()]
+    self.wlat3['text'] = self.columns[self.LAT.get()]
+    self.wdep3['text'] = self.columns[self.DEPTH.get()]
+    self.wdat3['text'] = self.columns[self.JDAY.get()]
 
 # ================================
 #class Win_permission(tk.Toplevel):

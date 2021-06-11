@@ -432,7 +432,13 @@ class parameters():
             self.DATE.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
 
           elif Axes.type == 2:
-            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+'T'+columns[Axes.time],Axes.fmt))
+            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+ \
+                             'T'+columns[Axes.time],Axes.fmt))
+
+          elif Axes.type == 3:
+            jd = float(columns[Axes.jday])
+            a = caldat(jd)
+            self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
 
           else:
             self.MESSAGE +='unknown ASCII file format'
