@@ -19,6 +19,8 @@ import matplotlib.cm as cm
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 
+import cartopy.crs as ccrs
+
 import numpy as np
 import os
 import io
@@ -2885,7 +2887,7 @@ def map_proj(name, params=None):
    return False
 
 # ===============================================================
-def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
+def scale_bar_old(ax, length=None, location=(0.5, 0.05), linewidth=3):
 # ================================================================
     """
     ax is the axes to draw the scalebar on.
@@ -2930,6 +2932,74 @@ def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
     #Plot the scalebar label
     ax.text(sbx, sby, str(length) + ' km', transform=tmc,
             horizontalalignment='center', verticalalignment='bottom')
+
+# ===============================================================
+def utm_from_lon(lon):
+# ===============================================================
+    """
+    utm_from_lon - UTM zone for a longitude
+
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    return math.floor( ( lon + 180 ) / 6) + 1
+
+# ===============================================================
+def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
+              linecolor='k',fontcolor='k',fontsize='8',zorder=2,
+              units='km', m_per_unit=1000):
+# ===============================================================
+    """
+    http://stackoverflow.com/a/35705477/1072212
+    ax is the axes to draw the scalebar on.
+    proj is the projection the axes are in
+    location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
+    length is the length of the scalebar in km.
+    linewidth is the thickness of the scalebar.
+    units is the name of the unit
+    m_per_unit is the number of meters in a unit
+    """
+
+    #from matplotlib.path import Path
+    #import matplotlib.patheffects as PathEffects
+    from matplotlib import patheffects
+    #import matplotlib.patches as mpatches
+    #import matplotlib.lines as mlines
+
+    # find lat/lon center to find best UTM zone
+    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+    # Projection in metres
+    utm = ccrs.UTM(utm_from_lon((x0+x1)/2))
+    # Get the extent of the plotted area in coordinates in metres
+    x0, x1, y0, y1 = ax.get_extent(utm)
+    # Turn the specified scalebar location into coordinates in metres
+    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    # Generate the x coordinate for the ends of the scalebar
+    bar_xs = [sbcx - length * m_per_unit/2, sbcx + length * m_per_unit/2]
+    # buffer for scalebar
+    buffer = [patheffects.withStroke(linewidth=int(linewidth*1.4), foreground="w")]
+    # Plot the scalebar with buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color=linecolor,
+        linewidth=linewidth, path_effects=buffer)
+    # buffer for text
+    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+    # Plot the scalebar label
+    t0 = ax.text(sbcx, sbcy+0.01, str(length) + ' ' + units, transform=utm,
+        horizontalalignment='center', verticalalignment='bottom',
+        path_effects=buffer, color=fontcolor,fontsize=fontsize,zorder=zorder)
+
+#    left = x0+(x1-x0)*0.05
+#    # Plot the N arrow
+#    t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
+#        horizontalalignment='center', verticalalignment='bottom',
+#        path_effects=buffer, zorder=2)
+
+    # Plot the scalebar without buffer, in case covered by text buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color=linecolor,
+        linewidth=linewidth, zorder=zorder+1)
 
 # =================================================
 def colsel(tkvar,tkstyle,widget,style,master=None):

@@ -1141,6 +1141,7 @@ class DrawingConfig():
     self.SCALE_FILLCOLOR2   = tk.StringVar()
     self.SCALE_LINECOLOR    = tk.StringVar()
     self.SCALE_LINEWIDTH    = tk.IntVar()
+    self.SCALE_ZORDER       = tk.IntVar()
 
     self.cons               = None
 
@@ -1284,12 +1285,12 @@ class DrawingConfig():
     self.SCALE_SHOW.set(False)
     self.SCALE_X.set(0)
     self.SCALE_Y.set(0)
-    self.SCALE_XO.set(0)
-    self.SCALE_YO.set(0)
-    self.SCALE_LENGTH.set(100)
+    self.SCALE_XO.set(0.5)
+    self.SCALE_YO.set(0.05)
+    self.SCALE_LENGTH.set(400)
     self.SCALE_UNITS.set('km')
     self.SCALE_STYLE.set('fancy')
-    self.SCALE_FONTSIZE.set(9)
+    self.SCALE_FONTSIZE.set(14)
     self.SCALE_FONTCOLOR.set('k')
     self.SCALE_LABELSTYLE.set('simple')
     self.SCALE_FORMAT.set('%d')
@@ -1297,7 +1298,8 @@ class DrawingConfig():
     self.SCALE_FILLCOLOR1.set('w')
     self.SCALE_FILLCOLOR2.set('k')
     self.SCALE_LINECOLOR.set('k')
-    self.SCALE_LINEWIDTH.set(None)
+    self.SCALE_LINEWIDTH.set(3)
+    self.SCALE_ZORDER.set(10)
     #EG RELIEF refers to GEBCO tile vms
     self.RELIEF_SHOW.set(False)
     self.RELIEF.set(1)
@@ -1508,6 +1510,7 @@ class DrawingConfig():
       conf['SCALE_LINEWIDTH'] = self.SCALE_LINEWIDTH.get()
     except:
       conf['SCALE_LINEWIDTH'] = None
+    conf['SCALE_ZORDER'] = self.SCALE_ZORDER.get()
     #EG RELIEF refers to GEBCO
     conf['RELIEF_SHOW'] = self.RELIEF_SHOW.get()
     conf['RELIEF'] = self.RELIEF.get()
@@ -1665,6 +1668,7 @@ class DrawingConfig():
     self.SCALE_FILLCOLOR2.set(conf['SCALE_FILLCOLOR2'])
     self.SCALE_LINECOLOR.set(conf['SCALE_LINECOLOR'])
     self.SCALE_LINEWIDTH.set(conf['SCALE_LINEWIDTH'])
+    self.SCALE_ZORDER.set(conf['SCALE_ZORDER'])
 
     #EG Refers to GEBCO tile vms
     self.RELIEF_SHOW.set(conf['RELIEF_SHOW'])
@@ -5217,53 +5221,53 @@ class CosmoDrawing():
     fs = ttk.Frame(page7,borderwidth=5,padding=5)
     ttk.Label(fs,text='Show').grid(row=0,column=0,padx=3)
     ttk.Checkbutton(fs,variable=self.PLOT.SCALE_SHOW).grid(row=0,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='LON = ').grid(row=1,column=0,padx=3,sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_X,
-                  width=10).grid(row=1,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='LAT = ').grid(row=2,column=0,padx=3,sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_Y,
-                  width=10).grid(row=2,column=1,padx=3,sticky='w')
-    ttk.Label(fs,
-                text='Map position where Scale will be drawn').grid(row=1,
-                column=2,rowspan=2,columnspan=2,padx=3,pady=5)
+    #ttk.Label(fs,text='LON = ').grid(row=1,column=0,padx=3,sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_X,
+    #              width=10).grid(row=1,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='LAT = ').grid(row=2,column=0,padx=3,sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_Y,
+    #              width=10).grid(row=2,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,
+    #            text='Map position where Scale will be drawn').grid(row=1,
+    #            column=2,rowspan=2,columnspan=2,padx=3,pady=5)
 
-    ttk.Label(fs,text='LON0 = ').grid(row=3,column=0,padx=3,sticky='e')
+    ttk.Label(fs,text='xo = ').grid(row=3,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_XO,
                   width=10).grid(row=3,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='LAT0 = ').grid(row=4,column=0,padx=3,sticky='e')
+    ttk.Label(fs,text='yo = ').grid(row=4,column=0,padx=3,sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_YO,
                   width=10).grid(row=4,column=1,padx=3,sticky='w')
     ttk.Label(fs,
-                text='Coordinate to which the Scale distance apply').grid(row=3,
+                text='Screen position where scale will be drawn').grid(row=3,
                 column=2,rowspan=2,columnspan=2,padx=3,pady=5)
-    ttk.Button(fs,text='Map center',command=center).grid(row=3,column=4,
-                                                          rowspan=2,padx=3)
+    #ttk.Button(fs,text='Map center',command=center).grid(row=3,column=4,
+    #                                                      rowspan=2,padx=3)
     ttk.Label(fs,text='Length = ').grid(row=5,column=0,padx=3,
                                           pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LENGTH,
                   width=10).grid(row=5,column=1,padx=3,sticky='w')
       
-    ttk.Label(fs,text='Units = ').grid(row=6,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Combobox(fs,textvariable=self.PLOT.SCALE_UNITS,
-                  values=['km','mi','nmi','ft','m'],
-                  width=10).grid(row=6,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Bar style = ').grid(row=7,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Combobox(fs,textvariable=self.PLOT.SCALE_STYLE,
-                  values=['simple','fancy'],
-                  width=10).grid(row=7,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Yoffset = ').grid(row=8,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_YOFFSET,
-                  width=10).grid(row=8,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Default: 0.02*(MAXLAT-MINLAT)').grid(row=8,
-                                  column=2,columnspan=2,padx=3,sticky='w')
-    ttk.Label(fs,text='Label style = ').grid(row=9,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Combobox(fs,textvariable=self.PLOT.SCALE_LABELSTYLE,
-                  values=['simple','fancy'],
-                  width=10).grid(row=9,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Units = ').grid(row=6,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Combobox(fs,textvariable=self.PLOT.SCALE_UNITS,
+    #              values=['km','mi','nmi','ft','m'],
+    #              width=10).grid(row=6,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Bar style = ').grid(row=7,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Combobox(fs,textvariable=self.PLOT.SCALE_STYLE,
+    #              values=['simple','fancy'],
+    #              width=10).grid(row=7,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Yoffset = ').grid(row=8,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_YOFFSET,
+    #              width=10).grid(row=8,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Default: 0.02*(MAXLAT-MINLAT)').grid(row=8,
+    #                              column=2,columnspan=2,padx=3,sticky='w')
+    #ttk.Label(fs,text='Label style = ').grid(row=9,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Combobox(fs,textvariable=self.PLOT.SCALE_LABELSTYLE,
+    #              values=['simple','fancy'],
+    #              width=10).grid(row=9,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Font size = ').grid(row=10,column=0,padx=3,
                                           pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FONTSIZE,
@@ -5272,10 +5276,10 @@ class CosmoDrawing():
                                           pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_FONTCOLOR,
                   width=10).grid(row=11,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Format = ').grid(row=12,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_FORMAT,
-                  width=10).grid(row=12,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Format = ').grid(row=12,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_FORMAT,
+    #              width=10).grid(row=12,column=1,padx=3,sticky='w')
     ttk.Label(fs,text='Line width = ').grid(row=13,column=0,padx=3,
                                           pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LINEWIDTH,
@@ -5284,14 +5288,18 @@ class CosmoDrawing():
                                           pady=[5,1],sticky='e')
     ttk.Entry(fs,textvariable=self.PLOT.SCALE_LINECOLOR,
                   width=10).grid(row=14,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Fill color 1 = ').grid(row=15,column=0,padx=3,
+    #ttk.Label(fs,text='Fill color 1 = ').grid(row=15,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR1,
+    #              width=10).grid(row=15,column=1,padx=3,sticky='w')
+    #ttk.Label(fs,text='Fill color 2 = ').grid(row=16,column=0,padx=3,
+    #                                      pady=[5,1],sticky='e')
+    #ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR2,
+    #              width=10).grid(row=16,column=1,padx=3,sticky='w')
+    ttk.Label(fs,text='Zorder = ').grid(row=17,column=0,padx=3,
                                           pady=[5,1],sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR1,
-                  width=10).grid(row=15,column=1,padx=3,sticky='w')
-    ttk.Label(fs,text='Fill color 2 = ').grid(row=16,column=0,padx=3,
-                                          pady=[5,1],sticky='e')
-    ttk.Entry(fs,textvariable=self.PLOT.SCALE_FILLCOLOR2,
-                  width=10).grid(row=16,column=1,padx=3,sticky='w')
+    ttk.Entry(fs,textvariable=self.PLOT.SCALE_ZORDER,
+                  width=10).grid(row=17,column=1,padx=3,sticky='w')
       
     fs.grid()
 
@@ -9269,7 +9277,18 @@ class CosmoDrawing():
           except:  LINEWIDTH = None
           #EG no parecefuncionarojo scale_bar from tools
           toconsola("EG bar scale", wid=self.cons)
-          scale_bar(self.ax, 1)
+          scale_bar(self.ax,proj=ccrs.PlateCarree(),
+                    location=[self.PLOT.SCALE_XO.get(),self.PLOT.SCALE_YO.get()],
+                    length=self.PLOT.SCALE_LENGTH.get(),
+                    linecolor=self.PLOT.SCALE_LINECOLOR.get(),
+                    fontcolor=self.PLOT.SCALE_FONTCOLOR.get(),
+                    fontsize=self.PLOT.SCALE_FONTSIZE.get(),
+                    zorder=self.PLOT.SCALE_ZORDER.get(),
+                    linewidth=LINEWIDTH)
+
+          #scale_bar(self.ax, self.PLOT.SCALE_LENGTH.get(),  \
+          #          [self.PLOT.SCALE_XO.get(),self.PLOT.SCALE_YO.get()],
+          #          linewidth=LINEWIDTH)
           '''EG To be implemented with Cartopy
           print("EG PLOT.GEOMAP 2 drawmapscale")
           self.m.drawmapscale(self.PLOT.SCALE_X.get(),
@@ -9688,7 +9707,16 @@ class CosmoDrawing():
           except:  LINEWIDTH = None
           #EG no parecefuncionarojo scale_bar from tools
           #toconsola("EG bar scale",wid=self.cons)
-          scale_bar(self.Max, 1)
+          #scale_bar(self.Max, 1)
+          scale_bar(self.Max,proj=ccrs.PlateCarree(),
+                    location=[self.PLOT.SCALE_XO.get(),self.PLOT.SCALE_YO.get()],
+                    length=self.PLOT.SCALE_LENGTH.get(),
+                    linecolor=self.PLOT.SCALE_LINECOLOR.get(),
+                    fontcolor=self.PLOT.SCALE_FONTCOLOR.get(),
+                    fontsize=self.PLOT.SCALE_FONTSIZE.get(),
+                    zorder=self.PLOT.SCALE_ZORDER.get(),
+                    linewidth=LINEWIDTH)
+
 
     # Time stamp
     try:
@@ -12658,7 +12686,7 @@ class CosmoDrawing():
         line[0].set_visible(False)
         if event.inaxes:
           dist = haversine((xo,yo),(event.xdata,event.ydata)) / 1000.
-          string = 'Distance to ({0:8.3f},{1:8.3f}):  {2:7.1f} km'.format(event.xdata,event.ydata,dist)
+          string = 'Distance to ({0:8.3f},{1:8.3f}):  {2:7.1f} km  (ESC to quit)'.format(event.xdata,event.ydata,dist)
           line[0].set_data([xo,event.xdata],[yo,event.ydata])
           line[0].set_visible(True)
           annotation.xytext = event.xdata, event.ydata
