@@ -3,35 +3,28 @@ module module_random
 use module_types, only: dp
 use module_constants
 
+interface randn
+  module procedure randn_r,randn_v,randn_a
+end interface randn
+
 contains
 ! ...
 ! =====================================================================
-! =====================================================================
 ! ...
-function randn (m) result(ff)
+function randn_r () result(ff)
 
-implicit none
+  real(dp)                                   :: ff
 
-integer, intent(in)                        :: m
-real(dp), dimension(m)                     :: ff
+  ! ... Local variables
+  ! ...
+  real(dp), parameter                    :: s  =  0.449871D0
+  real(dp), parameter                    :: t  = -0.386595D0
+  real(dp), parameter                    :: a  =  0.19600D0
+  real(dp), parameter                    :: b  =  0.25472D0
+  real(dp), parameter                    :: r1 =  0.27597D0
+  real(dp), parameter                    :: r2 =  0.27846D0
+  real(dp) u,v,x,y,q
 
-! ... Local variables
-! ...
-integer i
-real(dp), parameter                    :: s  =  0.449871D0
-real(dp), parameter                    :: t  = -0.386595D0
-real(dp), parameter                    :: a  =  0.19600D0
-real(dp), parameter                    :: b  =  0.25472D0
-real(dp), parameter                    :: r1 =  0.27597D0
-real(dp), parameter                    :: r2 =  0.27846D0
-real(dp) u,v,x,y,q
-
-do i=1,m
-
-!    call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
-!    call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
-!    ff(i) = sqrt(-2.0_dp*log(u)) * cos(2.0_dp*pi*v)
-  
   do
     call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
     call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
@@ -47,11 +40,92 @@ do i=1,m
     if (q .gt. r2) cycle
     if (v**2 .LT. -4D0*LOG(u)*u*u) exit
   enddo
-  ff(i) = v/u
+  ff = v/u
 
-enddo
+end function randn_r
+! ...
+! =====================================================================
+! ...
+function randn_v (m) result(ff)
 
-end function randn
+  integer, intent(in)                        :: m
+  real(dp), dimension(m)                     :: ff
+
+  ! ... Local variables
+  ! ...
+  integer i
+  real(dp), parameter                    :: s  =  0.449871D0
+  real(dp), parameter                    :: t  = -0.386595D0
+  real(dp), parameter                    :: a  =  0.19600D0
+  real(dp), parameter                    :: b  =  0.25472D0
+  real(dp), parameter                    :: r1 =  0.27597D0
+  real(dp), parameter                    :: r2 =  0.27846D0
+  real(dp) u,v,x,y,q
+
+  do i=1,m
+    do
+      call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
+      call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
+      v = 1.7156D0 * (v - 0.5D0)
+
+      ! ... Evaluate the quadratic form
+      ! ...
+      x = u - s
+      y = ABS(v) - t
+      q = x*x + y*(a*y - b*x)
+
+      if (q .lt. r1) exit
+      if (q .gt. r2) cycle
+      if (v**2 .LT. -4D0*LOG(u)*u*u) exit
+    enddo
+    ff(i) = v/u
+  enddo
+
+end function randn_v
+! ...
+! =====================================================================
+! ...
+function randn_a (m,n) result(ff)
+
+  integer, intent(in)                        :: m
+  integer, intent(in)                        :: n
+  real(dp), dimension(:,:), pointer          :: ff
+
+  ! ... Local variables
+  ! ...
+  integer i,j
+  real(dp), parameter                    :: s  =  0.449871D0
+  real(dp), parameter                    :: t  = -0.386595D0
+  real(dp), parameter                    :: a  =  0.19600D0
+  real(dp), parameter                    :: b  =  0.25472D0
+  real(dp), parameter                    :: r1 =  0.27597D0
+  real(dp), parameter                    :: r2 =  0.27846D0
+  real(dp) u,v,x,y,q
+
+  if (.not.associated(ff)) allocate(ff(m,n))
+
+  do j=1,n
+  do i=1,m
+    do
+      call RANDOM_NUMBER(u)  ! GNU RANDOM GENERATOR
+      call RANDOM_NUMBER(v)  ! GNU RANDOM GENERATOR
+      v = 1.7156D0 * (v - 0.5D0)
+
+      ! ... Evaluate the quadratic form
+      ! ...
+      x = u - s
+      y = ABS(v) - t
+      q = x*x + y*(a*y - b*x)
+
+      if (q .lt. r1) exit
+      if (q .gt. r2) cycle
+      if (v**2 .LT. -4D0*LOG(u)*u*u) exit
+    enddo
+    ff(i,j) = v/u
+  enddo
+  enddo
+
+end function randn_a
 ! ...
 ! =====================================================================
 ! ...
