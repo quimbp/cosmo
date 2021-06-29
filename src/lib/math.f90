@@ -1009,4 +1009,119 @@ end subroutine dfpmin
 ! ...
 ! =====================================================================
 ! ...
+real(dp) function mean(A,W)
+! ... Calculates the weighted mean = 1/N * Sum W(i)*A(i)
+! ... Weights are optional.
+
+  real(dp), dimension(:), intent(in)     :: A
+  real(dp), dimension(:), optional       :: W
+
+  integer n
+  real(dp) nan,Sw
+
+  ! ... nan:
+  ! ...
+  nan = ieee_value(1.0_dp,ieee_quiet_nan)
+
+  mean = nan
+  n = size(A)
+  if (n.eq.0) return
+
+  if (present(W)) then
+    Sw   = sum(W)
+    mean = dot_product(W,A)/Sw
+  else
+    mean = sum(A)/N
+  endif
+
+end function mean
+! ...
+! =====================================================================
+! ...
+FUNCTION variance (A,W)
+
+! ... Calculates the variance = FACTOR * Sum (A(i)-mean(A))**2
+! ... The value of FACTOR depends of W. By default, W=0, FACTOR = 1/(N-1)
+! ... However, if W=1, the biased variance is calculated, i.e. FACTOR=1/N
+! ... If W has to be used as a weight it must be a vector with the same
+! ... size than A.
+! ...
+! ... Weights are optional.
+! ...
+IMPLICIT NONE
+
+! ... Output value
+! ...
+real(dp) variance
+
+real(dp), DIMENSION(:), INTENT(in)     :: A
+real(dp), DIMENSION(:), OPTIONAL       :: W
+
+logicaL                                    :: weight = .false.
+logical                                    :: biased = .false.
+integer N,i
+real(dp) xsum1,xsum2,ai,wi,Sw
+real(dp) nan
+
+
+! ... nan:
+! ...
+nan = ieee_value(1.0_dp,ieee_quiet_nan)
+
+variance = nan
+N = SIZE(A)
+IF (N.EQ.0) RETURN
+
+IF (PRESENT(W)) THEN
+  IF (SIZE(W).EQ.1) THEN
+    IF (W(1).EQ.0) THEN
+      biased = .false.
+    ELSE IF (W(1).EQ.1) THEN
+      biased = .true.
+    ELSE
+      STOP 'ERROR in variance: Invalid normalization. Use 0 (unbiased) or 1 (biased)'
+    ENDIF
+  ELSE IF (SIZE(W).EQ.N) THEN
+    weight = .true.
+  ELSE
+    STOP 'ERROR in variance: Size W must be 1 or N'
+  ENDIF
+ENDIF
+
+IF (weight) THEN
+  Sw    = 0D0
+  xsum1 = 0D0
+  xsum2 = 0D0
+  DO i=1,N
+    wi = w(i)
+    ai = A(i)
+    Sw    = Sw    + wi
+    xsum1 = xsum1 + wi*ai
+    xsum2 = xsum2 + wi*ai*ai
+  ENDDO
+  xsum1 = xsum1 / Sw
+  xsum2 = xsum2/Sw-xsum1*xsum1
+  variance = Sw * xsum2 /(Sw - 1D0)
+ELSE
+  xsum1 = 0D0
+  xsum2 = 0D0
+  DO i=1,N
+    ai = A(i)
+    xsum1 = xsum1 + ai
+    xsum2 = xsum2 + ai*ai
+  ENDDO
+  xsum1 = xsum1 / N
+  xsum2 = xsum2 / N - xsum1*xsum1
+  IF (biased) THEN
+    variance = xsum2
+  ELSE
+    variance = N*xsum2/(N-1D0)
+  ENDIF
+ENDIF
+IF (variance.LT.0) variance = 0D0
+
+END FUNCTION variance
+! ...
+! =====================================================================
+! ...
 end module module_math

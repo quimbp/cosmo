@@ -24,6 +24,7 @@ use module_rk
 use module_lineargs
 use module_random
 use module_json
+use module_plot
 
 implicit none
 

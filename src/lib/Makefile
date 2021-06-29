@@ -10,7 +10,7 @@ INC = $(CDFINC) -I$(INCDIR)
 
 all: $(TARGET)
 OBJ = types.o constants.o status.o random.o utils.o math.o lineargs.o help.o rungekutta.o ascii.o datetime.o \
-      grid.o json.o cosmo.o
+      grid.o json.o plot.o cosmo.o
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< $(INC)
@@ -61,6 +61,9 @@ grid.o: grid.f90 datetime.o status.o utils.o math.o constants.o types.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
 json.o: json.f90 types.o
+	$(FC) $(FFLAGS) -c $< $(INC)
+
+plot.o: plot.f90 types.o
 	$(FC) $(FFLAGS) -c $< $(INC)
 
 cosmo.o: cosmo.f90 types.o constants.o status.o ascii.o utils.o datetime.o math.o grid.o rungekutta.o json.o
