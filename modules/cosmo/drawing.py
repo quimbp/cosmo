@@ -5547,7 +5547,7 @@ class CosmoDrawing():
         soptions = soptions.replace('-ymax','\n-ymax')
         soptions = soptions.replace('-random','\n-random')
         soptions = soptions.replace('-Rx','\n-Rx')
-        soptions = soptions.replace('-Ry','\n-yx')
+        soptions = soptions.replace('-Ry','\n-Ry')
         soptions = soptions.replace('-reverse','\n-reverse')
 
         ofile = open(self.CLM.SFILE.get(), "w")

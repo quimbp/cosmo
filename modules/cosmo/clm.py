@@ -108,7 +108,7 @@ class parameters:
     self.BIN.set('clm')
     self.TRAJECTORY.set('clm.nc')
     self.INI.set('')
-    self.FIN.set('clm-final.dat')
+    self.FIN.set('final.dat')
     self.SFILE.set('simulation.clm')
 
     self.xo.set(None)
