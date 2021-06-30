@@ -65,7 +65,7 @@ end subroutine swap_cv
 ! ...
 ! =====================================================================
 ! ...
-pure function outerprod(a,b)
+function outerprod(a,b)
   real(dp), dimension(:), intent(in)              :: a,b
   real(dp), dimension(size(a),size(b))            :: outerprod
   outerprod = spread(a,dim=2,ncopies=size(b))*spread(b,dim=1,ncopies=size(a))
@@ -73,14 +73,14 @@ end function outerprod
 ! ...
 ! =====================================================================
 ! ...
-real(dp) pure function vabs(v) ! Returns the length (ordinary L2 norm) of a vector.
+real(dp) function vabs(v) ! Returns the length (ordinary L2 norm) of a vector.
   real(dp), dimension(:), intent(in)  :: v
   vabs = sqrt(dot_product(v,v))
 end function vabs
 ! ...
 ! =====================================================================
 ! ...
-pure real(dp) function haversine (lon1,lat1,lon2,lat2)
+real(dp) function haversine (lon1,lat1,lon2,lat2)
   ! ...
   ! ... Function Haversine
   ! ... Determines the great-circle distance between two points in a
@@ -524,7 +524,7 @@ df(n) = qakima(f(n-1)-f(n),x(n-1)-x(n),f(n-2)-f(n),x(n-2)-x(n))
 contains
 
   ! -----------------------------------------
-  real(dp) pure function qakima(u1,x1,u2,x2)
+  real(dp) function qakima(u1,x1,u2,x2)
   ! -----------------------------------------
   real(dp), intent(in)       :: u1,x1,u2,x2
   qakima = (u1/x1**2-u2/x2**2)/(1.0_dp/x1-1.0_dp/x2)

@@ -26,7 +26,7 @@ contains
 ! =====================================================================
 ! =====================================================================
 ! ...
-pure function compress(A) result(t)
+function compress(A) result(t)
 ! ... Removes all double whites and spaces before a comma or dot
 
 character(len=*), intent(in)   :: A
@@ -78,7 +78,7 @@ end function compress
 ! ...
 ! =====================================================================
 ! ...
-pure function coords2index(x,n) result(ind)
+function coords2index(x,n) result(ind)
 ! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
 
 integer, dimension(3), intent(in)   :: x  ! = (i,j,k)
@@ -173,7 +173,7 @@ end subroutine get_commandline
 ! ...
 ! =====================================================================
 ! ...
-pure function index2coords(ind,n) result(x)
+function index2coords(ind,n) result(x)
 ! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
 
 integer, intent(in)                 :: ind
@@ -194,7 +194,7 @@ end function index2coords
 ! ...
 ! =====================================================================
 ! ...
-pure function line_replace(A,pattern1,pattern2,ntimes) result(t)
+function line_replace(A,pattern1,pattern2,ntimes) result(t)
 ! ... Takes pattern1 in A and replaces it by pattern2. Does it ntimes
 ! ... If ntimes < 0 it does it for all appearences
 
@@ -284,7 +284,7 @@ end subroutine line_word
 ! ...
 ! =====================================================================
 ! ...
-integer pure function locate(x,xo) result(j)
+integer function locate(x,xo) result(j)
 ! ... Returns the location of the array x(1:n), such that x(j) < xo < x(j+1)
 real(dp), dimension(:), intent(in)   :: x
 real(dp), intent(in)                 :: xo
@@ -322,7 +322,7 @@ end function locate
 ! ...
 ! =====================================================================
 ! ...
-pure function lowercase(A) result(t)
+function lowercase(A) result(t)
 ! ... Returns string in lowercase
 
 character(len=*), intent(in)   :: A
@@ -520,7 +520,7 @@ end function numlines
 ! ...
 ! =====================================================================
 ! ...
-pure integer function numwords(A)
+integer function numwords(A)
 ! ... Counts the number of words in a string
 
 character(len=*), intent(in)   :: A
@@ -608,7 +608,7 @@ end function unitfree
 ! ...
 ! =====================================================================
 ! ...
-pure function uppercase(A) result(t)
+function uppercase(A) result(t)
 ! ... Returns string in uppercase
 
 character(len=*), intent(in)   :: A
@@ -686,7 +686,7 @@ end subroutine say
 ! ...
 ! =====================================================================
 ! ...
-logical pure function whitechar(char)
+logical function whitechar(char)
 ! ... Returns .true. if char is space (32) or tab (9), .false. otherwise
 
 character, intent(in)          :: char
@@ -763,7 +763,7 @@ end function token_read
 ! ...
 ! =====================================================================
 ! ...
-pure function rangestr(nmax,k) result(a)
+function rangestr(nmax,k) result(a)
 
 implicit none
 
@@ -915,7 +915,7 @@ end function ff2str
 ! ...
 ! =====================================================================
 ! ...
-integer pure function find(a,val)
+integer function find(a,val)
 
 real(dp), dimension(:), intent(in)    :: a
 real(dp), intent(in)                  :: val
@@ -958,7 +958,7 @@ end subroutine print_matrix
 ! ...
 ! =====================================================================
 ! ...
-logical pure function is_numeric(string)
+logical function is_numeric(string)
 ! ... Rosetta Code: https://rosettacode.org
 ! ...
 character(len=*), intent(in)            :: string
@@ -972,7 +972,7 @@ end function is_numeric
 ! ...
 ! =====================================================================
 ! ...
-integer pure function word_type(str)
+integer function word_type(str)
 
 character(len=*), intent(in)         :: str
 integer i,j

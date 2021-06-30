@@ -56,7 +56,7 @@ integer, parameter                :: DI400Y = 4 * DI100Y + 1
 
 contains
 
-integer pure function cmp_(i,j)
+integer function cmp_(i,j)
 
 integer, intent(in)       :: i,j
 
@@ -74,7 +74,7 @@ end function cmp_
 ! =====================================================================
 ! ...
 
-logical pure function isleap(year)
+logical function isleap(year)
 
 integer, intent(in)             :: year
 
@@ -87,7 +87,7 @@ end function isleap
 ! ...
 ! =====================================================================
 ! ...
-integer pure function days_before_year(year)
+integer function days_before_year(year)
 ! ... Number of days before January 1st of year
 ! ...
 integer, intent(in)             :: year
@@ -104,7 +104,7 @@ end function days_before_year
 ! ...
 ! =====================================================================
 ! ...
-integer pure function days_in_month(year,month)
+integer function days_in_month(year,month)
 ! ... Number of days in that month in that year
 ! ...
 integer, intent(in)             :: year,month
@@ -121,7 +121,7 @@ end function days_in_month
 ! ...
 ! =====================================================================
 ! ...
-integer pure function days_before_month(year, month)
+integer function days_before_month(year, month)
 ! ... Number of fays in year preceding first day of month
 ! ...
 integer, intent(in)              :: year,month
@@ -137,7 +137,7 @@ end function days_before_month
 ! ...
 ! =====================================================================
 ! ...
-integer pure function ymd2ord(year,month,day)
+integer function ymd2ord(year,month,day)
 ! ...  Returns an ordinal, assuming that 01-Jan-0001 is day 1
 ! ...
 integer, intent(in)              :: year,month,day
@@ -383,7 +383,7 @@ end function date_iso
 ! ...
 ! =====================================================================
 ! ...
-integer pure function julday(year,month,day) result(jd)
+integer function julday(year,month,day) result(jd)
 ! ...  Returns the JD, Numerical recipes
 ! ...
 integer, intent(in)              :: year,month,day
