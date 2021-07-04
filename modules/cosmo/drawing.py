@@ -1465,6 +1465,8 @@ class DrawingConfig():
     conf['TITLE'] = self.TITLE.get()
     conf['TITLEFONT'] = self.TITLEFONT.__dict__
     conf['TITLE_PAD'] = self.TITLE_PAD.get()
+    conf['XLABEL'] = self.XLABEL.get()
+    conf['YLABEL'] = self.YLABEL.get()
     conf['LABEL_SIZE'] = self.LABEL_SIZE.get()
     conf['XLABEL_PAD'] = self.XLABEL_PAD.get()
     conf['YLABEL_PAD'] = self.YLABEL_PAD.get()
@@ -1635,6 +1637,8 @@ class DrawingConfig():
     self.TITLE.set(conf['TITLE'])
     self.TITLEFONT = setfont(conf['TITLEFONT'])
     self.TITLE_PAD.set(conf['TITLE_PAD'])
+    self.XLABEL.set(conf['XLABEL'])
+    self.YLABEL.set(conf['YLABEL'])
     self.LABEL_SIZE.set(conf['LABEL_SIZE'])
     self.XLABEL_PAD.set(conf['XLABEL_PAD'])
     self.YLABEL_PAD.set(conf['YLABEL_PAD'])
@@ -2680,14 +2684,14 @@ class CosmoDrawing():
               self.PLOT.NORTH.set(min(self.VEC[ii].U.ymax,self.VEC[ii].V.ymax))
             self.plot_initialize()
 
-          try:
-            self.PLOT.XLABEL.set(self.VEC[ii].U.icdf.xname)
-          except:
-            self.PLOT.XLABEL.set('Longitude')
-          try:
-            self.PLOT.YLABEL.set(self.VEC[ii].U.icdf.yname)
-          except:
-            self.PLOT.YLABEL.set('Latitude')
+          #try:
+          #  self.PLOT.XLABEL.set(self.VEC[ii].U.icdf.xname)
+          #except:
+          #  self.PLOT.XLABEL.set('Longitude')
+          #try:
+          #  self.PLOT.YLABEL.set(self.VEC[ii].U.icdf.yname)
+          #except:
+          #  self.PLOT.YLABEL.set('Latitude')
           self.DATE = self.VEC[ii].DATE.copy()
           self.TIME = self.VEC[ii].TIME.copy()
           self.PLOT.TLABEL.set(self.DATE[self.L.get()])
@@ -6281,14 +6285,14 @@ class CosmoDrawing():
             self.PLOT.NORTH.set(self.CDF[ii].FLD.ymax)
             self.plot_initialize()
 
-          try:
-            self.PLOT.XLABEL.set(self.CDF[ii].FLD.icdf.xname)
-          except:
-            self.PLOT.XLABEL.set('Longitude')
-          try:
-            self.PLOT.YLABEL.set(self.CDF[ii].FLD.icdf.yname)
-          except:
-            self.PLOT.YLABEL.set('Latitude')
+          #try:
+          #  self.PLOT.XLABEL.set(self.CDF[ii].FLD.icdf.xname)
+          #except:
+          #  self.PLOT.XLABEL.set('Longitude')
+          #try:
+          #  self.PLOT.YLABEL.set(self.CDF[ii].FLD.icdf.yname)
+          #except:
+          #  self.PLOT.YLABEL.set('Latitude')
           self.DATE = self.CDF[ii].DATE.copy()
           self.TIME = self.CDF[ii].TIME.copy()
           self.PLOT.TLABEL.set(self.CDF[ii].DATE[self.CDF[ii].L.get()])
@@ -6646,8 +6650,8 @@ class CosmoDrawing():
         self.L.set(self.SAIDIN.L.get())
         self.DATE = self.SAIDIN.DATE.copy()
         self.TIME = self.SAIDIN.TIME.copy()
-        self.PLOT.XLABEL.set('Longitude')
-        self.PLOT.YLABEL.set('Latitude')
+        #self.PLOT.XLABEL.set('Longitude')
+        #self.PLOT.YLABEL.set('Latitude')
         self.first = False
 
       self.SAIDIN.FLD.get_info(wid=self.cons)
@@ -7899,8 +7903,8 @@ class CosmoDrawing():
           self.PLOT.NORTH.set(np.nanmax(FLT.lat)+1)
           self.plot_initialize()
 
-        self.PLOT.XLABEL.set('Longitude')
-        self.PLOT.YLABEL.set('Latitude')
+        #self.PLOT.XLABEL.set('Longitude')
+        #self.PLOT.YLABEL.set('Latitude')
         self.DATE = FLT.DATE.copy()
         self.TIME = FLT.TIME.copy()
         self.PLOT.TLABEL.set(self.DATE[self.L.get()])
