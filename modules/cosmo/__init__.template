@@ -34,6 +34,10 @@ else:
 
 COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
+# Configure where Cartopy will save auxiliary data
+#
+cartopy.config['data_dir']= COSMO_ROOT + '/data/'
+cartopy.config['pre_existing_data_dir']= COSMO_ROOT + '/data/'
 
 from cosmo import ncdump
 from cosmo import tools
