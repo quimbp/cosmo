@@ -4,10 +4,11 @@
 ! ... COSMO project
 ! ***************************************************************************
 
-module pyplot
+module module_plot
 
-use types, only: dp
-use utils
+use module_types, only: dp
+use module_utils
+use module_random
 
 implicit none
 
@@ -53,7 +54,7 @@ endif
 
 n = size(x)
 
-filename = trim(rndname())//'.py'
+filename = trim(rndname(8))//'.py'
 iu = unitfree()
 open(iu,file=filename,status='new',form='formatted')
 write(iu,'(A)') 'import matplotlib.pyplot as plt'
@@ -128,7 +129,7 @@ endif
 
 n = size(x)
 
-filename = trim(rndname())//'.py'
+filename = trim(rndname(8))//'.py'
 iu = unitfree()
 open(iu,file=filename,status='new',form='formatted')
 write(iu,'(A)') 'import matplotlib.pyplot as plt'
@@ -206,7 +207,7 @@ end subroutine write_vector
 ! ...
 subroutine open_plot()
 
-plotpyname_ = trim(rndname())//'.py'
+plotpyname_ = trim(rndname(8))//'.py'
 plotpyfid_  = unitfree()
 
 open(plotpyfid_,file=plotpyname_,status='new',form='formatted')
@@ -316,6 +317,6 @@ end subroutine show_plot
 
 
 
-end module pyplot
+end module module_plot
 
 

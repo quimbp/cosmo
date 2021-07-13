@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='COSMO',
-      version='2.0',
+      version='3.0',
       description='Python Distribution Utilities',
       author='Quim Ballabrera',
       author_email='joaquim@icm.csic.es',

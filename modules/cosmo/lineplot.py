@@ -66,7 +66,7 @@ class parameters():
     self.MARKER_COLOR      = tk.StringVar()
     self.INITIAL_SHOW      = tk.BooleanVar()
     self.INITIAL_STYLE     = tk.StringVar()
-    self.INITIAL_SIZE      = tk.IntVar()
+    self.INITIAL_SIZE      = tk.DoubleVar()
     self.INITIAL_COLOR     = tk.StringVar()
     self.ONMAP_SHOW        = tk.BooleanVar()
     self.ONMAP_STYLE       = tk.StringVar()

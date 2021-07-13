@@ -106,6 +106,9 @@ class parameters():
     self.CROP.set(False)
     self.Fx              = None
     self.Fy              = None
+
+    self.LINK            = tk.BooleanVar()
+    self.LINK.set(False)
     
     self.cons = wid
 
@@ -154,6 +157,7 @@ class parameters():
     conf['FLOAT_SHOW']  = FLOAT_SHOW.copy()
     conf['FLOAT_ZORDER']  = FLOAT_ZORDER.copy()
     conf['CROP'] = self.CROP.get()
+    conf['LINK']  = self.LINK.get()
     conf['PLOT'] = self.PLOT.conf_get()
     return conf
 
@@ -184,6 +188,7 @@ class parameters():
         self.FLOAT_SHOW.append(tk.BooleanVar(value=self.show.get()))
         self.FLOAT_ZORDER.append(tk.IntVar(value=self.PLOT.ZORDER.get()))
     self.CROP.set(conf['CROP'])
+    self.LINK.set(conf['LINK'])
     self.PLOT.conf_set(conf['PLOT'])
 
   def conf_load(self,filename):
@@ -400,6 +405,7 @@ class parameters():
       with open(filename) as datafile:
         for line in datafile.readlines():
           line = line.strip()
+          line = ' '.join(line.split())
           columns = line.split(Axes.SEPARATOR.get())
 
           self.lon.append(float(columns[Axes.lon]))
@@ -426,7 +432,13 @@ class parameters():
             self.DATE.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
 
           elif Axes.type == 2:
-            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+'T'+columns[Axes.time],Axes.fmt))
+            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+ \
+                             'T'+columns[Axes.time],Axes.fmt))
+
+          elif Axes.type == 3:
+            jd = float(columns[Axes.jday])
+            a = caldat(jd)
+            self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
 
           else:
             self.MESSAGE +='unknown ASCII file format'
@@ -540,7 +552,7 @@ def drawing(ax,proj,FLT):
              
     if FLT.PLOT.MARKER_SHOW.get():
       ax.plot(xx,yy,FLT.PLOT.MARKER_STYLE.get(),   \
-             ms=FLT.PLOT.INITIAL_SIZE.get(),       \
+             ms=FLT.PLOT.MARKER_SIZE.get(),       \
              transform=proj,                       \
              alpha=FLT.PLOT.ALPHA.get(),           \
              zorder=zorder,                        \
@@ -548,7 +560,17 @@ def drawing(ax,proj,FLT):
              color=FLT.PLOT.MARKER_COLOR.get())
              
     if FLT.PLOT.INITIAL_SHOW.get():
-      ax.plot(xx[r1],yy[r1],                  \
+
+      # Check that we get the first valid position:
+      #
+      vr1 = r1
+      for i in range(r1,r2):
+        if np.isnan(xx[i]) or np.isnan(yy[i]):
+          pass
+        else:
+          vr1 = i
+          break
+      ax.plot(xx[vr1],yy[vr1],                \
              FLT.PLOT.INITIAL_STYLE.get(),    \
              ms=FLT.PLOT.INITIAL_SIZE.get(),  \
              transform=proj,                  \

@@ -737,25 +737,28 @@ def drawing(ax,proj,CFIELD):
       CFIELD.PLOT.MESSAGE += "EG VECTORPLOT: Arrows"
       #print("EG VECTORPLOT: Arrows")
       if CFIELD.PLOT.COLOR_BY_SPEED.get():
-        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt,CFIELD.speed,                       \
-                      transform=proj, \
-                      color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.PLOT.ALPHA.get(),
+        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt, \
+                      CFIELD.speed,                                         \
+                      transform=proj,                                       \
+                      color=CFIELD.PLOT.CURRENT_COLOR.get(),                \
+                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),                \
+                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),        \
+                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(),      \
+                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),                \
+                      minlength=0,                                          \
+                      alpha=CFIELD.PLOT.ALPHA.get(),                        \
                       zorder=CFIELD.PLOT.ZORDER.get())
       else:
-        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt,  \
-                      transform=proj, \
-                      color=CFIELD.PLOT.CURRENT_COLOR.get(),           \
-                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),           \
-                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),   \
-                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(), \
-                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),
-                      alpha=CFIELD.PLOT.ALPHA.get(),
-                      zorder=CFIELD.PLOT.ZORDER.get())
+        quiver = ax.quiver(CFIELD.xplt,CFIELD.yplt,CFIELD.uplt,CFIELD.vplt, \
+                      transform=proj,                                       \
+                      color=CFIELD.PLOT.CURRENT_COLOR.get(),                \
+                      width=CFIELD.PLOT.CURRENT_WIDTH.get(),                \
+                      headwidth=CFIELD.PLOT.CURRENT_HEADWIDTH.get(),        \
+                      headlength=CFIELD.PLOT.CURRENT_HEADLENGTH.get(),      \
+                      scale=CFIELD.PLOT.CURRENT_SCALE.get(),                \
+                      minlength=0,                                          \
+                      alpha=CFIELD.PLOT.ALPHA.get(),                        \
+                      zorder=CFIELD.PLOT.ZORDER.get())                 
                       
       if CFIELD.PLOT.KEY_SHOW.get():
         CFIELD.PLOT.KEY_OBJ = ax.quiverkey(quiver,

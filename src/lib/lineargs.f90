@@ -6,21 +6,13 @@
 ! ... Version 0.1, released October 2017
 ! *****************************************************************************
 
-module lineargs
+module module_lineargs
 
-use types, only: sp,dp
-use constants, only: nan,nan4
-use utils, only: numlines,numwords,unitfree,stop_error,strcat,line_word
+use module_types, only: sp,dp,maxlen
+use module_constants, only: nan,nan4
+use module_utils
 
 implicit none
-
-private
-
-public maxlen
-public lineargs_ini,argstr,argflg,argdbl,argflt,argint,arglst,checkopts, &
-       arglast
-
-integer, parameter                               :: maxlen = 240
 
 integer                                          :: lineargs_nargs = 0
 integer, dimension(:), allocatable               :: lineargs_used
@@ -30,9 +22,7 @@ contains
 ! ...
 ! ========================================================================
 ! ...
-subroutine lineargs_ini (na)
-
-integer, intent(out)            ::  na
+integer function lineargs () result(na)
 
 integer i,j,jj,nn,iu
 logical read_from_file
@@ -56,7 +46,7 @@ if (read_from_file) then
   na = 0
   do i=1,nn
     read(iu,'(A)') line
-    na = na + numwords(line)
+    if (line(1:1).ne.'#') na = na + numwords(line)
   enddo
   lineargs_nargs = na
   allocate (lineargs_val(na))
@@ -67,10 +57,12 @@ if (read_from_file) then
   jj = 0
   do i=1,nn
     read(iu,'(A)') line
-    do j=1,numwords(line)
-      jj = jj + 1
-      call line_word(line,j,lineargs_val(jj))
-    enddo
+    if (line(1:1).ne.'#') then
+      do j=1,numwords(line)
+        jj = jj + 1
+        call line_word(line,j,lineargs_val(jj))
+      enddo
+    endif
   enddo
   if (jj.NE.na) call stop_error (1,'something wrong in lineargs_ini')
   close(iu)
@@ -88,7 +80,7 @@ else
 endif
 
 return
-end subroutine lineargs_ini
+end function lineargs
 ! ...
 ! ========================================================================
 ! ...
@@ -333,4 +325,4 @@ end subroutine arglast
 ! ...
 ! ========================================================================
 ! ...
-end module lineargs
+end module module_lineargs

@@ -7,7 +7,7 @@ try:
 except:
   to_unicode = str
 
-VERSION = '1.0'
+VERSION = '3.0'
 
 
 #COSMO_ROOT = 
@@ -34,6 +34,10 @@ else:
 
 COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
+# Configure where Cartopy will save auxiliary data
+#
+cartopy.config['data_dir']= COSMO_ROOT + '/data/'
+cartopy.config['pre_existing_data_dir']= COSMO_ROOT + '/data/'
 
 from cosmo import ncdump
 from cosmo import tools
@@ -45,8 +49,7 @@ from cosmo import codar
 from cosmo import copernicus
 from cosmo import saidin
 from cosmo import lagrangian
-from cosmo import blm
-from cosmo import mlm
+from cosmo import clm
 from cosmo import geomarker
 from cosmo import drawing
 from cosmo import db
@@ -57,4 +60,5 @@ from cosmo import field
 from cosmo import plotxy
 from cosmo import ellipse
 from cosmo import patch
+from cosmo import climatology
 

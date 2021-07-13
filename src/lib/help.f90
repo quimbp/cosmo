@@ -6,130 +6,147 @@
 ! ... Version 0.1, released October 2017
 ! ********************************************************************
 
-module help
+module module_help
 
-use utils, only: stop_error,compress,say
+use module_utils, only: stop_error,compress,say
 
 implicit none
+integer, parameter                                 :: MAXOPTIONS = 50
 
-integer, parameter                               :: hlp_maxoptions = 40
-integer                                          :: hlp_numoptions = 0
+type type_help
+  integer                                          :: numoptions = 0
 
-character(len=80)                                :: hlp_progname = ''
-character(len=10)                                :: hlp_version = 'v0.0'
-character(len=80)                                :: hlp_author = 'anonymous'
-character(len=10000)                             :: hlp_summary = ''
-character(len=1000)                              :: hlp_command = ''
-character(len=1000)                              :: hlp_example = ''
+  character(len=80)                                :: progname = ''
+  character(len=10)                                :: version = 'v0.0'
+  character(len=80)                                :: author = 'anonymous'
+  character(len=10000)                             :: summary = ''
+  character(len=1000)                              :: command = ''
+  character(len=1000)                              :: example = ''
 
-character(len=80), dimension(hlp_maxoptions)     :: hlp_option
-character(len=180), dimension(hlp_maxoptions)    :: hlp_description
-character(len=80), dimension(hlp_maxoptions)     :: hlp_default
+  character(len=80), dimension(MAXOPTIONS)         :: option
+  character(len=180), dimension(MAXOPTIONS)        :: description
+  character(len=80), dimension(MAXOPTIONS)         :: default
+
+  contains
+
+    procedure        :: set_progname   => help_progname
+    procedure        :: set_version    => help_version
+    procedure        :: set_command    => help_command
+    procedure        :: set_example    => help_example
+    procedure        :: set_summary    => help_example
+    procedure        :: add_option     => help_option 
+    procedure        :: write          => help_write
+
+end type type_help
+
+type(type_help) help
 
 contains
+! ...
+! =============================================================================
+! ...
+subroutine help_progname(HLP,word)
 
-subroutine help_progname(word)
-
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_progname = compress(word)
+HLP%progname = compress(word)
 
 return
 end subroutine help_progname
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_version(word)
+subroutine help_version(HLP,word)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_version = compress(word)
+HLP%version = compress(word)
 
 return
 end subroutine help_version
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_command(word)
+subroutine help_command(HLP,word)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_command = trim(word)
-if (hlp_command(1:1).EQ.'>') hlp_command(1:1) = ''
-hlp_command = compress(hlp_command)
+HLP%command = trim(word)
+if (HLP%command(1:1).EQ.'>') HLP%command(1:1) = ''
+HLP%command = compress(HLP%command)
 
 return
 end subroutine help_command
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_example(word)
+subroutine help_example(HLP,word)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_example = trim(word)
-if (hlp_example(1:1).EQ.'>') hlp_example(1:1) = ''
-hlp_example = compress(hlp_example)
+HLP%example = trim(word)
+if (HLP%example(1:1).EQ.'>') HLP%example(1:1) = ''
+HLP%example = compress(HLP%example)
 
 return
 end subroutine help_example
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_summary(word)
+subroutine help_summary(HLP,word)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_summary = compress(word)
+HLP%summary = compress(word)
 
 return
 end subroutine help_summary
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_author(word)
+subroutine help_author(HLP,word)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: word
 
-hlp_author = compress(word)
+HLP%author = compress(word)
 
 return
 end subroutine help_author
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_option(option,description,default)
+subroutine help_option(HLP,option,description,default)
 
-implicit none
+class(type_help), intent(inout)        :: HLP
 character(len=*), intent(in)           :: option,description,default
 
 if (len_trim(option).EQ.0) return
-if (hlp_numoptions.eq.hlp_maxoptions) then
-  call stop_error(1,'Increase the value of hlp_maxoptions in COSMO_ROOT/src/lib/help.f90')
+if (HLP%numoptions.eq.MAXOPTIONS) then
+  call stop_error(1,'Increase the value of MAXOPTIONS in COSMO_ROOT/src/lib/help.f90')
 endif
 
 ! ... New option
 ! ...
-hlp_numoptions = hlp_numoptions + 1
+HLP%numoptions = HLP%numoptions + 1
 
-hlp_option(hlp_numoptions)      = trim(option)
+HLP%option(HLP%numoptions)      = trim(option)
 
 if (len_trim(option).GT.0) then
-  hlp_description(hlp_numoptions) = trim(description)
+  HLP%description(HLP%numoptions) = trim(description)
 ELSE
-  hlp_description(hlp_numoptions) = ''
+  HLP%description(HLP%numoptions) = ''
 endif
 
 if (len_trim(option).GT.0) then
-  hlp_default(hlp_numoptions)     = trim(default)
+  HLP%default(HLP%numoptions)     = trim(default)
 ELSE
-  hlp_default(hlp_numoptions)     = ''
+  HLP%default(HLP%numoptions)     = ''
 endif
 
 return
@@ -137,39 +154,43 @@ end subroutine help_option
 ! ...
 ! =============================================================================
 ! ...
-subroutine help_write
+subroutine help_write(HLP)
 
-INTEGER i
+class(type_help), intent(in)           :: HLP
+
+! ... Local variables
+! ...
+integer i
 
 write(*,*) '======================================================================='
-write(*,*) 'Program: ' // trim(hlp_progname)
-write(*,*) 'Version: ' // trim(hlp_version)
-write(*,*) 'Author : ' // trim(hlp_author)
+write(*,*) 'Program: ' // trim(HLP%progname)
+write(*,*) 'Version: ' // trim(HLP%version)
+write(*,*) 'Author : ' // trim(HLP%author)
 
-if (len_trim(hlp_summary).GT.0) then
+if (len_trim(HLP%summary).GT.0) then
   write(*,*)
-  call say('Summary: '//trim(hlp_summary))
+  call say('Summary: '//trim(HLP%summary))
 endif
-if (len_trim(hlp_command).GT.0) then
+if (len_trim(HLP%command).GT.0) then
   write(*,*)
   write(*,*) 'Command: '
-  write(*,*) '> '//trim(hlp_command)
+  write(*,*) '> '//trim(HLP%command)
 endif
-if (hlp_numoptions.GT.0) then
+if (HLP%numoptions.GT.0) then
   write(*,*)
   write(*,*) 'Options:'
-  do i=1,hlp_numoptions
-    write(*,'(T5,A)') trim(hlp_option(i))
-    call say(hlp_description(i),30)
-    if (len_trim(hlp_default(i)).GT.0) then
-      write(*,'(T30,"Default: ",A)') trim(hlp_default(i))
+  do i=1,HLP%numoptions
+    write(*,'(T5,A)') trim(HLP%option(i))
+    call say(HLP%description(i),30)
+    if (len_trim(HLP%default(i)).GT.0) then
+      write(*,'(T30,"Default: ",A)') trim(HLP%default(i))
     endif
   enddo
 endif
-if (len_trim(hlp_example).GT.0) then
+if (len_trim(HLP%example).GT.0) then
   write(*,*)
   write(*,*) 'Example: '
-  write(*,*) '> '//trim(hlp_example)
+  write(*,*) '> '//trim(HLP%example)
 endif
 write(*,*) '======================================================================='
   
@@ -178,12 +199,14 @@ end subroutine help_write
 ! ...
 ! =============================================================================
 ! ...
-subroutine header
+subroutine header(HLP)
+
+class(type_help), intent(in)           :: HLP
 
 write(*,*) '======================================================================='
-write(*,*) 'Program: ' // trim(hlp_progname)
-write(*,*) 'Version: ' // trim(hlp_version)
-write(*,*) 'By ' // trim(hlp_author)
+write(*,*) 'Program: ' // trim(HLP%progname)
+write(*,*) 'Version: ' // trim(HLP%version)
+write(*,*) 'By ' // trim(HLP%author)
 write(*,*) '======================================================================='
 
 end subroutine header
@@ -191,4 +214,4 @@ end subroutine header
 ! =============================================================================
 ! ...
 
-end module help
+end module module_help

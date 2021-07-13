@@ -3,107 +3,30 @@
 ! ... COSMO Project
 ! ... Quim Ballabrera, March 2017
 ! ... Version 0.1, released October 2017
+! ...   function compress(A)
+! ...   function coords2index(X(3),N(3))
+! ...   function filetype(FILENAME)
+! ...
 ! ****************************************************************************
 
-module utils
+module module_utils
 
-use types, only: dp
+use module_types, only: dp
+use module_random
 
 implicit none
-private
-public compress,lowercase,line_word,menu,numlines,now,numwords, &
-       stop_error,strcat,unitfree,uppercase,say,whitechar, &
-       coords2index,index2coords,locate,filetype,mkdir,ls,newfilename, &
-       get_commandline,line_replace,token_read,i2str,f2str,ff2str,rangestr, &
-       rndname,locate2d,find,print_matrix,read3cols,read2cols,read1col, &
-       readArray
 
-type ls_type
+type type_ls
   integer                                     :: n
   character(len=180), dimension(:), pointer   :: name
-end type ls_type
-public ls_type
+end type type_ls
 
 contains
 ! ...
-! =============================================================================
+! =====================================================================
+! =====================================================================
 ! ...
-pure function coords2index(x,n) result(ind)
-! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
-
-integer, dimension(3), intent(in)   :: x  ! = (i,j,k)
-integer, dimension(3), intent(in)   :: n  ! = (nx,ny,nz)
-integer                             :: ind
-
-ind = (x(3)-1)*n(2)*n(1) + (x(2)-1)*n(1) + x(1)
-
-end function coords2index
-! ...
-! =============================================================================
-! ...
-pure function index2coords(ind,n) result(x)
-! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
-
-integer, intent(in)                 :: ind
-integer, dimension(3), intent(in)   :: n  ! = (nx,ny,nz)
-integer, dimension(3)               :: x  ! = (i,j,k)
-
-! ...
-integer residual
-!ind = (x(3)-1)*n(2)*n(1) + (x(2)-1)*n(1) + x(1)
-x(1) = mod(ind-1,n(1)) + 1
-
-residual = (ind - x(1))/n(1) + 1
-x(2) = mod(residual-1,n(2)) + 1
-
-x(3) = (residual - x(2))/n(2) + 1
-
-end function index2coords
-! ...
-! =============================================================================
-! ...
-pure function line_replace(A,pattern1,pattern2,ntimes) result(t)
-! ... Takes pattern1 in A and replaces it by pattern2. Does it ntimes
-! ... If ntimes < 0 it does it for all appearences
-
-character(len=*), intent(in)   :: A
-character(len=*), intent(in)   :: pattern1
-character(len=*), intent(in)   :: pattern2
-integer, intent(in), optional  :: ntimes
-character(len=len(A))          :: t
-
-! ... Local variables
-! ...
-integer j,n,n1,n2,nc,ncm
-
-n = len_trim(A)
-n1 = len(pattern1)
-n2 = len(pattern2)
-if (.not.present(ntimes)) then
-  ncm = -1
-else
-  ncm = ntimes
-endif
-
-if (n.eq.0) return
-if (n1.eq.0) return
-
-t = A
-nc = 0
-10  j = index (t(:n),pattern1)
-    nc = nc + 1
-    if (j.gt.0) then
-      t(j+n2:) = t(j+n1:n)
-      t(j:j+n2-1) = pattern2(:n2)
-      n = len_trim(t)
-      if ((ncm.lt.0).or.(nc.lt.ncm)) goto 10
-    endif
-
-end function line_replace
-! ...
-! =============================================================================
-! ...
-pure function compress(A) result(t)
+function compress(A) result(t)
 ! ... Removes all double whites and spaces before a comma or dot
 
 character(len=*), intent(in)   :: A
@@ -153,7 +76,20 @@ enddo
 
 end function compress
 ! ...
-! =============================================================================
+! =====================================================================
+! ...
+function coords2index(x,n) result(ind)
+! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
+
+integer, dimension(3), intent(in)   :: x  ! = (i,j,k)
+integer, dimension(3), intent(in)   :: n  ! = (nx,ny,nz)
+integer                             :: ind
+
+ind = (x(3)-1)*n(2)*n(1) + (x(2)-1)*n(1) + x(1)
+
+end function coords2index
+! ...
+! =====================================================================
 ! ...
 function filetype(ifile) result(ftype)
 
@@ -214,7 +150,7 @@ ftype = 'bin'
 
 end function filetype
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine get_commandline (commandline)
 
@@ -235,7 +171,69 @@ enddo
 
 end subroutine get_commandline
 ! ...
-! =============================================================================
+! =====================================================================
+! ...
+function index2coords(ind,n) result(x)
+! ... Gets the x=(i,j,k) and returns its index = (k-1)*nx*ny + (j-1)*nx + i
+
+integer, intent(in)                 :: ind
+integer, dimension(3), intent(in)   :: n  ! = (nx,ny,nz)
+integer, dimension(3)               :: x  ! = (i,j,k)
+
+! ...
+integer residual
+!ind = (x(3)-1)*n(2)*n(1) + (x(2)-1)*n(1) + x(1)
+x(1) = mod(ind-1,n(1)) + 1
+
+residual = (ind - x(1))/n(1) + 1
+x(2) = mod(residual-1,n(2)) + 1
+
+x(3) = (residual - x(2))/n(2) + 1
+
+end function index2coords
+! ...
+! =====================================================================
+! ...
+function line_replace(A,pattern1,pattern2,ntimes) result(t)
+! ... Takes pattern1 in A and replaces it by pattern2. Does it ntimes
+! ... If ntimes < 0 it does it for all appearences
+
+character(len=*), intent(in)   :: A
+character(len=*), intent(in)   :: pattern1
+character(len=*), intent(in)   :: pattern2
+integer, intent(in), optional  :: ntimes
+character(len=len(A))          :: t
+
+! ... Local variables
+! ...
+integer j,n,n1,n2,nc,ncm
+
+n = len_trim(A)
+n1 = len(pattern1)
+n2 = len(pattern2)
+if (.not.present(ntimes)) then
+  ncm = -1
+else
+  ncm = ntimes
+endif
+
+if (n.eq.0) return
+if (n1.eq.0) return
+
+t = A
+nc = 0
+10  j = index (t(:n),pattern1)
+    nc = nc + 1
+    if (j.gt.0) then
+      t(j+n2:) = t(j+n1:n)
+      t(j:j+n2-1) = pattern2(:n2)
+      n = len_trim(t)
+      if ((ncm.lt.0).or.(nc.lt.ncm)) goto 10
+    endif
+
+end function line_replace
+! ...
+! =====================================================================
 ! ...
 subroutine line_word(line,nw,word)
 ! ... Returns the nw-th word in line
@@ -284,9 +282,9 @@ endif
 return
 end subroutine line_word
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-integer pure function locate(x,xo) result(j)
+integer function locate(x,xo) result(j)
 ! ... Returns the location of the array x(1:n), such that x(j) < xo < x(j+1)
 real(dp), dimension(:), intent(in)   :: x
 real(dp), intent(in)                 :: xo
@@ -295,30 +293,36 @@ real(dp), intent(in)                 :: xo
 ! ...
 logical slope
 integer n,jl,jm,ju
-real(dp) xn,x1
 
-n = size(x)
-x1 = x(1)
-xn = x(n)
-slope = x(n).gt.x(1)
+n  = size(x)
 
 jl = 0
 ju = n+1
-do while (ju-jl.gt.1)
+slope = (x(n).ge.x(1))
+
+do 
+  if (ju-jl.le.1) exit
   jm = (ju+jl)/2
-  if (slope.eqv.(xo.gt.x(jm))) then
+  if (slope.eqv.(xo.ge.x(jm))) then
     jl = jm
   else
     ju = jm
   endif
 enddo
-j = jl
+
+if (xo.eq.x(1)) then
+  j = 1
+else if (xo.eq.x(n)) then
+  j = n - 1
+else
+  j = jl
+endif
 
 end function locate
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-pure function lowercase(A) result(t)
+function lowercase(A) result(t)
 ! ... Returns string in lowercase
 
 character(len=*), intent(in)   :: A
@@ -345,31 +349,40 @@ enddo
 return
 end function lowercase
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-!pure function ltrim(A) result(t)
-! ... Returns string without heading blanks
-!
-!character(len=*), intent(in)   :: A
-!character(len=len(A))          :: t
-!
-! ... Local variables
+type(type_ls) function ls(dirname) result(filelist)
+
+character(len=*), intent(in)             :: dirname
+
+integer iu,nl,i,err
+character(len=8) tmpname
+character(len=180) aa
+
+
+! ... Random filename for temporal storage
+! ... Send the contents of the selected folder to thar filename
+tmpname = '/tmp/'//rndname(8)
+call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
+call system('ls '//compress(dirname)//' -1 > '//tmpname)
+
+iu = unitfree()
+open(iu,file=tmpname,status='old')
+nl = numlines(iu)
+
+filelist%n = nl
+allocate(filelist%name(nl),stat=err)
+
+do i=1,nl
+  read(iu,'(A)') aa
+  filelist%name(i) = trim(aa)
+enddo
+
+close(iu,status='delete')
+
+end function ls
 ! ...
-!integer i,io
-!
-!t = A
-!
-!io = 1
-!do i=1,len(A)
-!  if (.NOT.whitechar(A(i:i))) exit
-!  io = io + 1
-!enddo
-!t(:) = A(io:)
-!
-!return
-!end function ltrim
-! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine menu (title,options,Noptions,option)
 ! ... Proposes a menu on the screen and waits for the response.
@@ -409,7 +422,7 @@ line = 'OPTION : '
 return
 end subroutine menu 
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine mkdir(dirname)
 
@@ -418,59 +431,7 @@ call system('mkdir -p '//compress(dirname))
 
 end subroutine mkdir
 ! ...
-! =============================================================================
-! ...
-subroutine ls(dirname,filelist)
-
-character(len=*), intent(in)             :: dirname
-type(ls_type), intent(out)               :: filelist
-
-integer iu,nl,i,err
-character(len=8) tmpname
-character(len=180) aa
-
-
-! ... Random filename for temporal storage
-! ... Send the contents of the selected folder to thar filename
-tmpname = '/tmp/'//rndname()
-call system('echo ls '//compress(dirname)//' -1 > '//tmpname)
-call system('ls '//compress(dirname)//' -1 > '//tmpname)
-
-iu = unitfree()
-open(iu,file=tmpname,status='old')
-nl = numlines(iu)
-
-filelist%n = nl
-allocate(filelist%name(nl),stat=err)
-
-do i=1,nl
-  read(iu,'(A)') aa
-  filelist%name(i) = trim(aa)
-enddo
-
-close(iu,status='delete')
-
-end subroutine ls
-! ...
-! =============================================================================
-! ...
-function now ()
-! ... Returns the current date and time
-! ... The output format according to the ISO 8601 suggestion
-
-character(len=15) now
-
-character(len=8) date
-character(len=10) time
-
-CALL date_and_time (date,time)
-
-now = date//'T'//time(1:6)
-
-return
-end function now
-! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine newfilename (filename)
 
@@ -512,7 +473,7 @@ enddo
 
 end subroutine newfilename
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 integer function numlines (iu,type)
 ! ... Returns the number of records in an ASCII or in an UNFORMATTED file
@@ -557,9 +518,9 @@ rewind(iu)
 return
 end function numlines
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-pure integer function numwords(A)
+integer function numwords(A)
 ! ... Counts the number of words in a string
 
 character(len=*), intent(in)   :: A
@@ -593,7 +554,7 @@ enddo
 return
 end function numwords
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine stop_error(err,msg)
 ! ... Stops the program with option to signal abnormal termination sending 
@@ -614,7 +575,7 @@ endif
 
 end subroutine stop_error
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine strcat(s1,s2)
 ! ... Concatenates s2 into s1. A white character is placed in between.
@@ -626,7 +587,7 @@ s1 = trim(s1)//' '//trim(adjustl(s2))
 
 end subroutine strcat
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 integer function unitfree()
 ! ... Returns a unit not yet assigned
@@ -645,9 +606,9 @@ enddo
 return
 end function unitfree
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-pure function uppercase(A) result(t)
+function uppercase(A) result(t)
 ! ... Returns string in uppercase
 
 character(len=*), intent(in)   :: A
@@ -674,7 +635,7 @@ enddo
 return
 end function uppercase
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 subroutine say(text,pos)
 ! ... Writes a text in the screen, using as many lines as required
@@ -723,9 +684,9 @@ io = 1
 return
 end subroutine say
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-logical pure function whitechar(char)
+logical function whitechar(char)
 ! ... Returns .true. if char is space (32) or tab (9), .false. otherwise
 
 character, intent(in)          :: char
@@ -738,7 +699,7 @@ endif
 
 end function whitechar
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
 function token_read(line,prompt) result(ans)
 ! ... Routine to read information of the style key=value from a string.
@@ -802,7 +763,7 @@ end function token_read
 ! ...
 ! =====================================================================
 ! ...
-pure function rangestr(nmax,k) result(a)
+function rangestr(nmax,k) result(a)
 
 implicit none
 
@@ -883,7 +844,7 @@ a = trim(aa)
 
 end function f2str
 ! ...
-! =========================================================================
+! =====================================================================
 ! ...
 function ff2str (ff,fmt) result (a)
 
@@ -921,90 +882,40 @@ a = trim(aa)
 
 end function ff2str
 ! ...
-! =============================================================================
+! =====================================================================
 ! ...
-function rndname(iseed) result(name)
-
-integer, optional              :: iseed
-character(len=8)               :: name
-
-! ... Local variables
-integer i,io,il,j,n
-integer, dimension(:), allocatable :: seed
-real(dp) r
-
-if (present(iseed)) then
-  call random_seed(size=n)
-  allocate(seed(n))
-  seed(:) = iseed
-  call random_seed(put=seed)
-endif
-
-io = ichar('A')
-il = ichar('Z') - io
-
-do i=1,8
-  call random_number(r)
-  j = int(io + il*r)
-  name(i:i) = char(j)
-enddo
-
-return
-end function rndname
-! ...
-! =============================================================================
-! ...
-function locate2d(x,y,xo,yo) result(ind)
-! ... Returns the location of the array x(1:n), such that x(j) < xo < x(j+1)
-real(dp), dimension(:,:), intent(in) :: x,y
-real(dp), intent(in)                 :: xo,yo
-integer                              :: ind(2)
-
-! ... Local variables
-! ...
-logical slope1,slope2
-integer n1,n2,il,im,iu,jl,jm,ju
-
-
-n1 = size(x,1)
-n2 = size(x,2)
-
-if (size(y,1).ne.n1) call stop_error(1,'Incompatibe grids in locate2d')
-if (size(y,2).ne.n2) call stop_error(1,'Incompatibe grids in locate2d')
-
-slope1 = x(n1,n2).gt.x(1,1)
-slope2 = y(n1,n2).gt.y(1,1)
-
-il = 0; iu = n1 + 1
-jl = 0; ju = n2 + 1
-do while ((ju-jl.gt.1).or.(iu-il.gt.1))
-  im = (iu+il)/2
-  jm = (ju+jl)/2
-  if (iu-il.gt.1) then
-    im = (iu+il)/2
-    if (slope1.eqv.(xo.gt.x(im,jm))) then
-      il = im
-    else
-      iu = im
-    endif
-  endif
-  if (ju-jl.gt.1) then
-    jm = (ju+jl)/2
-    if (slope2.eqv.(yo.gt.y(im,jm))) then
-      jl = jm
-    else
-      ju = jm
-    endif
-  endif
-enddo
-ind(1) = il
-ind(2) = jl
-
-end function locate2d
+!function rndname(iseed) result(name)
+!
+!integer, optional              :: iseed
+!character(len=8)               :: name
+!
+!! ... Local variables
+!integer i,io,il,j,n
+!integer, dimension(:), allocatable :: seed
+!real(dp) r
+!
+!if (present(iseed)) then
+!  call random_seed(size=n)
+!  allocate(seed(n))
+!  seed(:) = iseed
+!  call random_seed(put=seed)
+!endif
+!
+!io = ichar('A')
+!il = ichar('Z') - io
+!
+!do i=1,8
+!  call random_number(r)
+!  j = int(io + il*r)
+!  name(i:i) = char(j)
+!enddo
+!
+!return
+!end function rndname
 ! ...
 ! =====================================================================
 ! ...
-integer pure function find(a,val)
+integer function find(a,val)
 
 real(dp), dimension(:), intent(in)    :: a
 real(dp), intent(in)                  :: val
@@ -1047,204 +958,41 @@ end subroutine print_matrix
 ! ...
 ! =====================================================================
 ! ...
-function read3cols(filename,x,y,z) result(n)
-! ... Reads an ascii file with two columns: x,y
-! ... returns and integer, n = readcols(filename,x,y)
-! ... n > 0, the size of the vectors
-! ... n = 0, file not found
-! ... n < 0, invalid format
-
-character(len=*), intent(in)                      :: filename
-real(dp), dimension(:), allocatable, intent(out)  :: x
-real(dp), dimension(:), allocatable, intent(out)  :: y
-real(dp), dimension(:), allocatable, intent(out)  :: z
-integer                                           :: n
-
-integer i,iu,err
-
-n  = 0
-iu = unitfree()
-
-open(iu,file=filename,status='old',form='formatted',iostat=err)
-if (err.ne.0) return
-
-
-! ... Read number of lines:
+logical function is_numeric(string)
+! ... Rosetta Code: https://rosettacode.org
 ! ...
-n = 0
-rewind(iu)
-10 read(iu,*,end=20,err=60)
-   n = n + 1
-   goto 10
-20 continue
+character(len=*), intent(in)            :: string
+real(dp) x
+integer e
 
-allocate(x(n))
-allocate(y(n))
-allocate(z(n))
+read(string,*,iostat=e) x
+is_numeric = (e == 0)
 
-rewind(iu)
-do i=1,n
-  read(iu,*,err=60) x(i), y(i), z(i)
-enddo
-close(iu)
-return
-
-60 n = -1
-close(iu)
-return
-
-end function read3cols
+end function is_numeric
 ! ...
 ! =====================================================================
 ! ...
-function read2cols(filename,x,y) result(n)
-! ... Reads an ascii file with two columns: x,y
-! ... returns and integer, n = readcols(filename,x,y)
-! ... n > 0, the size of the vectors
-! ... n = 0, file not found
-! ... n < 0, invalid format
+integer function word_type(str)
 
-character(len=*), intent(in)                      :: filename
-real(dp), dimension(:), allocatable, intent(out)  :: x
-real(dp), dimension(:), allocatable, intent(out)  :: y
-integer                                           :: n
+character(len=*), intent(in)         :: str
+integer i,j
+real r
 
-integer i,iu,err
+read(str,'(I20)',err=10) i
+word_type = 1
+return
 
-n  = 0
-iu = unitfree()
+10 continue
+read(str,'(G40.40)',err=20) r
+word_type = 2
+return
 
-open(iu,file=filename,status='old',form='formatted',iostat=err)
-if (err.ne.0) return
-
-
-! ... Read number of lines:
-! ...
-n = 0
-rewind(iu)
-10 read(iu,*,end=20,err=60)
-   n = n + 1
-   goto 10
 20 continue
-
-allocate(x(n))
-allocate(y(n))
-
-rewind(iu)
-do i=1,n
-  read(iu,*,err=60) x(i), y(i)
-enddo
-close(iu)
+word_type = 3
 return
 
-60 n = -1
-close(iu)
-return
-
-end function read2cols
+end function word_type
 ! ...
 ! =====================================================================
 ! ...
-function read1col(filename,x) result(n)
-! ... Reads an ascii file with one column: x
-! ... returns and integer, n = readcols(filename,x)
-! ... n > 0, the size of the vector
-! ... n = 0, file not found
-! ... n < 0, invalid format
-
-character(len=*), intent(in)                      :: filename
-real(dp), dimension(:), allocatable, intent(out)  :: x
-integer                                           :: n
-
-integer i,iu,err
-
-n  = 0
-iu = unitfree()
-
-open(iu,file=filename,status='old',form='formatted',iostat=err)
-if (err.ne.0) return
-
-
-! ... Read number of lines:
-! ...
-n = 0
-rewind(iu)
-10 read(iu,*,end=20,err=60)
-   n = n + 1
-   goto 10
-20 continue
-
-allocate(x(n))
-
-rewind(iu)
-do i=1,n
-  read(iu,*,err=60) x(i)
-enddo
-close(iu)
-return
-
-
-60 n = -1
-close(iu)
-return
-
-end function read1col
-! ...
-! =====================================================================
-! ...
-function readArray(filename,x) result(dims)
-! ... Reads an ascii file with one column: x
-! ... returns and integer, n = readcols(filename,x)
-! ... n > 0, the size of the vector
-! ... n = 0, file not found
-! ... n < 0, invalid format
-
-character(len=*), intent(in)                        :: filename
-real(dp), dimension(:,:), allocatable, intent(out)  :: x
-integer, dimension(2)                               :: dims
-
-integer l,m,i,iu,err
-character(len=1800) line
-
-l  = 0
-m  = 0
-iu = unitfree()
-
-open(iu,file=filename,status='old',form='formatted',iostat=err)
-if (err.ne.0) return
-
-! ... Get number of lines:
-! ...
-l = 0
-rewind(iu)
-10 read(iu,*,end=20,err=60)
-   l = l + 1
-   goto 10
-20 continue
-
-! ... Get number of columns
-rewind(iu)
-read(iu,'(A)') line
-m = numwords(line)
-
-allocate(x(l,m))
-
-! ... Read data
-! ...
-rewind(iu)
-do i=1,l
-  read(iu,*,err=60) x(i,:)
-enddo
-close(iu)
-
-dims = [l,m]
-return
-
-60 dims = [-1,-1]
-close(iu)
-return
-end function readArray
-! ...
-! =====================================================================
-! ...
-end module utils
+end module module_utils

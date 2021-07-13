@@ -29,6 +29,7 @@ sudo python3 -m pip install py-postgresql
 sudo python3 -m pip install psycopg2-binary
 sudo python3 -m pip install owslib
 sudo python3 -m pip install motuclient
+sudo python3 -m pip install tkcalendar
 
 # Cartopy
 # -------

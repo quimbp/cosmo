@@ -19,6 +19,8 @@ import matplotlib.cm as cm
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 
+import cartopy.crs as ccrs
+
 import numpy as np
 import os
 import io
@@ -1679,6 +1681,7 @@ class Select_Columns():
     self.SEPARATOR = tk.StringVar()
 
     line = line.strip()
+    line = ' '.join(line.split())
     self.LINE.set(line)
     self.SEPARATOR.set(sep)
     self.columns = line.split(self.SEPARATOR.get())
@@ -1701,6 +1704,7 @@ class Select_Columns():
     self.SECOND = tk.IntVar()
     self.DATE   = tk.IntVar()
     self.TIME   = tk.IntVar()
+    self.JDAY   = tk.IntVar()
     self.FMT    = tk.StringVar()
     self.DFMT   = tk.StringVar()
     self.TFMT   = tk.StringVar()
@@ -1716,6 +1720,7 @@ class Select_Columns():
     self.SECOND.set(-1)
     self.DATE.set(-1)
     self.TIME.set(-1)
+    self.JDAY.set(-1)
     self.FMT.set('%Y-%m-%dT%H:%M:%S')
     self.DFMT.set('%Y-%m-%d')
     self.TFMT.set('%H:%M:%S')
@@ -1741,9 +1746,11 @@ class Select_Columns():
     self.page1 = ttk.Frame(self.nb)
     self.page2 = ttk.Frame(self.nb)
     self.page3 = ttk.Frame(self.nb)
+    self.page4 = ttk.Frame(self.nb)
     self.nb.add(self.page1,text='Date in different columns')
     self.nb.add(self.page2,text='Date in ISO 8601 format')
     self.nb.add(self.page3,text='Date and time')
+    self.nb.add(self.page4,text='Julian days')
     self.nb.grid(row=2,column=0,columnspan=5)
 
 
@@ -1912,6 +1919,49 @@ class Select_Columns():
     ttk.Button(F2,text='Done',command=self.done2).grid(row=5,column=6,padx=3,pady=5)
     F2.grid()
 
+    F3 = ttk.Frame(self.page4,padding=5)
+    ttk.Label(F3,text='Variable').grid(row=1,column=0,padx=3)
+    ttk.Label(F3,text='Longitude').grid(row=1,column=1,padx=3)
+    ttk.Label(F3,text='Latitude').grid(row=1,column=2,padx=3)
+    ttk.Label(F3,text='Depth').grid(row=1,column=3,padx=3)
+    ttk.Label(F3,text='Time').grid(row=1,column=4,padx=3)
+
+    self.clon3 = ttk.Combobox(F3,textvariable=self.LON,values=self.clist,width=10) 
+    self.clon3.grid(row=2,column=1,padx=3,pady=5)
+    self.clon3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.clat3 = ttk.Combobox(F3,textvariable=self.LAT,values=self.clist,width=10) 
+    self.clat3.grid(row=2,column=2,padx=3,pady=5)
+    self.clat3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.cdep3 = ttk.Combobox(F3,textvariable=self.DEPTH,values=self.clist,width=10)
+    self.cdep3.grid(row=2,column=3,padx=3,pady=5)
+    self.cdep3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    self.cdat3 = ttk.Combobox(F3,textvariable=self.JDAY,values=self.clist,width=10)
+    self.cdat3.grid(row=2,column=4,padx=3,pady=5,sticky='w')
+    self.cdat3.bind('<<ComboboxSelected>>',lambda e: self.relabel3())
+
+    ttk.Label(F3,text='Value').grid(row=3,column=0,padx=3)
+    self.wlon3 = ttk.Label(F3,text=self.columns[self.LON.get()],width=10)
+    self.wlon3.grid(row=3,column=1,padx=3,pady=5)
+    self.wlat3 = ttk.Label(F3,text=self.columns[self.LAT.get()],width=10)
+    self.wlat3.grid(row=3,column=2,padx=3,pady=5)
+    self.wdep3 = ttk.Label(F3,text=self.columns[self.DEPTH.get()],width=10)
+    self.wdep3.grid(row=3,column=3,padx=3,pady=5)
+    self.wdat3 = ttk.Label(F3,text=self.columns[self.JDAY.get()],width=10)
+    self.wdat3.grid(row=3,column=4,padx=3,pady=5)
+
+#    ttk.Label(F3,text='Format').grid(row=4,column=0,padx=3,pady=5)
+#    self.wdfmt = ttk.Entry(F3,text=self.DFMT,width=11)
+#    self.wdfmt.grid(row=4,column=4,padx=3,pady=5,sticky='w')
+#    self.wtfmt = ttk.Entry(F3,text=self.TFMT,width=11)
+#    self.wtfmt.grid(row=4,column=5,padx=3,pady=5,sticky='w')
+
+    ttk.Button(F3,text='Cancel',command=self.cancel).grid(row=5,column=5,padx=3,pady=5)
+    ttk.Button(F3,text='Done',command=self.done3).grid(row=5,column=6,padx=3,pady=5)
+    F3.grid()
+
 
     FM.grid()
 
@@ -1950,6 +2000,11 @@ class Select_Columns():
     self.cdep2['values'] = self.clist
     self.ctim2['values'] = self.clist
 
+    self.clon3['values'] = self.clist
+    self.clat3['values'] = self.clist
+    self.cdep3['values'] = self.clist
+    self.cdat3['values'] = self.clist
+
   def cancel(self):
   # ================
     self.lon    = None
@@ -1963,6 +2018,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     self.master.destroy()
@@ -1982,6 +2038,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2020,6 +2077,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2049,6 +2107,7 @@ class Select_Columns():
     self.second = None
     self.date   = None
     self.time   = None
+    self.jday   = None
     self.fmt    = None
 
     if self.LON.get() > -1:
@@ -2062,6 +2121,35 @@ class Select_Columns():
     if self.TIME.get() > -1:
       self.time = self.TIME.get()
     self.fmt = self.DFMT.get()+'T'+self.TFMT.get()
+
+    self.master.destroy()
+    return
+
+  def done3(self):
+  # ================
+    self.type   = 3
+    self.lon    = None
+    self.lat    = None
+    self.depth  = None
+    self.year   = None
+    self.month  = None
+    self.day    = None
+    self.hour   = None
+    self.minute = None
+    self.second = None
+    self.date   = None
+    self.time   = None
+    self.jday   = None
+    self.fmt    = None
+
+    if self.LON.get() > -1:
+      self.lon = self.LON.get()
+    if self.LAT.get() > -1:
+      self.lat = self.LAT.get()
+    if self.DEPTH.get() > -1:
+      self.depth = self.DEPTH.get()
+    if self.JDAY.get() > -1:
+      self.jday = self.JDAY.get()
 
     self.master.destroy()
     return
@@ -2092,6 +2180,13 @@ class Select_Columns():
     self.wdep2['text'] = self.columns[self.DEPTH.get()]
     self.wdat2['text'] = self.columns[self.DATE.get()]
     self.wtim2['text'] = self.columns[self.TIME.get()]
+
+  def relabel3(self):
+  # ================
+    self.wlon3['text'] = self.columns[self.LON.get()]
+    self.wlat3['text'] = self.columns[self.LAT.get()]
+    self.wdep3['text'] = self.columns[self.DEPTH.get()]
+    self.wdat3['text'] = self.columns[self.JDAY.get()]
 
 # ================================
 #class Win_permission(tk.Toplevel):
@@ -2792,7 +2887,7 @@ def map_proj(name, params=None):
    return False
 
 # ===============================================================
-def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
+def scale_bar_old(ax, length=None, location=(0.5, 0.05), linewidth=3):
 # ================================================================
     """
     ax is the axes to draw the scalebar on.
@@ -2837,6 +2932,74 @@ def scale_bar(ax, length=None, location=(0.5, 0.05), linewidth=3):
     #Plot the scalebar label
     ax.text(sbx, sby, str(length) + ' km', transform=tmc,
             horizontalalignment='center', verticalalignment='bottom')
+
+# ===============================================================
+def utm_from_lon(lon):
+# ===============================================================
+    """
+    utm_from_lon - UTM zone for a longitude
+
+    Not right for some polar regions (Norway, Svalbard, Antartica)
+
+    :param float lon: longitude
+    :return: UTM zone number
+    :rtype: int
+    """
+    return math.floor( ( lon + 180 ) / 6) + 1
+
+# ===============================================================
+def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
+              linecolor='k',fontcolor='k',fontsize='8',zorder=2,
+              units='km', m_per_unit=1000):
+# ===============================================================
+    """
+    http://stackoverflow.com/a/35705477/1072212
+    ax is the axes to draw the scalebar on.
+    proj is the projection the axes are in
+    location is center of the scalebar in axis coordinates ie. 0.5 is the middle of the plot
+    length is the length of the scalebar in km.
+    linewidth is the thickness of the scalebar.
+    units is the name of the unit
+    m_per_unit is the number of meters in a unit
+    """
+
+    #from matplotlib.path import Path
+    #import matplotlib.patheffects as PathEffects
+    from matplotlib import patheffects
+    #import matplotlib.patches as mpatches
+    #import matplotlib.lines as mlines
+
+    # find lat/lon center to find best UTM zone
+    x0, x1, y0, y1 = ax.get_extent(proj.as_geodetic())
+    # Projection in metres
+    utm = ccrs.UTM(utm_from_lon((x0+x1)/2))
+    # Get the extent of the plotted area in coordinates in metres
+    x0, x1, y0, y1 = ax.get_extent(utm)
+    # Turn the specified scalebar location into coordinates in metres
+    sbcx, sbcy = x0 + (x1 - x0) * location[0], y0 + (y1 - y0) * location[1]
+    # Generate the x coordinate for the ends of the scalebar
+    bar_xs = [sbcx - length * m_per_unit/2, sbcx + length * m_per_unit/2]
+    # buffer for scalebar
+    buffer = [patheffects.withStroke(linewidth=int(linewidth*1.4), foreground="w")]
+    # Plot the scalebar with buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color=linecolor,
+        linewidth=linewidth, path_effects=buffer)
+    # buffer for text
+    buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
+    # Plot the scalebar label
+    t0 = ax.text(sbcx, sbcy+0.01, str(length) + ' ' + units, transform=utm,
+        horizontalalignment='center', verticalalignment='bottom',
+        path_effects=buffer, color=fontcolor,fontsize=fontsize,zorder=zorder)
+
+#    left = x0+(x1-x0)*0.05
+#    # Plot the N arrow
+#    t1 = ax.text(left, sbcy, u'\u25B2\nN', transform=utm,
+#        horizontalalignment='center', verticalalignment='bottom',
+#        path_effects=buffer, zorder=2)
+
+    # Plot the scalebar without buffer, in case covered by text buffer
+    ax.plot(bar_xs, [sbcy, sbcy], transform=utm, color=linecolor,
+        linewidth=linewidth, zorder=zorder+1)
 
 # =================================================
 def colsel(tkvar,tkstyle,widget,style,master=None):

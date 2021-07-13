@@ -16,13 +16,6 @@
 # NF90_INC = Path to the  NetCDF Fortran 90 modules
 # NF90_LIB = Path to the  NetCDF Fortran 90 libraries
 # 
-# Path of installation
-#
-COSMO = /Users/Emma/Scripts/Cosmo
-#
-# Include the fortran compiler (located at: /usr/local/Cellar/gcc/8.2.0/bin)
-# with a symbolic link at /usr/local/bin
-# 
 FC = gfortran
 FFLAGS = -O4 -fno-range-check -finit-real=nan -finit-integer=0 -finit-character=0 -finit-logical=false  -fno-automatic 
 INSTALL = install
@@ -30,17 +23,10 @@ AR = ar cq
 #
 # Include the path to the netcdf fortran modules and libraries
 #
-NF90_INC = /usr/local/Cellar/netcdf/4.6.1_2/include/
-NF90_LIB = /usr/local/Cellar/netcdf/4.6.1_2/lib
+NF90_INC = /usr/local/Cellar/netcdf/4.8.0_1/include
+NF90_LIB = /usr/local/Cellar/netcdf/4.8.0_1/lib
 #
 # Folders where files are going to be installed
 #
-BINDIR = $(COSMO)/bin
-LIBDIR = $(COSMO)/lib
-INCDIR = $(COSMO)/include
-
 CDFLIB = -L$(NF90_LIB) -lnetcdf -lnetcdff
 CDFINC = -I$(NF90_INC)
-
-# Include it in the user profile
-echo 'export COSMO="/Users/Emma/Scripts/Cosmo/bin/"' >> ~/.bash_profile
