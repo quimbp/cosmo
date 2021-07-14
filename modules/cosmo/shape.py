@@ -475,16 +475,25 @@ def drawing(ax,proj,SHAPE):
                          facecolor=SHAPE.PLOT.FACECOLOR.get(),
                          zorder=SHAPE.PLOT.ZORDER.get())
         else:
-          for element in record.geometry:
-            x,y = element.exterior.coords.xy
-            lshp, = ax.plot(x,y,
+          try:
+            for element in record.geometry:
+              x,y = element.exterior.coords.xy
+              lshp, = ax.plot(x,y,
                             linewidth=SHAPE.PLOT.LINEWIDTH.get(),
                             linestyle=SHAPE.PLOT.LINESTYLE.get(),
                             alpha=SHAPE.PLOT.ALPHA.get(),
                             color=SHAPE.PLOT.EDGECOLOR.get(),
                             zorder=SHAPE.PLOT.ZORDER.get(),
                             transform=ccrs.PlateCarree())
-
+          except:
+              x,y = record.geometry.exterior.coords.xy
+              lshp, = ax.plot(x,y,
+                            linewidth=SHAPE.PLOT.LINEWIDTH.get(),
+                            linestyle=SHAPE.PLOT.LINESTYLE.get(),
+                            alpha=SHAPE.PLOT.ALPHA.get(),
+                            color=SHAPE.PLOT.EDGECOLOR.get(),
+                            zorder=SHAPE.PLOT.ZORDER.get(),
+                            transform=ccrs.PlateCarree())
         if SHAPE.textmode.get():
           # label variable holds the name of the feature
           # We will label the largest feature
