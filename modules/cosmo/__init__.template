@@ -1,6 +1,7 @@
 import os
 import json
 import io
+import cartopy
 
 try:
   to_unicode = unicode
