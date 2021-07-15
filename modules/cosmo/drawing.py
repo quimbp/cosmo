@@ -3479,7 +3479,10 @@ class CosmoDrawing():
 #        bb.configure(state='disabled')
 
       # Filename
-      base = os.path.basename(self.LAYERS.FILENAME[i])
+      try:
+        base = os.path.basename(self.LAYERS.FILENAME[i])
+      except:
+        base = '-'
       ttk.Label(F0,text=base, \
                    width=60,justify='left').grid(row=i+1, \
                                                  column=8, \
@@ -4164,7 +4167,7 @@ class CosmoDrawing():
         self.SHAPE_INDX.set(self.nshape-1)
         self.SHAPE_LIST = list(range(self.nshape))
 
-        self.LAYERS.add(TYPE='SHAPE',Filename=filename,N=len(SHAPE.lon),wid=self.cons)
+        self.LAYERS.add(TYPE='SHAPE',Filename=filename,N=SHAPE.n,wid=self.cons)
         self.LAYERS.print()
         #self.nfeatures += 1
         #self.FEATNAMES.append(filename)
@@ -9271,7 +9274,7 @@ class CosmoDrawing():
     self.ax.title.set_position((px,py+dy))
 
     if self.PLOT.GEOMAP.get():	
-      toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
+      #toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
       if self.PLOT.SCALE_SHOW.get():
           try:
             YOFFSET = float(self.PLOT.SCALE_YOFFSET.get())
@@ -9700,7 +9703,7 @@ class CosmoDrawing():
     self.Max.title.set_position((px,py+dy))
 
     if self.PLOT.GEOMAP.get():	
-      toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
+      #toconsola("EG PLOT.GEOMAP 2 scale: Not yet implemented",wid=self.cons)
       #print("EG PLOT.GEOMAP 2 scale: Not yet implemented")
       if self.PLOT.SCALE_SHOW.get():
           try:
