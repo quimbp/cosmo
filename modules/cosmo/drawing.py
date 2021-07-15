@@ -1835,9 +1835,14 @@ class CosmoDrawing():
       self.master.option_add('*Font',FONT)
 
     self.default_font = tkfont.nametofont('TkDefaultFont')
+    # EG icon fonts for the askopenfile, etc
+    self.default_font2 = tkfont.nametofont("TkIconFont")
+    
     self.default_font.configure(family=self.PLOT.WINDOW_FONT_TYPE.get().
                                                               split()[0])
     self.default_font.configure(size=self.PLOT.WINDOW_FONT_SIZE.get())
+    # EG icon fonts for the askopenfile, etc
+    self.default_font2.configure(size=self.PLOT.WINDOW_FONT_SIZE.get())
 
     self.L_LIST = []
     self.T_LIST = []
@@ -4291,6 +4296,7 @@ class CosmoDrawing():
       self.default_font.configure(family=self.PLOT.WINDOW_FONT_TYPE.get().
                                                               split()[0])
       self.default_font.configure(size=self.PLOT.WINDOW_FONT_SIZE.get())
+      self.default_font2.configure(size=self.PLOT.WINDOW_FONT_SIZE.get())
 
       if self.Window_mapconfig is not None:
         self.Window_mapconfig.destroy()
