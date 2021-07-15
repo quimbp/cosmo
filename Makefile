@@ -77,7 +77,7 @@ COSMO_VIEW:
 	rm -f modules/cosmo/__init__.py
 	sed 's@#COSMO_ROOT.*@COSMO_ROOT="'"${PWD}"'"@' modules/cosmo/__init__.template > modules/cosmo/__init__.py
 	(cd conf/default/; rm -f *.conf)
-	(cd modules; python setup.py build; python setup.py install)
+	(cd modules; python3 setup.py build; python3 setup.py install)
 	(cp cosmo-view/cosmo-view $(BINDIR))
 	(cd $(BINDIR); chmod +x cosmo-view)
 
