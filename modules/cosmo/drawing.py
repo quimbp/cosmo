@@ -9231,10 +9231,10 @@ class CosmoDrawing():
         gl.xlines, gl.ylines = False, False
         
       # xy labels visibility
-      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
-      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
-      gl.ylabels_left = self.PLOT.GRID_WEST.get()
-      gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      gl.top_labels = self.PLOT.GRID_NORTH.get()
+      gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
+      gl.left_labels = self.PLOT.GRID_WEST.get()
+      gl.right_labels = self.PLOT.GRID_EAST.get()
       
       gl.xlocator = mticker.FixedLocator(vmeridians)
       gl.ylocator = mticker.FixedLocator(vparallels)
@@ -9661,10 +9661,10 @@ class CosmoDrawing():
         gl.xlines, gl.ylines = False, False
         
       # xy labels visibility
-      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
-      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
-      gl.ylabels_left = self.PLOT.GRID_WEST.get()
-      gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      gl.top_labels = self.PLOT.GRID_NORTH.get()
+      gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
+      gl.left_labels = self.PLOT.GRID_WEST.get()
+      gl.right_labels = self.PLOT.GRID_EAST.get()
       
       gl.xlocator = mticker.FixedLocator(vmeridians)
       gl.ylocator = mticker.FixedLocator(vparallels)
