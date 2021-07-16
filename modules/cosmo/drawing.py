@@ -1315,9 +1315,9 @@ class DrawingConfig():
     #EG self.ARCGISPIXELS.set(400)
     #EG self.ARCGISDPI.set(96)
     #EG self.ARCGISVERBOSE.set(True)
-    self.LOGO_FILE.set(COSMO_CONF_PATH+'cosmo-logo.png')
+    self.LOGO_FILE.set(COSMO_CONF_PATH+'MEDOSMOSIS.png')
     self.LOGO_IMAGE = image.imread(self.LOGO_FILE.get())
-    self.LOGO_ZOOM.set(0.40)
+    self.LOGO_ZOOM.set(0.20)
     self.LOGO_LOCATION.set('SW')
     self.LOGO_DISPLAY.set(False)
 
@@ -2392,7 +2392,7 @@ class CosmoDrawing():
       self.Window_about.resizable(width=False,height=False)
       self.Window_about.protocol('WM_DELETE_WINDOW',_close)
 
-      photoimage = ImageTk.PhotoImage(Image.open(self.PLOT.LOGO_FILE.get()))
+      photoimage = ImageTk.PhotoImage(Image.open(self.PLOT.LOGO_FILE.get()).resize((200,100)))
 
       panel1 = tk.Label(self.Window_about,image=photoimage)
       panel1.grid(row=0,column=0,sticky='we')
@@ -3501,6 +3501,8 @@ class CosmoDrawing():
   #COSMO_CONF_NAME = 'default'
   #COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
+    new_conf = tk.StringVar()
+
     # -----------
     def _done():
     # -----------
@@ -3558,11 +3560,11 @@ class CosmoDrawing():
         toconsola('Configuration folder exists',wid=self.cons)
         COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
         COSMO_CONF = nn + os.sep
-      else:
-        toconsola('New Configuration folder',wid=self.cons)
-        os.makedirs(nn)
-        COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
-        COSMO_CONF = nn + os.sep
+#      else:
+#        toconsola('New Configuration folder',wid=self.cons)
+#        os.makedirs(nn)
+#        COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
+#        COSMO_CONF = nn + os.sep
       
       message ='COSMO_CONF_PATH = '+COSMO_CONF_PATH+"\n"+ \
                'COSMO_CONF_NAME = '+COSMO_CONF_NAME+"\n"+ \
@@ -3571,6 +3573,20 @@ class CosmoDrawing():
       
       self.PLOT.FILECONF = COSMO_CONF + 'drawing.conf'
       toconsola('self.PLOT.FILECONF = '+self.PLOT.FILECONF,wid=self.cons)
+
+    def _create(event=None):
+    # ======================
+      global COSMO_CONF,COSMO_CONF_PATH,COSMO_CONF_NAME
+      COSMO_CONF_NAME = '%s' % new_conf.get()
+      COSMO_CONF = COSMO_CONF_PATH+COSMO_CONF_NAME+os.sep
+      if os.path.isdir(COSMO_CONF):
+        toconsola('Configuration ' + COSMO_CONF + ' already exists',wid=self.cons)
+        toconsola('Overwriting it !',wid=self.cons)
+      else:
+        toconsola('Writing in configuration folder '+COSMO_CONF,wid=self.cons)
+        os.makedirs(COSMO_CONF)
+      self.PLOT.FILECONF = COSMO_CONF + 'drawing.conf'
+
 
     # Main window
     # -----------
@@ -3595,15 +3611,24 @@ class CosmoDrawing():
                  font=font_bold).grid(row=1,column=0)
     ttk.Label(F0,text=COSMO_CONF_NAME,width=40,
                  justify='left').grid(row=1,column=1,columnspan=4)
-    ttk.Label(F0,text='New configuration name',
+    ttk.Label(F0,text='Load configuratione',
                  font=font_bold).grid(row=2,column=0)
     ttk.Button(F0,text='Select',command=_select).grid(row=2,column=1,padx=3)
+    ttk.Label(F0,text='New configuration',
+                 font=font_bold).grid(row=3,column=0)
+    aa = ttk.Entry(F0,textvariable=new_conf,width=30)
+    aa.grid(row=3,column=1,columnspan=3)
+    bb = ttk.Button(F0,text='Create',command=_create)
+    bb.grid(row=3,column=4,padx=3)
+    bb.bind("<Return>",lambda f: _create())
+    #bb.bind("<Return>",_create())
 
+# AAAAAA
     cancel = ttk.Button(F0,text='Cancel',command=_cancel)
-    cancel.grid(row=3,column=0,padx=3)
+    cancel.grid(row=4,column=0,padx=3)
     cancel.bind("<Return>",lambda e:_cancel())
     done = ttk.Button(F0,text='Done',command=_done)
-    done.grid(row=3,column=1,padx=3)
+    done.grid(row=4,column=1,padx=3)
     done.bind("<Return>",lambda e:_done())
     F0.grid()
 
