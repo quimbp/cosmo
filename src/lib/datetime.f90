@@ -6,152 +6,317 @@
 
 module module_datetime
 
-use module_types
-use module_utils
+  use module_types
+  use module_utils
 
-implicit none
+  implicit none
 
-private cmp_
+  private cmp_
 
-integer, dimension(12) :: DAYS_IN_MONTH_ = [31,28,31,30,31,30,31,31,30,31,30,31]
-integer, dimension(12) :: DAYS_BEFORE_MONTH_ = [0,31,59,90,120,151,181,212,243,273,304,334]
-character(len=3), dimension(7) :: DAYNAMES_ = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-character(len=3), dimension(12) :: MONTHNAMES_ = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", &
+  integer, dimension(12) :: DAYS_IN_MONTH_ = [31,28,31,30,31,30,31,31,30,31,30,31]
+  integer, dimension(12) :: DAYS_BEFORE_MONTH_ = [0,31,59,90,120,151,181,212,243,273,304,334]
+  character(len=3), dimension(7) :: DAYNAMES_ = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  character(len=3), dimension(12) :: MONTHNAMES_ = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", &
                                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-type type_date
-  integer                  :: year     = 0
-  integer                  :: month    = 0
-  integer                  :: day      = 0
-  integer                  :: hour     = 0
-  integer                  :: minute   = 0
-  integer                  :: second   = 0
-  integer                  :: weekday  = 0           ! 1 to 7
-  integer                  :: yearday  = 0           ! 1 to 365/366
-  character(len=20)        :: calendar = 'gregorian'
+  character(len=20), dimension(4)           :: calendars_ = ['standard ',  &
+                                                             'gregorian', &
+                                                             '365_day  ', &
+                                                             'noleap   ']
+  character(len=7), dimension(4)            :: units_     = ['seconds',  &
+                                                             'minutes', &
+                                                             'hours  ', &
+                                                             'days   ']
 
-  contains
-    procedure              :: iso           => date_iso
-    procedure              :: now           => date_now
-    procedure              :: is            => date_set
-    procedure              :: jd            => date2jd
-    procedure              :: timedelta     => date_increment
 
-end type type_date
+  type type_date
+    integer                  :: year     = 0
+    integer                  :: month    = 0
+    integer                  :: day      = 0
+    integer                  :: hour     = 0
+    integer                  :: minute   = 0
+    integer                  :: second   = 0
+    integer                  :: yearday  = 0           ! 1 to 365/366
+    character(len=20)        :: calendar = 'gregorian'
+
+    contains
+      procedure              :: iso           => date_iso
+      procedure              :: now           => date_now
+      procedure              :: is            => date_set
+      procedure              :: jd            => date2jd
+      procedure              :: timedelta     => date_increment
+
+  end type type_date
 
 ! ... A 4-year cycle has an extra leap day over what we'd get from 
 ! ... pasting together 4 single years.
 ! ...
-integer, parameter                :: DI4Y = 4 * 365 + 1
+  integer, parameter                :: DI4Y = 4 * 365 + 1
 
 ! ... Similarly, a 100-year cycle has one fewer leap day than we'd get from
 ! ... pasting together 25 4-year cycles.
 ! ...
-integer, parameter                :: DI100Y = 25 * DI4Y - 1
+  integer, parameter                :: DI100Y = 25 * DI4Y - 1
 
 ! ... Finally, a 400-year cycle has an extra leap day over what we'd 
 ! ... get from pasting together 4 100-year cycles.
 ! ...
-integer, parameter                :: DI400Y = 4 * DI100Y + 1
+  integer, parameter                :: DI400Y = 4 * DI100Y + 1
 
-contains
-
+  contains
+! ...
+! ====================================================================
+! ====================================================================
+! ====================================================================
+! ...
 integer function cmp_(i,j)
 
-integer, intent(in)       :: i,j
+  integer, intent(in)       :: i,j
 
-if (i.eq.j) then
-  cmp_ = 0
-else if (i.gt.j) then
-  cmp_ = 1
-else
-  cmp_ = -1
-endif
+  if (i.eq.j) then
+    cmp_ = 0
+  else if (i.gt.j) then
+    cmp_ = 1
+  else
+    cmp_ = -1
+  endif
 
-return
+  return
 end function cmp_
 ! ...
-! =====================================================================
+! ====================================================================
 ! ...
+subroutine check_calendar (calendar)
 
-logical function isleap(year)
+  character(len=*), intent(inout)            :: calendar
 
-integer, intent(in)             :: year
+  calendar = lowercase(calendar)
 
-isleap = .false.
-if (MOD(year,400).eq.0) isleap = .true.
-if ((MOD(year,4).eq.0).and.(mod(year,100).ne.0)) isleap = .true.
+  if (count(calendar.eq.calendars_).eq.0) then
+    stop 'Unsupported calendar'
+  else
+    if (index(calendar,'365').gt.0) calendar = 'noleap'
+    if (index(calendar,'noleap').gt.0) calendar = 'noleap'
+    if (index(calendar,'standard').gt.0) calendar = 'gregorian'
+    if (index(calendar,'gregorian').gt.0) calendar = 'gregorian'
+  endif
 
-return
+end subroutine check_calendar
+! ...
+! ====================================================================
+! ...
+subroutine check_units (units)
+
+  character(len=*), intent(inout)            :: units
+
+  units = lowercase(units)
+
+  if (units(1:1).eq.'s') then
+    units = 'seconds'
+  else  if (units(1:1).eq.'m') then
+    units = 'minutes'
+  else  if (units(1:1).eq.'h') then
+    units = 'hours'
+  else  if (units(1:1).eq.'d') then
+    units = 'days'
+  else
+    call stop_error(1,'Unsupported units')
+  endif
+
+end subroutine check_units
+! ...
+! ====================================================================
+! ...
+logical function isleap(year,calendar)
+
+  integer, intent(in)                    :: year
+  character(len=*), intent(in), optional :: calendar
+
+  ! ... Local variable
+  ! ...
+  character(len=20) cal
+ 
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    if (trim(cal).eq.'noleap') then
+      isleap = .false.
+      return
+    endif
+  endif
+
+  isleap = .false.
+  if (MOD(year,400).eq.0) isleap = .true.
+  if ((MOD(year,4).eq.0).and.(mod(year,100).ne.0)) isleap = .true.
+
+  return
 end function isleap
 ! ...
+! ====================================================================
+! ...
+subroutine split_units(units,time_units,RefDate)
+
+  character(len=*), intent(in)                :: units
+  character(len=20), intent(out)              :: time_units
+  character(len=20), intent(out)              :: RefDate
+
+  ! ... Local variables
+  ! ...
+  integer i
+  character(len=len(units)) att
+
+  if (len_trim(units).eq.0) then
+    time_units = 'none'
+    RefDate = 'none'
+    return
+  endif
+
+  att = lowercase(units)
+  i = index(att,'since')
+  if (i.eq.0) then
+    RefDate = ''
+    time_units = compress(att)
+  else
+    RefDate = compress(att(i+6:))
+    time_units = compress(att(1:i-1))
+  endif
+  call check_units(time_units)
+
+end subroutine split_units
+! ...
+! ====================================================================
+! ...
+function unit_conversion_factor(units) result(factor)
+
+  character(len=*), intent(in)               :: units
+  real(dp)                                   :: factor
+
+  if (index(units,'sec').gt.0) then
+    factor = 1.0D0
+  else if (index(units,'min').gt.0) then
+    factor = 60.0D0
+  else if (index(units,'hou').gt.0) then
+    factor = 3600.0D0
+  else if (index(units,'day').gt.0) then
+    factor = 86400.0D0
+  endif
+
+end function unit_conversion_factor
+! ...
 ! =====================================================================
 ! ...
-integer function days_before_year(year)
-! ... Number of days before January 1st of year
-! ...
-integer, intent(in)             :: year
+integer function days_before_year(year,calendar)
+  ! ... Number of days before January 1st of year
+  ! ...
+  integer, intent(in)                    :: year
+  character(len=*), intent(in), optional :: calendar
 
-! ... Local variables
-! ...
-integer y
+  ! ... Local variables
+  ! ...
+  integer y
+  character(len=20) cal
 
-y = year - 1
-days_before_year = y*365 + y/4 - y/100 + y/400
+  y = year - 1
 
-return
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    if (trim(cal).eq.'noleap') then
+      days_before_year = y*365
+      return
+    endif
+  endif
+
+  days_before_year = y*365 + y/4 - y/100 + y/400
+
+  return
 end function days_before_year
 ! ...
 ! =====================================================================
 ! ...
-integer function days_in_month(year,month)
-! ... Number of days in that month in that year
-! ...
-integer, intent(in)             :: year,month
+integer function days_in_month(year,month,calendar)
+  ! ... Number of days in that month in that year
+  ! ...
+  integer, intent(in)                    :: year,month
+  character(len=*), intent(in), optional :: calendar
 
-if (month.eq.2.and.isleap(year)) then
-  days_in_month = 29
-else
-  days_in_month = DAYS_IN_MONTH_(month)
-endif
+  ! ... Local variables
+  ! ...
+  character(len=20) cal
 
-return
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    if (trim(cal).eq.'noleap') then
+      days_in_month = DAYS_IN_MONTH_(month)
+      return
+    endif
+  endif
+
+  if (month.eq.2.and.isleap(year)) then
+    days_in_month = 29
+  else
+    days_in_month = DAYS_IN_MONTH_(month)
+  endif
+
+  return
 
 end function days_in_month
 ! ...
 ! =====================================================================
 ! ...
-integer function days_before_month(year, month)
+integer function days_before_month(year,month,calendar)
 ! ... Number of fays in year preceding first day of month
 ! ...
-integer, intent(in)              :: year,month
+  integer, intent(in)                    :: year,month
+  character(len=*), intent(in), optional :: calendar
 
-if (month.gt.2.and.isleap(year)) then
-  days_before_month = DAYS_BEFORE_MONTH_(month) + 1
-else
-  days_before_month = DAYS_BEFORE_MONTH_(month)
-endif
+  ! ... Local variables
+  ! ...
+  character(len=20) cal
 
-return 
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    if (trim(cal).eq.'noleap') then
+      days_before_month = DAYS_BEFORE_MONTH_(month)
+      return
+    endif
+  endif
+
+  if (month.gt.2.and.isleap(year)) then
+    days_before_month = DAYS_BEFORE_MONTH_(month) + 1
+  else
+    days_before_month = DAYS_BEFORE_MONTH_(month)
+  endif
+
+  return 
 end function days_before_month
 ! ...
 ! =====================================================================
 ! ...
-integer function ymd2ord(year,month,day)
+integer function ymd2ord(year,month,day,calendar)
 ! ...  Returns an ordinal, assuming that 01-Jan-0001 is day 1
 ! ...
-integer, intent(in)              :: year,month,day
+  integer, intent(in)                    :: year,month,day
+  character(len=*), intent(in), optional :: calendar
 
-ymd2ord = days_before_year(year)         +  &
-          days_before_month(year, month) +  &
-          day
+  if (present(calendar)) then
+    ymd2ord = days_before_year(year,calendar)         +  &
+              days_before_month(year,month,calendar)  +  &
+              day
+  else
+    ymd2ord = days_before_year(year)         +  &
+              days_before_month(year,month)  +  &
+              day
+  endif
 
-return 
+  return 
 end function ymd2ord
 ! ...
 ! =====================================================================
 ! ...
-subroutine ord2ymd(nn,year,month,day)
+subroutine ord2ymd(nn,year,month,day,calendar)
 ! ... Returns (year, month, day) from ordinal, if 01-Jan-0001 is day 1
 ! ...
 ! ... n is a 1-based index, starting at 1-Jan-1.  The pattern of leap years
@@ -175,127 +340,147 @@ subroutine ord2ymd(nn,year,month,day)
 ! ...     31 Dec  400         _DI400Y        _DI400Y -1
 ! ...      1 Jan  401         _DI400Y +1     _DI400Y      400-year boundary
 ! ...
-integer, intent(in)             :: nn
-integer, intent(out)            :: year,month,day
-!dimension                       :: p(3)    ! (year,month,day)
+  integer, intent(in)             :: nn
+  integer, intent(out)            :: year,month,day
+  character(len=*), intent(in), optional :: calendar
 
-! ... Local variables
-! ...
-logical leapyear
-integer n,n400,n100,n1,n4,preceding
+  ! ... Local variables
+  ! ...
+  logical leapyear
+  integer n,n400,n100,n1,n4,preceding
+  integer remainder
+  character(len=20) cal
 
-n = nn - 1
-
-n400 = n / DI400Y
-n    = mod(n,DI400Y)
-
-year = n400 * 400 + 1   ! ..., -399, 1, 401, ...
-
-! ... Now n is the (non-negative) offset, in days, from January 1 of year, to
-! ... the desired date.  Now compute how many 100-year cycles precede n.
-! ... Note that it's possible for n100 to equal 4!  In that case 4 full
-! ... 100-year cycles precede the desired day, which implies the desired
-! ... day is December 31 at the end of a 400-year cycle.
-! ...
-n100 = n / DI100Y
-n    = mod(n,DI100Y)
-
-! ... Now compute how many 4-year cycles precede it.
-! ...
-n4 = n / DI4Y
-n  = mod(n,DI4Y)
-
-! ... And now how many single years.  Again n1 can be 4, and again meaning
-! ... that the desired day is December 31 at the end of the 4-year cycle.
-! ...
-n1 = n / 365
-n  = mod(n,365)
-
-year = year + n100 * 100 + n4 * 4 + n1
-
-if (n1.eq.4.or.n100.eq.4) then
-  if (n.ne.0) stop "ERROR in ord2ymd"
-  year = year-1; month = 12; day = 31
-  !p = [year-1, 12, 31]
-  return
-endif
-
-! ... Now the year is correct, and n is the offset from January 1.  We find
-! ... the month via an estimate that's either exact or one too large.
-! ...
-leapyear = isleap(year)
-month = (n+50) / (2**5)
-if (month.gt.2.and.leapyear) then
-  preceding = DAYS_BEFORE_MONTH_(month) + 1
-else
-  preceding = DAYS_BEFORE_MONTH_(month)
-endif
-
-if (preceding.gt.n) then
-! ... Estimate is too large
-  month = month - 1
-  if (month.eq.2.and.leapyear) then
-    preceding = preceding - (DAYS_IN_MONTH_(month) + 1)
-  else
-    preceding = preceding - DAYS_IN_MONTH_(month)
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    if (trim(cal).eq.'noleap') then
+      n = nn
+      remainder = mod(n,365)
+      n = n - remainder
+      year = n / 365 + 1
+      do month=1,12
+        if (DAYS_BEFORE_MONTH_(month).ge.remainder) exit
+      enddo
+      month = month - 1
+      day = remainder - DAYS_BEFORE_MONTH_(month)
+      return
+    endif
   endif
-endif
 
-n = n - preceding
+  n = nn - 1
 
-! ... the year and month are correct, and n is the offset from the
-! ... start of that month:  we're done!
-! ...
-!p = [year, month, n+1]
-day = n+1
-return
+  n400 = n / DI400Y
+  n    = mod(n,DI400Y)
+
+  year = n400 * 400 + 1   ! ..., -399, 1, 401, ...
+
+  ! ... Now n is the (non-negative) offset, in days, from January 1 of year, to
+  ! ... the desired date.  Now compute how many 100-year cycles precede n.
+  ! ... Note that it's possible for n100 to equal 4!  In that case 4 full
+  ! ... 100-year cycles precede the desired day, which implies the desired
+  ! ... day is December 31 at the end of a 400-year cycle.
+  ! ...
+  n100 = n / DI100Y
+  n    = mod(n,DI100Y)
+
+  ! ... Now compute how many 4-year cycles precede it.
+  ! ...
+  n4 = n / DI4Y
+  n  = mod(n,DI4Y)
+
+  ! ... And now how many single years.  Again n1 can be 4, and again meaning
+  ! ... that the desired day is December 31 at the end of the 4-year cycle.
+  ! ...
+  n1 = n / 365
+  n  = mod(n,365)
+
+  year = year + n100 * 100 + n4 * 4 + n1
+
+  if (n1.eq.4.or.n100.eq.4) then
+    if (n.ne.0) stop "ERROR in ord2ymd"
+    year = year-1; month = 12; day = 31
+    !p = [year-1, 12, 31]
+    return
+  endif
+
+  ! ... Now the year is correct, and n is the offset from January 1.  We find
+  ! ... the month via an estimate that's either exact or one too large.
+  ! ...
+  leapyear = isleap(year)
+  month = (n+50) / (2**5)
+  if (month.gt.2.and.leapyear) then
+    preceding = DAYS_BEFORE_MONTH_(month) + 1
+  else
+    preceding = DAYS_BEFORE_MONTH_(month)
+  endif
+
+  if (preceding.gt.n) then
+  ! ... Estimate is too large
+    month = month - 1
+    if (month.eq.2.and.leapyear) then
+      preceding = preceding - (DAYS_IN_MONTH_(month) + 1)
+    else
+      preceding = preceding - DAYS_IN_MONTH_(month)
+    endif
+  endif
+
+  n = n - preceding
+
+  ! ... the year and month are correct, and n is the offset from the
+  ! ... start of that month:  we're done!
+  ! ...
+  !p = [year, month, n+1]
+  day = n+1
+  return
 
 end subroutine ord2ymd
 ! ...
 ! =====================================================================
 ! ...
-type(type_date) function date_is(y,m,d,hh,mm,ss,cal) result(p)
+type(type_date) function date_is(y,m,d,hh,mm,ss,calendar) result(p)
 
-integer, intent(in)                     :: y,m,d
-integer, intent(in), optional           :: hh
-integer, intent(in), optional           :: mm
-integer, intent(in), optional           :: ss
-character(len=*), intent(in), optional  :: cal
+  integer, intent(in)                     :: y,m,d
+  integer, intent(in), optional           :: hh
+  integer, intent(in), optional           :: mm
+  integer, intent(in), optional           :: ss
+  character(len=*), intent(in), optional  :: calendar
 
-! ... Local variables
-! ...
-integer wday,dnum
+  ! ... Local variables
+  ! ...
+  integer dnum
+  character(len=20) cal
 
-wday = mod(ymd2ord(y,m,d)+6,7) + 1
-dnum = days_before_month(y,m) + d
+  if (present(calendar)) then
+    cal = trim(calendar)
+    call check_calendar(cal)
+    p%calendar = trim(cal)
+  else
+    p%calendar = 'gregorian'
+  endif
 
-p%year    = y
-p%month   = m
-p%day     = d
+  p%year    = y
+  p%month   = m
+  p%day     = d
 
-if (present(hh)) then
-  p%hour    = hh
-else
-  p%hour    = 0
-endif
-if (present(mm)) then
-  p%minute  = mm
-else
-  p%minute  = 0
-endif
-if (present(ss)) then
-  p%second  = ss
-else
-  p%second  = 0
-endif
+  if (present(hh)) then
+    p%hour    = hh
+  else
+    p%hour    = 0
+  endif
+  if (present(mm)) then
+    p%minute  = mm
+  else
+    p%minute  = 0
+  endif
+  if (present(ss)) then
+    p%second  = ss
+  else
+    p%second  = 0
+  endif
 
-p%weekday = wday
-p%yearday = dnum
-if (present(cal).and.len_trim(cal).gt.0) then
-  p%calendar = trim(cal)
-else
-  p%calendar = 'gregorian'
-endif
+  dnum = days_before_month(y,m,p%calendar) + d
+  p%yearday = dnum
 
 return
 end function date_is
@@ -304,113 +489,112 @@ end function date_is
 ! ...
 subroutine date_set(p,y,m,d,hh,mm,ss,cal) 
 
-class(type_date), intent(inout)         :: p
-integer, intent(in)                     :: y,m,d
-integer, intent(in), optional           :: hh
-integer, intent(in), optional           :: mm
-integer, intent(in), optional           :: ss
-character(len=*), intent(in), optional  :: cal
+  class(type_date), intent(inout)         :: p
+  integer, intent(in)                     :: y,m,d
+  integer, intent(in), optional           :: hh
+  integer, intent(in), optional           :: mm
+  integer, intent(in), optional           :: ss
+  character(len=*), intent(inout), optional  :: cal
 
-! ... Local variables
-! ...
-integer wday,dnum
+  ! ... Local variables
+  ! ...
+  integer dnum
 
-wday = mod(ymd2ord(y,m,d)+6,7) + 1
-dnum = days_before_month(y,m) + d
+  if (present(cal)) then
+    call check_calendar(cal)
+    p%calendar = trim(cal)
+  else
+    p%calendar = 'gregorian'
+  endif
 
-p%year    = y
-p%month   = m
-p%day     = d
+  p%year    = y
+  p%month   = m
+  p%day     = d
 
-if (present(hh)) then
-  p%hour    = hh
-else
-  p%hour    = 0
-endif
-if (present(mm)) then
-  p%minute  = mm
-else
-  p%minute  = 0
-endif
-if (present(ss)) then
-  p%second  = ss
-else
-  p%second  = 0
-endif
+  if (present(hh)) then
+    p%hour    = hh
+  else
+    p%hour    = 0
+  endif
+  if (present(mm)) then
+    p%minute  = mm
+  else
+    p%minute  = 0
+  endif
+  if (present(ss)) then
+    p%second  = ss
+  else
+    p%second  = 0
+  endif
 
-p%weekday = wday
-p%yearday = dnum
-if (present(cal).and.len_trim(cal).gt.0) then
-  p%calendar = trim(cal)
-else
-  p%calendar = 'gregorian'
-endif
+  dnum = days_before_month(y,m,p%calendar) + d
+  p%yearday = dnum
+  return
 
-return
 end subroutine date_set
 ! ...
 ! =====================================================================
 ! ...
 character(len=8) function format_time(hh,mm,ss) result(timestr)
 
-integer, intent(in)              :: hh,mm,ss     ! hour, minute, second
+  integer, intent(in)              :: hh,mm,ss     ! hour, minute, second
 
-write(timestr,'(T1,I2.2,":",I2.2,":",I2.2)') hh,mm,ss
+  write(timestr,'(T1,I2.2,":",I2.2,":",I2.2)') hh,mm,ss
+  return
 
-return
 end function format_time
 ! ...
 ! =====================================================================
 ! ...
 character(len=25) function date_iso(date,Z) result(text)
 
-class(type_date), intent(in)              :: date  ! hour, minute, second
-character(len=*), optional, intent(in)    :: Z     ! 'z' or 'Z'
+  class(type_date), intent(in)              :: date  ! hour, minute, second
+  character(len=*), optional, intent(in)    :: Z     ! 'z' or 'Z'
 
-if (present(Z)) then
-  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
-      date%year, date%month, date%day, &
-      date%hour, date%minute, date%second
-  text=trim(text)//trim(uppercase(Z))
-else
-  write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
-      date%year, date%month, date%day, &
-      date%hour, date%minute, date%second
-endif
+  if (present(Z)) then
+    write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
+        date%year, date%month, date%day, &
+        date%hour, date%minute, date%second
+    text=trim(text)//trim(uppercase(Z))
+  else
+    write(text,'(T1,I4.4,"-",I2.2,"-",I2.2,"T",I2.2,":",I2.2,":",I2.2)') &
+        date%year, date%month, date%day, &
+        date%hour, date%minute, date%second
+  endif
+  return
 
-return
 end function date_iso
 ! ...
 ! =====================================================================
 ! ...
 integer function julday(year,month,day) result(jd)
-! ...  Returns the JD, Numerical recipes
-! ...
-integer, intent(in)              :: year,month,day
+  ! ...  Returns the JD, Numerical recipes
+  ! ...
+  integer, intent(in)              :: year,month,day
 
-! ... Local variables
-! ...
-integer, parameter                      :: IGREG=15+31*(10+12*1582)
-integer ja,jm,jy
+  ! ... Local variables
+  ! ...
+  integer, parameter                      :: IGREG=15+31*(10+12*1582)
+  integer ja,jm,jy
+  
+  jd = -999
 
-jd = -999
+  jy = year
+  if (jy.eq.0) return
+  if (jy.lt.0) jy = jy + 1
+  if (month.gt.2) then
+    jm = month + 1
+  else
+    jy = jy - 1
+    jm = month + 13
+  endif
+  jd = int(365.25d0*jy)+int(30.6001d0*jm)+day+1720995
+  if (day+31*(month+12*year).ge.IGREG) then
+    ja = int(0.01d0*jy)
+    jd = jd + 2 - ja + int(0.25d0*ja)
+  endif
+  return 
 
-jy = year
-if (jy.eq.0) return
-if (jy.lt.0) jy = jy + 1
-if (month.gt.2) then
-  jm = month + 1
-else
-  jy = jy - 1
-  jm = month + 13
-endif
-jd = int(365.25d0*jy)+int(30.6001d0*jm)+day+1720995
-if (day+31*(month+12*year).ge.IGREG) then
-  ja = int(0.01d0*jy)
-  jd = jd + 2 - ja + int(0.25d0*ja)
-endif
-
-return 
 end function julday
 ! ...
 ! =====================================================================
@@ -509,7 +693,6 @@ endif
 !read(att(i+14:i+15),*) date%minute
 !read(att(i+17:i+18),*) date%second
 
-date%weekday = mod(ymd2ord(date%year,date%month,date%day)+6,7) + 1
 date%yearday = days_before_month(date%year,date%month) + date%day
 date%calendar = 'gregorian'
 
@@ -540,7 +723,6 @@ read(time(1:2),*) now%hour
 read(time(3:4),*) now%minute
 read(time(5:6),*) now%second
 
-now%weekday = mod(ymd2ord(now%year,now%month,now%day)+6,7) + 1
 now%yearday = days_before_month(now%year,now%month) + now%day
 
 return
@@ -633,7 +815,6 @@ read(word,*) date%minute
 call line_word(att,6,word)
 read(word,*) date%second
 
-date%weekday = mod(ymd2ord(date%year,date%month,date%day)+6,7) + 1
 date%yearday = days_before_month(date%year,date%month) + date%day
 date%calendar = 'gregorian'
 
@@ -810,6 +991,174 @@ endif
 
 
 end function date_increment  
+! ...
+! =====================================================================
+! ...
+function num2date(time,units,calendar) result(date)
+
+  ! ... Function returning a date
+  ! ... The internal calculations are done in seconds
+  ! ...
+
+  real(dp), intent(in)                       :: time
+  character(len=*), intent(in), optional     :: units      ! Default: Julian days
+  character(len=*), intent(in), optional     :: calendar   ! Default: standard
+  type(type_date)                            :: date
+
+  ! ... Local variables
+  ! ...
+  integer ndays
+  integer(kind=8) isecs,remainder
+  integer(kind=8) TimeRef,TimeSec
+  integer year,month,day,hour,minute,second
+  real(dp) factor
+  character(len=20) lcal,time_units,IsoRef
+  type(type_date) DateRef
+
+  if (.not.present(calendar)) then
+    lcal = 'gregorian'
+  else
+    lcal = lowercase(calendar)
+    call check_calendar(lcal)
+  endif
+
+  ! ... Check the units and the reference date:
+  ! ...
+  if (present(units)) then
+    call split_units(units,time_units,IsoRef)
+    factor = unit_conversion_factor(time_units)
+
+    if (len_trim(IsoRef).gt.0) then
+      DateRef = strpreftime(units)
+      DateRef%calendar = trim(lcal)
+      TimeRef = date2num(DateRef) * 86400.0D0  ! Seconds
+    else
+      TimeRef = 0.0D0
+    endif
+  else
+    TimeRef = 0.0D0
+    factor  = 86400.0D0   ! The default input is in days
+  endif
+
+  ! ... Fraction
+  ! ...
+  TimeSec = TimeRef + time*factor
+
+  isecs = mod(TimeSec,86400_8)
+  remainder = TimeSec - isecs
+
+  ndays = remainder / 86400_8     ! Days
+
+  if (trim(lcal).eq.'gregorian') then
+
+    call caldat(ndays,year,month,day)
+
+  else if (trim(lcal).eq.'noleap') then
+
+    remainder = mod(ndays,365)
+    ndays = ndays - remainder
+    year = ndays / 365 + 1
+
+    do month=1,12
+      if (DAYS_BEFORE_MONTH_(month).ge.remainder) exit
+    enddo
+    month = month - 1
+
+    day = remainder - DAYS_BEFORE_MONTH_(month)
+
+  endif
+
+  date%year   = year
+  date%month  = month
+  date%day    = day
+
+  ! ... Process the isecs:
+  ! ...
+
+  date%second = mod(isecs,60_8)
+  isecs       = (isecs-date%second)/60_8
+  date%minute = mod(isecs,60_8)
+  date%hour   = (isecs-date%minute)/60_8
+
+  date%calendar = trim(lcal)
+  date%yearday = days_before_month(year,month,date%calendar) + day
+  return
+
+end function num2date
+! ...
+! =====================================================================
+! ...
+recursive function date2num(date,units) result(time)
+
+  ! ... Function date2num
+  ! ... Returns a real number whith the integer part accounting for
+  ! ... days and the fraction part accounting for a frational part
+  ! ... of the day.
+  ! ... Input:
+  ! ...         date (date_type)
+  ! ...         units (string)
+  ! ... Output:
+  ! ...         time (real) days
+
+  type(type_date), intent(in)                :: date
+  character(len=*), intent(in), optional     :: units
+  real(dp)                                   :: time
+
+  ! ... Local variables
+  ! ...
+  real(dp) TimeRef
+  character(len=20) lcal,time_units,IsoRef
+  type(type_date) DateRef
+
+
+  lcal = lowercase(date%calendar)
+  call check_calendar(lcal)
+
+  if (trim(lcal).eq.'gregorian') then
+
+    time = julday(date%year,date%month,date%day) + &
+           (3600.0D0*date%hour + 60.0*date%minute + date%second)/86400.0D0
+
+  else if (trim(lcal).eq.'noleap') then
+
+    if (date%month.eq.2.and.date%day.eq.29) call stop_error(1,'Is not a leap year')
+
+    time = 365D0*(date%year-1)            + &
+           DAYS_BEFORE_MONTH_(date%month) + &
+           date%day +                       &
+           (3600.0D0*date%hour + 60.0*date%minute + date%second)/86400.0D0
+
+  endif
+
+  ! ... At this point, the time is in days with a fraction part:
+  ! ... Check if units are requested
+  ! ...
+  if (present(units)) then
+
+    call split_units(units,time_units,IsoRef)
+
+    if (len_trim(IsoRef).gt.0) then
+      DateRef = strpreftime(units)
+      DateRef%calendar = trim(lcal)
+      TimeRef = date2num(DateRef)  ! Days
+    else
+      TimeRef = 0.0D0
+    endif
+    time = time - TimeRef
+
+    if (trim(time_units).eq.'seconds') then
+      time = time * 86400.0D0
+    else if (trim(time_units).eq.'minutes') then
+      time = time * 1440.0D0
+    else if (trim(time_units).eq.'hours') then
+      time = time * 24.0D0
+    endif
+
+  endif
+
+  return
+
+end function date2num
 ! ...
 ! =====================================================================
 ! ...
