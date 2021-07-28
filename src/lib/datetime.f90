@@ -1162,4 +1162,27 @@ end function date2num
 ! ...
 ! =====================================================================
 ! ...
+function time_transform (time,units,calendar,units_new,calendar_new) result(time_new)
+
+  real(dp), dimension(:), intent(in)              :: time
+  character(len=*), intent(in)                    :: units,calendar
+  character(len=*), intent(in)                    :: units_new,calendar_new
+  real(dp), dimension(size(time))                 :: time_new
+
+  ! ... Local variables
+  ! ...
+  integer i
+  type(type_date) date
+
+  do i=1,size(time)
+    date = num2date(time(i),units=units,calendar=calendar)
+    date%calendar = calendar_new
+    time_new(i) = date2num(date,units=units_new)
+  enddo
+
+  return
+end function time_transform
+! ...
+! =====================================================================
+! ...
 end module module_datetime

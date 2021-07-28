@@ -16,15 +16,15 @@ contains
 ! ====================================================================
 ! ====================================================================
 ! ...
-subroutine forcing_ini(west,south,east,north,tmin,tmax)
+subroutine forcing_ini(west,south,east,north)
 
 real(dp), intent(out)                :: west,south,east,north
-real(dp), intent(out)                :: tmin,tmax
 
 ! ... Local variables:
 ! ...
 integer err,k,lu,lv
 real(dp) tou,tov,tau,tav,tmp
+real(dp) tmin0,tmax0
 type(type_date) dmin,dmax
 
 ! ... Zonal ocean current
@@ -92,63 +92,104 @@ endif
 ! ...
 if (GOU%nz.ne.GOV%nz) call stop_error(1,'Incompatible number of ocean layers')
 
+return
+end subroutine forcing_ini
+! ...
+! =====================================================================
+! ...
+subroutine forcing_time(tmin,tmax)
+
+real(dp), intent(out)                :: tmin,tmax
+
+! ... Local variables:
+! ...
+integer k,lu,lv
+real(dp) tou,tov,tau,tav,tmp
+real(dp) tmin0,tmax0
+type(type_date) dmin,dmax
 
 ! ... Time axis: first, check for minimum and maximum common time:
+! ...            We use the "unified units" of "seconds since 1970-01-01 00:00:00"
+! ...            stored in the "s" arrays
 ! ...
-tou = minval(GOU%t(:))
-tov = minval(GOV%t(:))
-tmin = max(tou,tov)
+tou = minval(GOU%s(:))
+tov = minval(GOV%s(:))
+tmin0 = max(tou,tov)
 if (withAtmx) then
-  tau = minval(GAU%t(:))
-  tav = minval(GAV%t(:))
-  tmin = maxval([tmin,tau,tav])
+  tau = minval(GAU%s(:))
+  tav = minval(GAV%s(:))
+  tmin0 = maxval([tmin0,tau,tav])
 endif
-lu = max(locate(GOU%t,tmin),3)
-lv = max(locate(GOV%t,tmin),3)
-tmin = max(GOU%t(lu),GOV%t(lv))
+lu = max(locate(GOU%s,tmin0),2)
+lv = max(locate(GOV%s,tmin0),2)
+tmin0 = max(GOU%s(lu),GOV%s(lv))
 
-tou = maxval(GOU%t(:))
-tov = maxval(GOV%t(:))
-tmax = min(tou,tov)
+
+tou = maxval(GOU%s(:))
+tov = maxval(GOV%s(:))
+tmax0 = min(tou,tov)
 if (withAtmx) then
-  tau = maxval(GAU%t(:))
-  tav = maxval(GAV%t(:))
-  tmax = minval([tmax,tau,tav])
+  tau = maxval(GAU%s(:))
+  tav = maxval(GAV%s(:))
+  tmax0 = minval([tmax0,tau,tav])
 endif
-lu = min(locate(GOU%t,tmax),GOU%nt-1)
-lv = min(locate(GOV%t,tmax),GOV%nt-1)
-tmax = min(GOU%t(lu),GOV%t(lv))
-
-if (withReverse) then
-  tmp = tmax
-  tmax = tmin
-  tmin = tmp
-endif
+lu = min(locate(GOU%s,tmax0),GOU%nt-1)
+lv = min(locate(GOV%s,tmax0),GOV%nt-1)
+tmax0 = min(GOU%s(lu),GOV%s(lv))
 
 if (withTini) then
-  tmin = UserTini
+  userDini = strptime(userSini)
+  userDini%calendar = GOU%calendar
+  userTini = date2num(userDini,units='seconds since 1970-01-01 00:00:00')
+  tmin = userTini
+  if (userTini.lt.tmin0) stop 'ERROR: User Initial time too small'
+  if (userTini.gt.tmax0) stop 'ERROR: User Initial time too big'
 else
-  UserTini = tmin
+  write(*,*) 'WARNING: No initial date proposed by the user'
+  if (reverse.eq.1) then
+    userTini = tmin0
+  else
+    userTini = tmax0
+  endif
+  userDini = num2date(userTini,                                  &
+                      units='seconds since 1970-01-01 00:00:00', &
+                      calendar=GOU%calendar)
 endif
 
-if (withTlen) tmax = tmin + reverse*UserTlen  ! Julian days
-dmin = jd2date(tmin)
-dmax = jd2date(tmax)
+if (withTlen) then
+  tmax = tmin + reverse*UserTlen*86400     ! Seconds
+else
+  tmax = tmin + reverse*7*86400            ! Default 7's day simulation (in Seconds)
+endif
 
-! ... Re-scale time with reference to the common time:
-! ... The zero corresponds to tmin.
-! ... Negative values are not a problem
-! ... From now on, time units: SECONDS
+! ... Now do not go beyond the maximum allowed simulation
 ! ...
-GOU%t(:) = nint((GOU%t(:)-tmin)*86400.0_dp)      ! Time in seconds
-GOV%t(:) = nint((GOV%t(:)-tmin)*86400.0_dp)      ! Time in seconds
+!print*, 'tmin0, tmax0 : ', tmin0, tmax0
+!print*, 'tmin,  tmax  : ', tmin, tmax
+!print*, 'reverse      : ', reverse
+
+if (withReverse) then
+  if (tmax.lt.tmin0) tmax = tmin0
+else
+  if (tmax.gt.tmax0) tmax = tmax0
+endif
+
+!print*, 'AGAIN !!!!!'
+!print*, 'tmin0, tmax0 : ', tmin0, tmax0
+!print*, 'tmin,  tmax  : ', tmin, tmax
+!print*, 'reverse      : ', reverse
+
+! ... Change origin of time:
+! ...
+GOU%s(:) = GOU%s(:) - tmin
+GOV%s(:) = GOV%s(:) - tmin
 if (withAtmx) then
-  GAU%t(:) = nint((GAU%t(:)-tmin)*86400.0_dp)    ! Time in seconds
-  GAV%t(:) = nint((GAV%t(:)-tmin)*86400.0_dp)    ! Time in seconds
+  GAU%s(:) = GAU%s(:) - tmin
+  GAV%s(:) = GAV%s(:) - tmin
 endif
 
 return
-end subroutine forcing_ini
+end subroutine forcing_time
 ! ...
 ! ====================================================================
 ! ...

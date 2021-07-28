@@ -84,6 +84,7 @@ integer                      :: reverse   = 1
 real(dp)                     :: userTini  = 0.0D0
 real(dp)                     :: userTlen  = 0.0D0       ! days
 type(type_date)              :: userDini 
+character(len=20)            :: userSini  = ''
 
 ! ... Runge-Kutta time-step
 ! ...
@@ -191,38 +192,14 @@ endif
 
 if (withAtmx) then
   AtmxFname = token_read(AUlist,'file=')
-  word = token_read(AUlist,'var='); if (len_trim(word).gt.0) AtmxVname = trim(word)
-
-!  word = token_read(AUlist,'maskvar=') 
-!  if (len_trim(word).gt.0) then
-!    withAtmxMaskName = .True.
-!    AtmxMaskName = trim(word)
-!  endif
-!  word = token_read(AUlist,'maskval=') 
-!  if (len_trim(word).gt.0) then
-!    withAtmxMaskValue = .True.
-!    read(word,*) AtmxMaskValue
-!  endif
+  word = token_read(AUlist,'var=')
+  if (len_trim(word).gt.0) AtmxVname = trim(word)
 
   if (withAtmy) then  
-    AtmyFname = token_read(AVlist,'file='); if (len_trim(AtmyFname).eq.0) AtmyFname = trim(AtmxFname)
-    word = token_read(AVlist,'var='); if (len_trim(word).gt.0) AtmyVname = trim(word)
-!    word = token_read(AVlist,'maskvar=') 
-!    if (len_trim(word).gt.0) then
-!      withAtmyMaskName = .True.
-!      AtmyMaskName = trim(word)
-!    else if (withAtmxMaskName) then
-!      withAtmyMaskName = .True.
-!      AtmyMaskName = trim(AtmxMaskName)
-!    endif
-!    word = token_read(AVlist,'maskval=') 
-!    if (len_trim(word).gt.0) then
-!      withAtmyMaskValue = .True.
-!      read(word,*) AtmyMaskValue
-!    else if (withAtmyMaskValue) then
-!      withAtmyMaskValue = .True.
-!      AtmyMaskValue = AtmxMaskValue
-!    endif
+    AtmyFname = token_read(AVlist,'file=')
+    if (len_trim(AtmyFname).eq.0) AtmyFname = trim(AtmxFname)
+    word = token_read(AVlist,'var=')
+    if (len_trim(word).gt.0) AtmyVname = trim(word)
   else
     AtmyFname = trim(AtmxFname)
   endif
@@ -243,14 +220,8 @@ call argdbl('-ymax',CropYmax,UserYmax)
 
 ! ... Initial time
 ! ...
-call argstr('-from',withTini,word)
-if (withTini) then
-  userDini = strptime(word)
-  userTini = userDini%jd()
-else
-  write(*,*) 'No initial date proposed by the user'
-  userTini = 0.0D0
-endif
+call argstr('-from',withTini,userSini)
+
 
 call argstr('-for',withTlen,tlen)
 if (withTlen) then
@@ -380,7 +351,8 @@ if (withReverse) then
 else
   write(iu,*) 'Forward time integration'
 endif
-if (withTini) write(iu,*) 'Initial time = ', UserDini%iso(), UserTini, ' (jd)'
+!if (withTini) write(iu,*) 'Initial time = ', UserDini%iso(), UserTini, ' (jd)'
+if (withTini) write(iu,*) 'Initial time = ', trim(userSini)
 if (withRKdt) write(iu,*) 'Time stepime = ', UserRKdt, '(s)'
 if (withTlen) write(iu,*) 'Integration time = ', UserTlen, '(d)', nint(86400*UserTlen), ' (s)'
               write(iu,*) 'Saving interval  = ', SaveInt, ' (seconds)'

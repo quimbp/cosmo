@@ -73,7 +73,9 @@ type type_float
   ! ... Miscellania
   ! ...
   real(dp)                                :: missing = -999.0_dp
-  real(dp)                                :: model_ref = 0.0_dp  ! Julian Day
+  real(dp)                                :: model_ref 
+  character(len=180)                      :: time_units
+  character(len=20)                       :: calendar
 
   contains
     procedure         :: allocate  => float_allocate
@@ -86,9 +88,10 @@ contains
 ! ...
 ! ====================================================================
 ! ...
-subroutine float_ini(model_jdref)
+subroutine float_ini(reference_time,clm_units,clm_calendar)
 
-real(dp), intent(in)                 :: model_jdref
+real(dp), intent(in)                 :: reference_time ! In seconds
+character(len=*), intent(in)         :: clm_units, clm_calendar
 
 ! ... Local variables
 ! ...
@@ -97,7 +100,9 @@ integer n ,i
 ! ... First of all, tell the float structure the reference time
 ! ... of the model
 ! ...
-FLT%model_ref = model_jdref
+FLT%model_ref  = reference_time
+FLT%time_units = trim(clm_units)
+FLT%calendar   = trim(clm_calendar)
 
 ! ... Next, check about the need to generate random release points
 ! ...
@@ -222,10 +227,13 @@ enddo
      release_depth(ii) = zz
      if (withdate) then
        release_date(ii) = strptime(str)
-       release_time(ii) = nint((release_date(ii)%jd()-FLT%model_ref)*86400.0_dp)
+       release_date(ii)%calendar = FLT%calendar
+       release_time(ii) = date2num(release_date(ii),FLT%time_units) - FLT%model_ref
+       !release_time(ii) = nint((release_date(ii)%jd()-FLT%model_ref)*86400.0_dp)
      else
-       release_date(ii) = jd2date(FLT%model_ref + t/86400.0_dp)
        release_time(ii) = t
+       release_date(ii) = num2date(FLT%model_ref+t,FLT%time_units,FLT%calendar)
+       !release_date(ii) = jd2date(FLT%model_ref + t/86400.0_dp)
      endif
 
      ! ... Now check for Random points
@@ -372,10 +380,13 @@ release_lat(ii)   = yy
 release_depth(ii) = zz
 if (withdate) then
   release_date(ii) = strptime(str)
-  release_time(ii) = nint((release_date(ii)%jd()-FLT%model_ref)*86400.0_dp)
+  release_date(ii)%calendar = FLT%calendar
+  release_time(ii) = date2num(release_date(ii),FLT%time_units) -FLT%model_ref
+  !release_time(ii) = nint((release_date(ii)%jd()-FLT%model_ref)*86400.0_dp)
 else
-  release_date(ii) = jd2date(FLT%model_ref + t/86400.0_dp)
   release_time(ii) = t
+  release_date(ii) = num2date(FLT%model_ref+t,FLT%time_units,FLT%calendar)
+  !release_date(ii) = jd2date(FLT%model_ref + t/86400.0_dp)
 endif
 
 ! ... Now check for Random points

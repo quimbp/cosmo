@@ -6,6 +6,7 @@
 ! ...   function compress(A)
 ! ...   function coords2index(X(3),N(3))
 ! ...   function filetype(FILENAME)
+! ...   subroutine cdf_copyatts
 ! ...
 ! ****************************************************************************
 
@@ -13,6 +14,7 @@ module module_utils
 
 use module_types, only: dp
 use module_random
+use netcdf
 
 implicit none
 
@@ -992,6 +994,105 @@ word_type = 3
 return
 
 end function word_type
+! ...
+! =====================================================================
+! ...
+subroutine cdf_copyatts (ver,id1,v1,id2,v2,natts)
+! ... Copies the attributes from variable v1 in file id1 to the
+! ... variable v2 in file id2.
+
+logical, intent(in)                     :: ver
+integer, intent(in)                     :: id1,v1,id2,v2
+integer, intent(out)                    :: natts
+
+! ... Local variables:
+! ...
+integer err,vtype,ndim,j,att_type,att_len
+character(len=120) name,att_name
+integer, dimension(100)  :: dimids
+
+character(len=180)                      :: tmpt
+integer, dimension(:), allocatable      :: tmpi
+real(sp), dimension(:), allocatable     :: tmp4
+real(dp), dimension(:), allocatable     :: tmp8
+
+! ... Information from first file:
+! ..
+if (v1.eq.NF90_GLOBAL) then
+  err = NF90_INQUIRE (id1,nAttributes=natts)
+  if (ver) write(*,*) 'Number of global attributes ', natts
+else
+  err = NF90_INQUIRE_VARIABLE (id1,v1,name,vtype,ndim,dimids,natts)
+  call cdf_error (err,'CDF_COPYATTS Error: Unable to inquire variable')
+  if (ver) write(*,*) 'Variable ', v1, ' has ', natts, ' attributes'
+endif
+
+do j=1,natts
+  err = NF90_INQ_ATTNAME (id1,v1,j,att_name)
+  err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,xtype=att_type)
+  err = NF90_INQUIRE_ATTRIBUTE (id1,v1,att_name,len=att_len)
+  if (att_type.eq.NF90_BYTE) then
+    allocate (tmpi(att_len))
+    err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+    err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+    deallocate (tmpi)
+  endif
+  if (att_type.EQ.NF90_CHAR) then
+    if (att_len.gt.len(tmpt)) call stop_error(1,'Increase size tmpt')
+    err = NF90_GET_ATT(id1,v1,att_name,tmpt)
+    call cdf_error (err,'Unable to get text attribute')
+    err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpt(1:att_len))
+    call cdf_error (err,'Unable to write text attribute')
+  endif
+  if (att_type.eq.NF90_SHORT) then
+    allocate (tmpi(att_len))
+    err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+    CALL cdf_error (err,'Unable to get short attribute')
+    if (TRIM(att_name).NE.'_FillValue') then
+      err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+    ELSE
+      err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+    endif
+    CALL cdf_error (err,'Unable to write short attribute')
+    deallocate (tmpi)
+  endif
+  if (att_type.EQ.NF90_INT) then
+    allocate (tmpi(att_len))
+    err = NF90_GET_ATT(id1,v1,att_name,tmpi)
+    err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmpi)
+    deallocate (tmpi)
+  endif
+  if (att_type.EQ.NF90_FLOAT) then
+    allocate (tmp4(att_len))
+    err = NF90_GET_ATT(id1,v1,att_name,tmp4)
+    err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp4)
+    deallocate (tmp4)
+  endif
+  if (att_type.EQ.NF90_DOUBLE) then
+    allocate (tmp8(att_len))
+    err = NF90_GET_ATT(id1,v1,att_name,tmp8)
+    err = NF90_PUT_ATT(id2,v2,TRIM(att_name),tmp8)
+    deallocate (tmp8)
+  endif
+enddo
+
+  contains
+
+    subroutine cdf_error (err,message)
+    ! ... Check if error has occurred. In case it has happened, it sends
+    ! ... the approppriate message.
+
+    integer, intent(in)                      :: err
+    character(len=*), intent(in)             :: message
+
+    if (err.ne.NF90_NOERR) then
+       write(*,*) NF90_STRERROR(err)
+       call stop_error (1,message)
+    endif
+
+    end subroutine cdf_error
+
+end subroutine cdf_copyatts
 ! ...
 ! =====================================================================
 ! ...

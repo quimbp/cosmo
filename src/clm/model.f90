@@ -41,7 +41,6 @@ real(dp), dimension(:,:), pointer      :: Hm,Hn        ! Horizontal grid metrics
 real(dp), dimension(:), pointer        :: Uz,Vz,Wz     ! Vertical grids
 
 integer                                :: model_Nstep
-real(dp)                               :: model_jdref  ! Julian day of model initial time
 real(dp), dimension(:), pointer        :: model_time   ! Model time axis (s)
 
 real(dp), dimension(:,:,:,:), pointer  :: Ourhs        ! (Hnx,Hny,Unz,5)
@@ -78,6 +77,14 @@ integer                                :: ADVECTION_LAYER = 1
 ! ...
 real(dp)                               :: wsf     = 1.0_dp  ! Not physical
 
+! ... Time calendar
+! ... The model will assume the time units and calendar of the zonal ocean
+! ... current's file.
+character(len=180)                     :: clm_units = 'seconds since 1970-01-01 00:00:00'
+character(len=20)                      :: clm_calendar = ''
+real(dp)                               :: Reference_time
+type(type_date)                        :: Reference_date
+
 
 contains
 ! ...
@@ -88,7 +95,7 @@ subroutine RHS2D(n,t,x,dxdt)
 
 integer, intent(in)                    :: n
 real(dp), intent(in)                   :: t
-real(dp), dimension(n), intent(in)     :: x
+real(dp), dimension(n), intent(inout)  :: x
 real(dp), dimension(n), intent(out)    :: dxdt
 
 ! ... Local variables
@@ -103,8 +110,14 @@ ll = nint(4.0_dp*(t-rk_t)/rk_dt) + 1
 ! ...
 ! ...  dxdt = wsf*u + A * w
 ! ...
+
+!x = [0.2394422D0,   0.7959301D0]
+
 o1 = GOU%hinterpol(Ourhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
 o2 = GOV%hinterpol(Ovrhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
+
+!print '(4F12.7)', x, o1, o2
+!stop
 
 if (withAtmx.and.surface) then
   a1     = GAU%hinterpol(Aurhs(:,:,ll),x(1),x(2))
@@ -148,11 +161,12 @@ model_south = south
 model_north = north
 
 
-Nsteps = nint(86400.0_dp*abs(tmax-tmin)/userRKdt)
+print*, tmax, tmin
+Nsteps = nint(abs(tmax-tmin)/userRKdt)   ! tmin and tmax in seconds
 
-model_jdref = tmin
-rk_dt       = reverse*userRKdt
-model_Nstep = Nsteps
+Reference_time = tmin
+rk_dt          = reverse*userRKdt
+model_Nstep    = Nsteps
 
 ! ... Random terms
 ! ...
@@ -177,8 +191,8 @@ subroutine model_run()
 ! ...
 integer step,pou,pov,pau,pav,flo,nfreq
 integer pk,pn,io,ptu,ptv
-type(type_date)                        :: date
-real(dp)                               :: jd
+type(type_date)                        :: model_date
+real(dp)                               :: model_time
 !real(dp)                               :: XY(2,FLT%Nfloats,2)   ! X and Y positions
 real(dp)                               :: uf(2)
 real(dp)                               :: xp(2),xn(2)
@@ -209,12 +223,14 @@ do step=1,model_Nstep
 
   rk_t = (step-1)*rk_dt
 
-  jd   = rk_t/86400.0_dp + UserTini
-  date = jd2date(jd)
+  model_time = Reference_time + rk_t
+  model_date = num2date(model_time,clm_units,clm_calendar)
+  !jd   = rk_t/86400.0_dp + UserTini
+  !date = jd2date(jd)
 
   if (verb) then
     write(*,*)
-    write(*,*) 'step, rk_t, date :: ', step, rk_t, date%iso()
+    write(*,*) 'step, rk_t, date :: ', step, rk_t, model_date%iso()
   endif
   
   if (step.eq.1) then
@@ -242,7 +258,7 @@ do step=1,model_Nstep
         FLT%y(flo)        = FLT%missing
       endif
     enddo
-    call trajectory_write(rk_t)
+    call trajectory_write(model_time); call check_status()
 
   endif
         
@@ -273,6 +289,8 @@ do step=1,model_Nstep
       FLT%lat(flo) = rad2deg*xn(2)
       FLT%u(flo)   = uf(1)
       FLT%v(flo)   = uf(2)
+
+      !print*, uf
 
       !write(66,'(2F9.3)') uf(1), Rearth*(xn(1)-xp(1))/rk_dt 
       !write(67,'(2F9.3)') uf(2), cos(0.5d0*(xn(2)+xp(2)))*Rearth*(xn(2)-xp(2))/rk_dt 
@@ -332,7 +350,7 @@ do step=1,model_Nstep
   if (mod(step,nfreq).eq.0) then
     if (verb) write(*,*) "Saving trajectories' positions"
     !call trajectory_write(step*rk_dt,XY(:,:,pk)); call check_status()
-    call trajectory_write(step*rk_dt); call check_status()
+    call trajectory_write(Reference_time+step*rk_dt); call check_status()
     call velocity_write()
   endif
 
@@ -364,9 +382,11 @@ do flo=1,FLT%Nfloats
 
   ! ... Save with the last valid date:
   ! ...
-  jd = model_Nstep*rk_dt/86400.0_dp + UserTini
-  date = jd2date(jd)
-  write(io,*) FLT%lon(flo), FLT%lat(flo), FLT%z(flo), trim(date%iso())
+  model_time = Reference_time + model_Nstep*rk_dt
+  model_date = num2date(model_time,clm_units,clm_calendar)
+  !jd = model_Nstep*rk_dt/86400.0_dp + UserTini
+  !date = jd2date(jd)
+  write(io,*) FLT%lon(flo), FLT%lat(flo), FLT%z(flo), trim(model_date%iso())
 enddo
 
 close(io)
@@ -390,12 +410,13 @@ contains
 
     !print*, 'First step ...'
 
-    pou = locate(GOU%t,rk_t); if (reverse.lt.0) pou = pou + 1
-    pov = locate(GOV%t,rk_t); if (reverse.lt.0) pov = pov + 1
+    pou = locate(GOU%s,rk_t); !if (reverse.lt.0) pou = pou + 1
+    pov = locate(GOV%s,rk_t); !if (reverse.lt.0) pov = pov + 1
     if (withAtmx) then
-      pau = locate(GAU%t,rk_t); if (reverse.lt.0) pau = pau + 1
-      pav = locate(GAV%t,rk_t); if (reverse.lt.0) pav = pav + 1
+      pau = locate(GAU%s,rk_t); !if (reverse.lt.0) pau = pau + 1
+      pav = locate(GAV%s,rk_t); !if (reverse.lt.0) pav = pav + 1
     endif
+    
 
     OU_updated = .True.; OV_updated = .True.
     AU_updated = .True.; AV_updated = .True.
@@ -426,7 +447,7 @@ contains
 
   else
   ! ......................................... step > 1
-    if (abs(rk_t).ge.abs(GOU%t(ourecords(3)))) then
+    if (abs(rk_t).ge.abs(GOU%s(ourecords(3)))) then
       OU_updated = .True.
       do kk=1,3
         ourecords(kk)   = ourecords(kk+1)
@@ -439,7 +460,7 @@ contains
       enddo
     endif
 
-    if (abs(rk_t).ge.abs(GOV%t(ovrecords(3)))) then
+    if (abs(rk_t).ge.abs(GOV%s(ovrecords(3)))) then
       OV_updated = .True.
       do kk=1,3
         ovrecords(kk)   = ovrecords(kk+1)
@@ -453,7 +474,7 @@ contains
     endif
 
     if (withAtmx) then
-      if (abs(rk_t).ge.abs(GAU%t(aurecords(3)))) then
+      if (abs(rk_t).ge.abs(GAU%s(aurecords(3)))) then
         AU_updated = .True.
         do kk=1,3
           aurecords(kk) = aurecords(kk+1)
@@ -463,7 +484,7 @@ contains
         !print*, 'Time to update ATM U: ', aurecords(:)
         autab(:,:,4) = GAU%read(step=aurecords(4))
       endif
-      if (abs(rk_t).ge.abs(GAV%t(avrecords(3)))) then
+      if (abs(rk_t).ge.abs(GAV%s(avrecords(3)))) then
         AV_updated = .True.
         do kk=1,3
           avrecords(kk) = avrecords(kk+1)
@@ -500,11 +521,11 @@ contains
   ! ... fields estimated at the times required by the fifth-order 
   ! ... Runge-Kutta algorithm:
   ! ...
-  EDT = GOU%t(ourecords(3)) - GOU%t(ourecords(2))
+  EDT = GOU%s(ourecords(3)) - GOU%s(ourecords(2))
   !print*, ourecords(:)
   do ll=1,5
     trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-    ti = abs((trk-GOU%t(ourecords(2)))/EDT)
+    ti = abs((trk-GOU%s(ourecords(2)))/EDT)
     do j=1,GOU%nj
     do i=1,GOU%ni
     do kk=1,NLAYER
@@ -520,11 +541,11 @@ contains
   enddo
 
 
-  EDT = GOV%t(ovrecords(3)) - GOV%t(ovrecords(2))
+  EDT = GOV%s(ovrecords(3)) - GOV%s(ovrecords(2))
   !print*, ovrecords(:)
   do ll=1,5
     trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-    ti = abs((trk-GOV%t(ovrecords(2)))/EDT)
+    ti = abs((trk-GOV%s(ovrecords(2)))/EDT)
     do j=1,GOV%nj
     do i=1,GOV%ni
     do kk=1,NLAYER
@@ -541,11 +562,11 @@ contains
 
 
   if (withAtmx) then
-    EDT = GAU%t(aurecords(3)) - GAU%t(aurecords(2))
+    EDT = GAU%s(aurecords(3)) - GAU%s(aurecords(2))
     !print*, aurecords(:)
     do ll=1,5
       trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-      ti = abs((trk-GAU%t(aurecords(2)))/EDT)
+      ti = abs((trk-GAU%s(aurecords(2)))/EDT)
       do j=1,GAU%nj
       do i=1,GAU%ni
         if (GAU%var%mask(i,j,1).eq.0) then
@@ -558,11 +579,11 @@ contains
       !print*, 'Interpolation time AU: ', ti, Aurhs(15,5,ll)
     enddo
 
-    EDT = GAV%t(avrecords(3)) - GAV%t(avrecords(2))
+    EDT = GAV%s(avrecords(3)) - GAV%s(avrecords(2))
     !print*, avrecords(:)
     do ll=1,5
       trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-      ti = abs((trk-GAV%t(avrecords(2)))/EDT)
+      ti = abs((trk-GAV%s(avrecords(2)))/EDT)
       do j=1,GAV%nj
       do i=1,GAV%ni
         if (GAV%var%mask(i,j,1).eq.0) then

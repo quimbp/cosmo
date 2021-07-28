@@ -36,6 +36,13 @@ integer                                  :: output_status
 integer                                  :: output_kid
 real(dp)                                 :: output_missing
 
+integer                                  :: input_id
+integer                                  :: input_timeid
+
+character(180)                           :: out_units
+character(180)                           :: model_units
+character(20)                            :: model_calendar
+
 contains
 ! ...
 ! ====================================================================
@@ -48,7 +55,7 @@ real(dp), intent(in)                       :: missing
 
 ! ... Local variables
 ! ...
-integer i
+integer i,natts
 character(len=maxlen) word,ext
 character(len=1000) lcom
 
@@ -102,8 +109,9 @@ if (lowercase(ext).eq.'nc') then
 
   STATUS_ERROR = NF90_DEF_VAR(output_id,'time',NF90_DOUBLE,(/output_idl/),output_timeid)
   call cdf_error()
-  STATUS_ERROR = NF90_PUT_ATT(output_id,output_timeid,'units','Julian days')
-  call cdf_error()
+  call cdf_copyatts(.false.,input_id,input_timeid,output_id,output_timeid,natts)
+  !STATUS_ERROR = NF90_PUT_ATT(output_id,output_timeid,'units','Julian days')
+  !call cdf_error()
 
 !  STATUS_ERROR = NF90_DEF_VAR(output_id,'date',NF90_CHAR,(/output_strid,output_idl/),output_dateid)
 !  call cdf_error()
@@ -237,19 +245,22 @@ real(dp), intent(in)                                :: time
 ! ...
 type(type_date) date
 integer i
-real(dp) jd, xx(output_nfloats)
+real(dp) time_out(1), xx(output_nfloats)
 character(len=19) date_txt
 
 
 STATUS_ERROR = 0; STATUS_TEXT = ""
 
-jd = time/86400.0_dp + UserTini
-date = jd2date(jd)
-date_txt = trim(date%iso())
 
 output_record = output_record + 1
 
-STATUS_ERROR = NF90_PUT_VAR(output_id,output_timeid,[jd],[output_record],[1])
+time_out = time_transform([time],model_units,model_calendar,out_units,model_calendar)
+STATUS_ERROR = NF90_PUT_VAR(output_id,output_timeid,time_out,[output_record],[1])
+
+!jd = time/86400.0_dp + UserTini
+!date = jd2date(jd)
+!date_txt = trim(date%iso())
+!STATUS_ERROR = NF90_PUT_VAR(output_id,output_timeid,[jd],[output_record],[1])
 !STATUS_ERROR = NF90_PUT_VAR(output_id,output_dateid,[date_txt],[1,output_record],[19,1])
 
 xx(:) = output_missing

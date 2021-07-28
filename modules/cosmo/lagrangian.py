@@ -22,6 +22,8 @@ import json
 import os
 import io
 import urllib.request
+from netCDF4 import Dataset,num2date
+
 try:
   to_unicode = unicode
 except:
@@ -226,7 +228,6 @@ class parameters():
     def read_trajectory_ncdf(filename):
     # --------------------------------------
       '''Read a set of trajectories from a netcdf file'''
-      from netCDF4 import Dataset
 	  
 	  #EG
       self.MESSAGE +='\n Reading netcdf file - '+filename
@@ -278,11 +279,22 @@ class parameters():
       #
       if self.SOURCE == 'blm':
       # ------------------------
-        Time_jd = ncid.variables['time'][:]
+        Time_blm = ncid.variables['time'][:]
+        Time_units = ncid.variables['time'].units
+        Time_calendar = ncid.variables['time'].calendar
         self.DATE = []
         for i in range(self.nrecords):
-          a = caldat(Time_jd[i])
-          self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
+          tmp = num2date(Time_blm[i],       \
+                         units=Time_units,    \
+                         calendar=Time_calendar)
+          s = tmp.strftime('%Y-%m-%d %H:%M:%S')
+          d = datetime.datetime.strptime(s,'%Y-%m-%d %H:%M:%S')
+          self.DATE.append(d)
+        #Time_jd = ncid.variables['time'][:]
+        #self.DATE = []
+        #for i in range(self.nrecords):
+        #  a = caldat(Time_jd[i])
+        #  self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
       elif self.SOURCE == 'mlm':
       # ------------------------
         Time_jd = ncid.variables['time'][:,:]

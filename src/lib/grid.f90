@@ -78,6 +78,8 @@ type type_grid
   type(type_date), dimension(:), pointer :: date
   integer                                :: io,jo,ko,lo 
   integer                                :: ni,nj,nk,nl 
+  character(len=180)                     :: time_units
+  character(len=20)                      :: calendar
 
   contains
     procedure                 :: open          => grid_open
@@ -413,14 +415,24 @@ endif
 if (GRD%idt.gt.0) then
   err = NF90_GET_VAR(GRD%fid,GRD%idt,GRD%t)
   if (err.ne.NF90_NOERR) return
-  GRD%t(:) = dateref%jd() + tscale*GRD%t(:)/86400.0_dp
-  GRD%s(:) = 86400.0D0*GRD%t(:)
+  !GRD%t(:) = dateref%jd() + tscale*GRD%t(:)/86400.0_dp
+  !GRD%s(:) = 86400.0D0*GRD%t(:)
+  !GRD%s(:) = dateref%jd()*86400.0D0 + tscale*GRD%t(:)
+  !do i=1,GRD%nt
+  !  dd = jd2date(GRD%s(i)/86400.0D0)
+  !  GRD%date(i) = dd
+  !  print*, GRD%date(i)
+  !enddo
+
   do i=1,GRD%nt
-    dd = jd2date(GRD%t(i))
-    GRD%date(i) = dd
+    GRD%date(i) = num2date(GRD%t(i),units=time_units,calendar=calendar)
+    GRD%s(i)    = date2num(GRD%date(i),units='seconds since 1970-01-01 00:00:00')
   enddo
-  GRD%tmin = GRD%t(1)
-  GRD%tmax = GRD%t(GRD%nt)
+  GRD%time_units = trim(time_units)
+  GRD%calendar   = trim(calendar)
+  
+  GRD%tmin = GRD%s(1)
+  GRD%tmax = GRD%s(GRD%nt)
   if (GRD%nt.eq.1) then
     GRD%dt = 0.0_dp
   else
@@ -1102,6 +1114,13 @@ y1 = F(i,j)
 y2 = F(i+1,j)
 y3 = F(i+1,j+1)
 y4 = F(i,j+1)
+
+!print*, 'Grid_hinterpol: '
+!print*, xo, yo
+!print*, i, j
+!print*, GRD%ni, GRD%nj
+!print*, y1, y2, y3, y4
+
 
 d1 = haversine(xo,yo,GRD%lon(i,j),GRD%lat(i,j))
 d2 = haversine(xo,yo,GRD%lon(i+1,j),GRD%lat(i+1,j))
