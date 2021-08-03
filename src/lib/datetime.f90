@@ -659,6 +659,7 @@ att = line_replace(att,'UTC',' ')
 att = line_replace(att,'-',' ')
 att = line_replace(att,':',' ')
 att = line_replace(att,'T',' ')
+att = line_replace(att,'.',' ')
 nw  = numwords(att)
 if ((nw.ne.7).and.(nw.ne.6).and.(nw.ne.3)) then
   write(*,*) trim(string)

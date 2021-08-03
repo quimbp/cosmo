@@ -80,6 +80,7 @@ type type_grid
   integer                                :: ni,nj,nk,nl 
   character(len=180)                     :: time_units
   character(len=20)                      :: calendar
+  character(len=180)                     :: standard_time_units = 'seconds since 1970-01-01 00:00:00'
 
   contains
     procedure                 :: open          => grid_open
@@ -118,7 +119,7 @@ character(len=maxlen) word
 character(len=1) axis
 
 err = NF90_OPEN(filename,0,fid)
-if (err.NE.NF90_NOERR) return
+if (err.NE.NF90_NOERR) call stop_error(1,'File not found')
 
 err = NF90_INQUIRE (fid,ndims,nvars,natts,unlimid)
 if (err.NE.NF90_NOERR) return
@@ -126,54 +127,150 @@ if (err.NE.NF90_NOERR) return
 GRD%filename = trim(filename)
 GRD%fid = fid
 
+idx = -1; idy = -1; idz = -1; idt = -1
 
 ! ... Get information about Geophysical axes
 ! ...
-idx = -1; idy = -1; idz = -1; idt = -1
 
-! ... Check the existence of the axis attribute:
-! ...
-do var=1,nvars
-  axis = ''
-  err  = NF90_GET_ATT(fid,var,'axis',axis)
-  axis = uppercase(axis)
-  if (axis.eq.'X') idx = var
-  if (axis.eq.'Y') idy = var
-  if (axis.eq.'Z') idz = var
-  if (axis.eq.'T') idt = var
-enddo
-
-! ... If axis attribute has not been defined...
-! ...
-
-if (idx.lt.0) then
+if (len_trim(GRD%xname).gt.0) then
+  ! ... The user has specified a given variable name
+  ! ...
+  err = NF90_INQ_VARID(fid,GRD%xname,idx)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%xname)
+    stop 1
+  endif
+else
+  ! ... If not, we first check for the existence of the axis attribute:
+  ! ...
   do var=1,nvars
-    word = ''
-    err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
-    word = uppercase(word)
-    if (idx.LT.0.AND.word(1:1).eq.'X')       idx = var
-    if (idx.LT.0.AND.word(1:3).eq.'LON')     idx = var
-    if (idx.LT.0.AND.word(1:7).eq.'NAV_LON') idx = var
+    axis = ''
+    err  = NF90_GET_ATT(fid,var,'axis',axis)
+    axis = uppercase(axis)
+    if (axis.eq.'X') idx = var
   enddo
-endif
-if (idx.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idx,name=GRD%xname)
 
-if (idy.lt.0) then
+  ! ... If the axis attribute has not been defined,
+  ! ... check for the usual names
+  ! ...
+  if (idx.lt.0) then
+    do var=1,nvars
+      word = ''
+      err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+      word = uppercase(word)
+      if (idx.LT.0.AND.word(1:1).eq.'X')       idx = var
+      if (idx.LT.0.AND.word(1:3).eq.'LON')     idx = var
+      if (idx.LT.0.AND.word(1:7).eq.'NAV_LON') idx = var
+    enddo
+  endif
+
+  if (idx.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idx,name=GRD%xname)
+endif
+
+if (len_trim(GRD%yname).gt.0) then
+  ! ... The user has specified a given variable name
+  ! ...
+  err = NF90_INQ_VARID(fid,GRD%yname,idy)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%yname)
+    stop 1
+  endif
+else
+  ! ... If not, we first check for the existence of the axis attribute:
+  ! ...
   do var=1,nvars
-    word = ''
-    err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
-    word = uppercase(word)
-    if (idy.LT.0.AND.word(1:1).eq.'Y')       idy = var
-    if (idy.LT.0.AND.word(1:3).eq.'LAT')     idy = var
-    if (idy.LT.0.AND.word(1:7).eq.'NAV_LAT') idy = var
+    axis = ''
+    err  = NF90_GET_ATT(fid,var,'axis',axis)
+    axis = uppercase(axis)
+    if (axis.eq.'Y') idy = var
   enddo
+
+  ! ... If the axis attribute has not been defined,
+  ! ... check for the usual names
+  ! ...
+  if (idy.lt.0) then
+    do var=1,nvars
+      word = ''
+      err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+      word = uppercase(word)
+      if (idy.LT.0.AND.word(1:1).eq.'Y')       idy = var
+      if (idy.LT.0.AND.word(1:3).eq.'LAT')     idy = var
+      if (idy.LT.0.AND.word(1:7).eq.'NAV_LAT') idy = var
+    enddo
+  endif
+
+  if (idy.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idy,name=GRD%yname)
 endif
-if (idy.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idy,name=GRD%yname)
 
-if (idz.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idz,name=GRD%zname)
 
-if (idt.lt.0.and.unlimid.gt.0) idt = unlimid
-if (idt.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idt,name=GRD%tname)
+if (len_trim(GRD%zname).gt.0) then
+  ! ... The user has specified a given variable name
+  ! ...
+  err = NF90_INQ_VARID(fid,GRD%zname,idz)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%zname)
+    stop 1
+  endif
+else
+  ! ... If not, we first check for the existence of the axis attribute:
+  ! ...
+  do var=1,nvars
+    axis = ''
+    err  = NF90_GET_ATT(fid,var,'axis',axis)
+    axis = uppercase(axis)
+    if (axis.eq.'Z') idz = var
+  enddo
+
+  ! ... If the axis attribute has not been defined,
+  ! ... check for the usual names
+  ! ...
+  if (idz.lt.0) then
+    do var=1,nvars
+      word = ''
+      err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+      word = uppercase(word)
+      if (idz.LT.0.AND.word(1:1).eq.'Z')       idz = var
+      if (idz.LT.0.AND.word(1:5).eq.'DEPTH')   idz = var
+    enddo
+  endif
+
+  if (idz.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idz,name=GRD%zname)
+endif
+
+
+if (len_trim(GRD%tname).gt.0) then
+  ! ... The user has specified a given variable name
+  ! ...
+  err = NF90_INQ_VARID(fid,GRD%tname,idt)
+  if (err.NE.NF90_NOERR) then
+    write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%tname)
+    stop 1
+  endif
+else
+  ! ... If not, we first check for the existence of the axis attribute:
+  ! ...
+  do var=1,nvars
+    axis = ''
+    err  = NF90_GET_ATT(fid,var,'axis',axis)
+    axis = uppercase(axis)
+    if (axis.eq.'T') idt = var
+  enddo
+
+  ! ... If the axis attribute has not been defined,
+  ! ... check for the usual names
+  ! ...
+  if (idt.lt.0) then
+    do var=1,nvars
+      word = ''
+      err  = NF90_INQUIRE_VARIABLE (fid,var,word,ntype,ndims,dimids,natts)
+      word = uppercase(word)
+      if (idt.LT.0.AND.word(1:1).eq.'T')       idt = var
+      if (idt.LT.0.AND.word(1:4).eq.'TIME')    idt = var
+    enddo
+  endif
+
+  if (idt.GT.0) err = NF90_INQUIRE_VARIABLE (fid,idt,name=GRD%tname)
+endif
 
 GRD%idx = idx; GRD%idy = idy; GRD%idz = idz; GRD%idt = idt
 
@@ -312,6 +409,7 @@ if (len_trim(GRD%zname).GT.0) then
   GRD%idk = dimids(1)
   err = NF90_INQUIRE_VARIABLE (GRD%fid,GRD%idk,name=GRD%kname)
 endif
+
 
 ! ... Time
 ! ...

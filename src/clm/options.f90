@@ -28,15 +28,29 @@ character(maxlen)            :: AtmyFname = ""
 character(maxlen)            :: AtmxVname = "eastward_wind"
 character(maxlen)            :: AtmyVname = "northward_wind"
 
-logical                      :: withAtmxMaskName  = .True.
-logical                      :: withAtmxMaskValue = .True.
-character(maxlen)            :: AtmxMaskName  = "surface_type"
-integer                      :: AtmxMaskValue = 1
+! ... Type to specify the names of variables
+! ...
+type type_vnames
+  character(maxlen)          :: xname = ''
+  character(maxlen)          :: yname = ''
+  character(maxlen)          :: zname = ''
+  character(maxlen)          :: tname = ''
+end type type_vnames
 
-logical                      :: withAtmyMaskName  = .True.
-logical                      :: withAtmyMaskValue = .True.
-character(maxlen)            :: AtmyMaskName  = "surface_type"
-integer                      :: AtmyMaskValue = 1
+type(type_vnames)            :: GOU_vnames
+type(type_vnames)            :: GOV_vnames
+type(type_vnames)            :: GAU_vnames
+type(type_vnames)            :: GAV_vnames
+
+!logical                      :: withAtmxMaskName  = .True.
+!logical                      :: withAtmxMaskValue = .True.
+!character(maxlen)            :: AtmxMaskName  = "surface_type"
+!integer                      :: AtmxMaskValue = 1
+
+!logical                      :: withAtmyMaskName  = .True.
+!logical                      :: withAtmyMaskValue = .True.
+!character(maxlen)            :: AtmyMaskName  = "surface_type"
+!integer                      :: AtmyMaskValue = 1
 
 logical                      :: withRelease = .False.
 character(maxlen)            :: releaseName = ""
@@ -181,12 +195,24 @@ if (count((/withAtmx,withAtmy/)).eq.1) &
 
 OcexFname = token_read(OUlist,'file=')
 word = token_read(OUlist,'var='); if (len_trim(word).gt.0) OcexVname = trim(word)
+GOU_vnames%xname = token_read(OUlist,'x=')
+GOU_vnames%yname = token_read(OUlist,'y=')
+GOU_vnames%zname = token_read(OUlist,'z=')
+GOU_vnames%tname = token_read(OUlist,'t=')
 
 if (withOcey) then
   OceyFname = token_read(OVlist,'file='); if (len_trim(OceyFname).eq.0) OceyFname = trim(OcexFname)
   word = token_read(OVlist,'var='); if (len_trim(word).gt.0) OceyVname = trim(word)
+  GOV_vnames%xname = token_read(OVlist,'x=')
+  GOV_vnames%yname = token_read(OVlist,'y=')
+  GOV_vnames%zname = token_read(OVlist,'z=')
+  GOV_vnames%tname = token_read(OVlist,'t=')
 else
   OceyFname = trim(OcexFname)
+  GOV_vnames%xname = token_read(OUlist,'x=')
+  GOV_vnames%yname = token_read(OUlist,'y=')
+  GOV_vnames%zname = token_read(OUlist,'z=')
+  GOV_vnames%tname = token_read(OUlist,'t=')
 endif
 
 
@@ -194,20 +220,32 @@ if (withAtmx) then
   AtmxFname = token_read(AUlist,'file=')
   word = token_read(AUlist,'var=')
   if (len_trim(word).gt.0) AtmxVname = trim(word)
+  GAU_vnames%xname = token_read(AUlist,'x=')
+  GAU_vnames%yname = token_read(AUlist,'y=')
+  GAU_vnames%zname = token_read(AUlist,'z=')
+  GAU_vnames%tname = token_read(AUlist,'t=')
 
   if (withAtmy) then  
     AtmyFname = token_read(AVlist,'file=')
     if (len_trim(AtmyFname).eq.0) AtmyFname = trim(AtmxFname)
     word = token_read(AVlist,'var=')
     if (len_trim(word).gt.0) AtmyVname = trim(word)
+    GAV_vnames%xname = token_read(AVlist,'x=')
+    GAV_vnames%yname = token_read(AVlist,'y=')
+    GAV_vnames%zname = token_read(AVlist,'z=')
+    GAV_vnames%tname = token_read(AVlist,'t=')
   else
     AtmyFname = trim(AtmxFname)
+    GAV_vnames%xname = token_read(AUlist,'x=')
+    GAV_vnames%yname = token_read(AUlist,'y=')
+    GAV_vnames%zname = token_read(AUlist,'z=')
+    GAV_vnames%tname = token_read(AUlist,'t=')
   endif
 
-  if (count([withAtmxMaskName,withAtmxMaskValue]).eq.1) &
-    call stop_error(1,'Atmospheric mask specification requires both maskvar and maskval')
-  if (count([withAtmyMaskName,withAtmyMaskValue]).eq.1) &
-    call stop_error(1,'Atmospheric mask specification requires both maskvar and maskval')
+!  if (count([withAtmxMaskName,withAtmxMaskValue]).eq.1) &
+!    call stop_error(1,'Atmospheric mask specification requires both maskvar and maskval')
+!  if (count([withAtmyMaskName,withAtmyMaskValue]).eq.1) &
+!    call stop_error(1,'Atmospheric mask specification requires both maskvar and maskval')
 
 endif
 
@@ -319,15 +357,15 @@ write(iu,*) 'Atmosphere velocity fields'
 write(iu,*) '--------------------------'
 if (withAtmx) then
   write(iu,'(T2,A)') 'Zonal = '//trim(AtmxFname)//':'//trim(AtmxVname)
-  if (withAtmxMaskName) then
-  write(iu,*) '  mask variable = ', trim(AtmxMaskName)
-  write(iu,*) '  mask value = ', AtmxMaskValue
-  endif
+!  if (withAtmxMaskName) then
+!  write(iu,*) '  mask variable = ', trim(AtmxMaskName)
+!  write(iu,*) '  mask value = ', AtmxMaskValue
+!  endif
   write(iu,'(T2,A)') 'Meridional = '//trim(AtmyFname)//':'//trim(AtmyVname)
-  if (withAtmyMaskName) then
-  write(iu,*) '  mask variable = ', trim(AtmyMaskName)
-  write(iu,*) '  mask value = ', AtmyMaskValue
-  endif
+!  if (withAtmyMaskName) then
+!  write(iu,*) '  mask variable = ', trim(AtmyMaskName)
+!  write(iu,*) '  mask value = ', AtmyMaskValue
+!  endif
 
 
 else

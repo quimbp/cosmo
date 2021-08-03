@@ -29,15 +29,17 @@ type(type_date) dmin,dmax
 
 ! ... Zonal ocean current
 ! ...
-if (GOU%open(OcexFname).ne.0) call stop_error(1,'Unable to open OCEAN ZONAL file')
-if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Invalid to scan OCEAN ZONAL velocity variable')
+call assign_names(GOU,GOU_vnames)
+if (GOU%open(OcexFname).ne.0) call stop_error(1,'Unable to scan OCEAN ZONAL file')
+if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Invalid to find OCEAN ZONAL velocity variable')
 call GOU%show('Zonal ocean current')
 
 ! ... Meridional ocean current
 ! ...
-if (GOV%open(OceyFname).ne.0) call stop_error(1,'Unable to open OCEAN MERIDIONAL file')
-if (GOV%scan(OceyVname).ne.0) call stop_error(1,'Unable to scan OCEAN MERIDIONAL velocity variable')
-call GOV%show('Zonal ocean current')
+call assign_names(GOV,GOV_vnames)
+if (GOV%open(OceyFname).ne.0) call stop_error(1,'Unable to scan OCEAN MERIDIONAL file')
+if (GOV%scan(OceyVname).ne.0) call stop_error(1,'Unable to find OCEAN MERIDIONAL velocity variable')
+call GOV%show('Meridional ocean current')
 
 ! ... Winds
 ! ... We know that here, withAtmx and withAtmy are be both true or false.
@@ -46,14 +48,16 @@ call GOV%show('Zonal ocean current')
 if (withAtmx) then
   ! ... Zonal wind
   ! ...
-  if (GAU%open(AtmxFname).ne.0) call stop_error(1,'Unable to open WIND EASTWARD file')
-  if (GAU%scan(AtmxVname,AtmxMaskName,AtmxMaskValue).ne.0) call stop_error(1,'Unable to scan WIND EASTWARD file')
+  call assign_names(GAU,GAU_vnames)
+  if (GAU%open(AtmxFname).ne.0) call stop_error(1,'Unable to scan WIND EASTWARD file')
+  if (GAU%scan(AtmxVname).ne.0) call stop_error(1,'Unable to find WIND EASTWARD velocity variable')
   call GAU%show('Zonal wind')
 
   ! ... Meridional wind
   ! ...
-  if (GAV%open(AtmyFname).ne.0) call stop_error(1,'Unable to open WIND NORTHWARD file')
-  if (GAV%scan(AtmyVname,AtmyMaskName,AtmyMaskValue).ne.0) call stop_error(1,'Unable to scan WIND NORTHWARD file')
+  call assign_names(GAV,GAV_vnames)
+  if (GAV%open(AtmyFname).ne.0) call stop_error(1,'Unable to scan WIND NORTHWARD file')
+  if (GAV%scan(AtmyVname).ne.0) call stop_error(1,'Unable to find WIND NORTHWARD velocity variable')
   call GAV%show('Meridional wind')
 endif
 
@@ -93,6 +97,18 @@ endif
 if (GOU%nz.ne.GOV%nz) call stop_error(1,'Incompatible number of ocean layers')
 
 return
+
+contains
+
+    subroutine assign_names(GRD,GRD_vnames)
+      type(type_grid), intent(inout)          :: GRD
+      type(type_vnames), intent(in)           :: GRD_vnames
+      if (len_trim(GRD_vnames%xname).gt.0) GRD%xname = trim(GRD_vnames%xname)
+      if (len_trim(GRD_vnames%yname).gt.0) GRD%yname = trim(GRD_vnames%yname)
+      if (len_trim(GRD_vnames%zname).gt.0) GRD%zname = trim(GRD_vnames%zname)
+      if (len_trim(GRD_vnames%tname).gt.0) GRD%tname = trim(GRD_vnames%tname)
+    end subroutine assign_names
+
 end subroutine forcing_ini
 ! ...
 ! =====================================================================
