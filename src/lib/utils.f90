@@ -566,7 +566,8 @@ integer, intent(in)                    :: err
 character(len=*), intent(in), optional :: msg
 
 if (present(msg)) THEN
-  if (len_trim(msg).GT.0) WRITE(0,*) trim(msg)
+  WRITE(*,*) trim(msg)
+  WRITE(0,*) trim(msg)
 endif
 
 if (err.eq.0) then
