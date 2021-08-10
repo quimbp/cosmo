@@ -7,6 +7,9 @@ module module_math
 
   implicit none
 
+  integer, parameter                  :: NPAR_ARTH  = 16
+  integer, parameter                  :: NPAR2_ARTH = 8
+
   type type_point
     real(dp)                          :: x = 0.d0
     real(dp)                          :: y = 0.d0
@@ -1121,6 +1124,397 @@ ENDIF
 IF (variance.LT.0) variance = 0D0
 
 END FUNCTION variance
+! ...
+! =====================================================================
+! ...
+function arth(first,increment,n)
+
+! ... Array function returning an arithmetic progression
+
+real(dp), intent(in)              :: first,increment
+integer, intent(in)               :: n
+real(dp), dimension(n)            :: arth
+
+! ... Local variables
+! ...
+integer k,k2
+real(dp) temp
+
+if (n > 0) arth(1) = first
+if (n <= NPAR_ARTH) then
+  do k=2,n
+    arth(k) = arth(k-1) + increment
+  enddo
+else
+  do k=2,NPAR2_ARTH
+    arth(k) = arth(k-1) + increment
+  enddo
+  temp = increment*NPAR2_ARTH
+  k = NPAR2_ARTH
+  do
+    if (k >= n) exit
+    k2 = k + k
+    arth(k+1:min(k2,n)) = temp + arth(1:min(k,n-k))
+    temp = temp + temp
+    k = k2
+  enddo
+endif
+
+end function arth
+! ...
+! =====================================================================
+! ...
+subroutine FFT1D(dimx,funcionR,funcionI,signo)
+
+implicit none
+
+integer, intent(in)                         :: dimx,signo
+real(dp),dimension(0:dimx-1), intent(inout) :: funcionR,funcionI
+
+! ... Local variables 
+! ...
+real(dp)    :: tempR,tempI
+real(dp)    :: wpasoR,wpasoI
+real(dp)    :: wwR,wwI
+real(dp)    :: ttR,ttI
+integer      ix,je,mm,mmax,istep
+
+tempR = 0.0D0
+tempI = 0.0D0
+je = 1
+DO ix=0,dimx-1
+  IF(je.GT.ix+1) THEN
+    tempR = funcionR(je-1)
+    tempI = funcionI(je-1)
+    funcionR(je-1) = funcionR(ix)
+    funcionI(je-1) = funcionI(ix)
+    funcionR(ix) = tempR
+    funcionI(ix) = tempI
+  ENDIF
+  mm = dimx/2
+  DO WHILE (mm.GT.1 .AND. je.GT.mm)
+    je = je - mm
+    mm = mm/2
+  ENDDO
+  je = je+mm
+ENDDO
+
+mmax = 1
+DO WHILE (dimx .GT.mmax)
+  istep = 2*mmax
+  wpasoR = cos(PI/DBLE(mmax))
+  wpasoI = signo*sin(PI/DBLE(mmax))
+  wwR = 1.0D0
+  wwI = 0.0D0
+  DO mm = 1,mmax
+    DO ix = mm-1,dimx-1,istep
+      je = ix+mmax
+      CALL c_mult(wwR,wwI,funcionR(je),funcionI(je),tempR,tempI)
+      funcionR(je) = funcionR(ix) - tempR
+      funcionI(je) = funcionI(ix) - tempI
+      funcionR(ix) = funcionR(ix) + tempR
+      funcionI(ix) = funcionI(ix) + tempI
+    ENDDO
+    CALL c_mult(wwR,wwI,wpasoR,wpasoI,ttR,ttI)
+    wwR = ttR
+    wwI = ttI
+  ENDDO
+  mmax = istep
+ENDDO
+
+RETURN
+END SUBROUTINE FFT1D
+! ...
+! =========================================================================
+! ...
+SUBROUTINE c_mult (ar,ai,br,bi,cr,ci)
+
+IMPLICIT NONE
+
+REAL(KIND=8), INTENT(in)              :: ar,ai,br,bi
+REAL(KIND=8), INTENT(out)             :: cr,ci
+
+cr = ar*br - ai*bi
+ci = ar*bi + ai*br
+
+RETURN
+END SUBROUTINE c_mult
+! ...
+! =====================================================================
+! ...
+subroutine fourrow(data,isign)
+
+! ... Repaces earch row (constant first index) of data(1:M,1:N) by its
+! ... discrete Fourier tranform (transform on second incex), if isign
+! ... has been set to 1. It replaces each row of data by N times its inverse 
+! ... discrete Fourier transform if isign is -1.
+! ... N must be an integer power of 2.
+! ... Parallelistm is M-fold on the first index of data
+! ... Numerical Recipes (c)
+
+complex(dp), dimension(:,:), intent(inout)       :: data
+integer, intent(in)                              :: isign
+
+! ... Local variables
+! ...
+integer n,i,istep,j,m,mmax,n2
+real(dp) theta
+complex(dp) w,wp,ws
+complex(dp) temp(size(data,1))
+
+n = size(data,2)
+if (iand(n,n-1).ne.0) call stop_error(1,'ERROR: n must be a power of 2 in FOURROW')
+
+n2 = n/2
+j  = n2
+
+! ... Bit-reversal section of the routine
+! ...
+do i=1,n-2
+  if (j.gt.i) call swap(data(:,j+1),data(:,i+1))
+  m = n2
+  do
+    if (m.lt.2 .or. j.lt.m) exit
+    j = j - m
+    m = m / 2
+  enddo
+  j = j + m
+enddo
+mmax = 1
+
+! ... Here begins the Daneilson-Lanczos section of the routine
+! ... Outer loop executed log2(N) times
+do 
+  if (n.le.mmax) exit
+  istep = 2*mmax
+  theta = pi/(isign*mmax)
+  wp = cmplx(-2.0D0*sin(0.5D0*theta)**2,sin(theta),kind=dp)
+  w  = cmplx(1.0D0,0.0D0,kind=dp)
+  do m=1,mmax
+    ws = w
+    do i=m,n,istep
+      j = i + mmax
+      temp = ws*data(:,j)
+      data(:,j) = data(:,i) - temp
+      data(:,i) = data(:,i) + temp
+    enddo
+    w = w*wp + w
+  enddo
+  mmax = istep
+enddo
+
+end subroutine fourrow
+! ...
+! =====================================================================
+! ...
+subroutine four1(data,isign)
+
+complex(dp), dimension(:), intent(inout)         :: data
+integer, intent(in)                              :: isign
+
+! ... Local variables
+! ...
+integer n,m1,m2,j
+real(dp), dimension(:), allocatable              :: theta
+complex(dp), dimension(:), allocatable           :: w,wp
+complex(dp), dimension(:,:), allocatable         :: dat,temp
+
+n = size(data)
+if (iand(n,n-1).ne.0) call stop_error(1,'ERROR: n must be a power of 2 in FOUR1')
+
+m1 = 2**ceiling(0.5_sp*log(real(n,sp))/0.693147_sp)
+m2 = n/m1
+allocate(dat(m1,m2),theta(m1),w(m1),wp(m1),temp(m2,m1))
+
+dat=reshape(data,shape(dat))
+
+call fourrow(dat,isign)
+
+theta = arth(0.0D0,dble(isign),m1)*DPI/n
+wp = cmplx(-2.0_dp*sin(0.5_dp*theta)**2,sin(theta),kind=dp)
+w  = cmplx(1.0_dp,0.0_dp,kind=dp)
+do j=2,m2
+  w = w*wp+w
+  dat(:,j) = dat(:,j)*w
+enddo
+temp = transpose(dat)
+
+call fourrow(temp,isign)
+data = reshape(temp,shape(data))
+
+deallocate(dat,w,wp,theta,temp)
+
+end subroutine four1
+! ...
+! =====================================================================
+! ...
+subroutine twofft(data1,data2,fft1,fft2)
+
+real(dp), dimension(:), intent(in)     :: data1,data2
+complex(dp), dimension(:), intent(out) :: fft1,fft2
+
+! ... Local variables
+! ...
+complex(dp), parameter                         :: C1=(0.5_dp, 0.0_dp)
+complex(dp), parameter                         :: C2=(0.0_dp,-0.5_dp)
+integer n,n2
+complex, dimension(size(data1)/2+1) :: h1,h2
+
+if (size(data1).ne.size(data2)) call stop_error (1,'ERROR: incompatible data size in TWOFFT')
+if (size(fft1).ne.size(fft2))   call stop_error (1,'ERROR: incompatible data size in TWOFFT')
+if (size(data1).ne.size(fft1))  call stop_error (1,'ERROR: incompatible data size in TWOFFT')
+
+n  = size(data1)
+if (iand(n,n-1).ne.0) call stop_error(1,'ERROR: n must be a power of 2 in FOUR1')
+
+n2 = n/2+1
+
+fft1 = cmplx(data1,data2,kind=dp) ! Pack the two real arrays into one complex array.
+
+call four1(fft1,1)               ! Transform the complex array.
+fft2(1) = cmplx(aimag(fft1(1)),0.0_dp,kind=dp)
+fft1(1) = cmplx(real(fft1(1)),0.0_dp,kind=dp)
+
+h1(2:n2) = C1*(fft1(2:n2)+conjg(fft1(n:n2:-1)))   ! Use symmetries to separate the
+h2(2:n2) = C2*(fft1(2:n2)-conjg(fft1(n:n2:-1)))   ! two transforms
+
+fft1(2:n2)=h1(2:n2) 
+fft1(n:n2:-1)=conjg(h1(2:n2))
+
+fft2(2:n2)=h2(2:n2)
+fft2(n:n2:-1)=conjg(h2(2:n2))
+
+end subroutine twofft
+! ...
+! =====================================================================
+! ...
+subroutine realft(data,isign,zdata)
+
+real(dp), dimension(:), intent(inout)             :: data
+integer                                           :: isign
+complex(dp), dimension(:), optional, target       :: zdata
+
+! ... Local variables
+! ...
+integer n,nh,nq
+real(dp)                                          :: c1=0.5D0,c2
+complex(dp)                                       :: z
+complex(dp), dimension(size(data)/4)              :: w
+complex(dp), dimension(size(data)/4-1)            :: h1,h2
+complex(dp), dimension(:), pointer                :: cdata
+
+n = size(data)
+if (iand(n,n-1).ne.0) call stop_error(1,'ERROR: n must be a power of 2 in FOUR1')
+
+nh = n/2
+nq = n/4
+if (present(zdata)) then
+  if (size(zdata).ne.nh) call stop_error(1,'Error in REALFT')
+  cdata => zdata
+  if (isign == 1) cdata = cmplx(data(1:n-1:2),data(2:n:2),kind=dp)
+else
+  allocate (cdata(nh))
+  cdata = cmplx(data(1:n-1:2),data(2:n:2),kind=dp)
+endif
+if (isign == 1) then
+  c2 = -0.5D0
+  call four1(cdata,+1)
+else
+  c2 = 0.5D0
+endif
+
+w = zroots_unity(sign(n,isign),nq)
+w = cmplx(-aimag(w),real(w),kind=dp)
+h1 = c1*(cdata(2:nq)+conjg(cdata(nh:nq+2:-1)))
+h2 = c2*(cdata(2:nq)-conjg(cdata(nh:nq+2:-1)))
+cdata(2:nq)       = h1 + w(2:nq)*h2
+cdata(nh:nq+2:-1) = conjg(h1 - w(2:nq)*h2)
+z = cdata(1)
+if (isign == 1) then
+  cdata(1) = cmplx(real(z)+aimag(z),real(z)-aimag(z),kind=dp)
+else
+  cdata(1) = cmplx(c1*(real(z)+aimag(z)),c1*(real(z)-aimag(z)),kind=dp)
+  call four1(cdata,-1)
+end if
+
+if (present(zdata)) then
+  if (isign .ne. 1) then
+    data(1:n-1:2) = real(cdata)
+    data(2:n:2)   = aimag(cdata)
+  end if
+else
+  data(1:n-1:2) = real(cdata)
+  data(2:n:2)   = aimag(cdata)
+  deallocate(cdata)
+end if
+  
+end subroutine realft
+! ...
+! =====================================================================
+! ...
+function zroots_unity(n,nn)
+! Complex function returning nn powers of the n-th root of unity.
+integer, intent(in)                          :: n,nn
+complex(dp), dimension(nn)                   :: zroots_unity
+
+! ... Local variables
+! ...
+integer k
+real(dp) theta
+
+zroots_unity(1) = 1.0D0
+theta = dpi/n
+k = 1
+do
+  if (k >= nn) exit
+  zroots_unity(k+1)=cmplx(cos(k*theta),sin(k*theta),kind=dp)
+  zroots_unity(k+2:min(2*k,nn))=zroots_unity(k+1)*zroots_unity(2:min(k,nn-k))
+  k = 2*k
+enddo 
+
+end function zroots_unity
+! ...
+! =====================================================================
+! ...
+function correl(data1,data2)
+
+! ... Computes the correlation of two real sets data1 and data2
+! ... of length N (including any user-supplied zero padding). N must
+! ... be an integer power of two. The answer is returned as the
+! ... function correl(N). 
+! ... The answer is stored in wrap-around order, i.e. correlations
+! ... at increasingly negative lags are in correl(N) on down to correl(n/2+1), 
+! ... while correlation at nicreasingly positive lags are in correl(1) (zero lag) 
+! ... on up to correl(n/2).
+! ... Sign convention of this routine: if data1 lags data2, i.e. is shifted to the 
+! ... right of it, then correl will whow a peak in positive lags.
+! ... 
+real(dp), dimension(:), intent(inout)             :: data1,data2
+real(dp), dimension(size(data1))                  :: correl
+
+! ... Local variables
+! ...
+integer n,no2
+complex(dp), dimension(size(data1)/2)             :: cdat1,cdat2
+
+n = size(data1)
+if (iand(n,n-1).ne.0) call stop_error(1,'ERROR: n must be a power of 2 in CORREL')
+if (size(data2).ne.n) call stop_error(1,'Incompatible data dimension in CORREL')
+
+no2 = n / 2
+
+call realft(data1,1,cdat1)      ! Transform both data vectors.
+call realft(data2,1,cdat2)
+
+! ... Multiply to find the FFT of their correlation
+! ...
+cdat1(1)=cmplx(real(cdat1(1))*real(cdat2(1))/no2, &     
+               aimag(cdat1(1))*aimag(cdat2(1))/no2, kind=dp) 
+cdat1(2:)=cdat1(2:)*conjg(cdat2(2:))/no2
+
+call realft(correl,-1,cdat1) ! Inverse transform gives correlation.
+
+end function correl
 ! ...
 ! =====================================================================
 ! ...
