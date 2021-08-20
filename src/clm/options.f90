@@ -20,6 +20,7 @@ character(maxlen)            :: OcexFname = ""
 character(maxlen)            :: OceyFname = ""
 character(maxlen)            :: OcexVname = "u"
 character(maxlen)            :: OceyVname = "v"
+logical                      :: OceClim   = .False.
 
 logical                      :: withAtmx  = .False.
 logical                      :: withAtmy  = .False.
@@ -335,6 +336,10 @@ call argdbl('-rY',withRy,userRy)
 ! ...
 call argint('-saveint',withSaveInt,SaveInt)
 
+! ... Ocean climatological currents
+! ...
+call argflg('-oclim',OceClim)
+
 
 ! ... Check options
 ! ...
@@ -350,6 +355,7 @@ integer, intent(in)                        :: iu
 
 write(iu,*) 'Ocean velocity fields'
 write(iu,*) '---------------------'
+if (OceClim) write(iu,'(T2,A)') '     => Climatological forcing <= '
 write(iu,'(T2,A)') 'Zonal = '//trim(OcexFname)//':'//trim(OcexVname)
 write(iu,'(T2,A)') 'Meridional = '//trim(OceyFname)//':'//trim(OceyVname)
 write(iu,*)
@@ -401,8 +407,6 @@ write(iu,*) 'Float release user options'
 write(iu,*) '--------------------------'
 if (withRelease) write(iu,*) 'Float release file = ', trim(ReleaseName)
 if (withFinalfile) write(iu,*) 'Final float position file = ', trim(FinalName)
-
-
 
 end subroutine view_options
 ! ...

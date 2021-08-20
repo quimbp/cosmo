@@ -23,8 +23,7 @@ implicit none
 
 ! ... Local variables
 ! ...
-integer                                 :: i,j
-integer                                 :: step,pou,pov,pau,pav
+integer                                 :: pou,pov,pau,pav
 real(dp)                                :: west,east,south,north
 real(dp)                                :: tmin,tmax,maxdt
 type(type_date)                         :: datemin,datemax

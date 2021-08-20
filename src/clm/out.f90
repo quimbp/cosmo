@@ -56,7 +56,7 @@ real(dp), intent(in)                       :: missing
 ! ... Local variables
 ! ...
 integer i,natts
-character(len=maxlen) word,ext
+character(len=maxlen) ext
 character(len=1000) lcom
 
 STATUS_ERROR = 0; STATUS_TEXT = ""
@@ -243,10 +243,8 @@ real(dp), intent(in)                                :: time
 
 ! ... Local variables
 ! ...
-type(type_date) date
 integer i
 real(dp) time_out(1), xx(output_nfloats)
-character(len=19) date_txt
 
 
 STATUS_ERROR = 0; STATUS_TEXT = ""
@@ -256,12 +254,6 @@ output_record = output_record + 1
 
 time_out = time_transform([time],model_units,model_calendar,out_units,model_calendar)
 STATUS_ERROR = NF90_PUT_VAR(output_id,output_timeid,time_out,[output_record],[1])
-
-!jd = time/86400.0_dp + UserTini
-!date = jd2date(jd)
-!date_txt = trim(date%iso())
-!STATUS_ERROR = NF90_PUT_VAR(output_id,output_timeid,[jd],[output_record],[1])
-!STATUS_ERROR = NF90_PUT_VAR(output_id,output_dateid,[date_txt],[1,output_record],[19,1])
 
 xx(:) = output_missing
 do i=1,FLT%Nfloats

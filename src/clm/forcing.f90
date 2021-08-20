@@ -22,10 +22,7 @@ real(dp), intent(out)                :: west,south,east,north
 
 ! ... Local variables:
 ! ...
-integer err,k,lu,lv
-real(dp) tou,tov,tau,tav,tmp
-real(dp) tmin0,tmax0
-type(type_date) dmin,dmax
+integer err
 
 ! ... Zonal ocean current
 ! ...
@@ -119,47 +116,71 @@ real(dp), intent(out)                :: tmin,tmax
 
 ! ... Local variables:
 ! ...
-integer k,lu,lv
-real(dp) tou,tov,tau,tav,tmp
+integer lu,lv
+real(dp) tou,tov,tau,tav
 real(dp) tmin0,tmax0
-type(type_date) dmin,dmax
 
 ! ... Time axis: first, check for minimum and maximum common time:
 ! ...            We use the "unified units" of "seconds since 1970-01-01 00:00:00"
 ! ...            stored in the "s" arrays
 ! ...
-tou = minval(GOU%s(:))
-tov = minval(GOV%s(:))
-tmin0 = max(tou,tov)
-if (withAtmx) then
-  tau = minval(GAU%s(:))
-  tav = minval(GAV%s(:))
-  tmin0 = maxval([tmin0,tau,tav])
-endif
-lu = max(locate(GOU%s,tmin0),2)
-lv = max(locate(GOV%s,tmin0),2)
-tmin0 = max(GOU%s(lu),GOV%s(lv))
+tmin0 = -1D20
 
+if (OceClim) then
 
-tou = maxval(GOU%s(:))
-tov = maxval(GOV%s(:))
-tmax0 = min(tou,tov)
-if (withAtmx) then
-  tau = maxval(GAU%s(:))
-  tav = maxval(GAV%s(:))
-  tmax0 = minval([tmax0,tau,tav])
+  ! ... Climativ forcing
+  ! ... The ocean files do not include any constrain upon the
+  ! ... simulation dates.
+  ! ...
+  if (withAtmx) then
+    tau = minval(GAU%s(:))
+    tav = minval(GAV%s(:))
+    tmin0 = max(tau,tav)
+    tau = maxval(GAU%s(:))
+    tav = maxval(GAV%s(:))
+    tmax0 = min(tau,tav)
+  else 
+    tmin0 = -1D20
+    tmax0 =  1D20
+  endif
+
+else
+  tou = minval(GOU%s(:))
+  tov = minval(GOV%s(:))
+  tmin0 = max(tou,tov)
+
+  if (withAtmx) then
+    tau = minval(GAU%s(:))
+    tav = minval(GAV%s(:))
+    tmin0 = maxval([tmin0,tau,tav])
+  endif
+
+  lu = max(locate(GOU%s,tmin0),2)
+  lv = max(locate(GOV%s,tmin0),2)
+  tmin0 = max(GOU%s(lu),GOV%s(lv))
+
+  tou = maxval(GOU%s(:))
+  tov = maxval(GOV%s(:))
+  tmax0 = min(tou,tov)
+  if (withAtmx) then
+    tau = maxval(GAU%s(:))
+    tav = maxval(GAV%s(:))
+    tmax0 = minval([tmax0,tau,tav])
+  endif
+  lu = min(locate(GOU%s,tmax0),GOU%nt-1)
+  lv = min(locate(GOV%s,tmax0),GOV%nt-1)
+  tmax0 = min(GOU%s(lu),GOV%s(lv))
 endif
-lu = min(locate(GOU%s,tmax0),GOU%nt-1)
-lv = min(locate(GOV%s,tmax0),GOV%nt-1)
-tmax0 = min(GOU%s(lu),GOV%s(lv))
 
 if (withTini) then
   userDini = strptime(userSini)
   userDini%calendar = GOU%calendar
   userTini = date2num(userDini,units='seconds since 1970-01-01 00:00:00')
   tmin = userTini
-  if (userTini.lt.tmin0) stop 'ERROR: User Initial time too small'
-  if (userTini.gt.tmax0) stop 'ERROR: User Initial time too big'
+  if (.not.OceClim) then
+    if (userTini.lt.tmin0) stop 'ERROR: User Initial time too small'
+    if (userTini.gt.tmax0) stop 'ERROR: User Initial time too big'
+  endif
 else
   write(*,*) 'WARNING: No initial date proposed by the user'
   if (reverse.eq.1) then

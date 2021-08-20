@@ -85,6 +85,11 @@ character(len=20)                      :: clm_calendar = ''
 real(dp)                               :: Reference_time
 type(type_date)                        :: Reference_date
 
+! ... Middle of the month day (for climatological forcing)
+! ...
+real(dp), dimension(12) :: HalfMonth = [16.5D0,15.0D0,16.5D0,16.0D0,16.5D0,16.0D0, &
+                                        16.5D0,16.5D0,16.0D0,16.5D0,16.0D0,16.5D0]
+
 
 contains
 ! ...
@@ -140,8 +145,7 @@ real(dp), intent(in)            :: tmin,tmax               ! Jday
 
 ! ... Local variables
 ! ...
-integer nx,ny,Nsteps,step
-real(dp) udx,udy,vdx,vdy,dx,dy
+integer Nsteps
 
 ! ... Allocating space for the RK5 intermediate spaces
 ! ...
@@ -160,8 +164,6 @@ model_east  = east
 model_south = south
 model_north = north
 
-
-print*, tmax, tmin
 Nsteps = nint(abs(tmax-tmin)/userRKdt)   ! tmin and tmax in seconds
 
 Reference_time = tmin
@@ -189,7 +191,7 @@ subroutine model_run()
 
 ! ... Local variables
 ! ...
-integer step,pou,pov,pau,pav,flo,nfreq
+integer step,flo,nfreq
 integer pk,pn,io,ptu,ptv
 type(type_date)                        :: model_date
 real(dp)                               :: model_time
@@ -208,6 +210,15 @@ real(dp), dimension(GOU%ni,GOU%nj,NLAYER,4)  :: outab
 real(dp), dimension(GOV%ni,GOV%nj,NLAYER,4)  :: ovtab
 real(dp), dimension(GAU%ni,GAU%nj,4)         :: autab
 real(dp), dimension(GAV%ni,GAV%nj,4)         :: avtab
+
+! ... Memory space for forcing linear interpolation
+! ...
+integer                                :: y1,m1,y2,m2
+real(dp)                               :: s1,s2
+!integer, dimension(2)                  :: ouLinRecords
+!integer, dimension(2)                  :: ovLinRecords
+real(dp), dimension(GOU%ni,GOU%nj,NLAYER,2)  :: ouLintab
+real(dp), dimension(GOV%ni,GOV%nj,NLAYER,2)  :: ovLintab
 
 ! ... Memory space for cubic time interpolation coeffs
 ! ...
@@ -400,7 +411,8 @@ contains
 
   logical OU_updated,OV_updated,AU_updated,AV_updated
   integer pou,pov,pau,pav,i,j,kk,ll
-  real(dp) trk,ti,EDT
+  real(dp) trk,ti,EDT,dm
+  type(type_date) dd
 
   OU_updated = .False.; OV_updated = .False.
   AU_updated = .False.; AV_updated = .False.
@@ -410,67 +422,159 @@ contains
 
     !print*, 'First step ...'
 
-    pou = locate(GOU%s,rk_t); !if (reverse.lt.0) pou = pou + 1
-    pov = locate(GOV%s,rk_t); !if (reverse.lt.0) pov = pov + 1
+    if (OceClim)  then
+      ! We get the date and time from the rk_t value !!!
+      !
+      dm = model_date%day + &
+          (model_date%hour+model_date%minute/60+model_date%second/3600.0D0)/24.0D0
+      y1 = model_date%year
+      m1 = model_date%month
+
+      if (dm.lt.HalfMonth(model_date%month)) then
+        y2 = y1
+        m2 = m1
+        m1 = m1 - 1
+        if (m1.eq.0) then
+          y1 = y1 - 1
+          m1 = 12
+        endif
+      else
+        y2 = y1
+        m2 = m1 + 1
+        if (m2.eq.13) then
+          y2 = y2 + 1
+          m2 = 1
+        endif
+      endif
+
+      call dd%is(y1,m1,1,0,0,0,model_calendar)
+      s1 = date2num(dd,units=model_units) + (HalfMonth(m1)-1)*86400.0D0
+      call dd%is(y2,m2,1,0,0,0,model_calendar)
+      s2 = date2num(dd,units=model_units) + (HalfMonth(m2)-1)*86400.0D0
+    else
+      pou = locate(GOU%s,rk_t); !if (reverse.lt.0) pou = pou + 1
+      pov = locate(GOV%s,rk_t); !if (reverse.lt.0) pov = pov + 1
+      ourecords = [pou-reverse,pou,pou+reverse,pou+2*reverse]
+      ovrecords = [pov-reverse,pov,pov+reverse,pov+2*reverse]
+      OU_updated = .True.; OV_updated = .True.
+    endif
     if (withAtmx) then
       pau = locate(GAU%s,rk_t); !if (reverse.lt.0) pau = pau + 1
       pav = locate(GAV%s,rk_t); !if (reverse.lt.0) pav = pav + 1
-    endif
-    
-
-    OU_updated = .True.; OV_updated = .True.
-    AU_updated = .True.; AV_updated = .True.
-    ourecords = [pou-reverse,pou,pou+reverse,pou+2*reverse]
-    ovrecords = [pov-reverse,pov,pov+reverse,pov+2*reverse]
-    !print*, 'Initial for OCE U: ', ourecords(:)
-    !print*, 'Initial for OCE V: ', ovrecords(:)
-    if (withAtmx) then
       aurecords = [pau-reverse,pau,pau+reverse,pau+2*reverse]
       avrecords = [pav-reverse,pav,pav+reverse,pav+2*reverse]
-      !print*, 'Initial for ATM U: ', aurecords(:)
-      !print*, 'Initial for ATM V: ', avrecords(:)
+      AU_updated = .True.; AV_updated = .True.
     endif
 
     ! ... Read the fields:
     ! ...
     write(*,*) 'Reading ocean layers: ', LAYER(:)
-    do ll=1,4
+    if (OceClim) then
       do kk=1,NLAYER
-        outab(:,:,kk,ll) = GOU%read(layer=LAYER(kk),step=ourecords(ll))
-        ovtab(:,:,kk,ll) = GOV%read(layer=LAYER(kk),step=ovrecords(ll))
+        ouLintab(:,:,kk,1) = GOU%read(layer=LAYER(kk),step=m1)
+        ovLintab(:,:,kk,1) = GOV%read(layer=LAYER(kk),step=m1)
+        ouLintab(:,:,kk,2) = GOU%read(layer=LAYER(kk),step=m2)
+        ovLintab(:,:,kk,2) = GOV%read(layer=LAYER(kk),step=m2)
       enddo
-      if (withAtmx) then
+    else
+      do ll=1,4
+        do kk=1,NLAYER
+          outab(:,:,kk,ll) = GOU%read(layer=LAYER(kk),step=ourecords(ll))
+          ovtab(:,:,kk,ll) = GOV%read(layer=LAYER(kk),step=ovrecords(ll))
+        enddo
+      enddo
+    endif
+    if (withAtmx) then
+      do ll=1,4
         autab(:,:,ll) = GAU%read(step=aurecords(ll))
         avtab(:,:,ll) = GAV%read(step=avrecords(ll))
-      endif
-    enddo
-
-  else
-  ! ......................................... step > 1
-    if (abs(rk_t).ge.abs(GOU%s(ourecords(3)))) then
-      OU_updated = .True.
-      do kk=1,3
-        ourecords(kk)   = ourecords(kk+1)
-        outab(:,:,:,kk) = outab(:,:,:,kk+1)
-      enddo
-      ourecords(4) = ourecords(4) + reverse
-      !print*, 'Time to update OCE U: ', ourecords(:)
-      do kk=1,NLAYER
-        outab(:,:,kk,4) = GOU%read(layer=LAYER(kk),step=ourecords(4))
       enddo
     endif
 
-    if (abs(rk_t).ge.abs(GOV%s(ovrecords(3)))) then
-      OV_updated = .True.
-      do kk=1,3
-        ovrecords(kk)   = ovrecords(kk+1)
-        ovtab(:,:,:,kk) = ovtab(:,:,:,kk+1)
-      enddo
-      ovrecords(4) = ovrecords(4) + reverse
-      !print*, 'Time to update OCE V: ', ovrecords(:)
-      do kk=1,NLAYER
-        ovtab(:,:,kk,4) = GOV%read(layer=LAYER(kk),step=ovrecords(4))
-      enddo
+  else
+  ! ......................................... step > 1
+    if (OceClim) then
+      ! ... If climatological simulation
+      ! ... The U and V are expected to share the time grid: Jan to Dec
+      ! ...
+      if (reverse.gt.0) then                 ! Forward model
+        if (model_time.gt.s2) then
+          !print*, 'Update clim forward'
+
+          OU_updated = .True.
+          OV_updated = .True.
+          y1 = y2
+          m1 = m2
+          m2 = m2 + 1
+          if (m2.eq.13) then
+            y2 = y2 + 1
+            m2 = 1
+          endif
+          s1 = s2
+          call dd%is(y2,m2,1,0,0,0,model_calendar)
+          s2 = date2num(dd,units=model_units) + (HalfMonth(m2)-1)*86400.0D0
+          ouLintab(:,:,:,1) = ouLintab(:,:,:,2)
+          ovLintab(:,:,:,1) = ovLintab(:,:,:,2)
+          !print*, 'm1, m2 : ', m1, m2
+          do kk=1,NLAYER
+            ouLintab(:,:,kk,2) = GOU%read(layer=LAYER(kk),step=m2)
+            ovLintab(:,:,kk,2) = GOV%read(layer=LAYER(kk),step=m2)
+          enddo
+        endif
+      else                                   ! Backward model
+        if (model_time.lt.s1) then
+          !print*, 'Update clim backward'
+          OU_updated = .True.
+          OV_updated = .True.
+          y2 = y1
+          m2 = m1
+          m1 = m1 - 1
+          if (m1.eq.0) then
+            y1 = y1 - 1
+            m1 = 12
+          endif
+          s2 = s1
+          call dd%is(y1,m1,1,0,0,0,model_calendar)
+          s1 = date2num(dd,units=model_units) + (HalfMonth(m1)-1)*86400.0D0
+          ouLintab(:,:,:,2) = ouLintab(:,:,:,1)
+          ovLintab(:,:,:,2) = ovLintab(:,:,:,1)
+          !print*, 'm1, m2 : ', m1, m2
+          do kk=1,NLAYER
+            ouLintab(:,:,kk,1) = GOU%read(layer=LAYER(kk),step=m1)
+            ovLintab(:,:,kk,1) = GOV%read(layer=LAYER(kk),step=m1)
+          enddo
+        endif
+      endif
+
+    else
+      ! ... Regular simulation: not climatological
+      ! ...
+      if (abs(rk_t).ge.abs(GOU%s(ourecords(3)))) then
+        OU_updated = .True.
+        do kk=1,3
+          ourecords(kk)   = ourecords(kk+1)
+          outab(:,:,:,kk) = outab(:,:,:,kk+1)
+        enddo
+        ourecords(4) = ourecords(4) + reverse
+        !print*, 'Time to update OCE U: ', ourecords(:)
+        do kk=1,NLAYER
+          outab(:,:,kk,4) = GOU%read(layer=LAYER(kk),step=ourecords(4))
+        enddo
+      endif
+
+      if (abs(rk_t).ge.abs(GOV%s(ovrecords(3)))) then
+        OV_updated = .True.
+        do kk=1,3
+          ovrecords(kk)   = ovrecords(kk+1)
+          ovtab(:,:,:,kk) = ovtab(:,:,:,kk+1)
+        enddo
+        ovrecords(4) = ovrecords(4) + reverse
+        !print*, 'Time to update OCE V: ', ovrecords(:)
+        do kk=1,NLAYER
+          ovtab(:,:,kk,4) = GOV%read(layer=LAYER(kk),step=ovrecords(4))
+        enddo
+      endif
+
     endif
 
     if (withAtmx) then
@@ -501,16 +605,18 @@ contains
   ! ... Now, if fields have been updated, recalculate the cubic
   ! ... coefficients for forcing fields:
   ! ...
-  if (OU_updated) then
-    do kk=1,NLAYER
-      !print*, kk, LAYER(kk)
-      call i3coeffs(GOU,LAYER(kk),outab(:,:,kk,1:4),oucoef(:,:,kk,1:4))
-    enddo
-  endif
-  if (OV_updated) then
-    do kk=1,NLAYER
-      call i3coeffs(GOV,LAYER(kk),ovtab(:,:,kk,1:4),ovcoef(:,:,kk,1:4))
-    enddo
+  if (.not.OceClim) then
+    if (OU_updated) then
+      do kk=1,NLAYER
+        !print*, kk, LAYER(kk)
+        call i3coeffs(GOU,LAYER(kk),outab(:,:,kk,1:4),oucoef(:,:,kk,1:4))
+      enddo
+    endif
+    if (OV_updated) then
+      do kk=1,NLAYER
+        call i3coeffs(GOV,LAYER(kk),ovtab(:,:,kk,1:4),ovcoef(:,:,kk,1:4))
+      enddo
+    endif
   endif
   if (AU_updated) call i3coeffs(GAU,1,autab(:,:,1:4),aucoef(:,:,1:4))
   if (AV_updated) call i3coeffs(GAV,1,avtab(:,:,1:4),avcoef(:,:,1:4))
@@ -521,45 +627,93 @@ contains
   ! ... fields estimated at the times required by the fifth-order 
   ! ... Runge-Kutta algorithm:
   ! ...
-  EDT = GOU%s(ourecords(3)) - GOU%s(ourecords(2))
-  !print*, ourecords(:)
-  do ll=1,5
-    trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-    ti = abs((trk-GOU%s(ourecords(2)))/EDT)
-    do j=1,GOU%nj
-    do i=1,GOU%ni
-    do kk=1,NLAYER
-      if (GOU%var%mask(i,j,LAYER(kk)).eq.0) then
-        Ourhs(i,j,kk,ll) = 0.0_dp
-      else
-        Ourhs(i,j,kk,ll) = cubic(oucoef(i,j,kk,:),ti)
-      endif
-    enddo
-    enddo
-    enddo
-    !print*, 'Interpolation time OU: ', ti, Ourhs(34,20,1,ll)
-  enddo
+  if (OceClim) then
+    ! ... Climatological simulation
+    ! ...
+    EDT = s2 - s1
+    do ll=1,5
+      trk = model_time + 0.25_dp*(ll-1)*rk_dt
+      ti  = (trk - s1)/EDT
+      !print*, 'trk, ll, ti = ', trk, ll, ti
 
+      ! ... Zonal velocity interpolation
+      ! ...
+      do j=1,GOU%nj
+      do i=1,GOU%ni
+      do kk=1,NLAYER
+        if (GOU%var%mask(i,j,LAYER(kk)).eq.0) then
+          Ourhs(i,j,kk,ll) = 0.0_dp
+        else
+          Ourhs(i,j,kk,ll) = (1.0D0-ti)*ouLintab(i,j,kk,1) + ti*ouLintab(i,j,kk,2)
+        endif
+      enddo
+      enddo
+      enddo
+      !print*, 'Interpolation time clim OU: ', Ourhs(34,20,1,ll)
 
-  EDT = GOV%s(ovrecords(3)) - GOV%s(ovrecords(2))
-  !print*, ovrecords(:)
-  do ll=1,5
-    trk = rk_t + 0.25_dp*(ll-1)*rk_dt
-    ti = abs((trk-GOV%s(ovrecords(2)))/EDT)
-    do j=1,GOV%nj
-    do i=1,GOV%ni
-    do kk=1,NLAYER
-      if (GOV%var%mask(i,j,LAYER(kk)).eq.0) then
-        Ovrhs(i,j,kk,ll) = 0.0_dp
-      else
-        Ovrhs(i,j,kk,ll) = cubic(ovcoef(i,j,kk,:),ti)
-      endif
+      ! ... Meridional velocity interpolation
+      ! ...
+      do j=1,GOV%nj
+      do i=1,GOV%ni
+      do kk=1,NLAYER
+        if (GOV%var%mask(i,j,LAYER(kk)).eq.0) then
+          Ovrhs(i,j,kk,ll) = 0.0_dp
+        else
+          Ovrhs(i,j,kk,ll) = (1.0D0-ti)*ovLintab(i,j,kk,1) + ti*ovLintab(i,j,kk,2)
+        endif
+      enddo
+      enddo
+      enddo
+      !print*, 'Interpolation time clim OV: ', Ovrhs(34,20,1,ll)
     enddo
-    enddo
-    enddo
-    !print*, 'Interpolation time OV: ', ti, Ovrhs(34,20,1,ll)
-  enddo
 
+  else
+    ! ... Regular simulation: not climatological
+    ! ...
+
+    ! ... Zonal velocity interpolation
+    ! ...
+    EDT = GOU%s(ourecords(3)) - GOU%s(ourecords(2))
+    !print*, ourecords(:)
+    do ll=1,5
+      trk = rk_t + 0.25_dp*(ll-1)*rk_dt
+      ti = abs((trk-GOU%s(ourecords(2)))/EDT)
+      do j=1,GOU%nj
+      do i=1,GOU%ni
+      do kk=1,NLAYER
+        if (GOU%var%mask(i,j,LAYER(kk)).eq.0) then
+          Ourhs(i,j,kk,ll) = 0.0_dp
+        else
+          Ourhs(i,j,kk,ll) = cubic(oucoef(i,j,kk,:),ti)
+        endif
+      enddo
+      enddo
+      enddo
+      !print*, 'Interpolation time OU: ', ti, Ourhs(34,20,1,ll)
+    enddo
+
+    ! ... Meridional velocity interpolation
+    ! ...
+    EDT = GOV%s(ovrecords(3)) - GOV%s(ovrecords(2))
+    !print*, ovrecords(:)
+    do ll=1,5
+      trk = rk_t + 0.25_dp*(ll-1)*rk_dt
+      ti = abs((trk-GOV%s(ovrecords(2)))/EDT)
+      do j=1,GOV%nj
+      do i=1,GOV%ni
+      do kk=1,NLAYER
+        if (GOV%var%mask(i,j,LAYER(kk)).eq.0) then
+          Ovrhs(i,j,kk,ll) = 0.0_dp
+        else
+          Ovrhs(i,j,kk,ll) = cubic(ovcoef(i,j,kk,:),ti)
+        endif
+      enddo
+      enddo
+      enddo
+      !print*, 'Interpolation time OV: ', ti, Ovrhs(34,20,1,ll)
+    enddo
+
+  endif
 
   if (withAtmx) then
     EDT = GAU%s(aurecords(3)) - GAU%s(aurecords(2))

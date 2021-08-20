@@ -157,7 +157,7 @@ character(len=*), intent(in)             :: filename
 ! ...
 logical withdate,valid
 integer iu,i,ii,j,iio,nheader,nlines,nmax
-real(dp) x,y,z,t,rnd(4),xmin,ymin,xx,yy,xxr,yyr,zz
+real(dp) t,rnd(4),xmin,ymin,xx,yy,xxr,yyr,zz
 character(len=maxlen) line,str
 
 real(dp), dimension(:), allocatable         :: release_lon   
@@ -305,8 +305,8 @@ integer function read_commandline() result(n)
 ! ...
 logical withdate,valid
 integer i,ii,j,iio
-real(dp) x,y,z,t,rnd(4),xmin,ymin,xx,yy,xxr,yyr,zz
-character(len=maxlen) line,str
+real(dp) t,rnd(4),xmin,ymin,xx,yy,xxr,yyr,zz
+character(len=maxlen) str
 
 real(dp), dimension(:), allocatable         :: release_lon   
 real(dp), dimension(:), allocatable         :: release_lat   
