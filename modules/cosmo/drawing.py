@@ -3503,6 +3503,7 @@ class CosmoDrawing():
     ''' Launch the Configuration file script '''
 
     new_conf = tk.StringVar()
+    new_conf.set(COSMO_CONF_NAME)
 
     # -----------
     def _done():
@@ -3556,6 +3557,14 @@ class CosmoDrawing():
         return
 
       if os.path.isdir(nn):
+
+        # Check that the user has not just selected the folde, but also opened it
+        #
+        if nn == COSMO_CONF_PATH or nn+os.sep == COSMO_CONF_PATH:
+          toconsola('Configuration name must be "Opened" in dialog, not just selected ;-)',wid=self.cons)
+          toconsola('The configuration has not changed',wid=self.cons)
+          return
+
         toconsola('Configuration folder exists',wid=self.cons)
         COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
         COSMO_CONF = nn + os.sep
@@ -3565,6 +3574,8 @@ class CosmoDrawing():
 #        COSMO_CONF_NAME = '%s' % os.path.basename(os.path.normpath(nn))
 #        COSMO_CONF = nn + os.sep
       
+      new_conf.set(COSMO_CONF_NAME)
+
       message ='COSMO_CONF_PATH = '+COSMO_CONF_PATH+"\n"+ \
                'COSMO_CONF_NAME = '+COSMO_CONF_NAME+"\n"+ \
                'COSMO_CONF = '+COSMO_CONF
@@ -3576,6 +3587,12 @@ class CosmoDrawing():
     def _create(event=None):
     # ======================
       global COSMO_CONF,COSMO_CONF_PATH,COSMO_CONF_NAME
+
+      if empty(new_conf.get()):
+        toconsola('Empty configuration name',wid=self.cons)
+        new_conf.set(COSMO_CONF_NAME)
+        return
+
       COSMO_CONF_NAME = '%s' % new_conf.get()
       COSMO_CONF = COSMO_CONF_PATH+COSMO_CONF_NAME+os.sep
       if os.path.isdir(COSMO_CONF):
@@ -3608,8 +3625,9 @@ class CosmoDrawing():
                  justify='left').grid(row=0,column=1,columnspan=4)
     ttk.Label(F0,text='Configuration name: ',
                  font=font_bold).grid(row=1,column=0)
-    ttk.Label(F0,text=COSMO_CONF_NAME,width=40,
-                 justify='left').grid(row=1,column=1,columnspan=4)
+    bb = ttk.Label(F0,textvariable=new_conf,width=40,
+                 justify='left')
+    bb.grid(row=1,column=1,columnspan=4)
     ttk.Label(F0,text='Load configuratione',
                  font=font_bold).grid(row=2,column=0)
     ttk.Button(F0,text='Select',command=_select).grid(row=2,column=1,padx=3)
