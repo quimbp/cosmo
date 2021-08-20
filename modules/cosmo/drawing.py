@@ -7995,7 +7995,7 @@ class CosmoDrawing():
             self.FLOAT[ii].L.set(self.L.get())  #Synchronize records
           #print("load self.LAYERS.nsequence",self.LAYERS.nsequence)
 
-      print("abasn refill",self.FLOAT_LIST)
+      #print("abasn refill",self.FLOAT_LIST)
       _refill(ii)
 
 

@@ -27,6 +27,8 @@ import numpy as np
 #matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.ticker as mticker
+
 from matplotlib.figure import Figure
 #EG
 #from mpl_toolkits.basemap import Basemap
@@ -55,6 +57,7 @@ from cosmo.tools import toconsola
 
 import datetime
 import sys
+import os
 from math import radians, cos, sin, asin, sqrt
 
 class EDITOR:
@@ -617,6 +620,11 @@ class EDITOR:
     if nn is not None:
       outfile = '%s' % nn
 
+      # Add geojson extension if extension has been omitted
+      # 
+      if os.path.splitext(outfile)[-1] == '':
+        outfile += '.geojson'
+
       # The following values may have changed: POINTS, DATE, TEMP
       for i in range(self.Nfeatures):
         if self.DATA["features"][i]["geometry"]["type"] == "LineString":
@@ -635,7 +643,8 @@ class EDITOR:
             self.DATA["features"][i]["properties"]["source"] = self.source.get()
             self.DATA["features"][i]["properties"]["owner"] = self.owner.get()
             self.DATA["features"][i]["properties"]["contact"] = self.contact.get()
-            self.DATA["features"][i]["properties"]["time"]["data"][0] = self.event0_date.get()
+            #self.DATA["features"][i]["properties"]["time"]["data"][0] = self.event0_date.get()
+            self.DATA["features"][i]["properties"]["time"]["data"] = self.event0_date.get()
             self.DATA["features"][i]["properties"]["time"]["units"] = self.time_units.get()
             self.DATA["features"][i]["properties"]["time"]["qc_data"] = self.event0_qc.get()
 
@@ -646,7 +655,8 @@ class EDITOR:
             self.DATA["features"][i]["properties"]["source"] = self.source.get()
             self.DATA["features"][i]["properties"]["owner"] = self.owner.get()
             self.DATA["features"][i]["properties"]["contact"] = self.contact.get()
-            self.DATA["features"][i]["properties"]["time"]["data"][0] = self.event1_date.get()
+            #self.DATA["features"][i]["properties"]["time"]["data"][0] = self.event1_date.get()
+            self.DATA["features"][i]["properties"]["time"]["data"] = self.event1_date.get()
             self.DATA["features"][i]["properties"]["time"]["units"] = self.time_units.get()
             self.DATA["features"][i]["properties"]["time"]["qc_data"] = self.event1_qc.get()
 
@@ -729,17 +739,17 @@ class EDITOR:
     if self.Station_pointer.get() < self.Trajectory_length.get()-1:
       i = self.Station_pointer.get()
       if self.Trajectory_reject[i].get() == 1:
-        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        self.ax1.plot(self.Trajectory_lon[i],self.Trajectory_lat[i],'o',ms=4,color='grey')
         #self.m.plot(self.xx[i], \
         #            self.yy[i],'o',ms=4,color='grey')
       else:
-        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        self.ax1.plot(self.Trajectory_lon[i],self.Trajectory_lat[i],'o',ms=4,color='grey')
         #self.m.plot(self.xx[i], \
         #            self.yy[i],'o',ms=4,color='white')
 
       self.Station_pointer.set(self.Station_pointer.get()+1)
-      self.ax1.plot(self.xx[self.Station_pointer.get()], \
-                  self.yy[self.Station_pointer.get()],'o',ms=4,color='red')      
+      self.ax1.plot(self.Trajectory_lon[self.Station_pointer.get()], \
+                  self.Trajectory_lat[self.Station_pointer.get()],'o',ms=4,color='red')      
       #self.m.plot(self.xx[self.Station_pointer.get()], \
       #            self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
       self.Station_date.set(self.Trajectory_date[self.Station_pointer.get()])
@@ -756,17 +766,17 @@ class EDITOR:
     if self.Station_pointer.get() > 0:
       i = self.Station_pointer.get()
       if self.Trajectory_reject[i].get() == 1:
-        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,color='grey')
+        self.ax1.plot(self.Trajectory_lon[i],self.Trajectory_lat[i],'o',ms=4,color='grey')
         #self.m.plot(self.xx[i], \
         #            self.yy[i],'o',ms=4,color='grey')
       else:
-        self.ax1.plot(self.xx[i], \
-                    self.yy[i],'o',ms=4,color='white')
+        self.ax1.plot(self.Trajectory_lon[i], \
+                    self.Trajectory_lat[i],'o',ms=4,color='white')
       #self.m.plot(self.xx[self.Station_pointer.get()], \
       #            self.yy[self.Station_pointer.get()],'o',ms=4,color='white')
       self.Station_pointer.set(self.Station_pointer.get()-1)
-      self.ax1.plot(self.xx[self.Station_pointer.get()], \
-                  self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+      self.ax1.plot(self.Trajectory_lon[self.Station_pointer.get()], \
+                  self.Trajectory_lat[self.Station_pointer.get()],'o',ms=4,color='red')
       #self.m.plot(self.xx[self.Station_pointer.get()], \
       #            self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
       self.Station_date.set(self.Trajectory_date[self.Station_pointer.get()])
@@ -857,8 +867,8 @@ class EDITOR:
     self.ax1.clear()
     projection = 'cyl'
     projection = 'merc'
-    self.ax1.set_extent(self.Mapxmin.get(),self.Mapxmax.get(),
-                          self.Mapymin.get(),self.Mapxmax.get())
+    self.ax1.set_extent([self.Mapxmin.get(),self.Mapxmax.get(),
+                        self.Mapymin.get(),self.Mapymax.get()])
     try:
       emod_land="emodnet:mean_atlas_land"
       emod_coast="coastlines"
@@ -924,26 +934,28 @@ class EDITOR:
     gl.xlocator = mticker.FixedLocator(vmeridians)
     gl.ylocator = mticker.FixedLocator(vparallels)
     gl.xformatter = LONGITUDE_FORMATTER
-    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
     
     #self.xx,self.yy = self.m(self.Trajectory_lon,self.Trajectory_lat)
-    self.ax1.plot(self.xx[self.Station_pointer.get()], \
-                self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+    #self.ax1.plot(self.xx[self.Station_pointer.get()], \
+    #              self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+    self.ax1.plot(self.Trajectory_lon[self.Station_pointer.get()], \
+                  self.Trajectory_lat[self.Station_pointer.get()],'o',ms=4,color='red')
 
   def make_plot(self):
     '''Draws the trajectory over the map'''
 
-    self.ax1.plot(self.xx,self.yy,'--',linewidth=0.8,color='grey')
+    self.ax1.plot(self.Trajectory_lon,self.Trajectory_lat,'--',linewidth=0.8,color='grey')
     #self.m.plot(self.xx,self.yy,'o',ms=4,linewidth=1,color='white')
 
     for i in range(self.Trajectory_length.get()):
       if self.Trajectory_reject[i].get() == 1:
-        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='grey')
+        self.ax1.plot(self.Trajectory_lon[i],self.Trajectory_lat[i],'o',ms=4,linewidth=1,color='grey')
       else:
-        self.ax1.plot(self.xx[i],self.yy[i],'o',ms=4,linewidth=1,color='white')
+        self.ax1.plot(self.Trajectory_lon[i],self.Trajectory_lat[i],'o',ms=4,linewidth=1,color='white')
 
-    self.ax1.plot(self.xx[self.Station_pointer.get()], \
-                self.yy[self.Station_pointer.get()],'o',ms=4,color='red')
+    self.ax1.plot(self.Trajectory_lon[self.Station_pointer.get()], \
+                  self.Trajectory_lat[self.Station_pointer.get()],'o',ms=4,color='red')
 
     self.canvas.draw()
 
