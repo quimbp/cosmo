@@ -2508,7 +2508,7 @@ def json_save(conf,FILENAME):
                            sort_keys=False,
                            indent=2,
                            separators=(',',': '))
-    outfile.write(to_unicode(_str))
+    outfile.write(to_unicode(_str)+'\n')
     outfile.close()
 
 def fontconfig(font=None,sample=None):

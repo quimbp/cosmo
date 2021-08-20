@@ -1782,7 +1782,7 @@ class DrawingConfig():
                              sort_keys=True,     \
                              indent=2,           \
                              separators=(',',': '))
-      outfile.write(to_unicode(str_))
+      outfile.write(to_unicode(str_)+'\n')
       outfile.close()
 
 # ===================
@@ -3502,10 +3502,6 @@ class CosmoDrawing():
   # ===========================
     ''' Launch the Configuration file script '''
 
-  #COSMO_CONF_PATH = COSMO_ROOT + 'conf' + os.sep
-  #COSMO_CONF_NAME = 'default'
-  #COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
-
     new_conf = tk.StringVar()
 
     # -----------
@@ -3527,14 +3523,13 @@ class CosmoDrawing():
         self.PLOT.conf_save(conf,self.PLOT.FILECONF)
 
       conf = {}
-      conf['COSMO_CONF_PATH']=COSMO_CONF_PATH
       conf['COSMO_CONF_NAME']=COSMO_CONF_NAME
       with io.open(COSMO_CONF_DATA,'w',encoding='utf8') as outfile:
         _str = json.dumps(conf,ensure_ascii=False,
                            sort_keys=False,
                            indent=2,
                            separators=(',',': '))
-        outfile.write(to_unicode(_str))
+        outfile.write(to_unicode(_str)+'\n')
         outfile.close()
 
       self.Window_cfile.destroy()
@@ -3546,7 +3541,6 @@ class CosmoDrawing():
 
       with open(COSMO_CONF_DATA) as infile:
         conf = json.load(infile)
-      #COSMO_CONF_PATH = conf['COSMO_CONF_PATH']
       COSMO_CONF_NAME = conf['COSMO_CONF_NAME']
       COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
@@ -4261,7 +4255,7 @@ class CosmoDrawing():
                              sort_keys=True,     \
                              indent=2,           \
                              separators=(',',': '))
-      outfile.write(to_unicode(str_))
+      outfile.write(to_unicode(str_)+'\n')
 
   # =============
   def save(self):
@@ -5435,7 +5429,7 @@ class CosmoDrawing():
                                    sort_keys=True,     \
                                    indent=2,           \
                                    separators=(',',': '))
-          outfile.write(to_unicode(str_))
+          outfile.write(to_unicode(str_)+'\n')
         toconsola("New default values saved in file "+cfilename,wid=self.cons)
       except:
         toconsola('Cannot open default configuration file '+cfilename,wid=self.cons)
@@ -5806,7 +5800,7 @@ class CosmoDrawing():
                                sort_keys=True,        \
                                indent=2,              \
                                separators=(',',': '))
-        outfile.write(to_unicode(str_))
+        outfile.write(to_unicode(str_)+'\n')
 
     # Main
     # ----

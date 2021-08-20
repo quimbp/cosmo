@@ -148,7 +148,7 @@ class parameters():
                              sort_keys=True,        \
                              indent=2,              \
                              separators=(',',': '))
-      outfile.write(to_unicode(str_))
+      outfile.write(to_unicode(str_)+'\n')
 
   def load(self,filename):
   # ======================

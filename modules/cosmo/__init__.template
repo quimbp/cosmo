@@ -19,18 +19,16 @@ COSMO_CONF_DATA = COSMO_CONF_PATH+'data.conf'
 if os.path.isfile(COSMO_CONF_DATA):
   with open(COSMO_CONF_DATA) as infile:
     conf = json.load(infile)
-  #COSMO_CONF_PATH = conf['COSMO_CONF_PATH']
   COSMO_CONF_NAME = conf['COSMO_CONF_NAME']
 else:
   conf = {}
-  #conf['COSMO_CONF_PATH']=COSMO_CONF_PATH
   conf['COSMO_CONF_NAME']=COSMO_CONF_NAME
   with io.open(COSMO_CONF_DATA,'w',encoding='utf8') as outfile:
     _str = json.dumps(conf,ensure_ascii=False,
                            sort_keys=False,
                            indent=2,
                            separators=(',',': '))
-    outfile.write(to_unicode(_str))
+    outfile.write(to_unicode(_str)+'\n')
     outfile.close()
 
 COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep

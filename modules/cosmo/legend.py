@@ -53,7 +53,6 @@ class LegendConfig():
 
     with open(COSMO_CONF_DATA) as infile:
       conf = json.load(infile)
-    #COSMO_CONF_PATH = conf['COSMO_CONF_PATH']
     COSMO_CONF_NAME = conf['COSMO_CONF_NAME']
     COSMO_CONF = COSMO_CONF_PATH + COSMO_CONF_NAME + os.sep
 
@@ -194,7 +193,7 @@ class LegendConfig():
                              sort_keys=True,        \
                              indent=2,              \
                              separators=(',',': '))
-      outfile.write(to_unicode(str_))
+      outfile.write(to_unicode(str_)+'\n')
 
   def load(self,filename):
   # ======================
