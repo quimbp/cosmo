@@ -12583,7 +12583,25 @@ class CosmoDrawing():
       else:
         time_updated = True
 
+    def _reverse():
+    # =============
 
+      global time_updated
+      global initial_DATE
+      global final_DATE
+
+      if time_interval.get() != 0:
+        time_interval.set(-time_interval.get())
+      
+      tmpDATE = final_DATE
+      final_DATE = initial_DATE
+      initial_DATE = tmpDATE
+      del tmpDATE
+
+      final_date.set(final_DATE)
+      initial_date.set(initial_DATE)
+
+      time_updated = True
 
 
     # Main window
@@ -12658,8 +12676,10 @@ class CosmoDrawing():
     F1 = ttk.Frame(self.Window_settime,padding=5)
     ttk.Button(F1,text='Cancel',command=_cancel,padding=5).   \
         grid(row=0,column=1,padx=3)
-    ttk.Button(F1,text='Done',command=_done,padding=5).     \
+    ttk.Button(F1,text='Reverse',command=_reverse,padding=5).     \
         grid(row=0,column=2,padx=3)
+    ttk.Button(F1,text='Done',command=_done,padding=5).     \
+        grid(row=0,column=3,padx=3)
     F1.grid(sticky='ew',columnspan=2)
 
   # =======================
