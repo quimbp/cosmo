@@ -2,7 +2,7 @@
 
 BINDIR=${PWD}/bin
 
-all: path include lib bin default COSMO CLM COSMO_VIEW
+all: path include lib bin default COSMO CLM COSMO_VIEW CFORT
 	@echo "Done"
 
 path:
@@ -80,6 +80,21 @@ COSMO_VIEW:
 	(cd modules; python3 setup.py build; python3 setup.py install)
 	(cp cosmo-view/cosmo-view $(BINDIR))
 	(cd $(BINDIR); chmod +x cosmo-view)
+
+CFORT:
+	@echo 
+	@echo "=============================================="
+	@echo "CFORT"
+	@echo "=============================================="
+	@echo 
+	sed 's@TARGET_COSMO=.*@COSMO='${PWD}'@' cosmo-view/cfort.template > cosmo-view/cfort.1
+	sed 's@TARGET_FC=.*@FC='${FC}'@' cosmo-view/cfort.1 > cosmo-view/cfort.2
+	sed 's@TARGET_FFLAGS=.*@FFLAGS='"${FFLAGS}"'@' cosmo-view/cfort.2 > cosmo-view/cfort.3
+	sed 's@TARGET_NF90_INC=.*@NF90_INC='${NF90_INC}'@' cosmo-view/cfort.3 > cosmo-view/cfort.4
+	sed 's@TARGET_NF90_LIB=.*@NF90_LIB='${NF90_LIB}'@' cosmo-view/cfort.4 > cosmo-view/cfort
+	mv cosmo-view/cfort bin/
+	chmod +x bin/cfort
+	rm -f cosmo-view/cfort.?
 
 clean:
 	(cd src/lib; make clean)

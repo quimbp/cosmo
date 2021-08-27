@@ -1,0 +1,90 @@
+#!/bin/bash
+
+version="2.0"
+
+# Library paths to the updated during makefile
+#
+TARGET_COSMO=
+TARGET_FC=
+TARGET_FFLAGS=
+TARGET_NF90_INC=
+TARGET_NF90_LIB=
+
+INC="-I${COSMO}/include -I${NF90_INC}"
+LIB="-L${COSMO}/lib -lcosmo -L${NF90_LIB} -lnetcdff"
+
+Nargs=$#
+
+if [ $Nargs -le 0 ]; then
+  echo "No arguments provided"
+  exit 1
+fi
+
+# Parsing cfort arguments
+#
+
+user_defined_executable=0
+
+i=1
+options=""
+for argument in "$@"; do
+  if [ $i -lt $Nargs ]; then
+    options="${options} ${argument}"
+    if [ "$argument" == "-o" ]; then
+      user_defined_executable=1
+    fi
+  fi
+  ((i++))
+done
+
+# Last argument is the file to be compiled
+#
+file=${@:$#}
+
+# Get basename and extension from file argument
+#
+basename=${file%%.*}
+extension=${file##*.}
+if [ "$extension" == "$basename" ]; then
+  extension=""
+fi
+
+
+if [ $user_defined_executable == 0 ]; then
+  executable=" -o ${basename} "
+fi
+
+if [ "$extension" == "" ]; then
+  if [ -e ${basename}.f90 ]; then
+    filename="${basename}.f90"
+    extension="f90"
+  else
+    echo "file ${basename}.f90 not found"
+    exit 1
+  fi
+else
+  filename=$file
+fi
+
+echo "==============================================================="
+echo "cfort $version"
+echo "==============================================================="
+echo "FC         :: " ${FC}
+echo "FFLAGS     :: " ${FFLAGS}
+echo "Options    :: " ${options}
+echo "Filename   :: " ${filename}
+echo "Extension  :: " ${extension}
+echo "COSMO      :: " ${COSMO}
+echo "NF90_INC   :: " ${NF90_INC}
+echo "NF90_LIB   :: " ${NF90_LIB}
+
+#echo "Options = ${options}"
+#echo "file = ${file}"
+#echo "basename = ${basename}"
+#echo "extension = ${extension}"
+#echo "filename = ${filename}"
+#echo "user_defined_executable = ${user_defined_executable}"
+
+echo "${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB} "
+${FC} ${FFLAGS} ${options} ${executable} ${filename} ${INC} ${LIB}
+
