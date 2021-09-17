@@ -544,8 +544,8 @@ class VECTOR():
     toconsola("Reading vector, K, L = "+str(K)+", "+str(L),wid=wid)
 
     if self.U.ndims == 2:
-      u = self.U.nc.variables[uname][:,:]
-      v = self.V.nc.variables[vname][:,:]
+      u = self.U.nc.variables[self.U.varname][:,:]
+      v = self.V.nc.variables[self.V.varname][:,:]
     elif self.U.ndims == 3:
       if self.U.icdf.ppl[self.U.varid] > -1:
         u = self.U.nc.variables[self.U.varname][L,:,:].squeeze()
@@ -1204,6 +1204,13 @@ class DrawingConfig():
     self.CROP_PAD           = tk.DoubleVar()
     self.CROP_PAD.set(0.0)
 
+    # Parameters for Saving frames
+    self.SFRAME_PREFIX       = tk.StringVar()
+    self.SFRAME_POSTFIX_MODE = tk.IntVar()
+    self.SFRAME_L1           = tk.IntVar()
+    self.SFRAME_L2           = tk.IntVar()
+    self.SFRAME_LSTEP        = tk.IntVar()
+   
     self.SIZE = [9,6]
     self.OUTPUT_FIGURE.set(True)
     self.OUTPUT_LEAFLET.set(False)
@@ -1389,6 +1396,11 @@ class DrawingConfig():
     self.VIDEO_DPI.set(100)
     self.VIDEO_L1.set(0)
 
+    self.SFRAME_PREFIX.set('Frame')
+    self.SFRAME_POSTFIX_MODE.set(0)
+    self.SFRAME_L1.set(0)
+    self.SFRAME_LSTEP.set(1)
+
     self.WINDOW_FONT_TYPE.set('Helvetica')
     self.WINDOW_FONT_SIZE.set(14)
     font_type = matplotlib.rcParams['font.family'][0]
@@ -1570,6 +1582,9 @@ class DrawingConfig():
     conf['VIDEO_COMMENT'] = self.VIDEO_COMMENT.get()
     conf['VIDEO_FPS'] = self.VIDEO_FPS.get()
     conf['VIDEO_DPI'] = self.VIDEO_DPI.get()
+    conf['FRAME_PREFIX'] = self.SFRAME_PREFIX.get()
+    conf['FRAME_POSTFIX_MODE'] = self.SFRAME_POSTFIX_MODE.get()
+    conf['FRAME_STEP'] = self.SFRAME_LSTEP.get()
 
     conf['WINDOW_FONT_TYPE'] = self.WINDOW_FONT_TYPE.get()
     conf['WINDOW_FONT_SIZE'] = self.WINDOW_FONT_SIZE.get()
@@ -1762,6 +1777,9 @@ class DrawingConfig():
     self.WINDOW_FONT_SIZE.set(conf['WINDOW_FONT_SIZE'])
     self.MAP_FONT_TYPE.set(conf['MAP_FONT_TYPE'])
     self.CROP_PAD.set(conf['CROP_PAD'])
+    self.SFRAME_PREFIX.set(conf['FRAME_PREFIX'])
+    self.SFRAME_POSTFIX_MODE.set(conf['FRAME_POSTFIX_MODE'])
+    self.SFRAME_LSTEP.set(conf['FRAME_STEP'])
 
     # Derived variables:
     self.LOGO_IMAGE = image.imread(self.LOGO_FILE.get())
@@ -2107,6 +2125,7 @@ class CosmoDrawing():
     self.Window_clm           = None
     self.Window_dpi           = None
     self.Window_anim          = None
+    self.Window_sframe        = None
     self.Window_ncdf          = None
     self.Window_vec           = None
     self.Window_logo          = None
@@ -2363,6 +2382,8 @@ class CosmoDrawing():
                          command=self.atlas)
     toolmenu.add_command(label='Make animation',
                          command=self.make_anim)
+    toolmenu.add_command(label='Save frames',
+                         command=self.save_frames)
     toolmenu.add_command(label='COSMO Lagrangian Model (CLM)',
                          command=self.clm)
 
@@ -2701,6 +2722,7 @@ class CosmoDrawing():
           self.TIME = self.VEC[ii].TIME.copy()
           self.PLOT.TLABEL.set(self.DATE[self.L.get()])
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+          self.PLOT.SFRAME_L2.set(len(self.DATE)-1)
           self.first = False
 
 #          if nt == 1:
@@ -3846,6 +3868,7 @@ class CosmoDrawing():
 
           #self.TFILE = '%d' % self.nfiles
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+          self.PLOT.SFRAME_L2.set(len(self.DATE)-1)
           self.first = False
 
       if CONF[ii]['TYPE'] == 'VEC':
@@ -3982,6 +4005,7 @@ class CosmoDrawing():
 
           #self.TFILE = '%d' % self.nfiles
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+          self.PLOT.SFRAME_L2.set(len(self.DATE)-1)
           self.first = False
 
       if CONF[ii]['TYPE'] == 'FLOAT':
@@ -4013,6 +4037,7 @@ class CosmoDrawing():
           else:
             self.bnext.configure(state='normal')
           self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+          self.PLOT.SFRAME_L2.set(len(self.DATE)-1)
           self.first = False
 
         if len(self.TIME) > 0:
@@ -12434,6 +12459,8 @@ class CosmoDrawing():
         self.L_LIST = list(range(self.NL))
         self.lbox['values'] = self.L_LIST
         self.PLOT.TLABEL.set(self.DATE[self.L.get()])
+        self.PLOT.VIDEO_L2.set(len(self.DATE)-1)
+        self.PLOT.SFRAME_L2.set(len(self.DATE)-1)
 
       self.Window_settime.destroy()
       self.Window_settime = None
@@ -12806,4 +12833,137 @@ class CosmoDrawing():
 
     climatology.winClim(self.Window_atlas,wid=self.cons)
 
+
+  # ====================
+  def save_frames(self):
+  # ====================
+    ''' Save (PNG) a series of frames frames '''
+
+    # -----------
+    def _close():
+    # -----------
+      self.Window_sframe.destroy()
+      self.Window_sframe = None
+
+    def _done():
+    # ----------
+
+      L_Backup = self.L.get()
+      d = np.int(np.ceil(np.log10(self.NL)))
+      fmt = '0%d' % d
+
+      for L in range(self.PLOT.SFRAME_L1.get(),self.PLOT.SFRAME_L2.get()+1,self.PLOT.SFRAME_LSTEP.get()):
+        self.L.set(L)
+        self.PLOT.TLABEL.set(self.DATE[L])
+
+        ofile = self.PLOT.SFRAME_PREFIX.get()
+        if (self.PLOT.SFRAME_POSTFIX_MODE.get() == 0):
+          ofile = ofile + format(L,fmt) + '.png'
+        else:
+          postfix = self.DATE[L].isoformat(sep='T')
+          postfix = postfix.replace(":","")
+          postfix = postfix.replace("-","")
+          ofile = ofile + postfix + '.png'
+
+        print('saving frame in ', ofile)
+
+        for i in range(self.nvec):
+          if self.VEC[i].LINK.get():
+            self.VEC[i].L.set(L)
+            self.VEC[i].read(update_lims=False,wid=self.cons)
+
+        for i in range(self.ncdf):
+          if self.CDF[i].LINK.get():
+            self.CDF[i].L.set(L)
+            self.CDF[i].read(update_lims=False,wid=self.cons)
+
+        self.make_plot()
+        self.fig.savefig(ofile,
+                         dpi=self.PLOT.DPI.get(),
+                         bbox_inches='tight')
+
+      messagebox.showinfo(parent=self.Window_sframe,message='Frames have been saved')
+      self.L.set(L_Backup)
+
+    def _loadconf():
+    # -------------
+      '''Load SAVE FRAME configuration'''
+      toconsola('Retrieving SAVING FRAME defaults.',wid=self.cons)
+      #print('Retrieving VIDEO defaults.')
+      with open(self.PLOT.FILECONF) as infile:
+        conf = json.load(infile)
+      self.PLOT.SFRAME_PREFIX.set(conf['FRAME_PREFIX'])
+      self.PLOT.SFRAME_POSTFIX_MODE.set(conf['FRAME_POSTFIX_MODE'])
+      self.PLOT.SFRAME_LSTEP.set(conf['FRAME_STEP'])
+
+
+    def _saveconf():
+    # -------------
+      '''Save SAVE FRAME configuration'''
+      with open(self.PLOT.FILECONF) as infile:
+        conf = json.load(infile)
+      toconsola('Updating SAVING FRAME defaults.',wid=self.cons)
+      #print('Updating VIDEO defaults.')
+      conf['FRAME_PREFIX'] = self.PLOT.SFRAME_PREFIX.get()
+      conf['FRAME_POSTFIX_MODE'] = self.PLOT.SFRAME_POSTFIX_MODE.get()
+      conf['FRAME_STEP'] = self.PLOT.SFRAME_LSTEP.get()
+      with io.open(self.PLOT.FILECONF,'w',encoding='utf8') as outfile:
+        str_ = json.dumps(conf,ensure_ascii=False,    \
+                               sort_keys=True,        \
+                               indent=2,              \
+                               separators=(',',': '))
+        outfile.write(to_unicode(str_)+'\n')
+
+    # Main
+    # ----
+    if self.LAYERS.n == 0:
+      messagebox.showinfo(message='No layers have been added')
+      return
+
+    if self.Window_sframe is not None:
+      self.Window_sframe.lift()
+      return
+
+    self.Window_sframe = tk.Toplevel(self.master)
+    self.Window_sframe.title('Save frames')
+    self.Window_sframe.resizable(width=True,height=True)
+    self.Window_sframe.protocol('WM_DELETE_WINDOW',_close)
+
+    # Menu:
+    menubar = tk.Menu(self.Window_sframe)
+    menu = tk.Menu(menubar,tearoff=0)
+    menubar.add_cascade(label='Configuration',menu=menu)
+    menu.add_command(label='Restore',command=_loadconf)
+    menu.add_command(label='Save',command=_saveconf)
+    try:
+      self.Window_sframe.config(menu=menubar)
+    except AttributeError:
+      # master is a toplevel window (Python 2.4/Tkinter 1.63)
+      self.Window_sframe.tk.call(self.Window_sframe, "config", "-menu", menubar)
+
+    # Widgets
+    #
+    F0 = ttk.Frame(self.Window_sframe,borderwidth=5,padding=5)
+    ttk.Label(F0,text='Output prefix : ').grid(row=0,column=0)
+    ttk.Entry(F0,textvariable=self.PLOT.SFRAME_PREFIX,width=40).grid(row=0,column=1,columnspan=4,sticky='w')
+    ttk.Label(F0,text='Output postfix mode : ').grid(row=1,column=0)
+
+    ttk.Radiobutton(F0,text=' Frame number',variable=self.PLOT.SFRAME_POSTFIX_MODE,value=0).\
+                grid(row=1,column=1,padx=3)
+    ttk.Radiobutton(F0,text=' Date and time',variable=self.PLOT.SFRAME_POSTFIX_MODE,value=1).\
+                grid(row=2,column=1,padx=3)
+    ttk.Label(F0,text='Initial frame : ').grid(row=3,column=0)
+    ttk.Entry(F0,textvariable=self.PLOT.SFRAME_L1,width=7).grid(row=3,column=1,sticky='w')
+    ttk.Label(F0,text='Final frame : ').grid(row=4,column=0)
+    ttk.Entry(F0,textvariable=self.PLOT.SFRAME_L2,width=7).grid(row=4,column=1,sticky='w')
+    ttk.Label(F0,text='Frame step : ').grid(row=5,column=0)
+    ttk.Entry(F0,textvariable=self.PLOT.SFRAME_LSTEP,width=7).grid(row=5,column=1,sticky='w')
+    
+    done = ttk.Button(F0,text='Do it',command=_done)
+    done.grid(row=6,column=3,padx=3)
+    done.bind("<Return>",lambda e:_done())
+    close = ttk.Button(F0,text='Close',command=_close)
+    close.grid(row=6,column=4,padx=3)
+    close.bind("<Return>",lambda e:_close())
+    F0.grid()
 
