@@ -797,10 +797,11 @@ end function grid_crop
 ! ...
 ! =====================================================================
 ! ...
-function grid_read_point(GRD,coords) result(F)
+function grid_read_point(GRD,coords,missing_value) result(F)
 
 class(type_grid), intent(in)           :: GRD
 integer, dimension(:), intent(in)      :: coords
+real(dp), intent(in), optional         :: missing_value
 real(dp)                               :: F
 
 ! ... Local variables
@@ -808,6 +809,14 @@ real(dp)                               :: F
 integer np
 integer ones(size(coords))
 real(dp) F1(1)
+real(dp) spval
+
+if (present(missing_value)) then
+  spval = missing_value
+else
+  spval = 0.0D0
+endif
+
 
 
 STATUS_ERROR = 0; STATUS_TEXT  = ""
@@ -838,13 +847,13 @@ F = F1(1)
 if (GRD%var%missing) then
   if (GRD%var%missing_isnan) then
     if (isnan(F)) then
-      F = zero
+      F = spval
     else
       F = GRD%var%add_offset + GRD%var%scale_factor*F
     endif
   else
     if ((F.eq.GRD%var%missing_value)) then
-      F = zero
+      F = spval
     else
       F = GRD%var%add_offset + GRD%var%scale_factor*F
     endif
@@ -859,15 +868,25 @@ end function grid_read_point
 ! ...
 ! =====================================================================
 ! ...
-function grid_read2D(GRD,layer,step) result(F)
+function grid_read2D(GRD,layer,step,missing_value) result(F)
 
 class(type_grid), intent(in)           :: GRD
 integer, intent(in), optional          :: layer 
 integer, intent(in), optional          :: step 
+real(dp), intent(in), optional         :: missing_value
 real(dp), dimension(GRD%ni,GRD%nj)     :: F
 
+! ... Local variables
+! ...
 logical ZZ,TT
 integer k,l,err
+real(dp) spval
+
+if (present(missing_value)) then
+  spval = missing_value
+else
+  spval = 0.0D0
+endif
 
 
 STATUS_ERROR = 0; STATUS_TEXT  = ""
@@ -966,13 +985,13 @@ endif
 if (GRD%var%missing) then
   if (GRD%var%missing_isnan) then
     where(isnan(F))
-      F = zero
+      F = spval
     elsewhere
       F = GRD%var%add_offset + GRD%var%scale_factor*F
     endwhere
   else
     where((F.eq.GRD%var%missing_value))
-      F = zero
+      F = spval
     elsewhere
       F = GRD%var%add_offset + GRD%var%scale_factor*F
     endwhere
