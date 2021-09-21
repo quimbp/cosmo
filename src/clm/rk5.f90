@@ -22,6 +22,8 @@ EXTERNAL                             :: RHS
 
 ! ... Local variables
 ! ...
+real(dp), parameter                  :: RNstdev = sqrt(12.0D0)
+
 real(dp) hh,qh,th
 real(dp), dimension(n)               :: u1,u2,u3,u4,u5,u6
 real(dp), dimension(n)               :: x1,x2,x3,x4,x5
@@ -53,14 +55,24 @@ uf(:) = (7.0_dp*u1(:) + 32.0_dp*u3(:) + 12.0_dp*u4(:) + 32.0_dp*u5(:) + 7.0_dp*u
 
 ! ... Diffusion terms
 ! ...
-if (noise_mul.gt.0.0_dp) then
-  noise1(:) = randn(1)
-  uf(:) = uf(:) + noise_mul*noise1(1)*uf(:)
+if (noise_mu.gt.0.0_dp) then
+  if (Gaussian_noise) then
+    noise1(:) = randn(1)
+  else
+    call random_number(noise1)
+    noise1(:) = (noise1(:)-0.5D0)*RNStdev    ! Uniform noise
+  endif
+  uf(:) = uf(:) + noise_mu*noise1(1)*uf(:)
 endif
 
-if (noise_add.gt.0.0_dp) then
-  noise2(:) = randn(n)
-  uf(:) = uf(:) + noise_add*noise2(:)/1.414213562_dp
+if (noise_K0.gt.0.0_dp) then
+  if (Gaussian_noise) then
+    noise2(:) = randn(n)                                  ! Gaussian noise
+  else
+    call random_number(noise2)                            ! Uniform noise
+    noise2(:) = (noise2(:)-0.5D0)*RNStdev
+  endif
+  uf(:) = uf(:) + noise_K0*noise2(:) 
 endif
 
 ! ... Move the particle from xo to xn:

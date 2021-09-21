@@ -139,6 +139,19 @@ if (verb) then
   enddo
 endif
 
+if (save_release) then
+  write(*,*) 'Saving initial release positions in: ', trim(inifile)
+  open(76,file=inifile,status='unknown')
+  rewind(76)
+  do i=1,FLT%Nfloats
+    write(76,'(F9.3,F9.3,F7.1,3X,A)') FLT%release_lon(i), FLT%release_lat(i), &
+                                      FLT%release_depth(i), FLT%release_date(i)%iso()
+
+  enddo
+  close(76)
+endif
+
+
 
 end subroutine float_ini
 ! ...

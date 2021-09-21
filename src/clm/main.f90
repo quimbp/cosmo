@@ -138,7 +138,7 @@ input_timeid = GOU%idt
 call trajectory_open(Oname,FLT%Nfloats,FLT%missing)
 
 call release_write()
-call param_write(wsf,A11,A12,A21,A22,noise_mul,noise_add)
+call param_write(alpha,A11,A12,A21,A22,userMu,userK1,userK0)
 
 call model_run()
 

@@ -49,12 +49,6 @@ real(dp), dimension(:,:,:,:), pointer  :: Owrhs        ! (Hnx,Hny,Wnz,5)
 real(dp), dimension(:,:,:), pointer    :: Aurhs        ! (Hnx,Hny,5)
 real(dp), dimension(:,:,:), pointer    :: Avrhs        ! (Hnx,Hny,5)
 
-! ... Terms for the stochastic forcing appearing in the RK algorithm
-! ... u = (1.0 + noise_mul_ampl*Noise_mul())*u + noise_add_ampl*Noise_add()
-! ...
-real(dp)                               :: noise_mul = 0.0_dp
-real(dp)                               :: noise_add = 0.0_dp
-
 ! ... Response Matrix, accounting for direct atmosphere
 ! ... drag and Stokes drift.
 ! ... Pereiro et al. (2019).
@@ -71,11 +65,11 @@ real(dp)                               :: A22     = 0.0_dp
 ! ...
 integer                                :: ADVECTION_LAYER = 1
 
-! ... Water speed fraction (wsf)
+! ... Water speed fraction (alpha)
 ! ... Unrealistic term to perform experiments such as when the 
-! ... drifter is driven only by the wind (wsf = 0.0).
+! ... drifter is driven only by the wind (alpha = 0.0).
 ! ...
-real(dp)                               :: wsf     = 1.0_dp  ! Not physical
+real(dp)                               :: alpha   = 1.0_dp  ! Not physical
 
 ! ... Time calendar
 ! ... The model will assume the time units and calendar of the zonal ocean
@@ -90,6 +84,12 @@ type(type_date)                        :: Reference_date
 real(dp), dimension(12) :: HalfMonth = [16.5D0,15.0D0,16.5D0,16.0D0,16.5D0,16.0D0, &
                                         16.5D0,16.5D0,16.0D0,16.5D0,16.0D0,16.5D0]
 
+! ... Random Walk subgrid parameterization
+! ...
+logical                                :: Gaussian_noise
+real(dp)                               :: noise_mu
+real(dp)                               :: noise_K1
+real(dp)                               :: noise_K0
 
 contains
 ! ...
@@ -105,33 +105,55 @@ real(dp), dimension(n), intent(out)    :: dxdt
 
 ! ... Local variables
 ! ...
+real(dp), parameter                    :: RNstdev = sqrt(12.0D0)
 integer ll
 real(dp) o1,o2,a1,a2
+real(dp) n1,n2
+real(dp) Unoise(2)
 
 
 ll = nint(4.0_dp*(t-rk_t)/rk_dt) + 1
 
 ! ... Interpolation at the float location
 ! ...
-! ...  dxdt = wsf*u + A * w
+! ...  dxdt = alpha*u + A * w
 ! ...
 
 !x = [0.2394422D0,   0.7959301D0]
 
-o1 = GOU%hinterpol(Ourhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
-o2 = GOV%hinterpol(Ovrhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
-
-!print '(4F12.7)', x, o1, o2
-!stop
+if (alpha.eq.0) then   ! We do not interpolate unnecessarily
+  o1 = 0.0D0
+  o2 = 0.0D0
+else
+  o1 = GOU%hinterpol(Ourhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
+  o2 = GOV%hinterpol(Ovrhs(:,:,ADVECTION_LAYER,ll),x(1),x(2))  ! Only one layer
+endif
 
 if (withAtmx.and.surface) then
   a1     = GAU%hinterpol(Aurhs(:,:,ll),x(1),x(2))
   a2     = GAV%hinterpol(Avrhs(:,:,ll),x(1),x(2))
-  dxdt(1) = wsf*o1  +  A11*a1 + A12*a2
-  dxdt(2) = wsf*o2  +  A21*a1 + A22*a2
+  dxdt(1) = alpha*o1  +  A11*a1 + A12*a2
+  dxdt(2) = alpha*o2  +  A21*a1 + A22*a2
 else
-  dxdt(1) = wsf*o1
-  dxdt(2) = wsf*o2
+  dxdt(1) = alpha*o1
+  dxdt(2) = alpha*o2
+endif
+
+! ... Add the First order Markov model for the subgrid-scale processes
+! ... By multiplying the uniform distribution by sqrt(12), we ensure that
+! ... its standard deviation is r = 1.
+! ... The value of 
+! ...                             noise_K1 = sqrt(2*K1/dt)
+! ... has been set in model_ini
+! ...
+if (withK1) then
+  if (Gaussian_noise) then
+    Unoise(:) = randn(n)                                  ! Gaussian noise
+  else
+    call random_number(Unoise)                            ! Uniform noise
+    Unoise(:) = (Unoise(:)-0.5D0)*RNStdev
+  endif
+  dxdt(:) = dxdt(:) + noise_K1*Unoise(:)
 endif
 
 end subroutine RHS2D
@@ -140,16 +162,17 @@ end subroutine RHS2D
 ! ...
 subroutine model_ini(west,south,east,north,tmin,tmax)
 
-real(dp), intent(in)            :: east,south,west,north   ! Radians
-real(dp), intent(in)            :: tmin,tmax               ! Jday
+
+real(dp), intent(in)                  :: east,south,west,north   ! Radians
+real(dp), intent(in)                  :: tmin,tmax               ! Jday
 
 ! ... Local variables
 ! ...
 integer Nsteps
+real(dp), parameter                   :: Qvar = sqrt(12.0D0)
 
 ! ... Allocating space for the RK5 intermediate spaces
 ! ...
-
 allocate(Ourhs(GOU%ni,GOU%nj,NLAYER,5)) 
 allocate(Ovrhs(GOV%ni,GOV%nj,NLAYER,5)) 
 if (withAtmx) then
@@ -170,18 +193,36 @@ Reference_time = tmin
 rk_dt          = reverse*userRKdt
 model_Nstep    = Nsteps
 
-! ... Random terms
+! ... Stochastic terms
 ! ...
-noise_mul = userNoise_mul
-noise_add = userNoise_add
-wsf       = userWsf
+Gaussian_noise = .NOT.withUniform
 
-! ... Atmosphere response matrix
+userMu = abs(userMu)
+userK1 = abs(userK1)
+userK0 = abs(userK0)
+
+noise_mu = userMu
+noise_K1 = sqrt(2.0D0*userK1/abs(rk_dt))
+noise_K0 = sqrt(2.0D0*userK0/abs(rk_dt))
+
+write(*,*) 
+write(*,*) '**************************'
+write(*,*) 'Stochastic forcing terms: '
+write(*,*) 'Gaussian noise = ', Gaussian_noise
+write(*,*) 'noise_Mu = ', noise_mu
+write(*,*) 'noise_K1 = ', userK1, ' => ', noise_K1
+write(*,*) 'noise_K0 = ', userK0, ' => ', noise_K0
+write(*,*) '**************************'
+write(*,*) 
+
+! ... Drift velocity
+! ... Alpha and Atmosphere response matrix
 ! ...
-A11 = userA11
-A12 = userA12
-A21 = userA21
-A22 = userA22
+alpha = userAlfa
+A11   = userA11
+A12   = userA12
+A21   = userA21
+A22   = userA22
 
 end subroutine model_ini
 ! ...
@@ -374,6 +415,7 @@ write(*,*) 'Floaters Outside : ', count(FLT%outside(:))
 write(*,*) 'Floaters Stranded: ', count(FLT%stranded(:))
 write(*,*) 'Floaters Floating: ', count(FLT%floating(:))
 write(*,*) 'Floaters Distance: ', FLT%dist(:)
+write(*,*) 'Average floaters distance: ', sum(FLT%dist(:))/FLT%Nfloats
 
 ! ... Save last postions:
 ! ...

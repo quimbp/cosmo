@@ -70,14 +70,18 @@ real(dp)                     :: Release_to = 0.0D0
 type(type_date)              :: Release_do
 character(maxlen)            :: Release_tstr = ""
 
-logical                      :: withA11 = .False.
-logical                      :: withA12 = .False.
-logical                      :: withA21 = .False.
-logical                      :: withA22 = .False.
-real(dp)                     :: userA11 = 0.0D0
-real(dp)                     :: userA12 = 0.0D0
-real(dp)                     :: userA21 = 0.0D0
-real(dp)                     :: userA22 = 0.0D0
+! ... Advection velocity
+! ...
+logical                      :: WithAlfa  = .False.
+logical                      :: withA11   = .False.
+logical                      :: withA12   = .False.
+logical                      :: withA21   = .False.
+logical                      :: withA22   = .False.
+real(dp)                     :: userAlfa  = 1.0_dp
+real(dp)                     :: userA11   = 0.0D0
+real(dp)                     :: userA12   = 0.0D0
+real(dp)                     :: userA21   = 0.0D0
+real(dp)                     :: userA22   = 0.0D0
 
 ! ... Cropping area:
 ! ...
@@ -114,25 +118,30 @@ character(maxlen)            :: Oname         = "clm-out.nc"
 character(maxlen)            :: FinalName     = "clm-final.dat"
 
 logical                      :: withSaveInt = .False.
-integer                      :: SaveInt = 3600
+integer                      :: SaveInt     = 3600
 
 ! ... Random terms
 ! ...
-logical                      :: WithNoiseMul
-logical                      :: WithNoiseAdd
-logical                      :: WithWsf
-real(dp)                     :: userNoise_mul = 0.0_dp
-real(dp)                     :: userNoise_add = 0.0_dp
-real(dp)                     :: userWsf       = 1.0_dp
+logical                      :: withUniform   = .False.
+logical                      :: WithMu        = .False.
+logical                      :: WithK0        = .False.
+logical                      :: WithK1        = .False.
+real(dp)                     :: userMu        =  0.0_dp
+real(dp)                     :: userK0        =  0.0_dp
+real(dp)                     :: userK1        =  0.0_dp
 
 ! ... Ensemble
 ! ...
 logical                      :: withRandom
 logical                      :: withRx
 logical                      :: withRy
+logical                      :: save_release
 integer                      :: userNrandom
 real(dp)                     :: userRx
 real(dp)                     :: userRy
+character(maxlen)            :: inifile = ''
+
+
 contains
 ! ...
 ! ====================================================================
@@ -314,9 +323,14 @@ if (withReverse) reverse = -1
 
 ! ... Random terms
 ! ...
-call argdbl('-mu',withNoiseMul,userNoise_mul)
-call argdbl('-va',withNoiseAdd,userNoise_add)
-call argdbl('-alpha',withWsf,userWsf)
+call argdbl('-mu',withMu,userMu)
+call argdbl('-K0',withK0,userK0)
+call argdbl('-k0',withK0,userK0)
+call argdbl('-K1',withK1,userK1)
+call argdbl('-k1',withK1,userK1)
+call argdbl('-alpha',withAlfa,userAlfa)
+call argflg('-uni',withUniform)
+call argflg('-Uni',withUniform)
   
 ! ... Ensemble
 ! ...
@@ -331,6 +345,7 @@ call argdbl('-Ry',withRy,userRy)
 call argdbl('-RY',withRy,userRy)
 call argdbl('-ry',withRy,userRy)
 call argdbl('-rY',withRy,userRy)
+call argstr('-saveini',save_release,inifile)
 
 ! ... Output frequency
 ! ...
@@ -339,7 +354,6 @@ call argint('-saveint',withSaveInt,SaveInt)
 ! ... Ocean climatological currents
 ! ...
 call argflg('-oclim',OceClim)
-
 
 ! ... Check options
 ! ...

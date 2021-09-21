@@ -91,7 +91,7 @@ if (lowercase(ext).eq.'nc') then
 
   STATUS_ERROR = NF90_DEF_VAR(output_id,'release_latitude',NF90_DOUBLE,(/output_nid/),output_yoid)
   call cdf_error()
-  STATUS_ERROR = NF90_PUT_ATT(output_id,output_yoid,'units','degrees_east')
+  STATUS_ERROR = NF90_PUT_ATT(output_id,output_yoid,'units','degrees_north')
   call cdf_error()
 
   STATUS_ERROR = NF90_DEF_VAR(output_id,'release_depth',NF90_DOUBLE,(/output_nid/),output_zoid)
@@ -183,9 +183,9 @@ end subroutine trajectory_open
 ! ...
 ! ====================================================================
 ! ...
-subroutine param_write(p1,p2,p3,p4,p5,p6,p7)
+subroutine param_write(p1,p2,p3,p4,p5,p6,p7,p8)
 
-real(dp), intent(in)         :: p1,p2,p3,p4,p5,p6,p7
+real(dp), intent(in)         :: p1,p2,p3,p4,p5,p6,p7,p8
 
 STATUS_ERROR = NF90_REDEF(output_id); call cdf_error()
 STATUS_ERROR = NF90_PUT_ATT(output_id,0,'alpha',p1);   call cdf_error()
@@ -194,7 +194,8 @@ STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A12',p3);   call cdf_error()
 STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A21',p4);   call cdf_error()
 STATUS_ERROR = NF90_PUT_ATT(output_id,0,'A22',p5);   call cdf_error()
 STATUS_ERROR = NF90_PUT_ATT(output_id,0,'mu',p6);   call cdf_error()
-STATUS_ERROR = NF90_PUT_ATT(output_id,0,'va',p7);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'K1',p7);   call cdf_error()
+STATUS_ERROR = NF90_PUT_ATT(output_id,0,'K0',p8);   call cdf_error()
 STATUS_ERROR = NF90_ENDDEF(output_id); call cdf_error()
 
 end subroutine param_write
