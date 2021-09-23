@@ -18,8 +18,8 @@ logical                      :: withOcex  = .False.
 logical                      :: withOcey  = .False.
 character(maxlen)            :: OcexFname = ""
 character(maxlen)            :: OceyFname = ""
-character(maxlen)            :: OcexVname = "u"
-character(maxlen)            :: OceyVname = "v"
+character(maxlen)            :: OcexVname = "uo"
+character(maxlen)            :: OceyVname = "vo"
 logical                      :: OceClim   = .False.
 
 logical                      :: withAtmx  = .False.
