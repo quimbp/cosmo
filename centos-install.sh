@@ -1,48 +1,37 @@
 cat /etc/centos-release
 
 sudo yum update -y
+sudo yum install git -y
+sudo yum install wget -y
 sudo yum install xorg-x11-apps -y
-
-export DISPLAY=127.0.0.1:0.0
-xeyes 
-
 sudo yum install epel-release -y
 sudo yum install gcc-gfortran -y
+sudo yum install postgresql-libs -y
+sudo yum install postgresql-devel -y
 sudo yum install netcdf-fortran-devel -y
-sudo yum install git -y
 
-# Note that in Centos, the fortran netcdf libraries
+# Note that in Centos, the fortran netcdf libraries are located at
 # -I/usr/lib64/gfortran/modules
 # -L/usr/lib64
 
-
-# In Centos 7, there is an incompatibility between the 
-# latest available version of the PROJ library and the
-# version required for Cartopy [In Centos 8 is already fixed].
-# Therefore, the simplest method in Centos 7 is to use
-# conda. To avoid downloading the whole Anaconda cllection,
-# we will use the Miniconda distribution that comes with only
-# conda and python3
+# In Centos 7 and 8, it is better to install Cartoy
+# through the Anaconda environment. To install Anaconda,
+# visit 
+#         https://www.anaconda.com/products/individual
 #
-# https://docs.conda.io/en/latest/miniconda.html
+# After download,
+# sudo sh Anaconda3-2021.05-Linux-x86_64.sh
+#
+# After installing Anaconda3:
 
-sudo yum install wget
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-
-
-echo 'You must log out and back in again ...'
-exit
-
-# After logging in ...
+conda update conda
+conda update --all
 
 conda install -c anaconda pillow
-conda install -c anaconda python-dateutil
 conda install -c anaconda future
 conda install -c anaconda psycopg2
 conda install -c anaconda requests
-conda install -c anaconda numpy
 conda install -c anaconda netcdf4
-conda install -c anaconda scipy
 conda install -c anaconda beautifulsoup4
 conda install -c menpo ffmpeg
 
@@ -50,8 +39,10 @@ conda install -c menpo ffmpeg
 # shapely, geos-3.8.0, proj-6.2.1, pyshp-2.10, matplotlib-3.3.1, cartopy-0.18.0, ...
 conda install -c conda-forge cartopy
 
-pip install tkcolorpicker
-pip install wget
+python3 -m pip install wget
+python3 -m pip install owslib
+python3 -m pip install motuclient
+python3 -m pip install tkcalendar
 
 # get the cosmo:
 git clone https://github.com/quimbp/cosmo.git
