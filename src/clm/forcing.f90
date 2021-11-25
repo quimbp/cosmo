@@ -28,7 +28,7 @@ integer err
 ! ...
 call assign_names(GOU,GOU_vnames)
 if (GOU%open(OcexFname).ne.0) call stop_error(1,'Unable to scan OCEAN ZONAL file')
-if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Invalid to find OCEAN ZONAL velocity variable')
+if (GOU%scan(OcexVname).ne.0) call stop_error(1,'Unable to find OCEAN ZONAL velocity variable')
 call GOU%show('Zonal ocean current')
 
 ! ... Meridional ocean current

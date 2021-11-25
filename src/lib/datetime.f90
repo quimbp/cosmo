@@ -93,6 +93,8 @@ subroutine check_calendar (calendar)
   calendar = lowercase(calendar)
 
   if (count(calendar.eq.calendars_).eq.0) then
+    print*, 'calendar is : ', calendar
+    print*, 'calendars_ is : ', calendars_
     stop 'Unsupported calendar'
   else
     if (index(calendar,'365').gt.0) calendar = 'noleap'

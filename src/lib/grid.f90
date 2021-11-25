@@ -206,10 +206,16 @@ endif
 if (len_trim(GRD%zname).gt.0) then
   ! ... The user has specified a given variable name
   ! ...
-  err = NF90_INQ_VARID(fid,GRD%zname,idz)
-  if (err.NE.NF90_NOERR) then
-    write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%zname)
-    stop 1
+  word = uppercase(GRD%zname)
+  if (word(1:4).eq.'NULL') then
+    GRD%zname = ''                ! Set it to empty
+    idz = -1                      ! Just in case, make it explicit
+  else
+    err = NF90_INQ_VARID(fid,GRD%zname,idz)
+    if (err.NE.NF90_NOERR) then
+      write(*,*) 'GRID_OPEN ERROR: unable to find variable ', trim(GRD%zname)
+      stop 1
+    endif
   endif
 else
   ! ... If not, we first check for the existence of the axis attribute:
@@ -349,6 +355,7 @@ if (present(varname)) then
       GRD%var%missing_value = -999.0d0
       GRD%var%missing_isnan = .false.
     endif
+    err = 0
 
   else
     err = 1
@@ -452,6 +459,7 @@ if (len_trim(GRD%tname).GT.0) then
   endif
 
 endif
+
 
 if (GRD%idi.GT.0) err = NF90_INQUIRE_DIMENSION(GRD%fid,GRD%idi,len=GRD%nx)
 if (GRD%idj.GT.0) err = NF90_INQUIRE_DIMENSION(GRD%fid,GRD%idj,len=GRD%ny)
@@ -601,6 +609,8 @@ GRD%lo = 1; GRD%nl = GRD%nt
 !enddo
 !
 
+err = 0
+
 if (present(varname)) then
   GRD%var%xdim = .False.; GRD%var%ydim = .False.
   GRD%var%zdim = .False.; GRD%var%tdim = .False.
@@ -625,7 +635,7 @@ if (present(varname)) then
 
   else
     ! ... Read an initial field:
-  ! ...
+    ! ...
     if (GRD%var%ndims.eq.2) then
       err = NF90_GET_VAR(GRD%fid,GRD%vid,wrk)
     else if (GRD%var%ndims.eq.3) then
@@ -637,7 +647,10 @@ if (present(varname)) then
     else
       err = NF90_GET_VAR(GRD%fid,GRD%vid,wrk,[1,1,1,1],[GRD%nx,GRD%ny,GRD%nz,1])
     endif
-    if (err.ne.0) STOP 'wrk'
+    if (err.ne.0) then
+      print*, trim(NF90_STRERROR(err))
+      stop 'ERROR Reading file'
+    endif
       
     GRD%var%mask(:,:,:) = 1.0_dp                  ! By default, all valid points
     if (GRD%var%missing) then
