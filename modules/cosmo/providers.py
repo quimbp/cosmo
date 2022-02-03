@@ -51,9 +51,9 @@ class parameters():
     self.INIT_YEAR  = [2016, 2013]
     self.INIT_MONTH = [11, 8]
     self.DPATH = ['http://opendap.puertos.es/thredds/fileServer/circulation_regional_gib/', \
-                 'http://thredds.socib.es/thredds/fileServer/operational_models/oceanographical/hydrodynamics/wmop/']
+                 'http://thredds.socib.es/thredds/fileServer/operational_models/oceanographical/hydrodynamics/wmop_surface/']
     self.PATH = ['http://opendap.puertos.es/thredds/dodsC/circulation_regional_gib/', \
-                 'http://thredds.socib.es/thredds/dodsC/operational_models/oceanographical/hydrodynamics/wmop/']
+                 'http://thredds.socib.es/thredds/dodsC/operational_models/oceanographical/hydrodynamics/wmop_surface/']
 
     self.NAME  = self.LIST[0]
     self.YEAR_INI  = self.INIT_YEAR[0]
