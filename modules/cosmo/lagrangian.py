@@ -373,8 +373,10 @@ class parameters():
         for i in range(len(DATES)):
           self.lon.append(POINTS[i][0])
           self.lat.append(POINTS[i][1])
-          self.DATE.append(datetime.datetime.strptime(DATES[i], \
-                           '%Y-%m-%dT%H:%M:%SZ'))
+          #self.DATE.append(datetime.datetime.strptime(DATES[i], \
+          #                 '%Y-%m-%dT%H:%M:%SZ'))
+          self.DATE.append(datetime.datetime.strptime(DATES[i][:19], \
+                           '%Y-%m-%dT%H:%M:%S'))
 
       else:
         self.MESSAGE +='Unknown GEOJSON file format'

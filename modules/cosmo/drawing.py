@@ -108,6 +108,7 @@ import cosmo.plotxy as plotxy
 import cosmo.ellipse as ellipse
 import cosmo.patch as patch
 import cosmo.climatology as climatology
+import cosmo.feature as feature
 
 from cosmo.tools import empty
 from cosmo.tools import myround
@@ -145,6 +146,28 @@ BGC  = 'pale green'    # Background color
 BWC  = 'lime green'    # Buttons (PREV and NEXT) color
 EBC  = 'forest green'  # Exit Buttons color
 FONT = 'Helvetica 14'  # Default font
+
+
+# =====================
+class OBJECT():
+# =====================
+  ''' Class for cosmo-view objects'''
+
+  __version__ = "1.0" 
+  __author__ = "Quim Ballabrera" 
+  __date__ = "February 2022"
+
+  def __init__(self,TYPE,OPTIONS=None):
+  # ======================
+    ''' Define and initialize the class attributes '''
+
+    self.n = 0
+    self.TYPE = TYPE
+    self.DATA = []
+    self.LIST = []
+    self.INDX = tk.IntVar()
+    self.INDX.set(0)
+    self.OPTIONS = OPTIONS
 
 
 # =====================
@@ -293,7 +316,7 @@ class CONTOUR():
     self.FLD.maxval = np.nanmax(u)
     toconsola('Min val = '+str(self.FLD.minval),wid=wid)
     toconsola('Max val = '+str(self.FLD.maxval),wid=wid)
-    print(self.FLD.minval, self.FLD.maxval)
+    #print(self.FLD.minval, self.FLD.maxval)
 
     # Make sure that the missing value is NaN:
     #_u = u.filled(fill_value=np.nan)
@@ -1931,10 +1954,6 @@ class CosmoDrawing():
     # Features: Markers or shapefiles
     # Stationary information. Types: MARKER,SHAPE
 
-    #self.nfeatures = 0
-    #self.FEATNAMES     = []
-    #self.FEATTYPES     = []
-    #self.FEATORDER     = []
 	#EG 
     self.nmarker       = 0 			# Numero de fixters de marcadors
     self.MARKER        = []        # llista de estructures de marcadors dim(self.nmarker)
@@ -1961,6 +1980,13 @@ class CosmoDrawing():
     self.PATCH_LIST   = ['0']       # List of patches en configuracion 
     self.PATCH_INDX   = tk.IntVar() # contador de files
     self.PATCH_INDX.set(0)
+
+    self.FEATURE  = OBJECT('FEATURE',['Local Dataset'])
+    #self.FEATURE      = []
+    #self.FEATURE_LIST = ['0']       # List of features en configuracion 
+    #self.FEATURE_INDX = tk.IntVar() # contador de files
+    #self.FEATURE_INDX.set(0)
+    #self.FEATURE_OPTIONS = ['Local Dataset']
 
     # Initialize CLM command:
     self.CLM = clm.parameters()
@@ -2145,11 +2171,13 @@ class CosmoDrawing():
     self.Window_gellipse      = None
     self.Window_cellipse      = None
     self.Window_ellipseconfig = None
+    self.Window_featureconfig = None
     self.Window_patch         = None
     self.Window_patchconfig   = None
     self.Window_skill         = None
     self.Window_converter     = None
     self.Window_settime       = None
+    self.Window_feature       = None
     
     self.legendtabs           = None
     self.Window_mapa          = None
@@ -2327,6 +2355,7 @@ class CosmoDrawing():
     #EG Shapefile and WMS server
     insmenu.add_command(label='Shapefile',command=self.get_shapefile)
     insmenu.add_command(label='Ellipse',command=self.get_ellipse)
+    insmenu.add_command(label='Feature',command=self.get_feature)
     insmenu.add_command(label='WMS Service',state="disable",command=self.get_wms)
 
     confmenu = tk.Menu(menubar, tearoff=0)
@@ -2352,6 +2381,8 @@ class CosmoDrawing():
                          command=self.ellipse_config)
     confmenu.add_command(label='Patch',
                          command=self.patch_config)
+    confmenu.add_command(label='Feature',
+                         command=self.feature_config)
     confmenu.add_command(label='Time axis',
                          command=self.set_time)
     confmenu.add_separator()
@@ -3469,6 +3500,20 @@ class CosmoDrawing():
         ttk.Label(F0,text=self.ELLIPSE[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
         noseq = True
 
+      if TYPE == 'FEATURE':
+        ttk.Checkbutton(F0,variable=self.FEATURE.DATA[ii].show,\
+                 command=self.make_plot). \
+                 grid(row=i+1,column=0,padx=3)
+        ttk.Label(F0,text=self.FEATURE.DATA[ii].SOURCE,justify='left',width=10).grid(row=i+1,column=2,padx=3)
+        zz = ttk.Entry(F0,textvariable=self.FEATURE.DATA[ii].PLOT.ZORDER,width=3)
+        zz.grid(row=i+1,column=3,padx=3)
+        zz.bind("<Return>",lambda f: self.make_plot())
+        aa = ttk.Entry(F0,textvariable=self.FEATURE.DATA[ii].PLOT.ALPHA,width=3)
+        aa.grid(row=i+1,column=4,padx=3)
+        aa.bind("<Return>",lambda f: self.make_plot())
+        ttk.Label(F0,text=self.FEATURE.DATA[ii].ALIAS.get(),justify='left',width=12).grid(row=i+1,column=7,padx=3)
+        noseq = True
+
       if TYPE == 'PATCH':
         ttk.Checkbutton(F0,variable=self.PATCH[ii].show,\
                  command=self.make_plot). \
@@ -4183,10 +4228,6 @@ class CosmoDrawing():
 
         self.LAYERS.add(TYPE='MARKER',Filename=filename,N=len(MARKER.lon),wid=self.cons)
 
-        #self.nfeatures += 1
-        #self.FEATNAMES.append(filename)
-        #self.FEATTYPES.append('MARKER')
-        #self.FEATORDER.append(self.nmarker-1)
 
       if CONF[ii]['TYPE'] == 'SHAPE':
 
@@ -4236,10 +4277,6 @@ class CosmoDrawing():
 
         self.LAYERS.add(TYPE='SHAPE',Filename=filename,N=SHAPE.n,wid=self.cons)
         self.LAYERS.print()
-        #self.nfeatures += 1
-        #self.FEATNAMES.append(filename)
-        #self.FEATTYPES.append('SHAPE')
-        #self.FEATORDER.append(self.nshape-1)
 
       if CONF[ii]['TYPE'] == 'ELLIPSE':
 
@@ -4265,6 +4302,28 @@ class CosmoDrawing():
         self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=ELLIPSE.n,wid=self.cons)
         self.LAYERS.print()
 
+      if CONF[ii]['TYPE'] == 'FEATURE':
+
+        # Initialize classes:
+        #
+        FEATURE = feature.properties()
+
+        # Update from CONF attributes:
+        #
+        FEATURE.conf_set(CONF[ii]['FEATURE'])
+
+        FEATURE.Read(filename)
+
+
+        self.FEATURE.n += 1
+        self.FEATURE.DATA.append(FEATURE)
+        self.FEATURE.INDX.set(self.FEATURE.n-1)
+        self.FEATURE.LIST = list(range(self.FEATURE.n))
+
+
+        self.LAYERS.add(TYPE='FEATURE',Filename=filename,N=FEATURE.n,wid=self.cons)
+        self.LAYERS.print()
+
       if CONF[ii]['TYPE'] == 'PATCH':
 
         # Initialize classes:
@@ -4282,10 +4341,6 @@ class CosmoDrawing():
 
         self.LAYERS.add(TYPE='PATCH',Filename=None,N=1,wid=self.cons)
         self.LAYERS.print()
-        #self.nfeatures += 1
-        #self.FEATNAMES.append('')
-        #self.FEATTYPES.append('PATCH')
-        #self.FEATORDER.append(self.npatch-1)
 
     self.make_plot()
 
@@ -6838,13 +6893,6 @@ class CosmoDrawing():
       self.LAYERS.erase('MARKER',ii,wid=self.cons)
       self.LAYERS.print()
 
-      #for i in range(self.nfeatures):
-      #  if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
-      #    del self.FEATNAMES[i]
-      #    del self.FEATTYPES[i]
-      #    del self.FEATORDER[i]
-      #self.nfeatures -= 1
-
       toconsola('Erasing marker '+str(ii),wid=self.cons)
       del self.MARKER[ii]
       self.nmarker -= 1
@@ -6918,10 +6966,6 @@ class CosmoDrawing():
 
       self.LAYERS.add(TYPE='MARKER',Filename=MARKER.FILENAME.get(),N=len(MARKER.lon),wid=self.cons)
       self.LAYERS.print()
-      #self.nfeatures += 1
-      #self.FEATNAMES.append(MARKER.FILENAME.get())
-      #self.FEATTYPES.append('MARKER')
-      #self.FEATORDER.append(self.nmarker-1)
 
       ii = self.MARKER_INDX.get()
       _refill(ii)
@@ -7044,12 +7088,6 @@ class CosmoDrawing():
 
       self.LAYERS.erase('SHAPE',ii,wid=self.cons)
       self.LAYERS.print()
-      #for i in range(self.nfeatures):
-      #  if self.FEATTYPES[i] == 'MARKER' and self.FEATORDER[i] == ii:
-      #    del self.FEATNAMES[i]
-      #    del self.FEATTYPES[i]
-      #    del self.FEATORDER[i]
-      #self.nfeatures -= 1
 
       toconsola('Erasing marker '+str(ii),wid=self.cons)
       del self.SHAPE[ii]
@@ -7123,10 +7161,6 @@ class CosmoDrawing():
 
       self.LAYERS.add(TYPE='SHAPE',Filename=SHAPE.FILENAME.get(),N=SHAPE.n,wid=self.cons)
       self.LAYERS.print()
-      #self.nfeatures += 1
-      #self.FEATNAMES.append(SHAPE.FILENAME.get())
-      #self.FEATTYPES.append('SHAPE')
-      #self.FEATORDER.append(self.nshape-1)
 
       ii = self.SHAPE_INDX.get()
       _refill(ii)
@@ -9154,11 +9188,17 @@ class CosmoDrawing():
       for ii in range(self.nellipse):
         ellipse.drawing(self.ax, proj['proj'], self.ELLIPSE[ii])
 
-    #Add Patches:
+    # Draw Patches:
     #
     if self.npatch > 0:
       for ii in range(self.npatch):
         patch.drawing(self.ax, proj['proj'], self.PATCH[ii])
+
+    # Draw Features:
+    #
+    if self.FEATURE.n > 0:
+      for ii in range(self.FEATURE.n):
+        self.FEATURE.DATA[ii].drawing(self.ax, proj['proj'])
 
     #EG Coastlines
     #toconsola("EG: COASTLINES"+str(self.PLOT.COASTLINE_SHOW.get()),wid=self.cons)
@@ -9302,6 +9342,12 @@ class CosmoDrawing():
         gl.xlines, gl.ylines = False, False
         
       # xy labels visibility
+      # Works with 0.17
+      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
+      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
+      gl.ylabels_left = self.PLOT.GRID_WEST.get()
+      gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      # May work with 0.20
       gl.top_labels = self.PLOT.GRID_NORTH.get()
       gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
       gl.left_labels = self.PLOT.GRID_WEST.get()
@@ -10416,10 +10462,6 @@ class CosmoDrawing():
       self.LAYERS.add(TYPE='MARKER',Filename=None,N=len(MARKER.lon),wid=self.cons)
       self.LAYERS.print()
 
-      #self.nfeatures += 1
-      #self.FEATNAMES.append(MARKER.FILENAME.get())
-      #self.FEATTYPES.append('MARKER')
-      #self.FEATORDER.append(self.nmarker-1)
 
       ii = self.MARKER_INDX.get()
       self.make_plot()
@@ -10655,10 +10697,6 @@ class CosmoDrawing():
       self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=ELLIPSE.n,wid=self.cons)
       self.LAYERS.print()
 
-      #self.nfeatures += 1
-      #self.FEATNAMES.append(filename)
-      #self.FEATTYPES.append('ELLIPSE')
-      #self.FEATORDER.append(self.nellipse-1)
 
       ii = self.ELLIPSE_INDX.get()
       _refill(ii)
@@ -10805,10 +10843,6 @@ class CosmoDrawing():
       self.LAYERS.add(TYPE='ELLIPSE',Filename=filename,N=len(ELLIPSE.xo),wid=self.cons)
       self.LAYERS.print()
 
-      #self.nfeatures += 1
-      #self.FEATNAMES.append(filename)
-      #self.FEATTYPES.append('ELLIPSE')
-      #self.FEATORDER.append(self.nellipse-1)
 
       _close()
       self.make_plot()
@@ -11310,10 +11344,6 @@ class CosmoDrawing():
 
       self.LAYERS.add(TYPE='PATCH',Filename=None,N=1,wid=self.cons)
       self.LAYERS.print()
-      #self.nfeatures += 1
-      #self.FEATNAMES.append('')
-      #self.FEATTYPES.append('PATCH')
-      #self.FEATORDER.append(self.npatch-1)
 
       _close()
       self.make_plot()
@@ -12967,3 +12997,196 @@ class CosmoDrawing():
     close.bind("<Return>",lambda e:_close())
     F0.grid()
 
+  # ====================
+  def get_feature(self):
+  # ====================
+    ''' Widget to read Features '''
+
+    self.FSOURCE = tk.StringVar()
+    FEATURE = feature.parameters()
+    self.FSOURCE.set(self.FEATURE.OPTIONS[0])
+
+    def _cancel():
+    # ===========
+      self.Window_feature.destroy()
+      self.Window_feature = None
+
+    def _close():
+    # ===========
+      self.Window_feature.destroy()
+      self.Window_feature = None
+      self.make_plot()
+
+
+    def _done():
+    # ===========
+      _close()
+
+
+    def _clear():
+    # ===========
+      if self.FEATURE.n == 0:
+        return
+
+      ii = self.FEATURE.INDX.get()
+      self.LAYERS.erase('FEATURE',ii,wid=self.cons)
+      self.LAYERS.print()
+
+      if self.LAYERS.n == 0:
+        self.TIME = []
+        self.DATE = []
+        self.L.set(0)
+        self.L_LIST = []
+        self.NL = 0
+        self.bnext.configure(state='disabled')
+        self.bprev.configure(state='disabled')
+        self.PLOT.TLABEL.set('')
+        self.lbox['values'] = self.L_LIST
+        self.lbox.configure(state='disabled')
+        self.first = True
+
+      toconsola('Erasing record '+str(ii),wid=self.cons)
+      del self.FEATURE.DATA[ii]
+      self.FEATURE.n -= 1
+
+      ii = self.FEATURE.n-1 if ii >= self.FEATURE.n else ii
+      toconsola('New feature = '+str(ii),wid=self.cons)
+      self.FEATURE.INDX.set(ii)
+      _refill(ii)
+
+    def _reget():
+    # ===========
+      self.FEATURE.INDEX.set(_wsel.get())
+      ii = self.FLOAT_INDX.get()
+      _refill(ii)
+
+    def _refill(ii):
+    # ============
+      if ii >= 0:
+        self.FEATURE.LIST = list(range(self.FEATURE.n))
+        _wsel['values'] = self.FEATURE.LIST
+        _went['textvariable'] = self.FEATURE.DATA[ii].FILENAME
+        _wstat['text'] = 'Number feature = '+str(self.FEATURE.DATA[ii].n)
+        _wsel.configure(state='normal')
+        _show['variable'] = self.FEATURE.DATA[ii].show
+        _aent.configure(state='normal')
+        _aent['textvariable'] = self.FEATURE.DATA[ii].ALIAS
+      else:
+        self.FEATURE.DATA = []
+        self.FEATURE.LIST = ['0']
+        self.FEATURE.INDX.set(0)
+        #_wsel['values'] = self.FEATURE_LIST
+        _wsel['values'] = None
+        _went['textvariable'] = None
+        _wstat['text'] = ''
+        _wsel.configure(state='disabled')
+        _aent.configure(state='disabled')
+        _show.configure(state='disabled')
+        self.make_plot()
+
+    def _add():
+    # ===========
+      ISOURCE = self.FEATURE.OPTIONS.index(self.FSOURCE.get())
+
+      types=[('JSON','*.json'),('GEOJSON','*.geojson'),('ALL','*')]
+      nn = filedialog.askopenfilename(parent=self.Window_feature, \
+                                    filetypes=types)
+      if len(nn) == 0:
+        return
+
+      filename = '%s' % nn
+      toconsola('Reading FEATURE file '+filename,wid=self.cons)
+
+      FEATURE.Read(filename)
+
+      if FEATURE.n == 0:
+        return
+
+      self.FEATURE.n += 1
+      self.FEATURE.DATA.append(FEATURE)
+      self.FEATURE.INDX.set(self.FEATURE.n-1)
+      self.FEATURE.LIST = list(range(self.FEATURE.n))
+
+      self.LAYERS.add(TYPE='FEATURE',Filename=filename,N=FEATURE.n,wid=self.cons)
+      self.LAYERS.print()
+
+
+      ii = self.FEATURE.INDX.get()
+      _refill(ii)
+
+
+    # Main Window ...
+    # ================
+
+    if self.Window_feature is None:
+      self.Window_feature = tk.Toplevel(self.master)
+      self.Window_feature.title('JSON feature')
+      self.Window_feature.protocol('WM_DELETE_WINDOW',_close)
+    else:
+      self.Window_feature.lift()
+
+    if self.FEATURE.n > 0:
+      ii = self.FEATURE.INDX.get()
+    else:
+      ii = -1
+
+    F0 = ttk.Frame(self.Window_feature,padding=5)
+
+    #Add
+    ttk.Combobox(F0,textvariable=self.FSOURCE, \
+                 values=self.FEATURE.OPTIONS).grid(row=0,column=0,padx=3)
+    ttk.Button(F0,text='Import',command=_add).grid(row=1,column=0,padx=3)
+
+    # Filename:
+    ttk.Label(F0,text='Feature file').grid(row=0,column=1,padx=3)
+
+    _wsel = ttk.Combobox(F0,textvariable=self.FEATURE.INDX, \
+                                  values=self.FEATURE.LIST,width=5)
+    _wsel.grid(row=0,column=2)
+    _wsel.bind('<<ComboboxSelected>>',lambda e: _reget())
+    _went = ttk.Entry(F0,justify='left',width=50,state='readonly')
+    _went.grid(row=0,column=3,columnspan=5,padx=3,sticky='w')
+
+    if ii == -1:
+      _wstat = ttk.Label(F0,text='',width=50,justify='left')
+      _wsel.configure(state='disabled')
+    else:
+      _wstat = ttk.Label(F0,text=' Features in the file= '+str(self.FEATURE.DATA[ii].n),width=50,justify='left')
+      _went['textvariable'] = self.FEATURE.DATA[ii].FILENAME
+
+    _wstat.grid(row=1,column=3,columnspan=5,padx=3,sticky='w')
+
+    #Alias
+    ttk.Label(F0,text='Alias').grid(row=2,column=1,padx=3,pady=3)
+    _aent = ttk.Entry(F0,width=15,justify='left')
+    _aent.grid(row=2,column=2,columnspan=2,sticky='w')
+
+
+    F0.grid(row=0,column=0)
+
+    F1 = ttk.Frame(self.Window_feature,padding=5)
+    if ii == -1:
+      _show = ttk.Checkbutton(F1,text='Show')
+      _aent.configure(state='disabled')
+    else:
+      _show = ttk.Checkbutton(F1,text='Show',command=self.make_plot)
+      _show['variable']=self.FEATURE.DATA[ii].show
+      _aent['textvariable'] = self.FEATURE.DATA[ii].ALIAS
+
+    _show.grid(row=1,column=5,padx=3)
+    ttk.Button(F1,text='Cancel',command=_cancel).grid(row=1,column=6,padx=3)
+    ttk.Button(F1,text='Clear',command=_clear).grid(row=1,column=7,padx=3)
+    ttk.Button(F1,text='Plot',command=_close).grid(row=1,column=8,padx=3)
+    F1.grid(row=1,column=0)
+
+  def feature_config(self):
+  # =======================
+
+    if self.FEATURE.n == 0:
+      messagebox.showinfo(message='No feature selected yet')
+      return
+
+    if self.Window_featureconfig is None:
+      feature.Configuration_Menu(self,self.FEATURE)
+    else:
+      self.Window_featureconfig.lift()
