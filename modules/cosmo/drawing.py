@@ -140,6 +140,10 @@ from cosmo import COSMO_CONF_PATH
 from cosmo import COSMO_CONF_DATA
 from cosmo import VERSION
 
+from cosmo import TKINTER_VERSION
+from cosmo import MATPLOTLIB_VERSION
+from cosmo import CARTOPY_VERSION
+
 global COSMO_CONF,COSMO_CONF_PATH,COSMO_CONF_NAME,COSMO_CONF_DATA
 
 BGC  = 'pale green'    # Background color
@@ -1851,9 +1855,9 @@ class CosmoDrawing():
     global COSMO_CONF,COSMO_CONF_DATA
 
     versions  = 'Built with:\n'
-    versions += 'Tkinter '+ str(tk.TkVersion) + '\n'
-    versions += 'Matplotlib '+ str(sys.modules[plt.__package__].__version__) + '\n'
-    versions += 'Cartopy '+ str(cartopy.__version__) + '\n'
+    versions += 'Tkinter '+ TKINTER_VERSION + '\n'
+    versions += 'Matplotlib '+ MATPLOTLIB_VERSION + '\n'
+    versions += 'Cartopy '+ CARTOPY_VERSION + '\n'
 
     mess  = "CONF_PATH: "+COSMO_CONF_PATH
     mess += '\nCONF_DATA: '+COSMO_CONF_DATA
@@ -3741,8 +3745,6 @@ class CosmoDrawing():
       conf = {}
       conf['FILENAME'] = self.LAYERS.FILENAME[i]
       conf['TYPE'] = TYPE
-      #conf['INSEQUENCE'] = self.LAYERS.INSEQUENCE[i].get()
-      #conf['SEQUENCER'] = self.LAYERS.SEQUENCER[i].get()
       conf['NREC'] = self.LAYERS.NREC[i]
 
       if TYPE == 'FLD':
@@ -3761,6 +3763,8 @@ class CosmoDrawing():
         conf['ELLIPSE'] = self.ELLIPSE[ii].conf_get()
       elif TYPE == 'PATCH':
         conf['PATCH'] = self.PATCH[ii].conf_get()
+      elif TYPE == 'FEATURE':
+        conf['FEATURE'] = self.FEATURE.DATA[ii].conf_get()
       else:
         toconsola('Unknown layer type',wid=self.cons)
         return
@@ -4306,7 +4310,7 @@ class CosmoDrawing():
 
         # Initialize classes:
         #
-        FEATURE = feature.properties()
+        FEATURE = feature.parameters()
 
         # Update from CONF attributes:
         #
@@ -9342,16 +9346,18 @@ class CosmoDrawing():
         gl.xlines, gl.ylines = False, False
         
       # xy labels visibility
+      if CARTOPY_VERSION < '0.18':
       # Works with 0.17
-      gl.xlabels_top = self.PLOT.GRID_NORTH.get()
-      gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
-      gl.ylabels_left = self.PLOT.GRID_WEST.get()
-      gl.ylabels_right = self.PLOT.GRID_EAST.get()
-      # May work with 0.20
-      gl.top_labels = self.PLOT.GRID_NORTH.get()
-      gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
-      gl.left_labels = self.PLOT.GRID_WEST.get()
-      gl.right_labels = self.PLOT.GRID_EAST.get()
+        gl.xlabels_top = self.PLOT.GRID_NORTH.get()
+        gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
+        gl.ylabels_left = self.PLOT.GRID_WEST.get()
+        gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      else:
+      # Works with > 0.18
+        gl.top_labels = self.PLOT.GRID_NORTH.get()
+        gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
+        gl.left_labels = self.PLOT.GRID_WEST.get()
+        gl.right_labels = self.PLOT.GRID_EAST.get()
       
       gl.xlocator = mticker.FixedLocator(vmeridians)
       gl.ylocator = mticker.FixedLocator(vparallels)
@@ -9778,10 +9784,18 @@ class CosmoDrawing():
         gl.xlines, gl.ylines = False, False
         
       # xy labels visibility
-      gl.top_labels = self.PLOT.GRID_NORTH.get()
-      gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
-      gl.left_labels = self.PLOT.GRID_WEST.get()
-      gl.right_labels = self.PLOT.GRID_EAST.get()
+      if CARTOPY_VERSION < '0.18':
+      # Works with 0.17
+        gl.xlabels_top = self.PLOT.GRID_NORTH.get()
+        gl.xlabels_bottom = self.PLOT.GRID_SOUTH.get()
+        gl.ylabels_left = self.PLOT.GRID_WEST.get()
+        gl.ylabels_right = self.PLOT.GRID_EAST.get()
+      else:
+      # Works with > 0.18
+        gl.top_labels = self.PLOT.GRID_NORTH.get()
+        gl.bottom_labels = self.PLOT.GRID_SOUTH.get()
+        gl.left_labels = self.PLOT.GRID_WEST.get()
+        gl.right_labels = self.PLOT.GRID_EAST.get()
       
       gl.xlocator = mticker.FixedLocator(vmeridians)
       gl.ylocator = mticker.FixedLocator(vparallels)

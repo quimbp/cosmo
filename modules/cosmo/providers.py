@@ -211,7 +211,7 @@ class WinOpendap:
     if self.PARAMS.NAME     == 'SOCIB':
       if dini < datetime.date(2017,12,1):
         theurl = PATH+str(self.PARAMS.YEAR)+'/'+'%02d'%self.PARAMS.MONTH+ \
-                '/roms_wmop_' + str(self.PARAMS.YEAR)+               \
+                '/roms_wmop_surface_' + str(self.PARAMS.YEAR)+               \
                 '%02d'%self.PARAMS.MONTH+ '%02d'%self.PARAMS.DAY+'.nc'
       else:
         theurl = PATH+str(self.PARAMS.YEAR)+'/'+'%02d'%self.PARAMS.MONTH+ \

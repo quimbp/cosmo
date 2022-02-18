@@ -2,6 +2,10 @@ import os
 import json
 import io
 import cartopy
+import tkinter as tk
+import sys
+import matplotlib.pyplot as plt
+
 
 try:
   to_unicode = unicode
@@ -9,6 +13,11 @@ except:
   to_unicode = str
 
 VERSION = '3.0'
+
+# Package's version
+TKINTER_VERSION = str(tk.TkVersion)
+MATPLOTLIB_VERSION = str(sys.modules[plt.__package__].__version__)
+CARTOPY_VERSION = str(cartopy.__version__)
 
 
 #COSMO_ROOT = 
