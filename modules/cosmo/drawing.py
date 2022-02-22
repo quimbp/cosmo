@@ -3870,13 +3870,6 @@ class CosmoDrawing():
           print('going to calculate the variance ...')
           CDF.FLD.variance(nt,self.K.get(),wid=self.cons)
 
-        #self.read_CDF(CDF,update_lims=False)
-
-        #print(CDF.PLOT.CONTOUR_MIN.get())
-        #print(CDF.PLOT.CONTOUR_MAX.get())
-        #print(CDF.FLD.xx)
-        #print(CDF.FLD.yy)
-
         self.ncdf += 1
         self.CDF.append(CDF)
         self.CDF_INDX.set(self.ncdf-1)
@@ -3885,17 +3878,7 @@ class CosmoDrawing():
         nt = CONF[ii]['NREC']
         self.LAYERS.add(TYPE='FLD',Filename=filename,N=nt,wid=self.cons)
         nm = self.LAYERS.n - 1
-        #self.LAYERS.INSEQUENCE[nm].set(CONF[ii]['INSEQUENCE'])
-        #self.LAYERS.SEQUENCER[nm].set(CONF[ii]['SEQUENCER'])
         self.LAYERS.print()
-
-        #self.nfiles += 1
-        #self.FILENAMES.append(filename)
-        #self.FILETYPES.append('FLD')
-        #self.FILEORDER.append(self.ncdf-1)
-        #self.SEQUENCES.append(tk.BooleanVar(value=CONF[ii]['SEQUENCES']))
-        #self.SEQLEADER.append(tk.BooleanVar(value=CONF[ii]['SEQLEADER']))
-        #self.SEQNTIMES.append(CONF[ii]['SEQNTIMES'])
 
         if self.first:
           #self.TFILE = '%d' % self.nfiles
@@ -3922,6 +3905,7 @@ class CosmoDrawing():
 
       if CONF[ii]['TYPE'] == 'VEC':
 
+        print('Initialize VEC classes ...')
         # Initialize classes:
         #
         VEC = VECTOR()
@@ -3934,6 +3918,7 @@ class CosmoDrawing():
         #
         vv = CONF[ii]['VEC']
         VEC.grid_type.set(vv['GRID_TYPE'])
+        VEC.two_files = vv['TWO_FILES']
         if VEC.two_files == 0:
           vfilename = filename
         else:
@@ -3944,7 +3929,7 @@ class CosmoDrawing():
         VEC.VFILENAME.set(vfilename)
         VEC.V.nc = Dataset(vfilename)
         VEC.V.icdf = tools.geocdf(vfilename, wid=self.cons)
-
+        
         # Update from CONF attributes:
         #
         VEC.conf_set(CONF[ii]['VEC'])
@@ -7897,27 +7882,26 @@ class CosmoDrawing():
         #EG New code
         nn = filedialog.askopenfilenames(parent=self.Window_float,\
 										 filetypes=self.Lagrangian_types)
-        try:
-          if len(nn.name) == 0: return
-          if empty(nn.name): return
-        except:
-          toconsola("======= Trajectories ======",tag="o",wid=self.cons)
-          for filename in nn:
-            _load_trajectory(filename)
 
-          # Remember the selected extension and use as default for the next call
-          # Consider the last filename and retrieve its extension:
-          selected_basename,selected_extension = os.path.splitext(filename)
-          indx = -1
-          iii  = -1
-          all  = -1
-          for type in self.Lagrangian_types:
-             indx = indx + 1
-             if selected_extension in type[1]: iii = indx
-             if '*' in type[1]: all = indx
-          # If no extension has been found, we assume that it was the ALL:
-          if iii == -1: iii = all
-          self.Lagrangian_types.insert(0,self.Lagrangian_types.pop(iii))
+        if len(nn) == 0: return
+
+        toconsola("======= Trajectories ======",tag="o",wid=self.cons)
+        for filename in nn:
+          _load_trajectory(filename)
+
+        # Remember the selected extension and use as default for the next call
+        # Consider the last filename and retrieve its extension:
+        selected_basename,selected_extension = os.path.splitext(filename)
+        indx = -1
+        iii  = -1
+        all  = -1
+        for filetype in self.Lagrangian_types:
+           indx = indx + 1
+           if selected_extension in filetype[1]: iii = indx
+           if '*' in filetype[1]: all = indx
+        # If no extension has been found, we assume that it was the ALL:
+        if iii == -1: iii = all
+        self.Lagrangian_types.insert(0,self.Lagrangian_types.pop(iii))
 
         toconsola("=====================",tag="o", wid=self.cons)
         
@@ -8133,20 +8117,6 @@ class CosmoDrawing():
     #EGF0.grid(row=0,column=0)
     ttk.Separator(self.Window_float, orient='horizontal').grid(row=3,column=0,sticky="nesw") 
     F2 = ttk.Frame(self.Window_float,padding=5)
-    if ii == -1:
-      print('-1',ii)
-      pass
-      #_show = ttk.Checkbutton(F2,text='Show')
-      #_aent.configure(state='disabled')
-      #_wcrp.configure(state='disabled')
-    else:
-      print('nfloats',ii)
-      pass
-      #_show = ttk.Checkbutton(F2,text='Show',command=self.make_plot)
-      #_show['variable']=self.FLOAT[ii].show
-      #_aent['textvariable'] = self.FLOAT[ii].ALIAS
-      #_wcrp['variable'] = self.FLOAT[ii].CROP
-
 
     #_show.grid(row=1,column=5,padx=3)
     ttk.Button(F2,text='Cancel',command=_cancel).grid(row=0,column=0,padx=3)

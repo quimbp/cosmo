@@ -280,7 +280,10 @@ class parameters():
       # ------------------------
         Time_blm = ncid.variables['time'][:]
         Time_units = ncid.variables['time'].units
-        Time_calendar = ncid.variables['time'].calendar
+        try:
+          Time_calendar = ncid.variables['time'].calendar
+        except:
+          Time_calendar = 'gregorian'
         self.DATE = []
         for i in range(self.nrecords):
           tmp = num2date(Time_blm[i],       \
