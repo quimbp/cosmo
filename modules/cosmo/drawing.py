@@ -5851,6 +5851,7 @@ class CosmoDrawing():
               self.CDF[i].read(update_lims=False,wid=self.cons)
 
           self.make_Mplot()
+
           writer.grab_frame()
       messagebox.showinfo(parent=self.Window_anim,message='Movie has been saved')
       self.L.set(L_Backup)
@@ -5955,6 +5956,7 @@ class CosmoDrawing():
     self.Mcanvas.get_tk_widget().grid(row=0,column=0,columnspan=11,sticky='wn')
     self.Mdrawmap = True
     F1.grid()
+
     self.make_Mplot(proj=proj['proj'])
 
   # =========================
@@ -8940,9 +8942,9 @@ class CosmoDrawing():
     self.PLOT.PARALLEL_FIN.set(np.trunc(self.PLOT.NORTH.get()/tmp2 + 2)*tmp2)
     tmp2 = None
 
-  # ==================
+  # =================================
   def make_plot(self):
-  # ==================
+  # =================================
     #toconsola("EG make_plot:\n    PLOT.OUTPUT_FIGURE: "+str(self.PLOT.OUTPUT_FIGURE.get()),
     #          wid=self.cons)
       
@@ -9016,9 +9018,9 @@ class CosmoDrawing():
     '''
     return
 
-  # ====================
+  # =================================
   def draw_figure(self):
-  # ====================
+  # ==================================
     global CONSOLA
     
     toconsola("EG draw_figure:",wid=self.cons)
@@ -9480,6 +9482,7 @@ class CosmoDrawing():
     
     self.canvas.draw()
     toconsola("End draw_figure:",wid=self.cons)
+
     return
 
   # ============================
@@ -9615,6 +9618,12 @@ class CosmoDrawing():
     if self.npatch > 0:
       for ii in range(self.npatch):
         patch.drawing(self.Max,proj,self.PATCH[ii])
+
+    # Draw Features:
+    #
+    if self.FEATURE.n > 0:
+      for ii in range(self.FEATURE.n):
+        self.FEATURE.DATA[ii].drawing(self.Max,proj)
 
     #EG Coastlines
     #toconsola("EG: COASTLINES",wid=self.cons)

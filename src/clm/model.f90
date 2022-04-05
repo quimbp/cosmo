@@ -284,6 +284,11 @@ do step=1,model_Nstep
     write(*,*)
     write(*,*) 'step, rk_t, date :: ', step, rk_t, model_date%iso()
   endif
+
+  ! ... Initialize float velocities to 0
+  ! ...
+  FLT%u(:) = 0.0D0
+  FLT%v(:) = 0.0D0
   
   if (step.eq.1) then
 
