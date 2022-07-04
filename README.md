@@ -137,4 +137,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-The COSMO project was funded by the Spanish Government Minstry of Economy and Competitivity (CTM2016-79474-R, MINECO/FEDER, UE). The MEDOSMOSIS project (6MED20_4.1._SP_005) was funded by the INTERREG-MED program. This work is the result of the collaboration of ICM-CSIC Research Team: Dr. Jordi Isern, Dr. Jordi Sol√, Dr. Justino Mart√nez  and Dr. Jos√© Antonio Jim√©nez. 
+The COSMO project was funded by the Spanish Government Minstry of Economy and Competitivity (CTM2016-79474-R, MINECO/FEDER, UE). The MEDOSMOSIS project (6MED20_4.1._SP_005) was funded by the INTERREG-MED program. This work is the result of the collaboration of ICM-CSIC Research Team: Dr. Jordi Isern, Dr. Jordi Sole, Dr. Justino Martinez and Dr. Jose Antonio Jimenez. 
