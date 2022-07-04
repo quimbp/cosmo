@@ -70,7 +70,7 @@ This command should extract the isobaths and place them in the folder **data/iso
 
 ## Compilling Fortran code
 
-Edit (if necessary) the file **make.inc** and modify the fortran compiler, the fortran compiler options or the paths to the NetCDF modules and libraries. Be aware that **make.inc** uses the utility **nc-config** to obtain the location of the NetCDF files. If using the **gfortran** compiler and the standard version of the NetCDF libraries, no modifications of **make.inc** should be necessary.
+Edit the file **make.inc** and modify the linux sustem (Ubuntu or Centos), the fortran compiler, the fortran compiler options or the paths to the NetCDF modules and libraries. Be aware that, for ubuntu systems, **make.inc** uses the utility **nc-config** to obtain the location of the NetCDF files. However, this utility fails to provide the correct paths in Centos. 
 
 Then type,
 
