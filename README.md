@@ -1,10 +1,10 @@
 # COSMO
 
-Fortran libraries and tools used in the COSMO project
-(CTM2016-79474-R, MINECO/FEDER, UE)
+Fortran libraries and tools initially created during the COSMO project
+(CTM2016-79474-R, MINECO/FEDER, UE) and further developed during the MEDOSMOSIS (Code: 6MED20_4.1._SP_005) funded by the INTERREG-MED program.
 
-The code has been developed under Centos, using the GNU Fortran (GCC)
-4.8.5 compiler and the Fortran 90 netcdf library version 4.3.3.1 and python version 3.6.3. It has been also tested in Ubuntu 16.04.3 LTS (xenial).
+The code has been developed under Ubuntu using the GNU Fortran 9.4.0
+compiler and the Fortran 90 netcdf library version 4.3.3 and 4.7.3 and python versions 3.6.3 and 3.8.10. It has been also tested in Centos using python 3.8.12 under anaconda (conda version4.11.10).
 
 Purpose: Build a fortran utilities library and a Lagrangian trajectory integrator (COSMO Lagrangian Model).
 Requirements: **Fortran compiler** and the **NetCDF F90 library** version 4.3.X.X
@@ -35,11 +35,15 @@ To have access to all the capabilities of the codes, both a fortran compiler and
 * Beautiful Soup
 * wget
 * psycopg2
-* cartopy
 * future
 * requests
 * tkcolorpicker
+* py-postgresql
 * shapely
+* owslib
+* tkcalendar
+* motuclient
+* cartopy
 
 
 Some of these packages may already be installed in your operational system. Other might need to be installed. Be aware that the actual names of these packages and the commands required for their installation will vary from one system to another. **Windows 10** users are strongly encouraged to install a _Windows Subsystem for Linux_ (WSL) that will allow installing a **Ubuntu 20.04 LTS** environment running directly under windows.
