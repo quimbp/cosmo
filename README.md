@@ -1,7 +1,7 @@
 # COSMO
 
 Fortran libraries and tools initially created during the COSMO project
-(CTM2016-79474-R, MINECO/FEDER, UE) and further developed during the MEDOSMOSIS (Code: 6MED20_4.1._SP_005) funded by the INTERREG-MED program.
+(CTM2016-79474-R, MINECO/FEDER, UE) and further developed during the MEDOSMOSIS (6MED20_4.1._SP_005) project.
 
 The code has been developed under Ubuntu using the GNU Fortran 9.4.0
 compiler and the Fortran 90 netcdf library version 4.3.3 and 4.7.3 and python versions 3.6.3 and 3.8.10. It has been also tested in Centos using python 3.8.12 under anaconda (conda version4.11.10).
@@ -137,4 +137,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-The COSMO project is funded by the Spanish Government Minstry of Economy and Competitivity (CTM2016-79474-R, MINECO/FEDER, UE). This work is the result of the collaboration of ICM-CSIC Research Team: Dr. Emilio García, Dr. Jordi Isern, Dr. Jordi Solé and Dr. José Antonio Jiménez. 
+The COSMO project was funded by the Spanish Government Minstry of Economy and Competitivity (CTM2016-79474-R, MINECO/FEDER, UE). The MEDOSMOSIS project (6MED20_4.1._SP_005) was funded by the INTERREG-MED program. This work is the result of the collaboration of ICM-CSIC Research Team: Dr. Jordi Isern, Dr. Jordi Sol�, Dr. Justino Mart�nez  and Dr. José Antonio Jiménez. 
