@@ -396,71 +396,112 @@ class parameters():
     # --------------------------------------
       '''Read a trajectory from a txt file'''
 
-      with open(filename,'r') as f:
-        first_line = f.readline()
+      def check_alm(filename):
+        ''' Checks if it is an ALM ASCII file '''
+        with open(filename,'r') as F:
+          first_line = F.readline()
+        alm = "ALM" in first_line
+        alo = "ALOGES" in first_line
+        return alm or alo
+
+      def read_txt_alm(filename):
+        ''' Reads an ALM ASCII file '''
+        lon   = []
+        lat   = []
+        date  = []
+        with open(filename,'r') as F:
+          for line in F.readlines():
+            if line[0:1] == '#':
+              print(line[0:-1])
+            else:
+              aa = line.split()
+              lon.append(float(aa[0]))
+              lat.append(float(aa[1]))
+              date.append(datetime.datetime.strptime(aa[3],'%Y-%m-%dT%H:%M:%S'))
+        return lon, lat, date
 
       self.MESSAGE +='\nReading txt file '+filename
       if self.cons: toconsola(self.MESSAGE, wid=self.cons)
       else:  print(self.MESSAGE)
+
+      if check_alm(filename):
+
+        # Read the ALM file !!!!
+        self.lon, self.lat, self.DATE = read_txt_alm(filename)
+
+      else: 
+
+        # Skip header lines
+        #
+        with open(filename,'r') as f:
+          for line in f.readlines():
+            if line[0:1] == "#":
+              print(line[0:-1])
+            else:
+              first_line = line
+              exit
+ 
+#        first_line = f.readline()
+
       
-      win = tk.Toplevel()
-      win.title('Float column')
-      Axes = Select_Columns(win,first_line,' ')
-      win.wait_window()
+        win = tk.Toplevel()
+        win.title('Float column')
+        Axes = Select_Columns(win,first_line,' ')
+        win.wait_window()
 
-      self.nfloats  = None
-      self.nrecords = None
-      self.lon  = []
-      self.lat  = []
-      self.DATE = []
-      if Axes.lon is None:
-        return
-      if Axes.lat is None:
-        return
+        self.nfloats  = None
+        self.nrecords = None
+        self.lon  = []
+        self.lat  = []
+        self.DATE = []
+        if Axes.lon is None:
+          return
+        if Axes.lat is None:
+          return
 
-      with open(filename) as datafile:
-        for line in datafile.readlines():
-          line = line.strip()
-          line = ' '.join(line.split())
-          columns = line.split(Axes.SEPARATOR.get())
+        with open(filename) as datafile:
+          for line in datafile.readlines():
+            line = line.strip()
+            line = ' '.join(line.split())
+            columns = line.split(Axes.SEPARATOR.get())
 
-          self.lon.append(float(columns[Axes.lon]))
-          self.lat.append(float(columns[Axes.lat]))
-          if Axes.type == 0:
-            year   = int(columns[Axes.year])
-            month  = int(columns[Axes.month])
-            day    = int(columns[Axes.day])
-            if Axes.hour is None:
-              hour = 0
+            self.lon.append(float(columns[Axes.lon]))
+            self.lat.append(float(columns[Axes.lat]))
+            if Axes.type == 0:
+              year   = int(columns[Axes.year])
+              month  = int(columns[Axes.month])
+              day    = int(columns[Axes.day])
+              if Axes.hour is None:
+                hour = 0
+              else:
+                hour   = int(columns[Axes.hour])
+              if Axes.minute is None:
+                minute = 0
+              else:
+                minute = int(columns[Axes.minute])
+              if Axes.second is None:
+                second = 0
+              else:
+                second = int(columns[Axes.second])
+              self.DATE.append(datetime.datetime(year,month,day, \
+                                                 hour,minute,second))
+            elif Axes.type == 1:
+              self.DATE.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
+
+            elif Axes.type == 2:
+              self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+ \
+                               'T'+columns[Axes.time],Axes.fmt))
+
+            elif Axes.type == 3:
+              jd = float(columns[Axes.jday])
+              a = caldat(jd)
+              self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
+
             else:
-              hour   = int(columns[Axes.hour])
-            if Axes.minute is None:
-              minute = 0
-            else:
-              minute = int(columns[Axes.minute])
-            if Axes.second is None:
-              second = 0
-            else:
-              second = int(columns[Axes.second])
-            self.DATE.append(datetime.datetime(year,month,day, \
-                                               hour,minute,second))
-          elif Axes.type == 1:
-            self.DATE.append(datetime.datetime.strptime(columns[Axes.date],Axes.fmt))
-
-          elif Axes.type == 2:
-            self.DATE.append(datetime.datetime.strptime(columns[Axes.date]+ \
-                             'T'+columns[Axes.time],Axes.fmt))
-
-          elif Axes.type == 3:
-            jd = float(columns[Axes.jday])
-            a = caldat(jd)
-            self.DATE.append(datetime.datetime(a[0],a[1],a[2],a[3],a[4],a[5]))
-
-          else:
-            self.MESSAGE +='unknown ASCII file format'
-            if self.cons: toconsola(self.MESSAGE, wid=self.cons)
-            else:  print(self.MESSAGE)
-            return
+              self.MESSAGE +='unknown ASCII file format'
+              if self.cons: toconsola(self.MESSAGE, wid=self.cons)
+              else:  print(self.MESSAGE)
+              return
         
       self.nfloats  = 1
       self.nrecords = len(self.lon)
